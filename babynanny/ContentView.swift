@@ -19,7 +19,7 @@ struct ContentView: View {
         ZStack(alignment: .leading) {
             NavigationStack {
                 TabView(selection: $selectedTab) {
-                    HomeView()
+                    HomeView(onShowAllLogs: { showAllLogs = true })
                         .tag(Tab.home)
                         .tabItem {
                             Label(L10n.Tab.home, systemImage: Tab.home.icon)

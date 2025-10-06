@@ -6,6 +6,7 @@
 "common.cancel" = "Abbrechen";
 "common.done" = "Fertig";
 "home.recentActivity" = "Letzte Aktivitäten";
+"home.recentActivity.showAll" = "Alle anzeigen";
 "home.header.title" = "Erfasse die heutigen Pflegeaktivitäten";
 "home.header.placeholder" = "Starte unten eine Aktion, um den Tag deines Babys zu verfolgen.";
 "home.noEntries" = "Noch keine Einträge";

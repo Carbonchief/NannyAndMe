@@ -11,9 +11,15 @@ struct HomeView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
     @State private var presentedCategory: BabyActionCategory?
+    private let onShowAllLogs: () -> Void
+
+    init(onShowAllLogs: @escaping () -> Void = {}) {
+        self.onShowAllLogs = onShowAllLogs
+    }
 
     var body: some View {
         let state = currentState
+        let recentHistory = state.latestHistoryEntriesPerCategory()
 
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -31,13 +37,25 @@ struct HomeView: View {
                     }
                 }
 
-                if !state.history.isEmpty {
+                if !recentHistory.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text(L10n.Home.recentActivity)
-                            .font(.headline)
+                        HStack {
+                            Text(L10n.Home.recentActivity)
+                                .font(.headline)
+
+                            Spacer()
+
+                            Button(action: onShowAllLogs) {
+                                Text(L10n.Home.recentActivityShowAll)
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                            }
+                            .buttonStyle(.plain)
+                            .tint(.accentColor)
+                        }
 
                         VStack(spacing: 12) {
-                            ForEach(state.history) { action in
+                            ForEach(recentHistory) { action in
                                 HistoryRow(action: action)
                             }
                         }

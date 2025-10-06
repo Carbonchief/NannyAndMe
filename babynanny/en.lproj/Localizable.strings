@@ -6,6 +6,7 @@
 "common.cancel" = "Cancel";
 "common.done" = "Done";
 "home.recentActivity" = "Recent Activity";
+"home.recentActivity.showAll" = "Show All";
 "home.header.title" = "Log today's care actions";
 "home.header.placeholder" = "Start an action below to begin tracking your baby's day.";
 "home.noEntries" = "No entries yet";
