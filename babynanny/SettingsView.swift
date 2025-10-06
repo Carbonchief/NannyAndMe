@@ -53,7 +53,7 @@ struct SettingsView: View {
                 PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
                     Label("Choose profile photo", systemImage: "photo.on.rectangle")
                 }
-                .onChange(of: selectedPhoto) { newValue in
+                .onChange(of: selectedPhoto) { _, newValue in
                     guard let newValue else { return }
 
                     Task {
