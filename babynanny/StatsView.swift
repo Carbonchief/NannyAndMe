@@ -113,8 +113,12 @@ struct StatsView: View {
                     }
                     .chartXAxis {
                         AxisMarks(values: metrics.map { $0.date }) { value in
-                            if let dateValue = value.as(Date.self) {
-                                AxisValueLabel(dateValue, format: .dateTime.weekday(.abbreviated))
+                            AxisGridLine()
+                            AxisTick()
+                            AxisValueLabel {
+                                if let dateValue = value.as(Date.self) {
+                                    Text(dateValue, format: .dateTime.weekday(.abbreviated))
+                                }
                             }
                         }
                     }
