@@ -108,7 +108,7 @@ struct SettingsView: View {
 
 #Preview {
     NavigationStack {
-        SettingsView()
-            .environmentObject(ProfileStore.preview)
+        SettingsView().environmentObject(ProfileStore.preview)
+
     }
 }
