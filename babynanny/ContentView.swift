@@ -92,4 +92,5 @@ private enum Tab: Hashable {
 
 #Preview {
     ContentView()
+        .environmentObject(ProfileStore.preview)
 }
