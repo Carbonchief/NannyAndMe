@@ -69,6 +69,7 @@
 "stats.chart.yAxis.diapers" = "Pañales";
 "stats.chart.yAxis.minutes" = "Minutos";
 "stats.chart.lastSevenDays" = "Últimos 7 días";
+"stats.chart.actionPicker.label" = "Actividad";
 "stats.chart.xAxis.day" = "Día";
 "stats.chart.activityTrends.title" = "Tendencias de actividad";
 "stats.chart.activityTrends.subtitle" = "Cuando empieces a registrar actividades verás aquí un resumen semanal.";

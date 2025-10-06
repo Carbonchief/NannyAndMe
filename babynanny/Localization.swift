@@ -160,6 +160,7 @@ enum L10n {
         static let diapersYAxis = String(localized: "stats.chart.yAxis.diapers", defaultValue: "Diapers")
         static let minutesYAxis = String(localized: "stats.chart.yAxis.minutes", defaultValue: "Minutes")
         static let lastSevenDays = String(localized: "stats.chart.lastSevenDays", defaultValue: "Last 7 Days")
+        static let actionPickerLabel = String(localized: "stats.chart.actionPicker.label", defaultValue: "Activity")
         static let activityTrendsTitle = String(localized: "stats.chart.activityTrends.title", defaultValue: "Activity Trends")
         static let activityTrendsSubtitle = String(localized: "stats.chart.activityTrends.subtitle", defaultValue: "Once you start logging activities you'll see a weekly breakdown here.")
         static let dayAxisLabel = String(localized: "stats.chart.xAxis.day", defaultValue: "Day")

@@ -69,6 +69,7 @@
 "stats.chart.yAxis.diapers" = "Diapers";
 "stats.chart.yAxis.minutes" = "Minutes";
 "stats.chart.lastSevenDays" = "Last 7 Days";
+"stats.chart.actionPicker.label" = "Activity";
 "stats.chart.xAxis.day" = "Day";
 "stats.chart.activityTrends.title" = "Activity Trends";
 "stats.chart.activityTrends.subtitle" = "Once you start logging activities you'll see a weekly breakdown here.";

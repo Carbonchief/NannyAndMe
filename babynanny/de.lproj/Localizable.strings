@@ -69,6 +69,7 @@
 "stats.chart.yAxis.diapers" = "Windeln";
 "stats.chart.yAxis.minutes" = "Minuten";
 "stats.chart.lastSevenDays" = "Letzte 7 Tage";
+"stats.chart.actionPicker.label" = "Aktivität";
 "stats.chart.xAxis.day" = "Tag";
 "stats.chart.activityTrends.title" = "Aktivitätstrends";
 "stats.chart.activityTrends.subtitle" = "Sobald du Aktivitäten protokollierst, erscheint hier eine Wochenübersicht.";

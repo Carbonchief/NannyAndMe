@@ -11,6 +11,7 @@ import Charts
 struct StatsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
+    @State private var selectedCategory: BabyActionCategory?
 
     var body: some View {
         let state = currentState
@@ -29,6 +30,9 @@ struct StatsView: View {
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle(L10n.Stats.title)
+        .onChange(of: profileStore.activeProfile.id) { _ in
+            selectedCategory = nil
+        }
     }
 
     private func headerSection(for state: ProfileActionState, todayActions: [BabyAction]) -> some View {
@@ -77,7 +81,10 @@ struct StatsView: View {
 
     @ViewBuilder
     private func dailyTrendSection(for state: ProfileActionState) -> some View {
-        if let focusCategory = state.mostRecentAction?.category {
+        let hasAnyTrackedData = !state.history.isEmpty || !state.activeActions.isEmpty
+
+        if hasAnyTrackedData {
+            let focusCategory = resolvedCategory(for: state)
             let metrics = dailyMetrics(for: state, focusCategory: focusCategory)
             let hasData = metrics.contains { $0.value > 0 }
             let yAxisTitle = focusCategory == .diaper ? L10n.Stats.diapersYAxis : L10n.Stats.minutesYAxis
@@ -89,14 +96,7 @@ struct StatsView: View {
 
                     Spacer()
 
-                    Text(focusCategory.title)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(focusCategory.accentColor.opacity(0.12))
-                        .foregroundStyle(focusCategory.accentColor)
-                        .clipShape(Capsule())
+                    categoryPicker(for: state, selection: focusCategory)
                 }
 
                 if hasData {
@@ -160,6 +160,43 @@ struct StatsView: View {
                     .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
             )
         }
+    }
+
+    private func resolvedCategory(for state: ProfileActionState) -> BabyActionCategory {
+        selectedCategory ?? state.mostRecentAction?.category ?? .sleep
+    }
+
+    private func categoryPicker(for state: ProfileActionState,
+                                selection: BabyActionCategory) -> some View {
+        Picker(
+            selection: Binding(
+                get: { resolvedCategory(for: state) },
+                set: { newValue in
+                    selectedCategory = newValue
+                }
+            ),
+            label: {
+                HStack(spacing: 6) {
+                    Image(systemName: selection.icon)
+                        .font(.system(size: 14, weight: .semibold))
+
+                    Text(selection.title)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(selection.accentColor.opacity(0.12))
+                .foregroundStyle(selection.accentColor)
+                .clipShape(Capsule())
+            }
+        ) {
+            ForEach(BabyActionCategory.allCases) { category in
+                Text(category.title).tag(category)
+            }
+        }
+        .pickerStyle(.menu)
+        .accessibilityLabel(L10n.Stats.actionPickerLabel)
     }
 
     private var currentState: ProfileActionState {
