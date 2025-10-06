@@ -270,7 +270,7 @@ final class ActionLogStore: ObservableObject {
         persist()
     }
 
-    init(
+    fileprivate init(
         initialState: ActionStoreState,
         fileManager: FileManager = .default,
         directory: URL? = nil,
