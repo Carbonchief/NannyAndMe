@@ -205,7 +205,7 @@ private struct ActionCard: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Button("Start") {
+                Button(category.startActionButtonTitle) {
                     onStart()
                 }
                 .buttonStyle(.bordered)
@@ -342,7 +342,7 @@ private struct ActionDetailSheet: View {
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Start") {
+                    Button(category.startActionButtonTitle) {
                         onStart(configuration)
                         dismiss()
                     }
