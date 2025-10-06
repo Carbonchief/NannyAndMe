@@ -9,6 +9,7 @@ NannyAndMe is a SwiftUI-based iOS application that helps caregivers keep track o
 - **Context-aware controls** – Automatically surface active timers, offer start/stop buttons per category, and present configuration sheets when additional details are required.
 - **Profile switching** – Manage multiple baby profiles via an in-app profile switcher with dedicated avatars.
 - **Settings and stats views** – Explore placeholder views that can be extended with insights, caregiver preferences, and other app-wide settings.
+- **Localized experience** – Navigate the interface in English, German, or Spanish with fully translated caregiver-facing text.
 
 ## Project structure
 

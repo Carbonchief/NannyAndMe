@@ -14,7 +14,7 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section(header: Text("Profiles")) {
+            Section(header: Text(L10n.Profiles.title)) {
                 ForEach(profileStore.profiles) { profile in
                     HStack(spacing: 16) {
                         ProfileAvatarView(imageData: profile.imageData, size: 48)
@@ -43,16 +43,16 @@ struct SettingsView: View {
                 Button {
                     profileStore.addProfile()
                 } label: {
-                    Label("Add Profile", systemImage: "plus")
+                    Label(L10n.Profiles.addProfile, systemImage: "plus")
                 }
             }
 
-            Section(header: Text("Active Profile")) {
+            Section(header: Text(L10n.Profiles.activeProfileSection)) {
                 HStack(alignment: .center, spacing: 16) {
                     ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 72)
 
                     VStack(alignment: .leading, spacing: 12) {
-                        TextField("Child name", text: Binding(
+                        TextField(L10n.Profiles.childName, text: Binding(
                             get: { profileStore.activeProfile.name },
                             set: { newValue in
                                 profileStore.updateActiveProfile { $0.name = newValue }
@@ -62,7 +62,6 @@ struct SettingsView: View {
                         .disableAutocorrection(true)
 
                         DatePicker(
-                            "Birth date",
                             selection: Binding(
                                 get: { profileStore.activeProfile.birthDate },
                                 set: { newValue in
@@ -71,12 +70,14 @@ struct SettingsView: View {
                             ),
                             in: Date.distantPast...Date(),
                             displayedComponents: .date
-                        )
+                        ) {
+                            Text(L10n.Profiles.birthDate)
+                        }
                     }
                 }
 
                 PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
-                    Label("Choose profile photo", systemImage: "photo.on.rectangle")
+                    Label(L10n.Profiles.choosePhoto, systemImage: "photo.on.rectangle")
                 }
                 .onChange(of: selectedPhoto) { _, newValue in
                     guard let newValue else { return }
@@ -94,29 +95,29 @@ struct SettingsView: View {
                     Button(role: .destructive) {
                         profileStore.updateActiveProfile { $0.imageData = nil }
                     } label: {
-                        Label("Remove profile photo", systemImage: "trash")
+                        Label(L10n.Profiles.removePhoto, systemImage: "trash")
                     }
                 }
             }
 
-            Section(header: Text("Notifications")) {
+            Section(header: Text(L10n.Settings.notificationsSection)) {
                 Toggle(isOn: .constant(true)) {
-                    Text("Enable reminders")
+                    Text(L10n.Settings.enableReminders)
                 }
                 .disabled(true)
                 .foregroundStyle(.secondary)
             }
 
-            Section(header: Text("About")) {
+            Section(header: Text(L10n.Settings.aboutSection)) {
                 HStack {
-                    Text("App Version")
+                    Text(L10n.Settings.appVersion)
                     Spacer()
                     Text("1.0")
                         .foregroundStyle(.secondary)
                 }
             }
         }
-        .navigationTitle("Settings")
+        .navigationTitle(L10n.Settings.title)
     }
 
 }

@@ -7,7 +7,7 @@ struct ProfileSwitcherView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section(header: Text("Active Profiles")) {
+                Section(header: Text(L10n.Profiles.activeSection)) {
                     ForEach(profileStore.profiles) { profile in
                         Button {
                             profileStore.setActiveProfile(profile)
@@ -41,15 +41,15 @@ struct ProfileSwitcherView: View {
                     Button {
                         profileStore.addProfile()
                     } label: {
-                        Label("Add Profile", systemImage: "plus")
+                        Label(L10n.Profiles.addProfile, systemImage: "plus")
                     }
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Profiles")
+            .navigationTitle(L10n.Profiles.title)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
+                    Button(L10n.Common.done) {
                         dismiss()
                     }
                 }

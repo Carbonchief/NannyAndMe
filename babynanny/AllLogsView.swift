@@ -22,7 +22,7 @@ struct AllLogsView: View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             content(asOf: context.date)
         }
-        .navigationTitle("All Logs")
+        .navigationTitle(L10n.Logs.title)
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
     }
@@ -36,9 +36,9 @@ struct AllLogsView: View {
                 Image(systemName: "text.book.closed")
                     .font(.system(size: 48))
                     .foregroundStyle(.secondary)
-                Text("No logs yet")
+                Text(L10n.Logs.emptyTitle)
                     .font(.headline)
-                Text("Actions you record will appear here, organized by day.")
+                Text(L10n.Logs.emptySubtitle)
                     .font(.subheadline)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
@@ -97,7 +97,9 @@ struct AllLogsView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(timeFormatter.string(from: action.startDate)), \(durationDescription(for: action, asOf: referenceDate)) \(actionSummary(for: action))")
+                Text(L10n.Logs.entryTitle(timeFormatter.string(from: action.startDate),
+                                           durationDescription(for: action, asOf: referenceDate),
+                                           actionSummary(for: action)))
                     .font(.headline)
                     .foregroundStyle(.primary)
                 if let detail = detailedDescription(for: action) {
@@ -110,53 +112,32 @@ struct AllLogsView: View {
     }
 
     private func durationDescription(for action: BabyAction, asOf referenceDate: Date) -> String {
-        let endDate = action.endDate ?? referenceDate
-        let components = calendar.dateComponents([.hour, .minute], from: action.startDate, to: endDate)
-
-        var parts: [String] = []
-
-        if let hours = components.hour, hours > 0 {
-            parts.append("\(hours)h")
-        }
-
-        if let minutes = components.minute, minutes > 0 {
-            parts.append("\(minutes)min")
-        }
-
-        if parts.isEmpty {
-            let seconds = max(0, Int(endDate.timeIntervalSince(action.startDate)))
-            if seconds < 60 {
-                return "<1min"
-            }
-            return "0min"
-        }
-
-        return parts.joined(separator: " ")
+        action.durationDescription(asOf: referenceDate)
     }
 
     private func actionSummary(for action: BabyAction) -> String {
         switch action.category {
         case .sleep:
-            return "sleep"
+            return L10n.Logs.summarySleep()
         case .diaper:
             if let type = action.diaperType {
-                return "diaper - \(type.title.lowercased())"
+                return L10n.Logs.summaryDiaper(withType: type.title.localizedLowercase)
             }
-            return "diaper"
+            return L10n.Logs.summaryDiaper()
         case .feeding:
             if let type = action.feedingType {
                 if type == .bottle, let volume = action.bottleVolume {
-                    return "feeding - bottle (\(volume) ml)"
+                    return L10n.Logs.summaryFeedingBottle(volume: volume)
                 }
-                return "feeding - \(type.title.lowercased())"
+                return L10n.Logs.summaryFeeding(withType: type.title.localizedLowercase)
             }
-            return "feeding"
+            return L10n.Logs.summaryFeeding()
         }
     }
 
     private func detailedDescription(for action: BabyAction) -> String? {
         if action.endDate == nil {
-            return "Active"
+            return L10n.Logs.active
         }
         return nil
     }
