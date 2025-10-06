@@ -22,13 +22,13 @@ struct ContentView: View {
                     HomeView()
                         .tag(Tab.home)
                         .tabItem {
-                            Label("Home", systemImage: Tab.home.icon)
+                            Label(L10n.Tab.home, systemImage: Tab.home.icon)
                         }
 
                     StatsView()
                         .tag(Tab.stats)
                         .tabItem {
-                            Label("Stats", systemImage: Tab.stats.icon)
+                            Label(L10n.Tab.stats, systemImage: Tab.stats.icon)
                         }
                 }
                 .disabled(isMenuVisible)
@@ -111,9 +111,9 @@ private enum Tab: Hashable {
     var title: String {
         switch self {
         case .home:
-            return "Home"
+            return L10n.Tab.home
         case .stats:
-            return "Stats"
+            return L10n.Tab.stats
         }
     }
 

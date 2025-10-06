@@ -28,16 +28,16 @@ struct StatsView: View {
             .padding(24)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .navigationTitle("Stats")
+        .navigationTitle(L10n.Stats.title)
     }
 
     private func headerSection(for state: ProfileActionState, todayActions: [BabyAction]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Daily Snapshot")
+            Text(L10n.Stats.dailySnapshotTitle)
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("Tracking \(todayActions.count) activities for \(profileStore.activeProfile.displayName).")
+            Text(L10n.Stats.trackingActivities(todayActions.count, profileStore.activeProfile.displayName))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -46,29 +46,29 @@ struct StatsView: View {
     private func statsGrid(for state: ProfileActionState, todayActions: [BabyAction]) -> some View {
         VStack(spacing: 16) {
             HStack(spacing: 16) {
-                StatCard(title: "Active Actions",
+                StatCard(title: L10n.Stats.activeActionsTitle,
                          value: "\(state.activeActions.count)",
-                         subtitle: "Running right now",
+                         subtitle: L10n.Stats.activeActionsSubtitle,
                          icon: "play.circle.fill",
                          tint: .blue)
 
-                StatCard(title: "Today's Logs",
+                StatCard(title: L10n.Stats.todaysLogsTitle,
                          value: "\(todayActions.count)",
-                         subtitle: "Completed entries",
+                         subtitle: L10n.Stats.todaysLogsSubtitle,
                          icon: "calendar",
                          tint: .indigo)
             }
 
             HStack(spacing: 16) {
-                StatCard(title: "Bottle Feed (ml)",
+                StatCard(title: L10n.Stats.bottleFeedTitle,
                          value: "\(todayBottleVolume(for: todayActions))",
-                         subtitle: "Total today",
+                         subtitle: L10n.Stats.bottleFeedSubtitle,
                          icon: "takeoutbag.and.cup.and.straw.fill",
                          tint: .orange)
 
-                StatCard(title: "Sleep Sessions",
+                StatCard(title: L10n.Stats.sleepSessionsTitle,
                          value: "\(todaySleepCount(for: todayActions))",
-                         subtitle: "Today",
+                         subtitle: L10n.Stats.sleepSessionsSubtitle,
                          icon: "moon.zzz.fill",
                          tint: .purple)
             }
@@ -80,11 +80,11 @@ struct StatsView: View {
         if let focusCategory = state.mostRecentAction?.category {
             let metrics = dailyMetrics(for: state, focusCategory: focusCategory)
             let hasData = metrics.contains { $0.value > 0 }
-            let yAxisTitle = focusCategory == .diaper ? "Diapers" : "Minutes"
+            let yAxisTitle = focusCategory == .diaper ? L10n.Stats.diapersYAxis : L10n.Stats.minutesYAxis
 
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text("Last 7 Days")
+                    Text(L10n.Stats.lastSevenDays)
                         .font(.headline)
 
                     Spacer()
@@ -102,7 +102,7 @@ struct StatsView: View {
                 if hasData {
                     Chart(metrics) { metric in
                         BarMark(
-                            x: .value("Day", metric.date, unit: .day),
+                            x: .value(L10n.Stats.dayAxisLabel, metric.date, unit: .day),
                             y: .value(yAxisTitle, metric.value)
                         )
                         .foregroundStyle(focusCategory.accentColor.gradient)
@@ -121,11 +121,11 @@ struct StatsView: View {
                     .frame(height: 220)
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("No \(focusCategory.title.lowercased()) logged in the last week.")
+                        Text(L10n.Stats.emptyStateTitle(focusCategory.title.localizedLowercase))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
-                        Text("Track \(focusCategory.title.lowercased()) to see trends over time.")
+                        Text(L10n.Stats.emptyStateSubtitle(focusCategory.title.localizedLowercase))
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
@@ -141,10 +141,10 @@ struct StatsView: View {
             )
         } else {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Activity Trends")
+                Text(L10n.Stats.activityTrendsTitle)
                     .font(.headline)
 
-                Text("Once you start logging activities you'll see a weekly breakdown here.")
+                Text(L10n.Stats.activityTrendsSubtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

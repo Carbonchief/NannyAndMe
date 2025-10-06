@@ -33,7 +33,7 @@ struct HomeView: View {
 
                 if !state.history.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Recent Activity")
+                        Text(L10n.Home.recentActivity)
                             .font(.headline)
 
                         VStack(spacing: 12) {
@@ -60,7 +60,7 @@ struct HomeView: View {
 
     private func headerSection(for state: ProfileActionState) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Log today's care actions")
+            Text(L10n.Home.headerTitle)
                 .font(.title2)
                 .fontWeight(.semibold)
 
@@ -81,13 +81,13 @@ struct HomeView: View {
 
                     if recent.endDate == nil {
                         TimelineView(.periodic(from: .now, by: 1)) { context in
-                            Text("Active for \(recent.durationDescription(asOf: context.date))")
+                            Text(L10n.Home.activeFor(recent.durationDescription(asOf: context.date)))
                                 .font(.caption)
                                 .monospacedDigit()
                                 .foregroundStyle(.secondary)
                         }
                     } else if let ended = recent.endDateTimeDescription() {
-                        Text("Last finished \(ended)")
+                        Text(L10n.Home.lastFinished(ended))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -99,7 +99,7 @@ struct HomeView: View {
                         .fill(Color(.secondarySystemGroupedBackground))
                 )
             } else {
-                Text("Start an action below to begin tracking your baby's day.")
+                Text(L10n.Home.placeholder)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -172,7 +172,7 @@ private struct ActionCard: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     } else {
-                        Text("No entries yet")
+                        Text(L10n.Home.noEntries)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -181,26 +181,26 @@ private struct ActionCard: View {
 
             if let activeAction {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Started at \(activeAction.startTimeDescription())")
+                    Text(L10n.Home.startedAt(activeAction.startTimeDescription()))
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
                     TimelineView(.periodic(from: .now, by: 1)) { context in
-                        Text("Elapsed: \(activeAction.durationDescription(asOf: context.date))")
+                        Text(L10n.Home.elapsed(activeAction.durationDescription(asOf: context.date)))
                             .font(.caption)
                             .monospacedDigit()
                             .foregroundStyle(category.accentColor)
                     }
                 }
 
-                Button("Stop") {
+                Button(L10n.Common.stop) {
                     onStop()
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(category.accentColor)
             } else {
                 if let lastCompleted {
-                    Text("Last run \(lastCompleted.endDateTimeDescription() ?? lastCompleted.startDateTimeDescription())")
+                    Text(L10n.Home.lastRun(lastCompleted.endDateTimeDescription() ?? lastCompleted.startDateTimeDescription()))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -246,12 +246,12 @@ private struct HistoryRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text("Started \(action.startDateTimeDescription())")
+                Text(L10n.Home.historyStarted(action.startDateTimeDescription()))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
 
                 if let endDescription = action.endDateTimeDescription() {
-                    Text("Ended \(endDescription) • Duration \(action.durationDescription())")
+                    Text(L10n.Home.historyEnded(endDescription, action.durationDescription()))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -289,54 +289,66 @@ private struct ActionDetailSheet: View {
                 switch category {
                 case .sleep:
                     Section {
-                        Text("Start tracking a sleep session. Stop it when your little one wakes up to capture the total rest time.")
+                        Text(L10n.Home.sleepInfo)
                             .foregroundStyle(.secondary)
                             .font(.subheadline)
                             .multilineTextAlignment(.leading)
                     }
 
                 case .diaper:
-                    Section("Diaper type") {
-                        Picker("Diaper type", selection: $diaperSelection) {
+                    Section {
+                        Picker(selection: $diaperSelection) {
                             ForEach(BabyAction.DiaperType.allCases) { option in
                                 Text(option.title).tag(option)
                             }
+                        } label: {
+                            Text(L10n.Home.diaperTypePickerLabel)
                         }
                         .pickerStyle(.segmented)
+                    } header: {
+                        Text(L10n.Home.diaperTypeSectionTitle)
                     }
 
                 case .feeding:
-                    Section("Feeding type") {
-                        Picker("Feeding type", selection: $feedingSelection) {
+                    Section {
+                        Picker(selection: $feedingSelection) {
                             ForEach(BabyAction.FeedingType.allCases) { option in
                                 Text(option.title).tag(option)
                             }
+                        } label: {
+                            Text(L10n.Home.feedingTypePickerLabel)
                         }
                         .pickerStyle(.segmented)
+                    } header: {
+                        Text(L10n.Home.feedingTypeSectionTitle)
                     }
 
                     if feedingSelection.requiresVolume {
-                        Section("Bottle volume") {
-                            Picker("Bottle volume", selection: $bottleSelection) {
+                        Section {
+                            Picker(selection: $bottleSelection) {
                                 ForEach(BottleVolumeOption.allOptions) { option in
                                     Text(option.label).tag(option)
                                 }
+                            } label: {
+                                Text(L10n.Home.bottleVolumePickerLabel)
                             }
                             .pickerStyle(.segmented)
 
                             if bottleSelection == .custom {
-                                TextField("Custom volume (ml)", text: $customBottleVolume)
+                                TextField(L10n.Home.customVolumeFieldPlaceholder, text: $customBottleVolume)
                                     .keyboardType(.numberPad)
                             }
+                        } header: {
+                            Text(L10n.Home.bottleVolumeSectionTitle)
                         }
                     }
                 }
             }
-            .navigationTitle("New \(category.title) Action")
+            .navigationTitle(L10n.Home.newActionTitle(category.title))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button(L10n.Common.cancel) {
                         dismiss()
                     }
                 }
@@ -401,9 +413,9 @@ private struct ActionDetailSheet: View {
         var label: String {
             switch self {
             case .preset(let value):
-                return "\(value) ml"
+                return L10n.Home.bottlePresetLabel(value)
             case .custom:
-                return "Custom"
+                return L10n.Home.customBottleOption
             }
         }
     }

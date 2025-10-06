@@ -8,6 +8,9 @@ These guidelines apply to the entire `NannyAndMe` repository.
 - Avoid force unwrapping optionals; favor safe binding (`if let` / `guard let`) and sensible defaults.
 - Keep view logic lightweight. Extract reusable SwiftUI components or view models when a view exceeds ~200 lines.
 
+## Localization
+- When introducing user-facing text, update the shared localization helpers and provide translations for all supported languages (English, German, and Spanish).
+
 ## Documentation
 - Update `README.md` when adding new features, configuration steps, or architectural changes.
 - Document any new public types or view models with Swift documentation comments (`///`).

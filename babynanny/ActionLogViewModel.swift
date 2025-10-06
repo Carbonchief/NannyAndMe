@@ -11,11 +11,11 @@ struct BabyAction: Identifiable, Codable {
         var title: String {
             switch self {
             case .pee:
-                return "Pee"
+                return L10n.DiaperType.pee
             case .poo:
-                return "Poo"
+                return L10n.DiaperType.poo
             case .both:
-                return "Pee & Poo"
+                return L10n.DiaperType.both
             }
         }
 
@@ -42,13 +42,13 @@ struct BabyAction: Identifiable, Codable {
         var title: String {
             switch self {
             case .bottle:
-                return "Bottle"
+                return L10n.FeedingType.bottle
             case .leftBreast:
-                return "Left Breast"
+                return L10n.FeedingType.leftBreast
             case .rightBreast:
-                return "Right Breast"
+                return L10n.FeedingType.rightBreast
             case .meal:
-                return "Meal"
+                return L10n.FeedingType.meal
             }
         }
 
@@ -111,20 +111,20 @@ struct BabyAction: Identifiable, Codable {
     var detailDescription: String {
         switch category {
         case .sleep:
-            return "Sleep"
+            return L10n.Actions.sleep
         case .diaper:
             if let diaperType {
-                return "Diaper: \(diaperType.title)"
+                return L10n.Actions.diaperWithType(diaperType.title)
             }
-            return "Diaper change"
+            return L10n.Actions.diaperChange
         case .feeding:
             if let feedingType {
                 if feedingType == .bottle, let bottleVolume {
-                    return "Feeding: Bottle (\(bottleVolume) ml)"
+                    return L10n.Actions.feedingBottle(bottleVolume)
                 }
-                return "Feeding: \(feedingType.title)"
+                return L10n.Actions.feedingWithType(feedingType.title)
             }
-            return "Feeding"
+            return L10n.Actions.feeding
         }
     }
 
@@ -158,11 +158,11 @@ enum BabyActionCategory: String, CaseIterable, Identifiable, Codable {
     var title: String {
         switch self {
         case .sleep:
-            return "Sleep"
+            return L10n.Actions.sleep
         case .diaper:
-            return "Diaper"
+            return L10n.Actions.diaper
         case .feeding:
-            return "Feeding"
+            return L10n.Actions.feeding
         }
     }
 
@@ -198,7 +198,7 @@ enum BabyActionCategory: String, CaseIterable, Identifiable, Codable {
     }
 
     var startActionButtonTitle: String {
-        isInstant ? "Log" : "Start"
+        isInstant ? L10n.Common.log : L10n.Common.start
     }
 }
 
@@ -470,6 +470,6 @@ private final class BabyActionFormatter {
     }
 
     func format(duration: TimeInterval) -> String {
-        durationFormatter.string(from: duration) ?? "Just now"
+        durationFormatter.string(from: duration) ?? L10n.Formatter.justNow
     }
 }

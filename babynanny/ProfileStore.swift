@@ -15,7 +15,7 @@ struct ChildProfile: Codable, Identifiable, Equatable {
     }
 
     var displayName: String {
-        name.isEmpty ? "New Profile" : name
+        name.isEmpty ? L10n.Profile.newProfile : name
     }
 }
 
