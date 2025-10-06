@@ -13,8 +13,8 @@ struct ContentView: View {
     @State private var showSettings = false
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .leading) {
+        ZStack(alignment: .leading) {
+            NavigationStack {
                 TabView(selection: $selectedTab) {
                     HomeView()
                         .tag(Tab.home)
@@ -29,39 +29,41 @@ struct ContentView: View {
                         }
                 }
                 .disabled(isMenuVisible)
-
-                if isMenuVisible {
-                    Color.black.opacity(0.25)
-                        .ignoresSafeArea()
-                        .onTapGesture {
+                .navigationTitle(selectedTab.title)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
                             withAnimation(.easeInOut) {
-                                isMenuVisible = false
+                                isMenuVisible.toggle()
                             }
+                        } label: {
+                            Image(systemName: "line.3.horizontal")
                         }
-
-                    SideMenu {
-                        withAnimation(.easeInOut) {
-                            isMenuVisible = false
-                            showSettings = true
-                        }
-                    }
-                    .transition(.move(edge: .leading))
-                }
-            }
-            .navigationTitle(selectedTab.title)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        withAnimation(.easeInOut) {
-                            isMenuVisible.toggle()
-                        }
-                    } label: {
-                        Image(systemName: "line.3.horizontal")
                     }
                 }
             }
             .navigationDestination(isPresented: $showSettings) {
                 SettingsView()
+            }
+
+            if isMenuVisible {
+                Color.black.opacity(0.25)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.easeInOut) {
+                            isMenuVisible = false
+                        }
+                    }
+                    .zIndex(1)
+
+                SideMenu {
+                    withAnimation(.easeInOut) {
+                        isMenuVisible = false
+                        showSettings = true
+                    }
+                }
+                .transition(.move(edge: .leading))
+                .zIndex(2)
             }
         }
     }
