@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Charts
 
 struct StatsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
@@ -21,9 +22,7 @@ struct StatsView: View {
 
                 statsGrid(for: state, todayActions: today)
 
-                if let recent = state.mostRecentAction {
-                    recentActivitySection(with: recent)
-                }
+                dailyTrendSection(for: state)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(24)
@@ -76,42 +75,78 @@ struct StatsView: View {
         }
     }
 
-    private func recentActivitySection(with action: BabyAction) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Most Recent Activity")
-                .font(.headline)
+    @ViewBuilder
+    private func dailyTrendSection(for state: ProfileActionState) -> some View {
+        if let focusCategory = state.mostRecentAction?.category {
+            let metrics = dailyMetrics(for: state, focusCategory: focusCategory)
+            let hasData = metrics.contains { $0.value > 0 }
+            let yAxisTitle = focusCategory == .diaper ? "Diapers" : "Minutes"
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 12) {
-                    Image(systemName: action.icon)
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(action.category.accentColor)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Last 7 Days")
+                        .font(.headline)
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(action.title)
-                            .font(.headline)
+                    Spacer()
 
-                        Text(action.detailDescription)
+                    Text(focusCategory.title)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(focusCategory.accentColor.opacity(0.12))
+                        .foregroundStyle(focusCategory.accentColor)
+                        .clipShape(Capsule())
+                }
+
+                if hasData {
+                    Chart(metrics) { metric in
+                        BarMark(
+                            x: .value("Day", metric.date, unit: .day),
+                            y: .value(yAxisTitle, metric.value)
+                        )
+                        .foregroundStyle(focusCategory.accentColor.gradient)
+                        .cornerRadius(6)
+                    }
+                    .chartYAxis {
+                        AxisMarks(position: .leading)
+                    }
+                    .chartXAxis {
+                        AxisMarks(values: metrics.map { $0.date }) { value in
+                            if let dateValue = value.as(Date.self) {
+                                AxisValueLabel(dateValue, format: .dateTime.weekday(.abbreviated))
+                            }
+                        }
+                    }
+                    .frame(height: 220)
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("No \(focusCategory.title.lowercased()) logged in the last week.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                    }
-                }
 
-                Text("Started \(action.startDateTimeDescription())")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if let ended = action.endDateTimeDescription() {
-                    Text("Ended \(ended) • Duration \(action.durationDescription())")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    TimelineView(.periodic(from: .now, by: 1)) { context in
-                        Text("Active for \(action.durationDescription(asOf: context.date))")
+                        Text("Track \(focusCategory.title.lowercased()) to see trends over time.")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.tertiary)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
+            )
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Activity Trends")
+                    .font(.headline)
+
+                Text("Once you start logging activities you'll see a weekly breakdown here.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -142,6 +177,56 @@ struct StatsView: View {
     private func todaySleepCount(for actions: [BabyAction]) -> Int {
         actions.filter { $0.category == .sleep }.count
     }
+
+    private func dailyMetrics(for state: ProfileActionState,
+                              focusCategory: BabyActionCategory,
+                              days: Int = 7) -> [DailyActionMetric] {
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: Date())
+        var dailyTotals: [Date: DailyActionMetric] = [:]
+
+        for offset in 0..<days {
+            if let day = calendar.date(byAdding: .day, value: -offset, to: startOfToday) {
+                dailyTotals[day] = DailyActionMetric(date: day, value: 0)
+            }
+        }
+
+        for action in state.history where action.category == focusCategory {
+            let day = calendar.startOfDay(for: action.startDate)
+            guard var metric = dailyTotals[day] else { continue }
+
+            if focusCategory == .diaper {
+                metric.value += 1
+            } else {
+                let endDate = action.endDate ?? Date()
+                let duration = max(0, endDate.timeIntervalSince(action.startDate))
+                metric.value += duration / 60 // minutes
+            }
+
+            dailyTotals[day] = metric
+        }
+
+        if focusCategory != .diaper,
+           let active = state.activeActions[focusCategory] {
+            let day = calendar.startOfDay(for: active.startDate)
+            if var metric = dailyTotals[day] {
+                let duration = max(0, Date().timeIntervalSince(active.startDate))
+                metric.value += duration / 60
+                dailyTotals[day] = metric
+            }
+        }
+
+        return dailyTotals
+            .values
+            .sorted { $0.date < $1.date }
+    }
+}
+
+private struct DailyActionMetric: Identifiable {
+    let date: Date
+    var value: Double
+
+    var id: Date { date }
 }
 
 private struct StatCard: View {
@@ -190,9 +275,26 @@ private struct StatCard: View {
 
     var state = ProfileActionState()
     state.activeActions[.sleep] = BabyAction(category: .sleep, startDate: Date().addingTimeInterval(-1800))
+    let calendar = Calendar.current
+    let yesterday = calendar.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+    let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: Date()) ?? Date()
+
     state.history = [
-        BabyAction(category: .feeding, startDate: Date().addingTimeInterval(-7200), endDate: Date().addingTimeInterval(-6900), feedingType: .bottle, bottleVolume: 120),
-        BabyAction(category: .diaper, startDate: Date().addingTimeInterval(-5400), endDate: Date().addingTimeInterval(-5300), diaperType: .both)
+        BabyAction(category: .sleep,
+                   startDate: calendar.date(byAdding: .hour, value: -1, to: yesterday) ?? yesterday,
+                   endDate: calendar.date(byAdding: .minute, value: -30, to: yesterday)),
+        BabyAction(category: .sleep,
+                   startDate: calendar.date(byAdding: .hour, value: -2, to: twoDaysAgo) ?? twoDaysAgo,
+                   endDate: calendar.date(byAdding: .hour, value: -1, to: twoDaysAgo)),
+        BabyAction(category: .feeding,
+                   startDate: Date().addingTimeInterval(-7200),
+                   endDate: Date().addingTimeInterval(-6900),
+                   feedingType: .bottle,
+                   bottleVolume: 120),
+        BabyAction(category: .diaper,
+                   startDate: Date().addingTimeInterval(-5400),
+                   endDate: Date().addingTimeInterval(-5300),
+                   diaperType: .both)
     ]
 
     let actionStore = ActionLogStore.previewStore(profiles: [profile.id: state])
