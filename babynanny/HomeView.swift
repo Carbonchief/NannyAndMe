@@ -12,7 +12,7 @@ struct HomeView: View {
         VStack(spacing: 24) {
             Image(systemName: "house.fill")
                 .font(.system(size: 52))
-                .foregroundStyle(.accent)
+                .foregroundStyle(Color.accentColor)
 
             VStack(spacing: 8) {
                 Text("Welcome Home")
