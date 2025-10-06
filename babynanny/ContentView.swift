@@ -8,9 +8,11 @@
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject private var profileStore: ProfileStore
     @State private var selectedTab: Tab = .home
     @State private var isMenuVisible = false
     @State private var showSettings = false
+    @State private var isProfileSwitcherPresented = false
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -29,8 +31,17 @@ struct ContentView: View {
                         }
                 }
                 .disabled(isMenuVisible)
-                .navigationTitle(selectedTab.title)
                 .toolbar {
+                    ToolbarItem(placement: .principal) {
+                        VStack(spacing: 2) {
+                            Text(profileStore.activeProfile.displayName)
+                                .font(.headline)
+                            Text(selectedTab.title)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
                             withAnimation(.easeInOut) {
@@ -40,10 +51,22 @@ struct ContentView: View {
                             Image(systemName: "line.3.horizontal")
                         }
                     }
+
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            isProfileSwitcherPresented = true
+                        } label: {
+                            ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 36)
+                        }
+                    }
                 }
                 .navigationDestination(isPresented: $showSettings) {
                     SettingsView()
                 }
+            }
+            .sheet(isPresented: $isProfileSwitcherPresented) {
+                ProfileSwitcherView()
+                    .environmentObject(profileStore)
             }
 
             if isMenuVisible {
