@@ -1,7 +1,7 @@
 import SwiftUI
 
-struct BabyAction: Identifiable {
-    enum DiaperType: String, CaseIterable, Identifiable {
+struct BabyAction: Identifiable, Codable {
+    enum DiaperType: String, CaseIterable, Identifiable, Codable {
         case pee
         case poo
         case both
@@ -31,7 +31,7 @@ struct BabyAction: Identifiable {
         }
     }
 
-    enum FeedingType: String, CaseIterable, Identifiable {
+    enum FeedingType: String, CaseIterable, Identifiable, Codable {
         case bottle
         case leftBreast
         case rightBreast
@@ -70,7 +70,7 @@ struct BabyAction: Identifiable {
         }
     }
 
-    let id = UUID()
+    var id: UUID
     let category: BabyActionCategory
     let startDate: Date
     var endDate: Date?
@@ -78,12 +78,14 @@ struct BabyAction: Identifiable {
     let feedingType: FeedingType?
     let bottleVolume: Int?
 
-    init(category: BabyActionCategory,
+    init(id: UUID = UUID(),
+         category: BabyActionCategory,
          startDate: Date = Date(),
          endDate: Date? = nil,
          diaperType: DiaperType? = nil,
          feedingType: FeedingType? = nil,
          bottleVolume: Int? = nil) {
+        self.id = id
         self.category = category
         self.startDate = startDate
         self.endDate = endDate
@@ -146,7 +148,7 @@ struct BabyAction: Identifiable {
     }
 }
 
-enum BabyActionCategory: String, CaseIterable, Identifiable {
+enum BabyActionCategory: String, CaseIterable, Identifiable, Codable {
     case sleep
     case diaper
     case feeding
@@ -187,31 +189,31 @@ enum BabyActionCategory: String, CaseIterable, Identifiable {
     }
 }
 
-final class ActionLogViewModel: ObservableObject {
-    @Published private(set) var activeActions: [BabyActionCategory: BabyAction] = [:]
-    @Published private(set) var history: [BabyAction] = []
+struct ProfileActionState: Codable {
+    var activeActions: [BabyActionCategory: BabyAction]
+    var history: [BabyAction]
 
-    func startAction(for category: BabyActionCategory,
-                     diaperType: BabyAction.DiaperType? = nil,
-                     feedingType: BabyAction.FeedingType? = nil,
-                     bottleVolume: Int? = nil) {
-        if var existing = activeActions.removeValue(forKey: category) {
-            existing.endDate = Date()
-            history.insert(existing, at: 0)
-        }
-
-        let action = BabyAction(category: category,
-                                startDate: Date(),
-                                diaperType: diaperType,
-                                feedingType: feedingType,
-                                bottleVolume: bottleVolume)
-        activeActions[category] = action
+    init(activeActions: [BabyActionCategory: BabyAction] = [:], history: [BabyAction] = []) {
+        self.activeActions = activeActions
+        self.history = history
     }
 
-    func stopAction(for category: BabyActionCategory) {
-        guard var action = activeActions.removeValue(forKey: category) else { return }
-        action.endDate = Date()
-        history.insert(action, at: 0)
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let rawActive = try container.decode([String: BabyAction].self, forKey: .activeActions)
+        self.activeActions = rawActive.reduce(into: [:]) { partialResult, element in
+            let (key, value) = element
+            guard let category = BabyActionCategory(rawValue: key) else { return }
+            partialResult[category] = value
+        }
+        self.history = try container.decode([BabyAction].self, forKey: .history)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        let rawActive = Dictionary(uniqueKeysWithValues: activeActions.map { ($0.key.rawValue, $0.value) })
+        try container.encode(rawActive, forKey: .activeActions)
+        try container.encode(history, forKey: .history)
     }
 
     func activeAction(for category: BabyActionCategory) -> BabyAction? {
@@ -227,6 +229,182 @@ final class ActionLogViewModel: ObservableObject {
             return running
         }
         return history.first
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case activeActions
+        case history
+    }
+}
+
+@MainActor
+final class ActionLogStore: ObservableObject {
+    private let saveURL: URL
+
+    @Published private var storage: ActionStoreState {
+        didSet {
+            persist()
+        }
+    }
+
+    init(
+        fileManager: FileManager = .default,
+        directory: URL? = nil,
+        filename: String = "babyActions.json"
+    ) {
+        self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
+
+        if let data = try? Data(contentsOf: saveURL) {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+
+            if let decoded = try? decoder.decode(ActionStoreState.self, from: data) {
+                self.storage = Self.sanitized(state: decoded)
+            } else {
+                self.storage = Self.defaultState()
+            }
+        } else {
+            self.storage = Self.defaultState()
+        }
+
+        persist()
+    }
+
+    init(
+        initialState: ActionStoreState,
+        fileManager: FileManager = .default,
+        directory: URL? = nil,
+        filename: String = "babyActions.json"
+    ) {
+        self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
+        self.storage = Self.sanitized(state: initialState)
+        persist()
+    }
+
+    func state(for profileID: UUID) -> ProfileActionState {
+        storage.profiles[profileID] ?? ProfileActionState()
+    }
+
+    func startAction(for profileID: UUID,
+                     category: BabyActionCategory,
+                     diaperType: BabyAction.DiaperType? = nil,
+                     feedingType: BabyAction.FeedingType? = nil,
+                     bottleVolume: Int? = nil) {
+        updateState(for: profileID) { profileState in
+            if var existing = profileState.activeActions.removeValue(forKey: category) {
+                existing.endDate = Date()
+                profileState.history.insert(existing, at: 0)
+            }
+
+            let action = BabyAction(category: category,
+                                    startDate: Date(),
+                                    diaperType: diaperType,
+                                    feedingType: feedingType,
+                                    bottleVolume: bottleVolume)
+            profileState.activeActions[category] = action
+        }
+    }
+
+    func stopAction(for profileID: UUID, category: BabyActionCategory) {
+        updateState(for: profileID) { profileState in
+            guard var action = profileState.activeActions.removeValue(forKey: category) else { return }
+            action.endDate = Date()
+            profileState.history.insert(action, at: 0)
+        }
+    }
+
+    private func updateState(for profileID: UUID, _ updates: (inout ProfileActionState) -> Void) {
+        var profiles = storage.profiles
+        var profileState = profiles[profileID] ?? ProfileActionState()
+        updates(&profileState)
+        profileState.history.sort { $0.startDate > $1.startDate }
+        var seenIDs = Set<UUID>()
+        profileState.history = profileState.history.filter { action in
+            if seenIDs.contains(action.id) {
+                return false
+            }
+            seenIDs.insert(action.id)
+            return true
+        }
+        profiles[profileID] = profileState
+        storage = ActionStoreState(profiles: profiles)
+    }
+
+    private func persist() {
+        let snapshot = storage
+        let url = saveURL
+
+        Task.detached(priority: .background) {
+            do {
+                let encoder = JSONEncoder()
+                encoder.dateEncodingStrategy = .iso8601
+                let data = try encoder.encode(snapshot)
+                try data.write(to: url, options: .atomic)
+            } catch {
+                #if DEBUG
+                print("Failed to persist baby actions: \(error.localizedDescription)")
+                #endif
+            }
+        }
+    }
+
+    private static func sanitized(state: ActionStoreState?) -> ActionStoreState {
+        var state = state ?? ActionStoreState(profiles: [:])
+        for (key, var value) in state.profiles {
+            var endedActions: [BabyAction] = []
+            value.activeActions = value.activeActions.filter { _, action in
+                if let _ = action.endDate {
+                    endedActions.append(action)
+                    return false
+                }
+                return true
+            }
+
+            value.history.append(contentsOf: endedActions)
+            value.history.sort { $0.startDate > $1.startDate }
+
+            var seenIDs = Set<UUID>()
+            value.history = value.history.filter { action in
+                if seenIDs.contains(action.id) {
+                    return false
+                }
+                seenIDs.insert(action.id)
+                return true
+            }
+
+            state.profiles[key] = value
+        }
+        return state
+    }
+
+    private static func defaultState() -> ActionStoreState {
+        ActionStoreState(profiles: [:])
+    }
+
+    private static func resolveSaveURL(fileManager: FileManager, directory: URL?, filename: String) -> URL {
+        if let directory {
+            return directory.appendingPathComponent(filename)
+        }
+
+        if let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+            return documentsURL.appendingPathComponent(filename)
+        }
+
+        return fileManager.temporaryDirectory.appendingPathComponent(filename)
+    }
+}
+
+private struct ActionStoreState: Codable {
+    var profiles: [UUID: ProfileActionState]
+}
+
+extension ActionLogStore {
+    static func previewStore(profiles: [UUID: ProfileActionState]) -> ActionLogStore {
+        ActionLogStore(
+            initialState: ActionStoreState(profiles: profiles),
+            directory: FileManager.default.temporaryDirectory,
+            filename: "previewBabyActions-\(UUID().uuidString).json"
+        )
     }
 }
 
