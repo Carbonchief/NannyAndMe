@@ -1,0 +1,84 @@
+# NannyAndMe
+
+NannyAndMe is a SwiftUI-based iOS application that helps caregivers keep track of a baby's daily routine. The app provides a unified log for sleep sessions, diaper changes, and feedings while giving caregivers quick access to recent activity, stats, and configurable profiles.
+
+## Features
+
+- **Unified care log** – Start and stop timers for sleep, diaper, and feeding actions while recording key metadata such as diaper type, feeding method, and bottle volume.
+- **Recent history** – View a chronological list of the latest actions with friendly descriptions and formatted timestamps.
+- **Context-aware controls** – Automatically surface active timers, offer start/stop buttons per category, and present configuration sheets when additional details are required.
+- **Profile switching** – Manage multiple baby profiles via an in-app profile switcher with dedicated avatars.
+- **Settings and stats views** – Explore placeholder views that can be extended with insights, caregiver preferences, and other app-wide settings.
+
+## Project structure
+
+```
+NannyAndMe/
+├── README.md
+├── AGENTS.md
+├── babynanny/                # Application source code and SwiftUI views
+│   ├── ActionLogViewModel.swift
+│   ├── ContentView.swift
+│   ├── HomeView.swift
+│   ├── ProfileStore.swift
+│   ├── ProfileAvatarView.swift
+│   ├── ProfileSwitcherView.swift
+│   ├── SettingsView.swift
+│   ├── SideMenu.swift
+│   ├── StatsView.swift
+│   └── babynannyApp.swift
+├── babynanny.xcodeproj       # Xcode project definition
+├── babynannyTests/           # Unit test target (empty scaffold)
+└── babynannyUITests/         # UI test target (empty scaffold)
+```
+
+## Requirements
+
+- macOS with Xcode 15 (or newer) installed
+- iOS 17 SDK (included with Xcode 15)
+- Swift 5.9 toolchain (bundled with the listed Xcode version)
+
+## Getting started
+
+1. **Clone the repository**
+   ```bash
+   git clone <repo-url>
+   cd NannyAndMe
+   ```
+2. **Open the project**
+   ```bash
+   open babynanny.xcodeproj
+   ```
+3. **Run the app**
+   - Select the `babynanny` scheme.
+   - Choose an iOS Simulator device (e.g., iPhone 15 Pro).
+   - Press <kbd>Cmd</kbd>+<kbd>R</kbd> to build and run.
+
+## Testing
+
+Run the unit or UI test suites from Xcode with <kbd>Cmd</kbd>+<kbd>U</kbd>, or from the command line:
+
+```bash
+xcodebuild test \
+  -project babynanny.xcodeproj \
+  -scheme babynanny \
+  -destination 'platform=iOS Simulator,name=iPhone 15 Pro'
+```
+
+## Development tips
+
+- The `ActionLogViewModel` owns the state for active timers and the recent history list. Extend this type when adding new care categories or data persistence.
+- `BabyAction` models encapsulate formatting helpers (e.g., duration and timestamp descriptions). Keep new derived values inside this struct for consistency.
+- UI components prefer dependency injection via `@EnvironmentObject` (`ProfileStore`) or `@StateObject` (`ActionLogViewModel`). Follow this pattern to maintain predictable SwiftUI state flows.
+- Preview your SwiftUI views regularly with the included `#Preview` providers to ensure layouts render correctly on different device sizes.
+
+## Contributing
+
+1. Create a new feature branch: `git checkout -b feature/amazing-change`.
+2. Make your updates and add or adjust tests when appropriate.
+3. Ensure the project builds and the tests pass.
+4. Open a pull request describing the change and any manual testing performed.
+
+## License
+
+This project currently has no explicit license. Please add one before distributing the application outside your organization.
