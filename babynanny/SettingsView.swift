@@ -14,7 +14,7 @@ struct SettingsView: View {
                 HStack {
                     Image(systemName: "person.circle.fill")
                         .font(.largeTitle)
-                        .foregroundStyle(.accent)
+                        .foregroundStyle(Color.accentColor)
                     VStack(alignment: .leading) {
                         Text("Caregiver Name")
                             .font(.headline)

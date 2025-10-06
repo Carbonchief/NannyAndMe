@@ -12,7 +12,7 @@ struct StatsView: View {
         VStack(spacing: 24) {
             Image(systemName: "chart.bar.fill")
                 .font(.system(size: 52))
-                .foregroundStyle(.accent)
+                .foregroundStyle(Color.accentColor)
 
             VStack(spacing: 8) {
                 Text("Stats Overview")
