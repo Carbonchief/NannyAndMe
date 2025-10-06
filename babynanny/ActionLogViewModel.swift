@@ -211,6 +211,19 @@ struct ProfileActionState: Codable {
         self.history = history
     }
 
+    func latestHistoryEntriesPerCategory() -> [BabyAction] {
+        var seenCategories = Set<BabyActionCategory>()
+        var uniqueEntries: [BabyAction] = []
+
+        for action in history {
+            guard !seenCategories.contains(action.category) else { continue }
+            seenCategories.insert(action.category)
+            uniqueEntries.append(action)
+        }
+
+        return uniqueEntries
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let rawActive = try container.decode([String: BabyAction].self, forKey: .activeActions)
