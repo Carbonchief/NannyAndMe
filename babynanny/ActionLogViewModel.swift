@@ -111,7 +111,7 @@ struct BabyAction: Identifiable, Codable {
     var detailDescription: String {
         switch category {
         case .sleep:
-            return "Nap time"
+            return "Sleep"
         case .diaper:
             if let diaperType {
                 return "Diaper: \(diaperType.title)"
@@ -186,6 +186,19 @@ enum BabyActionCategory: String, CaseIterable, Identifiable, Codable {
         case .feeding:
             return Color.orange
         }
+    }
+
+    var isInstant: Bool {
+        switch self {
+        case .diaper:
+            return true
+        case .sleep, .feeding:
+            return false
+        }
+    }
+
+    var startActionButtonTitle: String {
+        isInstant ? "Log" : "Start"
     }
 }
 
@@ -291,6 +304,24 @@ final class ActionLogStore: ObservableObject {
                      feedingType: BabyAction.FeedingType? = nil,
                      bottleVolume: Int? = nil) {
         updateState(for: profileID) { profileState in
+            if category.isInstant {
+                let now = Date()
+
+                if var existing = profileState.activeActions.removeValue(forKey: category) {
+                    existing.endDate = now
+                    profileState.history.insert(existing, at: 0)
+                }
+
+                let action = BabyAction(category: category,
+                                        startDate: now,
+                                        endDate: now,
+                                        diaperType: diaperType,
+                                        feedingType: feedingType,
+                                        bottleVolume: bottleVolume)
+                profileState.history.insert(action, at: 0)
+                return
+            }
+
             if var existing = profileState.activeActions.removeValue(forKey: category) {
                 existing.endDate = Date()
                 profileState.history.insert(existing, at: 0)
