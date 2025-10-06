@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct babynannyApp: App {
+    @StateObject private var profileStore = ProfileStore()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(profileStore)
         }
     }
 }

@@ -6,21 +6,70 @@
 //
 
 import SwiftUI
+import PhotosUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct SettingsView: View {
+    @EnvironmentObject private var profileStore: ProfileStore
+    @State private var selectedPhoto: PhotosPickerItem?
+
     var body: some View {
         Form {
-            Section(header: Text("Profile")) {
-                HStack {
-                    Image(systemName: "person.circle.fill")
-                        .font(.largeTitle)
-                        .foregroundStyle(Color.accentColor)
-                    VStack(alignment: .leading) {
-                        Text("Caregiver Name")
-                            .font(.headline)
-                        Text("Edit your profile details")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+            Section(header: Text("Child Profile")) {
+                HStack(alignment: .center, spacing: 16) {
+                    profileImage
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 72, height: 72)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(Color.accentColor.opacity(0.3), lineWidth: 2)
+                        )
+                        .shadow(radius: 3)
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        TextField("Child name", text: Binding(
+                            get: { profileStore.profile.name },
+                            set: { profileStore.profile.name = $0 }
+                        ))
+                        .textInputAutocapitalization(.words)
+                        .disableAutocorrection(true)
+
+                        DatePicker(
+                            "Birth date",
+                            selection: Binding(
+                                get: { profileStore.profile.birthDate },
+                                set: { profileStore.profile.birthDate = $0 }
+                            ),
+                            in: Date.distantPast...Date(),
+                            displayedComponents: .date
+                        )
+                    }
+                }
+
+                PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
+                    Label("Choose profile photo", systemImage: "photo.on.rectangle")
+                }
+                .onChange(of: selectedPhoto) { newValue in
+                    guard let newValue else { return }
+
+                    Task {
+                        if let data = try? await newValue.loadTransferable(type: Data.self) {
+                            await MainActor.run {
+                                profileStore.profile.imageData = data
+                            }
+                        }
+                    }
+                }
+
+                if profileStore.profile.imageData != nil {
+                    Button(role: .destructive) {
+                        profileStore.profile.imageData = nil
+                    } label: {
+                        Label("Remove profile photo", systemImage: "trash")
                     }
                 }
             }
@@ -44,10 +93,22 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
     }
+
+    private var profileImage: Image {
+        #if canImport(UIKit)
+        if let data = profileStore.profile.imageData,
+           let uiImage = UIImage(data: data) {
+            return Image(uiImage: uiImage)
+        }
+        #endif
+
+        return Image(systemName: "person.circle.fill")
+    }
 }
 
 #Preview {
     NavigationStack {
         SettingsView()
+            .environmentObject(.preview)
     }
 }
