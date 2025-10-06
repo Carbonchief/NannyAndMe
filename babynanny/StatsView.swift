@@ -96,7 +96,7 @@ struct StatsView: View {
 
                     Spacer()
 
-                    categoryPicker(for: state, selection: focusCategory)
+                    categoryPicker(for: state)
                 }
 
                 if hasData {
@@ -166,9 +166,10 @@ struct StatsView: View {
         selectedCategory ?? state.mostRecentAction?.category ?? .sleep
     }
 
-    private func categoryPicker(for state: ProfileActionState,
-                                selection: BabyActionCategory) -> some View {
-        Picker(
+    private func categoryPicker(for state: ProfileActionState) -> some View {
+        let selection = resolvedCategory(for: state)
+
+        return Picker(
             selection: Binding(
                 get: { resolvedCategory(for: state) },
                 set: { newValue in
