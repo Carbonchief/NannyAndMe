@@ -14,22 +14,22 @@ struct SideMenu: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 32) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Nanny & Me")
+                Text(L10n.Menu.title)
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                Text("Quick actions")
+                Text(L10n.Menu.subtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
             .padding(.top, 48)
 
             Button(action: onSelectAllLogs) {
-                Label("All Logs", systemImage: "list.bullet.rectangle")
+                Label(L10n.Menu.allLogs, systemImage: "list.bullet.rectangle")
                     .font(.headline)
             }
 
             Button(action: onSelectSettings) {
-                Label("Settings", systemImage: "gearshape.fill")
+                Label(L10n.Menu.settings, systemImage: "gearshape.fill")
                     .font(.headline)
             }
 
