@@ -7,9 +7,6 @@
 
 import SwiftUI
 import PhotosUI
-#if canImport(UIKit)
-import UIKit
-#endif
 
 struct SettingsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
@@ -17,23 +14,49 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section(header: Text("Child Profile")) {
+            Section(header: Text("Profiles")) {
+                ForEach(profileStore.profiles) { profile in
+                    HStack(spacing: 16) {
+                        ProfileAvatarView(imageData: profile.imageData, size: 48)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(profile.displayName)
+                                .font(.headline)
+                            Text(profile.birthDate, style: .date)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        if profile.id == profileStore.activeProfileID {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        profileStore.setActiveProfile(profile)
+                    }
+                }
+
+                Button {
+                    profileStore.addProfile()
+                } label: {
+                    Label("Add Profile", systemImage: "plus")
+                }
+            }
+
+            Section(header: Text("Active Profile")) {
                 HStack(alignment: .center, spacing: 16) {
-                    profileImage
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 72, height: 72)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(Color.accentColor.opacity(0.3), lineWidth: 2)
-                        )
-                        .shadow(radius: 3)
+                    ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 72)
 
                     VStack(alignment: .leading, spacing: 12) {
                         TextField("Child name", text: Binding(
-                            get: { profileStore.profile.name },
-                            set: { profileStore.profile.name = $0 }
+                            get: { profileStore.activeProfile.name },
+                            set: { newValue in
+                                profileStore.updateActiveProfile { $0.name = newValue }
+                            }
                         ))
                         .textInputAutocapitalization(.words)
                         .disableAutocorrection(true)
@@ -41,8 +64,10 @@ struct SettingsView: View {
                         DatePicker(
                             "Birth date",
                             selection: Binding(
-                                get: { profileStore.profile.birthDate },
-                                set: { profileStore.profile.birthDate = $0 }
+                                get: { profileStore.activeProfile.birthDate },
+                                set: { newValue in
+                                    profileStore.updateActiveProfile { $0.birthDate = newValue }
+                                }
                             ),
                             in: Date.distantPast...Date(),
                             displayedComponents: .date
@@ -59,15 +84,15 @@ struct SettingsView: View {
                     Task {
                         if let data = try? await newValue.loadTransferable(type: Data.self) {
                             await MainActor.run {
-                                profileStore.profile.imageData = data
+                                profileStore.updateActiveProfile { $0.imageData = data }
                             }
                         }
                     }
                 }
 
-                if profileStore.profile.imageData != nil {
+                if profileStore.activeProfile.imageData != nil {
                     Button(role: .destructive) {
-                        profileStore.profile.imageData = nil
+                        profileStore.updateActiveProfile { $0.imageData = nil }
                     } label: {
                         Label("Remove profile photo", systemImage: "trash")
                     }
@@ -94,16 +119,6 @@ struct SettingsView: View {
         .navigationTitle("Settings")
     }
 
-    private var profileImage: Image {
-        #if canImport(UIKit)
-        if let data = profileStore.profile.imageData,
-           let uiImage = UIImage(data: data) {
-            return Image(uiImage: uiImage)
-        }
-        #endif
-
-        return Image(systemName: "person.circle.fill")
-    }
 }
 
 #Preview {
