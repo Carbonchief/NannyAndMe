@@ -41,9 +41,9 @@ struct ContentView: View {
                         }
                     }
                 }
-            }
-            .navigationDestination(isPresented: $showSettings) {
-                SettingsView()
+                .navigationDestination(isPresented: $showSettings) {
+                    SettingsView()
+                }
             }
 
             if isMenuVisible {
