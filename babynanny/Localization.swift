@@ -30,48 +30,39 @@ enum L10n {
         static let customBottleOption = String(localized: "home.bottle.customOption", defaultValue: "Custom")
 
         static func activeFor(_ duration: String) -> String {
-            let format = String(localized: "home.header.activeFor", defaultValue: "Active for %@")
-            return String(format: format, locale: Locale.current, duration)
+            String(localized: "home.header.activeFor", defaultValue: "Active for %@", arguments: duration)
         }
 
         static func lastFinished(_ value: String) -> String {
-            let format = String(localized: "home.header.lastFinished", defaultValue: "Last finished %@")
-            return String(format: format, locale: Locale.current, value)
+            String(localized: "home.header.lastFinished", defaultValue: "Last finished %@", arguments: value)
         }
 
         static func startedAt(_ value: String) -> String {
-            let format = String(localized: "home.card.startedAt", defaultValue: "Started at %@")
-            return String(format: format, locale: Locale.current, value)
+            String(localized: "home.card.startedAt", defaultValue: "Started at %@", arguments: value)
         }
 
         static func elapsed(_ value: String) -> String {
-            let format = String(localized: "home.card.elapsed", defaultValue: "Elapsed: %@")
-            return String(format: format, locale: Locale.current, value)
+            String(localized: "home.card.elapsed", defaultValue: "Elapsed: %@", arguments: value)
         }
 
         static func lastRun(_ value: String) -> String {
-            let format = String(localized: "home.card.lastRun", defaultValue: "Last run %@")
-            return String(format: format, locale: Locale.current, value)
+            String(localized: "home.card.lastRun", defaultValue: "Last run %@", arguments: value)
         }
 
         static func newActionTitle(_ categoryTitle: String) -> String {
-            let format = String(localized: "home.sheet.newActionTitle", defaultValue: "New %@ Action")
-            return String(format: format, locale: Locale.current, categoryTitle)
+            String(localized: "home.sheet.newActionTitle", defaultValue: "New %@ Action", arguments: categoryTitle)
         }
 
         static func bottlePresetLabel(_ value: Int) -> String {
-            let format = String(localized: "home.bottle.presetLabel", defaultValue: "%lld ml")
-            return String(format: format, locale: Locale.current, value)
+            String(localized: "home.bottle.presetLabel", defaultValue: "%lld ml", arguments: value)
         }
 
         static func historyStarted(_ value: String) -> String {
-            let format = String(localized: "home.history.started", defaultValue: "Started %@")
-            return String(format: format, locale: Locale.current, value)
+            String(localized: "home.history.started", defaultValue: "Started %@", arguments: value)
         }
 
         static func historyEnded(_ end: String, _ duration: String) -> String {
-            let format = String(localized: "home.history.ended", defaultValue: "Ended %@ • Duration %@")
-            return String(format: format, locale: Locale.current, end, duration)
+            String(localized: "home.history.ended", defaultValue: "Ended %@ • Duration %@", arguments: end, duration)
         }
     }
 
@@ -108,8 +99,7 @@ enum L10n {
         static let active = String(localized: "logs.active", defaultValue: "Active")
 
         static func entryTitle(_ startTime: String, _ duration: String, _ summary: String) -> String {
-            let format = String(localized: "logs.entry.title", defaultValue: "%@, %@ %@")
-            return String(format: format, locale: Locale.current, startTime, duration, summary)
+            String(localized: "logs.entry.title", defaultValue: "%@, %@ %@", arguments: startTime, duration, summary)
         }
 
         static func summarySleep() -> String {
@@ -117,8 +107,7 @@ enum L10n {
         }
 
         static func summaryDiaper(withType type: String) -> String {
-            let format = String(localized: "logs.summary.diaperWithType", defaultValue: "diaper - %@")
-            return String(format: format, locale: Locale.current, type)
+            String(localized: "logs.summary.diaperWithType", defaultValue: "diaper - %@", arguments: type)
         }
 
         static func summaryDiaper() -> String {
@@ -126,13 +115,11 @@ enum L10n {
         }
 
         static func summaryFeedingBottle(volume: Int) -> String {
-            let format = String(localized: "logs.summary.feedingBottle", defaultValue: "feeding - bottle (%lld ml)")
-            return String(format: format, locale: Locale.current, volume)
+            String(localized: "logs.summary.feedingBottle", defaultValue: "feeding - bottle (%lld ml)", arguments: volume)
         }
 
         static func summaryFeeding(withType type: String) -> String {
-            let format = String(localized: "logs.summary.feedingWithType", defaultValue: "feeding - %@")
-            return String(format: format, locale: Locale.current, type)
+            String(localized: "logs.summary.feedingWithType", defaultValue: "feeding - %@", arguments: type)
         }
 
         static func summaryFeeding() -> String {
@@ -145,8 +132,7 @@ enum L10n {
         static let dailySnapshotTitle = String(localized: "stats.dailySnapshot.title", defaultValue: "Daily Snapshot")
 
         static func trackingActivities(_ count: Int, _ name: String) -> String {
-            let format = String(localized: "stats.dailySnapshot.description", defaultValue: "Tracking %lld activities for %@.")
-            return String(format: format, locale: Locale.current, count, name)
+            String(localized: "stats.dailySnapshot.description", defaultValue: "Tracking %lld activities for %@.", arguments: count, name)
         }
 
         static let activeActionsTitle = String(localized: "stats.card.activeActions.title", defaultValue: "Active Actions")
@@ -165,13 +151,11 @@ enum L10n {
         static let dayAxisLabel = String(localized: "stats.chart.xAxis.day", defaultValue: "Day")
 
         static func emptyStateTitle(_ focus: String) -> String {
-            let format = String(localized: "stats.chart.empty.title", defaultValue: "No %@ logged in the last week.")
-            return String(format: format, locale: Locale.current, focus)
+            String(localized: "stats.chart.empty.title", defaultValue: "No %@ logged in the last week.", arguments: focus)
         }
 
         static func emptyStateSubtitle(_ focus: String) -> String {
-            let format = String(localized: "stats.chart.empty.subtitle", defaultValue: "Track %@ to see trends over time.")
-            return String(format: format, locale: Locale.current, focus)
+            String(localized: "stats.chart.empty.subtitle", defaultValue: "Track %@ to see trends over time.", arguments: focus)
         }
     }
 
@@ -182,18 +166,15 @@ enum L10n {
         static let diaperChange = String(localized: "actions.diaper.change", defaultValue: "Diaper change")
 
         static func diaperWithType(_ type: String) -> String {
-            let format = String(localized: "actions.diaper.withType", defaultValue: "Diaper: %@")
-            return String(format: format, locale: Locale.current, type)
+            String(localized: "actions.diaper.withType", defaultValue: "Diaper: %@", arguments: type)
         }
 
         static func feedingBottle(_ volume: Int) -> String {
-            let format = String(localized: "actions.feeding.bottle", defaultValue: "Feeding: Bottle (%lld ml)")
-            return String(format: format, locale: Locale.current, volume)
+            String(localized: "actions.feeding.bottle", defaultValue: "Feeding: Bottle (%lld ml)", arguments: volume)
         }
 
         static func feedingWithType(_ type: String) -> String {
-            let format = String(localized: "actions.feeding.withType", defaultValue: "Feeding: %@")
-            return String(format: format, locale: Locale.current, type)
+            String(localized: "actions.feeding.withType", defaultValue: "Feeding: %@", arguments: type)
         }
     }
 
