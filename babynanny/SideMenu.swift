@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct SideMenu: View {
+    let onSelectAllLogs: () -> Void
     let onSelectSettings: () -> Void
 
     var body: some View {
@@ -21,6 +22,11 @@ struct SideMenu: View {
                     .foregroundStyle(.secondary)
             }
             .padding(.top, 48)
+
+            Button(action: onSelectAllLogs) {
+                Label("All Logs", systemImage: "list.bullet.rectangle")
+                    .font(.headline)
+            }
 
             Button(action: onSelectSettings) {
                 Label("Settings", systemImage: "gearshape.fill")
@@ -39,5 +45,5 @@ struct SideMenu: View {
 }
 
 #Preview {
-    SideMenu(onSelectSettings: {})
+    SideMenu(onSelectAllLogs: {}, onSelectSettings: {})
 }

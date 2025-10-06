@@ -12,6 +12,7 @@ struct ContentView: View {
     @State private var selectedTab: Tab = .home
     @State private var isMenuVisible = false
     @State private var showSettings = false
+    @State private var showAllLogs = false
     @State private var isProfileSwitcherPresented = false
 
     var body: some View {
@@ -63,6 +64,9 @@ struct ContentView: View {
                 .navigationDestination(isPresented: $showSettings) {
                     SettingsView()
                 }
+                .navigationDestination(isPresented: $showAllLogs) {
+                    AllLogsView()
+                }
             }
             .sheet(isPresented: $isProfileSwitcherPresented) {
                 ProfileSwitcherView()
@@ -79,12 +83,20 @@ struct ContentView: View {
                     }
                     .zIndex(1)
 
-                SideMenu {
-                    withAnimation(.easeInOut) {
-                        isMenuVisible = false
-                        showSettings = true
+                SideMenu(
+                    onSelectAllLogs: {
+                        withAnimation(.easeInOut) {
+                            isMenuVisible = false
+                            showAllLogs = true
+                        }
+                    },
+                    onSelectSettings: {
+                        withAnimation(.easeInOut) {
+                            isMenuVisible = false
+                            showSettings = true
+                        }
                     }
-                }
+                )
                 .transition(.move(edge: .leading))
                 .zIndex(2)
             }
