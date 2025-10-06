@@ -8,33 +8,36 @@
 import SwiftUI
 
 struct HomeView: View {
-    @StateObject private var viewModel = ActionLogViewModel()
+    @EnvironmentObject private var profileStore: ProfileStore
+    @EnvironmentObject private var actionStore: ActionLogStore
     @State private var presentedCategory: BabyActionCategory?
 
     var body: some View {
+        let state = currentState
+
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                headerSection
+                headerSection(for: state)
 
                 VStack(spacing: 16) {
                     ForEach(BabyActionCategory.allCases) { category in
                         ActionCard(
                             category: category,
-                            activeAction: viewModel.activeAction(for: category),
-                            lastCompleted: viewModel.lastCompletedAction(for: category),
+                            activeAction: state.activeAction(for: category),
+                            lastCompleted: state.lastCompletedAction(for: category),
                             onStart: { handleStartTap(for: category) },
-                            onStop: { viewModel.stopAction(for: category) }
+                            onStop: { stopAction(for: category) }
                         )
                     }
                 }
 
-                if !viewModel.history.isEmpty {
+                if !state.history.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Recent Activity")
                             .font(.headline)
 
                         VStack(spacing: 12) {
-                            ForEach(viewModel.history) { action in
+                            ForEach(state.history) { action in
                                 HistoryRow(action: action)
                             }
                         }
@@ -47,21 +50,21 @@ struct HomeView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .sheet(item: $presentedCategory) { category in
             ActionDetailSheet(category: category) { configuration in
-                viewModel.startAction(for: category,
-                                      diaperType: configuration.diaperType,
-                                      feedingType: configuration.feedingType,
-                                      bottleVolume: configuration.bottleVolume)
+                startAction(for: category,
+                             diaperType: configuration.diaperType,
+                             feedingType: configuration.feedingType,
+                             bottleVolume: configuration.bottleVolume)
             }
         }
     }
 
-    private var headerSection: some View {
+    private func headerSection(for state: ProfileActionState) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Log today's care actions")
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            if let recent = viewModel.mostRecentAction {
+            if let recent = state.mostRecentAction {
                 VStack(alignment: .leading, spacing: 8) {
                     Label {
                         Text(recent.title)
@@ -106,10 +109,33 @@ struct HomeView: View {
     private func handleStartTap(for category: BabyActionCategory) {
         switch category {
         case .sleep:
-            viewModel.startAction(for: .sleep)
+            startAction(for: .sleep)
         case .diaper, .feeding:
             presentedCategory = category
         }
+    }
+
+    private func startAction(for category: BabyActionCategory,
+                             diaperType: BabyAction.DiaperType? = nil,
+                             feedingType: BabyAction.FeedingType? = nil,
+                             bottleVolume: Int? = nil) {
+        actionStore.startAction(for: activeProfileID,
+                                category: category,
+                                diaperType: diaperType,
+                                feedingType: feedingType,
+                                bottleVolume: bottleVolume)
+    }
+
+    private func stopAction(for category: BabyActionCategory) {
+        actionStore.stopAction(for: activeProfileID, category: category)
+    }
+
+    private var activeProfileID: UUID {
+        profileStore.activeProfile.id
+    }
+
+    private var currentState: ProfileActionState {
+        actionStore.state(for: activeProfileID)
     }
 }
 
@@ -384,5 +410,19 @@ private struct ActionDetailSheet: View {
 }
 
 #Preview {
-    HomeView()
+    let profile = ChildProfile(name: "Aria", birthDate: Date())
+    let profileStore = ProfileStore(initialProfiles: [profile], activeProfileID: profile.id, directory: FileManager.default.temporaryDirectory, filename: "previewHomeProfiles.json")
+
+    var state = ProfileActionState()
+    state.activeActions[.sleep] = BabyAction(category: .sleep, startDate: Date().addingTimeInterval(-1200))
+    state.history = [
+        BabyAction(category: .feeding, startDate: Date().addingTimeInterval(-5400), endDate: Date().addingTimeInterval(-5100), feedingType: .bottle, bottleVolume: 110),
+        BabyAction(category: .diaper, startDate: Date().addingTimeInterval(-3600), endDate: Date().addingTimeInterval(-3500), diaperType: .pee)
+    ]
+
+    let actionStore = ActionLogStore.previewStore(profiles: [profile.id: state])
+
+    return HomeView()
+        .environmentObject(profileStore)
+        .environmentObject(actionStore)
 }

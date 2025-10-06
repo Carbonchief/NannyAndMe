@@ -116,6 +116,17 @@ private enum Tab: Hashable {
 }
 
 #Preview {
-    ContentView().environmentObject(ProfileStore.preview)
+    let profile = ChildProfile(name: "Aria", birthDate: Date())
+    let profileStore = ProfileStore(initialProfiles: [profile], activeProfileID: profile.id, directory: FileManager.default.temporaryDirectory, filename: "previewContentProfiles.json")
 
+    var state = ProfileActionState()
+    state.history = [
+        BabyAction(category: .feeding, startDate: Date().addingTimeInterval(-3600), endDate: Date().addingTimeInterval(-3300), feedingType: .bottle, bottleVolume: 100)
+    ]
+
+    let actionStore = ActionLogStore.previewStore(profiles: [profile.id: state])
+
+    return ContentView()
+        .environmentObject(profileStore)
+        .environmentObject(actionStore)
 }
