@@ -41,6 +41,9 @@
 "settings.about.section" = "About";
 "settings.about.appVersion" = "App Version";
 "settings.title" = "Settings";
+"notifications.ageReminder.title" = "Monthly milestone";
+"notifications.ageReminder.oneMonth" = "%@ is 1 month old today.";
+"notifications.ageReminder.months" = "%@ is %lld months old today.";
 "menu.title" = "Nanny & Me";
 "menu.subtitle" = "Quick actions";
 "menu.allLogs" = "All Logs";
