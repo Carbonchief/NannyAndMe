@@ -43,6 +43,8 @@
 "profiles.birthDate" = "Birth date";
 "profiles.choosePhoto" = "Choose profile photo";
 "profiles.removePhoto" = "Remove profile photo";
+"profiles.age.format" = "%@ old";
+"profiles.age.newborn" = "Newborn";
 "profiles.delete.confirmationTitle" = "Delete %@?";
 "profiles.delete.confirmationMessage" = "This will remove %@ and all associated activity logs.";
 "profiles.delete.action" = "Delete Profile";

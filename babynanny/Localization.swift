@@ -107,6 +107,13 @@ enum L10n {
         }
 
         static let deleteAction = String(localized: "profiles.delete.action", defaultValue: "Delete Profile")
+
+        static func ageDescription(_ age: String) -> String {
+            let format = String(localized: "profiles.age.format", defaultValue: "%@ old")
+            return String(format: format, locale: Locale.current, age)
+        }
+
+        static let ageNewborn = String(localized: "profiles.age.newborn", defaultValue: "Newborn")
     }
 
     enum Settings {
