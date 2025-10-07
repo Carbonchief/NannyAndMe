@@ -118,8 +118,6 @@ struct StatsView: View {
                             AxisValueLabel {
                                 if let dateValue = value.as(Date.self) {
                                     Text(dateValue, format: .dateTime.weekday(.abbreviated))
-                                } else {
-                                    EmptyView()
                                 }
                             }
                         }
@@ -168,6 +166,8 @@ struct StatsView: View {
         selectedCategory ?? state.mostRecentAction?.category ?? .sleep
     }
 
+    // MARK: - FIXED: use @ViewBuilder + trailing-closure Picker label (no explicit `return`)
+    @ViewBuilder
     private func categoryPicker(for state: ProfileActionState) -> some View {
         let selection = resolvedCategory(for: state)
         let binding = Binding<BabyActionCategory>(
@@ -177,27 +177,24 @@ struct StatsView: View {
             }
         )
 
-        return Picker(
-            selection: binding,
-            label: {
-                HStack(spacing: 6) {
-                    Image(systemName: selection.icon)
-                        .font(.system(size: 14, weight: .semibold))
-
-                    Text(selection.title)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(selection.accentColor.opacity(0.12))
-                .foregroundStyle(selection.accentColor)
-                .clipShape(Capsule())
-            }
-        ) {
+        Picker(selection: binding) {
             ForEach(BabyActionCategory.allCases) { category in
                 Text(category.title).tag(category)
             }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: selection.icon)
+                    .font(.system(size: 14, weight: .semibold))
+
+                Text(selection.title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(selection.accentColor.opacity(0.12))
+            .foregroundStyle(selection.accentColor)
+            .clipShape(Capsule())
         }
         .pickerStyle(.menu)
         .accessibilityLabel(L10n.Stats.actionPickerLabel)
