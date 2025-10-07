@@ -313,24 +313,26 @@ private extension SettingsView {
 
     @ViewBuilder
     private func actionReminderStatus(for category: BabyActionCategory, isEnabled: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(L10n.Settings.nextReminderLabel)
+        if isEnabled == false {
+            Text(L10n.Settings.actionReminderDisabled)
                 .font(.footnote)
-                .fontWeight(.semibold)
-
-            if isEnabled == false {
-                Text(L10n.Settings.actionReminderDisabled)
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 4)
+        } else if isLoadingActionReminders {
+            HStack(spacing: 8) {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle())
+                Text(L10n.Settings.nextReminderLoading)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-            } else if isLoadingActionReminders {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                    Text(L10n.Settings.nextReminderLoading)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            } else if let summary = actionReminderSummaries[category] {
+            }
+            .padding(.vertical, 4)
+        } else if let summary = actionReminderSummaries[category] {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L10n.Settings.nextReminderLabel)
+                    .font(.footnote)
+                    .fontWeight(.semibold)
+
                 Text(
                     L10n.Settings.nextReminderScheduled(
                         summary.fireDate.formatted(date: .abbreviated, time: .shortened),
@@ -339,13 +341,9 @@ private extension SettingsView {
                 )
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            } else {
-                Text(L10n.Settings.nextReminderUnavailable)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
+            .padding(.vertical, 4)
         }
-        .padding(.vertical, 4)
     }
 
 }
