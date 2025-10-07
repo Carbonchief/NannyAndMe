@@ -1,6 +1,20 @@
 import Foundation
 import UserNotifications
 
+protocol UserNotificationCenterType: AnyObject {
+    func authorizationStatus() async -> UNAuthorizationStatus
+    func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool
+    func pendingNotificationRequests() async -> [UNNotificationRequest]
+    func add(_ request: UNNotificationRequest, withCompletionHandler completionHandler: ((Error?) -> Void)?)
+    func removePendingNotificationRequests(withIdentifiers identifiers: [String])
+}
+
+extension UNUserNotificationCenter: UserNotificationCenterType {
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await notificationSettings().authorizationStatus
+    }
+}
+
 protocol ReminderScheduling {
     func ensureAuthorization() async -> Bool
     func refreshReminders(for profiles: [ChildProfile]) async
@@ -8,7 +22,7 @@ protocol ReminderScheduling {
 }
 
 actor UserNotificationReminderScheduler: ReminderScheduling {
-    private let center: UNUserNotificationCenter
+    private let center: UserNotificationCenterType
     private var calendar: Calendar
     private let identifierPrefix = "age-reminder-"
     private let isoFormatter: ISO8601DateFormatter
@@ -16,7 +30,7 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
     private let maxNotifications = 64
 
     init(
-        center: UNUserNotificationCenter = .current(),
+        center: UserNotificationCenterType = UNUserNotificationCenter.current(),
         calendar: Calendar = .current
     ) {
         self.center = center
@@ -30,9 +44,9 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
     }
 
     func ensureAuthorization() async -> Bool {
-        let settings = await center.notificationSettings()
+        let status = await center.authorizationStatus()
 
-        switch settings.authorizationStatus {
+        switch status {
         case .authorized, .provisional, .ephemeral:
             return true
         case .denied:
@@ -49,10 +63,10 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
     }
 
     func refreshReminders(for profiles: [ChildProfile]) async {
-        let settings = await center.notificationSettings()
-        guard settings.authorizationStatus == .authorized ||
-            settings.authorizationStatus == .provisional ||
-            settings.authorizationStatus == .ephemeral
+        let status = await center.authorizationStatus()
+        guard status == .authorized ||
+            status == .provisional ||
+            status == .ephemeral
         else {
             await removePendingAgeReminders()
             return
@@ -81,9 +95,15 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
             groups = Array(groups.prefix(maxNotifications))
         }
 
-        let identifiers = await currentReminderIdentifiers()
-        if identifiers.isEmpty == false {
-            center.removePendingNotificationRequests(withIdentifiers: identifiers)
+        let existingRequests = await center.pendingNotificationRequests()
+            .filter { $0.identifier.hasPrefix(identifierPrefix) }
+        let existingByIdentifier = Dictionary(uniqueKeysWithValues: existingRequests.map { ($0.identifier, $0) })
+        let existingIdentifiers = Set(existingByIdentifier.keys)
+        let newIdentifiers = Set(groups.map { identifier(for: $0.fireDate) })
+
+        let identifiersToRemove = existingIdentifiers.subtracting(newIdentifiers)
+        if identifiersToRemove.isEmpty == false {
+            center.removePendingNotificationRequests(withIdentifiers: Array(identifiersToRemove))
         }
 
         for group in groups {
@@ -99,13 +119,13 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
             let identifier = identifier(for: group.fireDate)
 
             let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-            center.add(request) { error in
-                #if DEBUG
-                if let error {
-                    print("Failed to schedule reminder: \(error.localizedDescription)")
-                }
-                #endif
+
+            if let existing = existingByIdentifier[identifier],
+               reminderRequest(existing, matchesContent: content, components: components) {
+                continue
             }
+
+            schedule(request, retryOnFailure: true)
         }
     }
 
@@ -192,6 +212,47 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
         let identifiers = await currentReminderIdentifiers()
         if identifiers.isEmpty == false {
             center.removePendingNotificationRequests(withIdentifiers: identifiers)
+        }
+    }
+
+    private func reminderRequest(
+        _ request: UNNotificationRequest,
+        matchesContent content: UNNotificationContent,
+        components: DateComponents
+    ) -> Bool {
+        guard let trigger = request.trigger as? UNCalendarNotificationTrigger else { return false }
+        guard trigger.repeats == false else { return false }
+
+        let fields: [Calendar.Component] = [.year, .month, .day, .hour, .minute]
+        for component in fields {
+            if trigger.dateComponents.value(for: component) != components.value(for: component) {
+                return false
+            }
+        }
+
+        return request.content.title == content.title &&
+            request.content.body == content.body
+    }
+
+    private func schedule(_ request: UNNotificationRequest, retryOnFailure: Bool) {
+        let notificationCenter = center
+        notificationCenter.add(request) { error in
+            #if DEBUG
+            if let error {
+                print("Failed to schedule reminder: \(error.localizedDescription)")
+            }
+            #endif
+
+            guard retryOnFailure, error != nil else { return }
+
+            notificationCenter.removePendingNotificationRequests(withIdentifiers: [request.identifier])
+            notificationCenter.add(request) { retryError in
+                #if DEBUG
+                if let retryError {
+                    print("Failed to reschedule reminder after removal: \(retryError.localizedDescription)")
+                }
+                #endif
+            }
         }
     }
 }
