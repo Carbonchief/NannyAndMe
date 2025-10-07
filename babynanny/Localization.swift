@@ -211,6 +211,7 @@ enum L10n {
             defaultValue: "Are you sure you want to delete this log? This action cannot be undone."
         )
         static let deleteAction = String(localized: "logs.delete.action", defaultValue: "Delete Log")
+        static let editAction = String(localized: "logs.edit.action", defaultValue: "Edit Log")
         static let filterButton = String(localized: "logs.filter.button", defaultValue: "Filter")
         static let filterTitle = String(localized: "logs.filter.title", defaultValue: "Filter Logs")
         static let filterStartToggle = String(localized: "logs.filter.startToggle", defaultValue: "Filter from date")

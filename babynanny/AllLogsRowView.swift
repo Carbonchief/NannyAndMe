@@ -38,6 +38,14 @@ struct AllLogsRowView: View {
             .padding(.vertical, 12)
         }
         .buttonStyle(.plain)
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            Button {
+                onEdit(action)
+            } label: {
+                Label(L10n.Logs.editAction, systemImage: "square.and.pencil")
+            }
+            .tint(.accentColor)
+        }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
                 onDelete(action)

@@ -78,6 +78,7 @@
 "logs.delete.confirmationTitle" = "¿Eliminar registro?";
 "logs.delete.confirmationMessage" = "¿Seguro que deseas eliminar este registro? Esta acción no se puede deshacer.";
 "logs.delete.action" = "Eliminar registro";
+"logs.edit.action" = "Editar registro";
 "logs.filter.button" = "Filtrar";
 "logs.filter.title" = "Filtrar registros";
 "logs.filter.startToggle" = "Filtrar desde fecha";
