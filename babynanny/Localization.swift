@@ -205,6 +205,16 @@ enum L10n {
         static let emptyTitle = String(localized: "logs.empty.title", defaultValue: "No logs yet")
         static let emptySubtitle = String(localized: "logs.empty.subtitle", defaultValue: "Actions you record will appear here, organized by day.")
         static let active = String(localized: "logs.active", defaultValue: "Active")
+        static let filterSectionTitle = String(localized: "logs.filter.sectionTitle", defaultValue: "Date Range")
+        static let filterToggle = String(localized: "logs.filter.toggle", defaultValue: "Filter by date range")
+        static let filterStart = String(localized: "logs.filter.start", defaultValue: "Start date")
+        static let filterEnd = String(localized: "logs.filter.end", defaultValue: "End date")
+        static let filterClear = String(localized: "logs.filter.clear", defaultValue: "Clear filter")
+        static let filterEmptyTitle = String(localized: "logs.filter.emptyTitle", defaultValue: "No logs for the selected dates")
+        static let filterEmptySubtitle = String(
+            localized: "logs.filter.emptySubtitle",
+            defaultValue: "Try adjusting your date range to see more history."
+        )
 
         static func entryTitle(_ startTime: String, _ duration: String, _ summary: String) -> String {
             let format = String(localized: "logs.entry.title", defaultValue: "%@, %@ %@")

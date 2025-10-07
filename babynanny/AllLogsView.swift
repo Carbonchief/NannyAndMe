@@ -4,6 +4,13 @@ struct AllLogsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
     @State private var editingAction: BabyAction?
+    @State private var isFilteringByDate = false
+    @State private var filterStartDate = Calendar.current.date(
+        byAdding: .day,
+        value: -7,
+        to: Calendar.current.startOfDay(for: Date())
+    ) ?? Date()
+    @State private var filterEndDate = Calendar.current.startOfDay(for: Date())
 
     private let calendar = Calendar.current
     private let dateFormatter: DateFormatter = {
@@ -37,23 +44,14 @@ struct AllLogsView: View {
     @ViewBuilder
     private func content(asOf referenceDate: Date) -> some View {
         let grouped = groupedActions()
+        let hasHistory = hasAnyHistory()
 
-        if grouped.isEmpty {
-            VStack(spacing: 16) {
-                Image(systemName: "text.book.closed")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.secondary)
-                Text(L10n.Logs.emptyTitle)
-                    .font(.headline)
-                Text(L10n.Logs.emptySubtitle)
-                    .font(.subheadline)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(.systemGroupedBackground))
-        } else {
-            List {
+        List {
+            filterSection()
+
+            if grouped.isEmpty {
+                emptyStateSection(hasHistory: hasHistory)
+            } else {
                 ForEach(grouped, id: \.date) { entry in
                     Section(header: Text(dateFormatter.string(from: entry.date))) {
                         ForEach(entry.actions) { action in
@@ -63,15 +61,15 @@ struct AllLogsView: View {
                     }
                 }
             }
-            .listRowSpacing(0)
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .background(Color(.systemGroupedBackground))
         }
+        .listRowSpacing(0)
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color(.systemGroupedBackground))
     }
 
     private func groupedActions() -> [(date: Date, actions: [BabyAction])] {
-        let actions = actionStore.state(for: profileStore.activeProfile.id).history
+        let actions = filteredActions()
         var grouped: [Date: [BabyAction]] = [:]
         var orderedDates: [Date] = []
 
@@ -90,6 +88,112 @@ struct AllLogsView: View {
             let actionsForDate = grouped[date] ?? []
             return (date: date, actions: actionsForDate)
         }
+    }
+
+    private func filteredActions() -> [BabyAction] {
+        let actions = actionStore.state(for: profileStore.activeProfile.id).history
+
+        guard isFilteringByDate else {
+            return actions
+        }
+
+        let normalizedStart = calendar.startOfDay(for: filterStartDate)
+        let normalizedEnd = calendar.startOfDay(for: filterEndDate)
+
+        guard let inclusiveEnd = calendar.date(byAdding: DateComponents(day: 1, second: -1), to: normalizedEnd) else {
+            return actions
+        }
+
+        return actions.filter { action in
+            action.startDate >= normalizedStart && action.startDate <= inclusiveEnd
+        }
+    }
+
+    private func hasAnyHistory() -> Bool {
+        !actionStore.state(for: profileStore.activeProfile.id).history.isEmpty
+    }
+
+    @ViewBuilder
+    private func filterSection() -> some View {
+        Section {
+            Toggle(L10n.Logs.filterToggle, isOn: $isFilteringByDate.animation())
+
+            if isFilteringByDate {
+                DatePicker(
+                    L10n.Logs.filterStart,
+                    selection: filterStartBinding,
+                    in: ...filterEndDate,
+                    displayedComponents: .date
+                )
+                DatePicker(
+                    L10n.Logs.filterEnd,
+                    selection: filterEndBinding,
+                    in: filterStartDate...Date(),
+                    displayedComponents: .date
+                )
+
+                Button(L10n.Logs.filterClear) {
+                    resetFilter()
+                }
+                .buttonStyle(.borderless)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 4)
+            }
+        } header: {
+            Text(L10n.Logs.filterSectionTitle)
+        }
+    }
+
+    private func resetFilter() {
+        isFilteringByDate = false
+        filterStartDate = calendar.date(byAdding: .day, value: -7, to: calendar.startOfDay(for: Date())) ?? Date()
+        filterEndDate = calendar.startOfDay(for: Date())
+    }
+
+    @ViewBuilder
+    private func emptyStateSection(hasHistory: Bool) -> some View {
+        Section {
+            VStack(spacing: 16) {
+                Image(systemName: "text.book.closed")
+                    .font(.system(size: 48))
+                    .foregroundStyle(.secondary)
+                Text(hasHistory && isFilteringByDate ? L10n.Logs.filterEmptyTitle : L10n.Logs.emptyTitle)
+                    .font(.headline)
+                Text(hasHistory && isFilteringByDate ? L10n.Logs.filterEmptySubtitle : L10n.Logs.emptySubtitle)
+                    .font(.subheadline)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 24)
+        }
+        .listRowBackground(Color(.systemGroupedBackground))
+    }
+
+    private var filterStartBinding: Binding<Date> {
+        Binding(
+            get: { filterStartDate },
+            set: { newValue in
+                let normalized = calendar.startOfDay(for: newValue)
+                filterStartDate = normalized
+                if filterEndDate < normalized {
+                    filterEndDate = normalized
+                }
+            }
+        )
+    }
+
+    private var filterEndBinding: Binding<Date> {
+        Binding(
+            get: { filterEndDate },
+            set: { newValue in
+                let normalized = calendar.startOfDay(for: newValue)
+                filterEndDate = normalized
+                if filterEndDate < filterStartDate {
+                    filterEndDate = filterStartDate
+                }
+            }
+        )
     }
 
     private func logRow(for action: BabyAction, asOf referenceDate: Date) -> some View {

@@ -75,6 +75,13 @@
 "logs.empty.title" = "No logs yet";
 "logs.empty.subtitle" = "Actions you record will appear here, organized by day.";
 "logs.active" = "Active";
+"logs.filter.sectionTitle" = "Date Range";
+"logs.filter.toggle" = "Filter by date range";
+"logs.filter.start" = "Start date";
+"logs.filter.end" = "End date";
+"logs.filter.clear" = "Clear filter";
+"logs.filter.emptyTitle" = "No logs for the selected dates";
+"logs.filter.emptySubtitle" = "Try adjusting your date range to see more history.";
 "logs.entry.title" = "%@, %@ %@";
 "logs.summary.sleep" = "sleep";
 "logs.summary.diaperWithType" = "diaper - %@";

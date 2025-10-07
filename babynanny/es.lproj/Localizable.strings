@@ -75,6 +75,13 @@
 "logs.empty.title" = "Todavía no hay registros";
 "logs.empty.subtitle" = "Las acciones que registres aparecerán aquí organizadas por día.";
 "logs.active" = "Activo";
+"logs.filter.sectionTitle" = "Rango de fechas";
+"logs.filter.toggle" = "Filtrar por rango de fechas";
+"logs.filter.start" = "Fecha de inicio";
+"logs.filter.end" = "Fecha de fin";
+"logs.filter.clear" = "Borrar filtro";
+"logs.filter.emptyTitle" = "No hay registros para las fechas seleccionadas";
+"logs.filter.emptySubtitle" = "Ajusta el rango de fechas para ver más historial.";
 "logs.entry.title" = "%@, %@ %@";
 "logs.summary.sleep" = "sueño";
 "logs.summary.diaperWithType" = "pañal – %@";

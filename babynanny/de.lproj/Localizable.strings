@@ -75,6 +75,13 @@
 "logs.empty.title" = "Noch keine Protokolle";
 "logs.empty.subtitle" = "Hier erscheinen deine aufgezeichneten Aktionen nach Tagen sortiert.";
 "logs.active" = "Aktiv";
+"logs.filter.sectionTitle" = "Datumsbereich";
+"logs.filter.toggle" = "Nach Datumsbereich filtern";
+"logs.filter.start" = "Startdatum";
+"logs.filter.end" = "Enddatum";
+"logs.filter.clear" = "Filter zurücksetzen";
+"logs.filter.emptyTitle" = "Keine Protokolle für die ausgewählten Daten";
+"logs.filter.emptySubtitle" = "Passe den Datumsbereich an, um weitere Einträge zu sehen.";
 "logs.entry.title" = "%@, %@ %@";
 "logs.summary.sleep" = "Schlaf";
 "logs.summary.diaperWithType" = "Windel – %@";
