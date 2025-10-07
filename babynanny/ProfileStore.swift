@@ -26,6 +26,41 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         name.isEmpty ? L10n.Profile.newProfile : name
     }
 
+    func ageDescription(referenceDate: Date = Date(), calendar: Calendar = .current) -> String {
+        let now = max(referenceDate, birthDate)
+        var components = calendar.dateComponents([.year, .month, .day], from: birthDate, to: now)
+
+        let years = max(components.year ?? 0, 0)
+        let months = max(components.month ?? 0, 0)
+        let days = max(components.day ?? 0, 0)
+
+        if years <= 0 && months <= 0 && days <= 0 {
+            return L10n.Profiles.ageNewborn
+        }
+
+        components.year = years
+        components.month = months
+        components.day = days
+
+        let formatter = DateComponentsFormatter()
+        formatter.unitsStyle = .full
+        formatter.maximumUnitCount = 2
+
+        if years > 0 {
+            formatter.allowedUnits = [.year, .month]
+        } else if months > 0 {
+            formatter.allowedUnits = [.month, .day]
+        } else {
+            formatter.allowedUnits = [.day]
+        }
+
+        if let formatted = formatter.string(from: components), formatted.isEmpty == false {
+            return L10n.Profiles.ageDescription(formatted)
+        }
+
+        return L10n.Profiles.ageNewborn
+    }
+
     private enum CodingKeys: String, CodingKey {
         case id
         case name

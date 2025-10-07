@@ -34,6 +34,9 @@ struct SettingsView: View {
                             Text(profile.birthDate, style: .date)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                            Text(profile.ageDescription())
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
 
                         Spacer()

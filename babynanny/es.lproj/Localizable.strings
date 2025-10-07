@@ -43,6 +43,8 @@
 "profiles.birthDate" = "Fecha de nacimiento";
 "profiles.choosePhoto" = "Elegir foto de perfil";
 "profiles.removePhoto" = "Quitar foto de perfil";
+"profiles.age.format" = "Tiene %@";
+"profiles.age.newborn" = "Recién nacido";
 "profiles.delete.confirmationTitle" = "¿Eliminar el perfil de %@?";
 "profiles.delete.confirmationMessage" = "Esto eliminará el perfil de %@ y todos los registros de actividad asociados.";
 "profiles.delete.action" = "Eliminar perfil";
