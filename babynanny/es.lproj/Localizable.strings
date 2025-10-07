@@ -8,6 +8,7 @@
 "home.recentActivity" = "Actividad reciente";
 "home.recentActivity.showAll" = "Ver todo";
 "home.header.title" = "Última acción";
+"home.header.edit" = "Editar";
 "home.header.placeholder" = "Inicia una acción abajo para comenzar a registrar el día de tu bebé.";
 "home.noEntries" = "Aún no hay registros";
 "home.sleep.info" = "Inicia una sesión de sueño. Detenla cuando tu pequeño despierte para capturar el tiempo total de descanso.";
@@ -19,6 +20,13 @@
 "home.bottle.pickerLabel" = "Volumen del biberón";
 "home.bottle.customFieldPlaceholder" = "Volumen personalizado (ml)";
 "home.bottle.customOption" = "Personalizado";
+"home.sheet.editActionTitle" = "Editar acción";
+"home.edit.startSectionTitle" = "Hora de inicio";
+"home.edit.startPickerLabel" = "Inicio";
+"home.edit.categoryLabel" = "Categoría";
+"home.edit.endSectionTitle" = "Hora de finalización";
+"home.edit.endPickerLabel" = "Fin";
+"home.edit.endNote" = "Detén esta acción para editar la hora de finalización.";
 "home.header.activeFor" = "Activo durante %@";
 "home.header.lastFinished" = "Última finalización %@";
 "home.card.startedAt" = "Iniciado a las %@";

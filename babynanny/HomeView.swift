@@ -11,6 +11,7 @@ struct HomeView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
     @State private var presentedCategory: BabyActionCategory?
+    @State private var editingAction: BabyAction?
     private let onShowAllLogs: () -> Void
 
     init(onShowAllLogs: @escaping () -> Void = {}) {
@@ -74,6 +75,12 @@ struct HomeView: View {
                              bottleVolume: configuration.bottleVolume)
             }
         }
+        .sheet(item: $editingAction) { action in
+            ActionEditSheet(action: action) { updatedAction in
+                actionStore.updateAction(for: activeProfileID, action: updatedAction)
+                editingAction = nil
+            }
+        }
     }
 
     private func headerSection(for state: ProfileActionState) -> some View {
@@ -84,13 +91,27 @@ struct HomeView: View {
 
             if let recent = state.mostRecentAction {
                 VStack(alignment: .leading, spacing: 8) {
-                    Label {
-                        Text(recent.title)
-                            .font(.headline)
-                    } icon: {
-                        Image(systemName: recent.icon)
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundStyle(recent.category.accentColor)
+                    HStack(alignment: .top) {
+                        Label {
+                            Text(recent.title)
+                                .font(.headline)
+                        } icon: {
+                            Image(systemName: recent.icon)
+                                .font(.system(size: 22, weight: .semibold))
+                                .foregroundStyle(recent.category.accentColor)
+                        }
+
+                        Spacer(minLength: 12)
+
+                        Button {
+                            editingAction = recent
+                        } label: {
+                            Label(L10n.Home.editActionButton, systemImage: "square.and.pencil")
+                                .font(.subheadline)
+                                .labelStyle(.titleAndIcon)
+                        }
+                        .buttonStyle(.borderless)
+                        .tint(.accentColor)
                     }
 
                     Text(recent.detailDescription)
@@ -290,6 +311,265 @@ private struct ActionConfiguration {
     var bottleVolume: Int?
 }
 
+private enum BottleVolumeOption: Hashable, Identifiable {
+    case preset(Int)
+    case custom
+
+    static let presets: [BottleVolumeOption] = [.preset(60), .preset(90), .preset(120), .preset(150)]
+    static let allOptions: [BottleVolumeOption] = presets + [.custom]
+
+    var id: String {
+        switch self {
+        case .preset(let value):
+            return "preset_\(value)"
+        case .custom:
+            return "custom"
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .preset(let value):
+            return L10n.Home.bottlePresetLabel(value)
+        case .custom:
+            return L10n.Home.customBottleOption
+        }
+    }
+}
+
+private struct ActionEditSheet: View {
+    let action: BabyAction
+    let onSave: (BabyAction) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var startDate: Date
+    @State private var endDate: Date?
+    @State private var diaperSelection: BabyAction.DiaperType
+    @State private var feedingSelection: BabyAction.FeedingType
+    @State private var bottleSelection: BottleVolumeOption
+    @State private var customBottleVolume: String
+
+    init(action: BabyAction, onSave: @escaping (BabyAction) -> Void) {
+        self.action = action
+        self.onSave = onSave
+
+        _startDate = State(initialValue: action.startDate)
+        if action.category.isInstant {
+            _endDate = State(initialValue: action.endDate ?? action.startDate)
+        } else {
+            _endDate = State(initialValue: action.endDate)
+        }
+        _diaperSelection = State(initialValue: action.diaperType ?? .pee)
+        _feedingSelection = State(initialValue: action.feedingType ?? .bottle)
+
+        let defaultSelection: BottleVolumeOption = .preset(120)
+        if let volume = action.bottleVolume {
+            if BottleVolumeOption.presets.contains(.preset(volume)) {
+                _bottleSelection = State(initialValue: .preset(volume))
+                _customBottleVolume = State(initialValue: "")
+            } else {
+                _bottleSelection = State(initialValue: .custom)
+                _customBottleVolume = State(initialValue: String(volume))
+            }
+        } else {
+            _bottleSelection = State(initialValue: defaultSelection)
+            _customBottleVolume = State(initialValue: "")
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(header: Text(L10n.Home.editCategoryLabel)) {
+                    Text(action.category.title)
+                }
+
+                Section(header: Text(L10n.Home.editStartSectionTitle)) {
+                    DatePicker(
+                        L10n.Home.editStartPickerLabel,
+                        selection: $startDate,
+                        in: startDateRange,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                }
+
+                if canEditEndDate {
+                    Section(header: Text(L10n.Home.editEndSectionTitle)) {
+                        DatePicker(
+                            L10n.Home.editEndPickerLabel,
+                            selection: endDateBinding,
+                            in: endDateRange,
+                            displayedComponents: [.date, .hourAndMinute]
+                        )
+                    }
+                } else if shouldShowEndNote {
+                    Section(header: Text(L10n.Home.editEndSectionTitle)) {
+                        Text(L10n.Home.editEndNote)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if action.category == .diaper {
+                    Section(header: Text(L10n.Home.diaperTypeSectionTitle)) {
+                        Picker(selection: $diaperSelection) {
+                            ForEach(BabyAction.DiaperType.allCases) { option in
+                                Text(option.title).tag(option)
+                            }
+                        } label: {
+                            Text(L10n.Home.diaperTypePickerLabel)
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                }
+
+                if action.category == .feeding {
+                    Section(header: Text(L10n.Home.feedingTypeSectionTitle)) {
+                        Picker(selection: $feedingSelection) {
+                            ForEach(BabyAction.FeedingType.allCases) { option in
+                                Text(option.title).tag(option)
+                            }
+                        } label: {
+                            Text(L10n.Home.feedingTypePickerLabel)
+                        }
+                        .pickerStyle(.segmented)
+                    }
+
+                    if feedingSelection.requiresVolume {
+                        Section(header: Text(L10n.Home.bottleVolumeSectionTitle)) {
+                            Picker(selection: $bottleSelection) {
+                                ForEach(BottleVolumeOption.allOptions) { option in
+                                    Text(option.label).tag(option)
+                                }
+                            } label: {
+                                Text(L10n.Home.bottleVolumePickerLabel)
+                            }
+                            .pickerStyle(.segmented)
+
+                            if bottleSelection == .custom {
+                                TextField(L10n.Home.customVolumeFieldPlaceholder, text: $customBottleVolume)
+                                    .keyboardType(.numberPad)
+                            }
+                        }
+                    }
+                }
+
+            }
+            .navigationTitle(L10n.Home.editActionTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.Common.cancel) {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.Common.done) {
+                        save()
+                    }
+                    .disabled(isSaveDisabled)
+                }
+            }
+            .onChange(of: startDate) { newValue in
+                if action.category.isInstant {
+                    endDate = newValue
+                } else if let currentEnd = endDate, currentEnd < newValue {
+                    endDate = newValue
+                }
+            }
+            .onChange(of: endDate) { newValue in
+                guard let newValue else { return }
+                if newValue < startDate {
+                    startDate = newValue
+                }
+            }
+        }
+    }
+
+    private var startDateRange: ClosedRange<Date> {
+        let upperBound: Date
+        if action.category.isInstant {
+            upperBound = Date()
+        } else if let endDate {
+            upperBound = min(endDate, Date())
+        } else if let actionEnd = action.endDate {
+            upperBound = min(actionEnd, Date())
+        } else {
+            upperBound = Date()
+        }
+        return Date.distantPast...upperBound
+    }
+
+    private var endDateRange: ClosedRange<Date> {
+        let upperBound = max(startDate, Date())
+        return startDate...upperBound
+    }
+
+    private var endDateBinding: Binding<Date> {
+        Binding(
+            get: { endDate ?? action.endDate ?? startDate },
+            set: { newValue in
+                endDate = newValue
+            }
+        )
+    }
+
+    private var canEditEndDate: Bool {
+        !action.category.isInstant && action.endDate != nil
+    }
+
+    private var shouldShowEndNote: Bool {
+        !action.category.isInstant && action.endDate == nil
+    }
+
+    private var resolvedBottleVolume: Int? {
+        switch bottleSelection {
+        case .preset(let value):
+            return value
+        case .custom:
+            let trimmed = customBottleVolume.trimmingCharacters(in: .whitespaces)
+            guard let value = Int(trimmed), value > 0 else { return nil }
+            return value
+        }
+    }
+
+    private var isSaveDisabled: Bool {
+        if action.category == .feeding && feedingSelection.requiresVolume {
+            return resolvedBottleVolume == nil
+        }
+        return false
+    }
+
+    private func save() {
+        var updated = action
+        updated.startDate = startDate
+
+        switch action.category {
+        case .sleep:
+            break
+        case .diaper:
+            updated.diaperType = diaperSelection
+        case .feeding:
+            updated.feedingType = feedingSelection
+            updated.bottleVolume = feedingSelection.requiresVolume ? resolvedBottleVolume : nil
+        }
+
+        if action.category.isInstant {
+            updated.endDate = startDate
+        } else if action.endDate != nil {
+            let finalEnd = endDate ?? startDate
+            updated.endDate = max(finalEnd, startDate)
+        } else {
+            updated.endDate = nil
+        }
+
+        onSave(updated)
+        dismiss()
+    }
+}
+
 private struct ActionDetailSheet: View {
     let category: BabyActionCategory
     let onStart: (ActionConfiguration) -> Void
@@ -412,31 +692,6 @@ private struct ActionDetailSheet: View {
         }
     }
 
-    private enum BottleVolumeOption: Hashable, Identifiable {
-        case preset(Int)
-        case custom
-
-        static let presets: [BottleVolumeOption] = [.preset(60), .preset(90), .preset(120), .preset(150)]
-        static let allOptions: [BottleVolumeOption] = presets + [.custom]
-
-        var id: String {
-            switch self {
-            case .preset(let value):
-                return "preset_\(value)"
-            case .custom:
-                return "custom"
-            }
-        }
-
-        var label: String {
-            switch self {
-            case .preset(let value):
-                return L10n.Home.bottlePresetLabel(value)
-            case .custom:
-                return L10n.Home.customBottleOption
-            }
-        }
-    }
 }
 
 #Preview {

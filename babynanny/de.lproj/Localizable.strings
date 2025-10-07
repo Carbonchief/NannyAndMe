@@ -8,6 +8,7 @@
 "home.recentActivity" = "Letzte Aktivitäten";
 "home.recentActivity.showAll" = "Alle anzeigen";
 "home.header.title" = "Letzte Aktion";
+"home.header.edit" = "Bearbeiten";
 "home.header.placeholder" = "Starte unten eine Aktion, um den Tag deines Babys zu verfolgen.";
 "home.noEntries" = "Noch keine Einträge";
 "home.sleep.info" = "Starte eine Schlafsitzung. Beende sie, wenn dein Kind aufwacht, um die gesamte Ruhezeit zu erfassen.";
@@ -19,6 +20,13 @@
 "home.bottle.pickerLabel" = "Flaschenmenge";
 "home.bottle.customFieldPlaceholder" = "Individuelles Volumen (ml)";
 "home.bottle.customOption" = "Individuell";
+"home.sheet.editActionTitle" = "Aktion bearbeiten";
+"home.edit.startSectionTitle" = "Startzeit";
+"home.edit.startPickerLabel" = "Start";
+"home.edit.categoryLabel" = "Kategorie";
+"home.edit.endSectionTitle" = "Endzeit";
+"home.edit.endPickerLabel" = "Ende";
+"home.edit.endNote" = "Beende diese Aktion, um die Endzeit zu bearbeiten.";
 "home.header.activeFor" = "Aktiv seit %@";
 "home.header.lastFinished" = "Zuletzt beendet %@";
 "home.card.startedAt" = "Gestartet um %@";

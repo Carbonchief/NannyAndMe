@@ -72,11 +72,11 @@ struct BabyAction: Identifiable, Codable {
 
     var id: UUID
     let category: BabyActionCategory
-    let startDate: Date
+    var startDate: Date
     var endDate: Date?
-    let diaperType: DiaperType?
-    let feedingType: FeedingType?
-    let bottleVolume: Int?
+    var diaperType: DiaperType?
+    var feedingType: FeedingType?
+    var bottleVolume: Int?
 
     init(id: UUID = UUID(),
          category: BabyActionCategory,
@@ -145,6 +145,16 @@ struct BabyAction: Identifiable, Codable {
     func endDateTimeDescription() -> String? {
         guard let endDate else { return nil }
         return BabyActionFormatter.shared.format(dateTime: endDate)
+    }
+
+    func withValidatedDates() -> BabyAction {
+        var copy = self
+        if category.isInstant {
+            copy.endDate = copy.startDate
+        } else if let endDate = copy.endDate, endDate < copy.startDate {
+            copy.endDate = copy.startDate
+        }
+        return copy
     }
 }
 
@@ -368,6 +378,22 @@ final class ActionLogStore: ObservableObject {
         }
     }
 
+    func updateAction(for profileID: UUID, action updatedAction: BabyAction) {
+        updateState(for: profileID) { profileState in
+            let normalizedAction = updatedAction.withValidatedDates()
+
+            if let index = profileState.history.firstIndex(where: { $0.id == normalizedAction.id }) {
+                profileState.history[index] = normalizedAction
+            }
+
+            for (category, action) in profileState.activeActions {
+                guard action.id == normalizedAction.id else { continue }
+                profileState.activeActions[category] = normalizedAction
+                break
+            }
+        }
+    }
+
     func removeProfileData(for profileID: UUID) {
         var profiles = storage.profiles
         guard profiles.removeValue(forKey: profileID) != nil else { return }
@@ -412,15 +438,20 @@ final class ActionLogStore: ObservableObject {
     private static func sanitized(state: ActionStoreState?) -> ActionStoreState {
         var state = state ?? ActionStoreState(profiles: [:])
         for (key, var value) in state.profiles {
+            var normalizedActive: [BabyActionCategory: BabyAction] = [:]
             var endedActions: [BabyAction] = []
-            value.activeActions = value.activeActions.filter { _, action in
-                if let _ = action.endDate {
-                    endedActions.append(action)
-                    return false
+
+            for (category, action) in value.activeActions {
+                let normalized = action.withValidatedDates()
+                if normalized.endDate != nil {
+                    endedActions.append(normalized)
+                } else {
+                    normalizedActive[category] = normalized
                 }
-                return true
             }
 
+            value.activeActions = normalizedActive
+            value.history = value.history.map { $0.withValidatedDates() }
             value.history.append(contentsOf: endedActions)
             value.history.sort { $0.startDate > $1.startDate }
 
