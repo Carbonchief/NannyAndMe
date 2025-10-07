@@ -108,6 +108,30 @@ enum L10n {
         static let aboutSection = String(localized: "settings.about.section", defaultValue: "About")
         static let appVersion = String(localized: "settings.about.appVersion", defaultValue: "App Version")
         static let title = String(localized: "settings.title", defaultValue: "Settings")
+        static let nextReminderLabel = String(
+            localized: "settings.notifications.nextReminder.label",
+            defaultValue: "Next reminder"
+        )
+        static let nextReminderDisabled = String(
+            localized: "settings.notifications.nextReminder.disabled",
+            defaultValue: "Reminders are turned off."
+        )
+        static let nextReminderUnavailable = String(
+            localized: "settings.notifications.nextReminder.unavailable",
+            defaultValue: "No reminders scheduled yet."
+        )
+        static let nextReminderLoading = String(
+            localized: "settings.notifications.nextReminder.loading",
+            defaultValue: "Loading…"
+        )
+
+        static func nextReminderScheduled(_ date: String, _ detail: String) -> String {
+            let format = String(
+                localized: "settings.notifications.nextReminder.scheduled",
+                defaultValue: "%@ — %@"
+            )
+            return String(format: format, locale: Locale.current, date, detail)
+        }
     }
 
     enum Notifications {

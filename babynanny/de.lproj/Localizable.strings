@@ -41,6 +41,11 @@
 "profiles.delete.action" = "Profil löschen";
 "settings.notifications.section" = "Benachrichtigungen";
 "settings.notifications.enable" = "Erinnerungen aktivieren";
+"settings.notifications.nextReminder.label" = "Nächste Erinnerung";
+"settings.notifications.nextReminder.disabled" = "Erinnerungen sind deaktiviert.";
+"settings.notifications.nextReminder.unavailable" = "Noch keine Erinnerungen geplant.";
+"settings.notifications.nextReminder.loading" = "Wird geladen …";
+"settings.notifications.nextReminder.scheduled" = "%@ – %@";
 "settings.about.section" = "Info";
 "settings.about.appVersion" = "App-Version";
 "settings.title" = "Einstellungen";

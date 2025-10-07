@@ -41,6 +41,11 @@
 "profiles.delete.action" = "Eliminar perfil";
 "settings.notifications.section" = "Notificaciones";
 "settings.notifications.enable" = "Activar recordatorios";
+"settings.notifications.nextReminder.label" = "Próximo recordatorio";
+"settings.notifications.nextReminder.disabled" = "Los recordatorios están desactivados.";
+"settings.notifications.nextReminder.unavailable" = "Todavía no hay recordatorios programados.";
+"settings.notifications.nextReminder.loading" = "Cargando…";
+"settings.notifications.nextReminder.scheduled" = "%@ — %@";
 "settings.about.section" = "Acerca de";
 "settings.about.appVersion" = "Versión de la app";
 "settings.title" = "Configuración";
