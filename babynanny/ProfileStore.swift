@@ -138,6 +138,19 @@ final class ProfileStore: ObservableObject {
         state = Self.sanitized(state: newState)
     }
 
+    func deleteProfile(_ profile: ChildProfile) {
+        guard let index = state.profiles.firstIndex(where: { $0.id == profile.id }) else { return }
+
+        var newState = state
+        newState.profiles.remove(at: index)
+
+        if newState.activeProfileID == profile.id {
+            newState.activeProfileID = newState.profiles.first?.id
+        }
+
+        state = Self.sanitized(state: newState)
+    }
+
     func updateActiveProfile(_ updates: (inout ChildProfile) -> Void) {
         guard let activeID = state.activeProfileID,
               let index = state.profiles.firstIndex(where: { $0.id == activeID }) else { return }
