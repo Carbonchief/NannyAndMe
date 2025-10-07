@@ -203,15 +203,6 @@ enum L10n {
             defaultValue: "Reminders are turned off for this action."
         )
 
-        static let actionReminderPreview = String(
-            localized: "settings.notifications.actionReminder.preview",
-            defaultValue: "Preview"
-        )
-
-        static let actionReminderPreviewUnavailable = String(
-            localized: "settings.notifications.actionReminder.previewUnavailable",
-            defaultValue: "No reminder is scheduled yet. Try logging this action to schedule one."
-        )
     }
 
     enum Notifications {

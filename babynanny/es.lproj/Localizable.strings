@@ -65,8 +65,6 @@
 "settings.notifications.actionReminder.frequency.one" = "Cada hora";
 "settings.notifications.actionReminder.frequency.other" = "Cada %lld horas";
 "settings.notifications.actionReminder.disabled" = "Los recordatorios están desactivados para esta acción.";
-"settings.notifications.actionReminder.preview" = "Vista previa";
-"settings.notifications.actionReminder.previewUnavailable" = "Aún no hay ningún recordatorio programado. Registra esta acción para programar uno.";
 "settings.about.section" = "Acerca de";
 "settings.about.appVersion" = "Versión de la app";
 "settings.title" = "Configuración";

@@ -307,13 +307,6 @@ private extension SettingsView {
             .disabled(remindersEnabled == false || isCategoryEnabled == false)
 
             actionReminderStatus(for: category, isEnabled: remindersEnabled && isCategoryEnabled)
-
-            Button(L10n.Settings.actionReminderPreview) {
-                showReminderPreview(for: category)
-            }
-            .buttonStyle(.bordered)
-            .tint(category.accentColor)
-            .disabled(remindersEnabled == false || isCategoryEnabled == false)
         }
         .padding(.vertical, 4)
     }
@@ -355,14 +348,6 @@ private extension SettingsView {
         .padding(.vertical, 4)
     }
 
-    private func showReminderPreview(for category: BabyActionCategory) {
-        Task { @MainActor in
-            let result = await profileStore.scheduleActionReminderPreview(for: category)
-            if result == .authorizationDenied {
-                showNotificationsSettingsPrompt = true
-            }
-        }
-    }
 }
 
 #Preview {
