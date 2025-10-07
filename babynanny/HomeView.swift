@@ -257,18 +257,18 @@ private struct ActionCard: View {
 
             } else {
                 if let lastCompleted {
-                    if let timestampDescription = lastCompleted.endDateTimeDescription()
-                        ?? lastCompleted.startDateTimeDescription() {
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text(L10n.Home.lastRun(timestampDescription))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                    let timestampDescription = lastCompleted.endDateTimeDescription()
+                        ?? lastCompleted.startDateTimeDescription()
 
-                            Text(lastCompleted.durationDescription())
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
-                        }
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(L10n.Home.lastRun(timestampDescription))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Text(lastCompleted.durationDescription())
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
                     }
                 }
             }
