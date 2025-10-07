@@ -127,8 +127,11 @@ struct HomeView: View {
                     if recent.endDate == nil {
                         TimelineView(.periodic(from: .now, by: 1)) { context in
                             Text(L10n.Home.activeFor(recent.durationDescription(asOf: context.date)))
-                                .font(.caption)
+                                .font(.title3)
+                                .fontWeight(.semibold)
                                 .monospacedDigit()
+                                .frame(maxWidth: .infinity)
+                                .multilineTextAlignment(.center)
                                 .foregroundStyle(.secondary)
                         }
                     } else if let ended = recent.endDateTimeDescription() {
