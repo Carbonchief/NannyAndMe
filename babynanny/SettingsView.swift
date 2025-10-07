@@ -16,10 +16,11 @@ struct SettingsView: View {
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var isUpdatingReminders = false
     @State private var profilePendingDeletion: ChildProfile?
-    @State private var nextReminderOverview: ReminderOverview?
-    @State private var isLoadingNextReminder = false
+    @State private var actionReminderSummaries: [BabyActionCategory: ProfileStore.ActionReminderSummary] = [:]
+    @State private var isLoadingActionReminders = false
     @State private var reminderLoadTask: Task<Void, Never>?
     @State private var showNotificationsSettingsPrompt = false
+    @State private var reminderPreview: ReminderPreview?
 
     var body: some View {
         Form {
@@ -129,7 +130,7 @@ struct SettingsView: View {
                                 let result = await profileStore.setRemindersEnabled(newValue)
                                 await MainActor.run {
                                     isUpdatingReminders = false
-                                    refreshNextReminder()
+                                    refreshActionReminderSummaries()
                                     if result == .authorizationDenied {
                                         showNotificationsSettingsPrompt = true
                                     }
@@ -143,7 +144,6 @@ struct SettingsView: View {
                 .disabled(isUpdatingReminders)
 
                 if profileStore.activeProfile.remindersEnabled {
-                    reminderStatusView(for: profileStore.activeProfile)
                     ForEach(BabyActionCategory.allCases) { category in
                         actionReminderRow(for: category)
                     }
@@ -189,25 +189,28 @@ struct SettingsView: View {
                 secondaryButton: .cancel(Text(L10n.Settings.notificationsPermissionCancel))
             )
         }
+        .sheet(item: $reminderPreview) { preview in
+            ReminderPreviewSheet(preview: preview)
+        }
         .onAppear {
-            refreshNextReminder()
+            refreshActionReminderSummaries()
         }
         .onChange(of: profileStore.activeProfileID) { _ in
-            refreshNextReminder()
+            refreshActionReminderSummaries()
         }
         .onChange(of: profileStore.activeProfile.remindersEnabled) { _ in
-            refreshNextReminder()
+            refreshActionReminderSummaries()
         }
         .onChange(of: profileStore.activeProfile.birthDate) { _ in
-            refreshNextReminder()
+            refreshActionReminderSummaries()
         }
         .onChange(of: profileStore.activeProfile.name) { _ in
-            refreshNextReminder()
+            refreshActionReminderSummaries()
         }
         .onDisappear {
             reminderLoadTask?.cancel()
             reminderLoadTask = nil
-            isLoadingNextReminder = false
+            isLoadingActionReminders = false
         }
     }
 
@@ -217,79 +220,38 @@ struct SettingsView: View {
         profilePendingDeletion = nil
     }
 
-    private func refreshNextReminder() {
+    private func refreshActionReminderSummaries() {
         reminderLoadTask?.cancel()
 
         guard profileStore.activeProfile.remindersEnabled else {
-            nextReminderOverview = nil
-            isLoadingNextReminder = false
+            actionReminderSummaries = [:]
+            isLoadingActionReminders = false
             reminderLoadTask = nil
             return
         }
 
         let profileID = profileStore.activeProfile.id
-        isLoadingNextReminder = true
-        nextReminderOverview = nil
+        isLoadingActionReminders = true
+        actionReminderSummaries = [:]
 
         reminderLoadTask = Task {
-            let overview = await profileStore.nextReminder(for: profileID)
+            let summaries = await profileStore.nextActionReminderSummaries(for: profileID)
 
             await MainActor.run {
                 defer { reminderLoadTask = nil }
 
                 guard profileStore.activeProfile.id == profileID else {
-                    isLoadingNextReminder = false
+                    isLoadingActionReminders = false
                     return
                 }
 
                 if Task.isCancelled {
-                    isLoadingNextReminder = false
+                    isLoadingActionReminders = false
                     return
                 }
 
-                nextReminderOverview = overview
-                isLoadingNextReminder = false
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func reminderStatusView(for profile: ChildProfile) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(L10n.Settings.nextReminderLabel)
-                .font(.subheadline)
-                .fontWeight(.semibold)
-
-            if isLoadingNextReminder {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                    Text(L10n.Settings.nextReminderLoading)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 4)
-            } else if let overview = nextReminderOverview,
-                      overview.includes(profileID: profile.id),
-                      let message = overview.message(for: profile.id) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(overview.category.localizedTitle)
-                        .font(.footnote)
-                    Text(
-                        L10n.Settings.nextReminderScheduled(
-                            overview.fireDate.formatted(date: .abbreviated, time: .shortened),
-                            message
-                        )
-                    )
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 4)
-            } else {
-                Text(L10n.Settings.nextReminderUnavailable)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 4)
+                actionReminderSummaries = summaries
+                isLoadingActionReminders = false
             }
         }
     }
@@ -310,21 +272,145 @@ private extension SettingsView {
                 profileStore.updateActiveProfile { profile in
                     profile.setReminderInterval(interval, for: category)
                 }
-                refreshNextReminder()
+                refreshActionReminderSummaries()
+            }
+        )
+    }
+
+    private func reminderEnabledBinding(for category: BabyActionCategory) -> Binding<Bool> {
+        Binding(
+            get: { profileStore.activeProfile.isActionReminderEnabled(for: category) },
+            set: { newValue in
+                profileStore.updateActiveProfile { profile in
+                    profile.setReminderEnabled(newValue, for: category)
+                }
+                refreshActionReminderSummaries()
             }
         )
     }
 
     @ViewBuilder
     private func actionReminderRow(for category: BabyActionCategory) -> some View {
-        let binding = reminderIntervalBinding(for: category)
-        Stepper(value: binding, in: 1...12) {
-            HStack {
+        let intervalBinding = reminderIntervalBinding(for: category)
+        let enabledBinding = reminderEnabledBinding(for: category)
+        let isCategoryEnabled = profileStore.activeProfile.isActionReminderEnabled(for: category)
+        let remindersEnabled = profileStore.activeProfile.remindersEnabled
+
+        VStack(alignment: .leading, spacing: 12) {
+            Toggle(isOn: enabledBinding) {
                 Label(L10n.Settings.actionReminderTitle(category.title), systemImage: category.icon)
-                Spacer()
+            }
+            .disabled(remindersEnabled == false)
+            .tint(category.accentColor)
+
+            Stepper(value: intervalBinding, in: 1...12) {
                 Text(L10n.Settings.actionReminderFrequencyDescription(reminderHours(for: category)))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+            }
+            .disabled(remindersEnabled == false || isCategoryEnabled == false)
+
+            actionReminderStatus(for: category, isEnabled: remindersEnabled && isCategoryEnabled)
+
+            Button(L10n.Settings.actionReminderPreview) {
+                showReminderPreview(for: category)
+            }
+            .buttonStyle(.bordered)
+            .tint(category.accentColor)
+            .disabled(remindersEnabled == false || isCategoryEnabled == false)
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func actionReminderStatus(for category: BabyActionCategory, isEnabled: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.Settings.nextReminderLabel)
+                .font(.footnote)
+                .fontWeight(.semibold)
+
+            if isEnabled == false {
+                Text(L10n.Settings.actionReminderDisabled)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else if isLoadingActionReminders {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                    Text(L10n.Settings.nextReminderLoading)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            } else if let summary = actionReminderSummaries[category] {
+                Text(
+                    L10n.Settings.nextReminderScheduled(
+                        summary.fireDate.formatted(date: .abbreviated, time: .shortened),
+                        summary.message
+                    )
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            } else {
+                Text(L10n.Settings.nextReminderUnavailable)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func showReminderPreview(for category: BabyActionCategory) {
+        let title = L10n.Notifications.actionReminderOverviewTitle(category.title)
+
+        guard profileStore.activeProfile.remindersEnabled,
+              profileStore.activeProfile.isActionReminderEnabled(for: category) else {
+            reminderPreview = ReminderPreview(title: title, message: L10n.Settings.actionReminderDisabled)
+            return
+        }
+
+        if let summary = actionReminderSummaries[category] {
+            let date = summary.fireDate.formatted(date: .abbreviated, time: .shortened)
+            reminderPreview = ReminderPreview(
+                title: title,
+                message: L10n.Settings.nextReminderScheduled(date, summary.message)
+            )
+        } else if isLoadingActionReminders {
+            reminderPreview = ReminderPreview(title: title, message: L10n.Settings.nextReminderLoading)
+        } else {
+            reminderPreview = ReminderPreview(title: title, message: L10n.Settings.actionReminderPreviewUnavailable)
+        }
+    }
+
+    private struct ReminderPreview: Identifiable {
+        let id = UUID()
+        let title: String
+        let message: String
+    }
+
+    private struct ReminderPreviewSheet: View {
+        let preview: ReminderPreview
+        @Environment(\.dismiss) private var dismiss
+
+        var body: some View {
+            NavigationStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text(preview.message)
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding()
+                }
+                .navigationTitle(preview.title)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(L10n.Common.done) {
+                            dismiss()
+                        }
+                    }
+                }
             }
         }
     }

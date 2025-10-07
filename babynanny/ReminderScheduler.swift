@@ -259,6 +259,7 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
         for category in BabyActionCategory.allCases {
             let interval = profile.reminderInterval(for: category)
             if interval <= 0 { continue }
+            if profile.isActionReminderEnabled(for: category) == false { continue }
 
             if category.isInstant == false,
                let active = state?.activeAction(for: category),

@@ -8,6 +8,7 @@ struct ChildProfile: Codable, Identifiable, Equatable {
     var imageData: Data?
     var remindersEnabled: Bool
     var actionReminderIntervals: [BabyActionCategory: TimeInterval]
+    var actionRemindersEnabled: [BabyActionCategory: Bool]
 
     init(
         id: UUID = UUID(),
@@ -15,7 +16,8 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         birthDate: Date,
         imageData: Data? = nil,
         remindersEnabled: Bool = false,
-        actionReminderIntervals: [BabyActionCategory: TimeInterval] = ChildProfile.defaultActionReminderIntervals()
+        actionReminderIntervals: [BabyActionCategory: TimeInterval] = ChildProfile.defaultActionReminderIntervals(),
+        actionRemindersEnabled: [BabyActionCategory: Bool] = ChildProfile.defaultActionRemindersEnabled()
     ) {
         self.id = id
         self.name = name
@@ -23,7 +25,8 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         self.imageData = imageData
         self.remindersEnabled = remindersEnabled
         self.actionReminderIntervals = actionReminderIntervals
-        normalizeActionReminderIntervals()
+        self.actionRemindersEnabled = actionRemindersEnabled
+        normalizeReminderPreferences()
     }
 
     var displayName: String {
@@ -72,6 +75,7 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         case imageData
         case remindersEnabled
         case actionReminderIntervals
+        case actionRemindersEnabled
     }
 
     init(from decoder: Decoder) throws {
@@ -92,7 +96,17 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         } else {
             actionReminderIntervals = Self.defaultActionReminderIntervals()
         }
-        normalizeActionReminderIntervals()
+        if let rawEnabled = try container.decodeIfPresent([String: Bool].self, forKey: .actionRemindersEnabled) {
+            let mapped = rawEnabled.reduce(into: [:]) { partialResult, element in
+                let (key, value) = element
+                guard let category = BabyActionCategory(rawValue: key) else { return }
+                partialResult[category] = value
+            }
+            actionRemindersEnabled = mapped
+        } else {
+            actionRemindersEnabled = Self.defaultActionRemindersEnabled()
+        }
+        normalizeReminderPreferences()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -104,6 +118,8 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         try container.encode(remindersEnabled, forKey: .remindersEnabled)
         let rawIntervals = Dictionary(uniqueKeysWithValues: actionReminderIntervals.map { ($0.key.rawValue, $0.value) })
         try container.encode(rawIntervals, forKey: .actionReminderIntervals)
+        let rawEnabled = Dictionary(uniqueKeysWithValues: actionRemindersEnabled.map { ($0.key.rawValue, $0.value) })
+        try container.encode(rawEnabled, forKey: .actionRemindersEnabled)
     }
 
     func reminderInterval(for category: BabyActionCategory) -> TimeInterval {
@@ -112,15 +128,31 @@ struct ChildProfile: Codable, Identifiable, Equatable {
 
     mutating func setReminderInterval(_ interval: TimeInterval, for category: BabyActionCategory) {
         actionReminderIntervals[category] = max(0, interval)
-        normalizeActionReminderIntervals()
+        normalizeReminderPreferences()
     }
 
-    mutating func normalizeActionReminderIntervals() {
+    func isActionReminderEnabled(for category: BabyActionCategory) -> Bool {
+        actionRemindersEnabled[category] ?? true
+    }
+
+    mutating func setReminderEnabled(_ isEnabled: Bool, for category: BabyActionCategory) {
+        actionRemindersEnabled[category] = isEnabled
+        normalizeReminderPreferences()
+    }
+
+    mutating func normalizeReminderPreferences() {
         for category in BabyActionCategory.allCases {
             if let value = actionReminderIntervals[category], value > 0 {
                 continue
             }
             actionReminderIntervals[category] = Self.defaultActionReminderInterval
+            if actionRemindersEnabled[category] == nil {
+                actionRemindersEnabled[category] = true
+            }
+        }
+
+        for category in BabyActionCategory.allCases where actionRemindersEnabled[category] == nil {
+            actionRemindersEnabled[category] = true
         }
     }
 
@@ -128,6 +160,10 @@ struct ChildProfile: Codable, Identifiable, Equatable {
 
     static func defaultActionReminderIntervals() -> [BabyActionCategory: TimeInterval] {
         Dictionary(uniqueKeysWithValues: BabyActionCategory.allCases.map { ($0, defaultActionReminderInterval) })
+    }
+
+    static func defaultActionRemindersEnabled() -> [BabyActionCategory: Bool] {
+        Dictionary(uniqueKeysWithValues: BabyActionCategory.allCases.map { ($0, true) })
     }
 }
 
@@ -153,6 +189,10 @@ final class ProfileStore: ObservableObject {
     private let saveURL: URL
     private let reminderScheduler: ReminderScheduling
     private weak var actionStore: ActionLogStore?
+    struct ActionReminderSummary: Equatable, Sendable {
+        let fireDate: Date
+        let message: String
+    }
     @Published private var state: ProfileState {
         didSet {
             persistState()
@@ -274,6 +314,29 @@ final class ProfileStore: ObservableObject {
         return reminders.first(where: { $0.includes(profileID: profileID) })
     }
 
+    func nextActionReminderSummaries(for profileID: UUID) async -> [BabyActionCategory: ActionReminderSummary] {
+        let profiles = state.profiles
+        let actionStates = actionStore?.actionStatesSnapshot ?? [:]
+        let reminders = await reminderScheduler.upcomingReminders(for: profiles, actionStates: actionStates, reference: Date())
+
+        var summaries: [BabyActionCategory: ActionReminderSummary] = [:]
+
+        for overview in reminders {
+            guard case let .action(category) = overview.category else { continue }
+            guard overview.includes(profileID: profileID) else { continue }
+            guard let message = overview.message(for: profileID) else { continue }
+
+            let summary = ActionReminderSummary(fireDate: overview.fireDate, message: message)
+            if let existing = summaries[category], existing.fireDate <= summary.fireDate {
+                continue
+            }
+
+            summaries[category] = summary
+        }
+
+        return summaries
+    }
+
     private func ensureValidState() {
         let sanitized = Self.sanitized(state: state)
         if sanitized != state {
@@ -323,7 +386,7 @@ final class ProfileStore: ObservableObject {
 
         state.profiles = state.profiles.map { profile in
             var normalized = profile
-            normalized.normalizeActionReminderIntervals()
+            normalized.normalizeReminderPreferences()
             return normalized
         }
 
