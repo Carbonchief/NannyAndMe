@@ -41,6 +41,9 @@
 "settings.about.section" = "Info";
 "settings.about.appVersion" = "App-Version";
 "settings.title" = "Einstellungen";
+"notifications.ageReminder.title" = "Monatlicher Meilenstein";
+"notifications.ageReminder.oneMonth" = "%@ ist heute 1 Monat alt.";
+"notifications.ageReminder.months" = "%@ ist heute %lld Monate alt.";
 "menu.title" = "Nanny & Me";
 "menu.subtitle" = "Schnellaktionen";
 "menu.allLogs" = "Alle Protokolle";
