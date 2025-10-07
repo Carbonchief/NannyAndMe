@@ -109,9 +109,9 @@
 "actions.diaper" = "Windel";
 "actions.feeding" = "Füttern";
 "actions.diaper.change" = "Windelwechsel";
-"actions.diaper.withType" = "Windel: %@";
-"actions.feeding.bottle" = "Füttern: Flasche (%lld ml)";
-"actions.feeding.withType" = "Füttern: %@";
+"actions.diaper.withType" = "%@";
+"actions.feeding.bottle" = "Flasche (%lld ml)";
+"actions.feeding.withType" = "%@";
 "diaper.pee" = "Nass";
 "diaper.poo" = "Stuhl";
 "diaper.both" = "Nass & Stuhl";

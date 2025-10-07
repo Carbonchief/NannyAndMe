@@ -288,17 +288,17 @@ enum L10n {
         static let diaperChange = String(localized: "actions.diaper.change", defaultValue: "Diaper change")
 
         static func diaperWithType(_ type: String) -> String {
-            let format = String(localized: "actions.diaper.withType", defaultValue: "Diaper: %@")
+            let format = String(localized: "actions.diaper.withType", defaultValue: "%@")
             return String(format: format, locale: Locale.current, type)
         }
 
         static func feedingBottle(_ volume: Int) -> String {
-            let format = String(localized: "actions.feeding.bottle", defaultValue: "Feeding: Bottle (%lld ml)")
+            let format = String(localized: "actions.feeding.bottle", defaultValue: "Bottle (%lld ml)")
             return String(format: format, locale: Locale.current, volume)
         }
 
         static func feedingWithType(_ type: String) -> String {
-            let format = String(localized: "actions.feeding.withType", defaultValue: "Feeding: %@")
+            let format = String(localized: "actions.feeding.withType", defaultValue: "%@")
             return String(format: format, locale: Locale.current, type)
         }
     }

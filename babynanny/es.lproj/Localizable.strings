@@ -109,9 +109,9 @@
 "actions.diaper" = "Pañal";
 "actions.feeding" = "Alimentación";
 "actions.diaper.change" = "Cambio de pañal";
-"actions.diaper.withType" = "Pañal: %@";
-"actions.feeding.bottle" = "Alimentación: Biberón (%lld ml)";
-"actions.feeding.withType" = "Alimentación: %@";
+"actions.diaper.withType" = "%@";
+"actions.feeding.bottle" = "Biberón (%lld ml)";
+"actions.feeding.withType" = "%@";
 "diaper.pee" = "Mojado";
 "diaper.poo" = "Sólido";
 "diaper.both" = "Mojado y sólido";

@@ -109,9 +109,9 @@
 "actions.diaper" = "Diaper";
 "actions.feeding" = "Feeding";
 "actions.diaper.change" = "Diaper change";
-"actions.diaper.withType" = "Diaper: %@";
-"actions.feeding.bottle" = "Feeding: Bottle (%lld ml)";
-"actions.feeding.withType" = "Feeding: %@";
+"actions.diaper.withType" = "%@";
+"actions.feeding.bottle" = "Bottle (%lld ml)";
+"actions.feeding.withType" = "%@";
 "diaper.pee" = "Pee";
 "diaper.poo" = "Poo";
 "diaper.both" = "Pee & Poo";
