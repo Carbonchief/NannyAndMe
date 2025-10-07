@@ -291,6 +291,12 @@ final class ProfileStore: ObservableObject {
         case authorizationDenied
     }
 
+    enum ReminderPreviewResult: Equatable {
+        case scheduled
+        case authorizationDenied
+        case disabled
+    }
+
     @discardableResult
     func setRemindersEnabled(_ isEnabled: Bool) async -> ReminderAuthorizationResult {
         var desiredValue = isEnabled
@@ -336,6 +342,19 @@ final class ProfileStore: ObservableObject {
         }
 
         return summaries
+    }
+
+    func scheduleActionReminderPreview(for category: BabyActionCategory, delay: TimeInterval = 60) async -> ReminderPreviewResult {
+        guard let profile = state.activeProfile else { return .disabled }
+        guard profile.remindersEnabled, profile.isActionReminderEnabled(for: category) else { return .disabled }
+
+        let scheduled = await reminderScheduler.schedulePreviewReminder(
+            for: profile,
+            category: category,
+            delay: delay
+        )
+
+        return scheduled ? .scheduled : .authorizationDenied
     }
 
     private func ensureValidState() {
@@ -443,6 +462,12 @@ extension ProfileStore {
                         entries: [entry]
                     )
                 ]
+            }
+
+            func schedulePreviewReminder(for profile: ChildProfile,
+                                         category: BabyActionCategory,
+                                         delay _: TimeInterval) async -> Bool {
+                true
             }
         }
 

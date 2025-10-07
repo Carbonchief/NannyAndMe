@@ -19,6 +19,9 @@ protocol ReminderScheduling {
     func ensureAuthorization() async -> Bool
     func refreshReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState]) async
     func upcomingReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState], reference: Date) async -> [ReminderOverview]
+    func schedulePreviewReminder(for profile: ChildProfile,
+                                 category: BabyActionCategory,
+                                 delay: TimeInterval) async -> Bool
 }
 
 actor UserNotificationReminderScheduler: ReminderScheduling {
@@ -26,6 +29,7 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
     private var calendar: Calendar
     private let ageIdentifierPrefix = "age-reminder-"
     private let actionIdentifierPrefix = "action-reminder-"
+    private let previewIdentifierPrefix = "preview-action-reminder-"
     private let isoFormatter: ISO8601DateFormatter
     private let schedulingWindowMonths = 24
     private let maxNotifications = 64
@@ -124,6 +128,35 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
             sorted = Array(sorted.prefix(maxNotifications))
         }
         return sorted.map(\.overview)
+    }
+
+    func schedulePreviewReminder(for profile: ChildProfile,
+                                 category: BabyActionCategory,
+                                 delay: TimeInterval) async -> Bool {
+        let authorized = await ensureAuthorization()
+        guard authorized else { return false }
+
+        let normalizedDelay = max(60, delay)
+        let interval = profile.reminderInterval(for: category)
+        let intervalHours = max(1, Int(round(interval / 3600)))
+        let intervalDescription = L10n.Notifications.actionReminderInterval(intervalHours)
+        let title = L10n.Notifications.actionReminderTitle(category.title)
+
+        let body = L10n.Notifications.actionReminderMessage(intervalDescription, profile.displayName, category.title)
+
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+
+        let identifier = previewIdentifier(for: profile.id, category: category)
+        center.removePendingNotificationRequests(withIdentifiers: [identifier])
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: normalizedDelay, repeats: false)
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        schedule(request, retryOnFailure: false)
+
+        return true
     }
 
     private func reminderPayloads(
@@ -315,6 +348,10 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
 
     private func actionIdentifier(for profileID: UUID, category: BabyActionCategory) -> String {
         actionIdentifierPrefix + profileID.uuidString + "-" + category.rawValue
+    }
+
+    private func previewIdentifier(for profileID: UUID, category: BabyActionCategory) -> String {
+        previewIdentifierPrefix + profileID.uuidString + "-" + category.rawValue
     }
 
     private func currentReminderIdentifiers() async -> [String] {
