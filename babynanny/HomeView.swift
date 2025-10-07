@@ -90,8 +90,9 @@ struct HomeView: View {
     private func headerSection(for state: ProfileActionState) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.Home.headerTitle)
-                .font(.title2)
+                .font(.headline)
                 .fontWeight(.semibold)
+                .frame(maxWidth: .infinity, alignment: .center)
 
             if let recent = state.mostRecentAction {
                 VStack(alignment: .leading, spacing: 8) {
