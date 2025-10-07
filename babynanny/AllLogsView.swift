@@ -3,6 +3,7 @@ import SwiftUI
 struct AllLogsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
+    @State private var editingAction: BabyAction?
 
     private let calendar = Calendar.current
     private let dateFormatter: DateFormatter = {
@@ -25,6 +26,12 @@ struct AllLogsView: View {
         .navigationTitle(L10n.Logs.title)
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .sheet(item: $editingAction) { action in
+            ActionEditSheet(action: action) { updatedAction in
+                actionStore.updateAction(for: profileStore.activeProfile.id, action: updatedAction)
+                editingAction = nil
+            }
+        }
     }
 
     @ViewBuilder
@@ -85,30 +92,35 @@ struct AllLogsView: View {
     }
 
     private func logRow(for action: BabyAction, asOf referenceDate: Date) -> some View {
-        HStack(alignment: .top, spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(action.category.accentColor.opacity(0.15))
-                    .frame(width: 36, height: 36)
+        Button {
+            editingAction = action
+        } label: {
+            HStack(alignment: .top, spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(action.category.accentColor.opacity(0.15))
+                        .frame(width: 36, height: 36)
 
-                Image(systemName: action.icon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(action.category.accentColor)
-            }
+                    Image(systemName: action.icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(action.category.accentColor)
+                }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(L10n.Logs.entryTitle(timeFormatter.string(from: action.startDate),
-                                           durationDescription(for: action, asOf: referenceDate),
-                                           actionSummary(for: action)))
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                if let detail = detailedDescription(for: action) {
-                    Text(detail)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L10n.Logs.entryTitle(timeFormatter.string(from: action.startDate),
+                                               durationDescription(for: action, asOf: referenceDate),
+                                               actionSummary(for: action)))
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    if let detail = detailedDescription(for: action) {
+                        Text(detail)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
+        .buttonStyle(.plain)
     }
 
     private func durationDescription(for action: BabyAction, asOf referenceDate: Date) -> String {
