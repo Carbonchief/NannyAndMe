@@ -124,6 +124,22 @@ enum L10n {
             localized: "settings.notifications.nextReminder.loading",
             defaultValue: "Loading…"
         )
+        static let notificationsPermissionTitle = String(
+            localized: "settings.notifications.permissionDenied.title",
+            defaultValue: "Enable notifications"
+        )
+        static let notificationsPermissionMessage = String(
+            localized: "settings.notifications.permissionDenied.message",
+            defaultValue: "Notifications are currently turned off for Nanny & Me. Enable notifications in Settings to receive reminders."
+        )
+        static let notificationsPermissionAction = String(
+            localized: "settings.notifications.permissionDenied.action",
+            defaultValue: "Open Settings"
+        )
+        static let notificationsPermissionCancel = String(
+            localized: "settings.notifications.permissionDenied.cancel",
+            defaultValue: "Not now"
+        )
 
         static func nextReminderScheduled(_ date: String, _ detail: String) -> String {
             let format = String(
