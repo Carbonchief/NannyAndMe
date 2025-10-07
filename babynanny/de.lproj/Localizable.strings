@@ -78,6 +78,7 @@
 "logs.delete.confirmationTitle" = "Protokoll löschen?";
 "logs.delete.confirmationMessage" = "Möchtest du dieses Protokoll wirklich löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.";
 "logs.delete.action" = "Protokoll löschen";
+"logs.edit.action" = "Protokoll bearbeiten";
 "logs.filter.button" = "Filter";
 "logs.filter.title" = "Protokolle filtern";
 "logs.filter.startToggle" = "Ab Datum filtern";

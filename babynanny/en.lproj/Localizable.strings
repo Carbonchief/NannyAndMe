@@ -78,6 +78,7 @@
 "logs.delete.confirmationTitle" = "Delete log?";
 "logs.delete.confirmationMessage" = "Are you sure you want to delete this log? This action cannot be undone.";
 "logs.delete.action" = "Delete Log";
+"logs.edit.action" = "Edit Log";
 "logs.filter.button" = "Filter";
 "logs.filter.title" = "Filter Logs";
 "logs.filter.startToggle" = "Filter from date";
