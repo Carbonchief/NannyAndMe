@@ -7,7 +7,7 @@
 "common.done" = "Done";
 "home.recentActivity" = "Recent Activity";
 "home.recentActivity.showAll" = "Show All";
-"home.header.title" = "Log today's care actions";
+"home.header.title" = "Last Action";
 "home.header.placeholder" = "Start an action below to begin tracking your baby's day.";
 "home.noEntries" = "No entries yet";
 "home.sleep.info" = "Start tracking a sleep session. Stop it when your little one wakes up to capture the total rest time.";

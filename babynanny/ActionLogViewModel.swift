@@ -317,9 +317,9 @@ final class ActionLogStore: ObservableObject {
                      feedingType: BabyAction.FeedingType? = nil,
                      bottleVolume: Int? = nil) {
         updateState(for: profileID) { profileState in
-            if category.isInstant {
-                let now = Date()
+            let now = Date()
 
+            if category.isInstant {
                 if var existing = profileState.activeActions.removeValue(forKey: category) {
                     existing.endDate = now
                     profileState.history.insert(existing, at: 0)
@@ -335,13 +335,24 @@ final class ActionLogStore: ObservableObject {
                 return
             }
 
+            let conflictingCategories = profileState.activeActions.keys.filter { key in
+                key != category && !key.isInstant
+            }
+
+            for conflict in conflictingCategories {
+                if var running = profileState.activeActions.removeValue(forKey: conflict) {
+                    running.endDate = now
+                    profileState.history.insert(running, at: 0)
+                }
+            }
+
             if var existing = profileState.activeActions.removeValue(forKey: category) {
-                existing.endDate = Date()
+                existing.endDate = now
                 profileState.history.insert(existing, at: 0)
             }
 
             let action = BabyAction(category: category,
-                                    startDate: Date(),
+                                    startDate: now,
                                     diaperType: diaperType,
                                     feedingType: feedingType,
                                     bottleVolume: bottleVolume)
