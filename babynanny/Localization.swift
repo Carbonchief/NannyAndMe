@@ -205,6 +205,12 @@ enum L10n {
         static let emptyTitle = String(localized: "logs.empty.title", defaultValue: "No logs yet")
         static let emptySubtitle = String(localized: "logs.empty.subtitle", defaultValue: "Actions you record will appear here, organized by day.")
         static let active = String(localized: "logs.active", defaultValue: "Active")
+        static let deleteConfirmationTitle = String(localized: "logs.delete.confirmationTitle", defaultValue: "Delete log?")
+        static let deleteConfirmationMessage = String(
+            localized: "logs.delete.confirmationMessage",
+            defaultValue: "Are you sure you want to delete this log? This action cannot be undone."
+        )
+        static let deleteAction = String(localized: "logs.delete.action", defaultValue: "Delete Log")
 
         static func entryTitle(_ startTime: String, _ duration: String, _ summary: String) -> String {
             let format = String(localized: "logs.entry.title", defaultValue: "%@, %@ %@")

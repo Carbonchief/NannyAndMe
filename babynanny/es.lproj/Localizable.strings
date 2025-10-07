@@ -75,6 +75,9 @@
 "logs.empty.title" = "Todavía no hay registros";
 "logs.empty.subtitle" = "Las acciones que registres aparecerán aquí organizadas por día.";
 "logs.active" = "Activo";
+"logs.delete.confirmationTitle" = "¿Eliminar registro?";
+"logs.delete.confirmationMessage" = "¿Seguro que deseas eliminar este registro? Esta acción no se puede deshacer.";
+"logs.delete.action" = "Eliminar registro";
 "logs.entry.title" = "%@, %@ %@";
 "logs.summary.sleep" = "sueño";
 "logs.summary.diaperWithType" = "pañal – %@";

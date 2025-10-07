@@ -75,6 +75,9 @@
 "logs.empty.title" = "Noch keine Protokolle";
 "logs.empty.subtitle" = "Hier erscheinen deine aufgezeichneten Aktionen nach Tagen sortiert.";
 "logs.active" = "Aktiv";
+"logs.delete.confirmationTitle" = "Protokoll löschen?";
+"logs.delete.confirmationMessage" = "Möchtest du dieses Protokoll wirklich löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.";
+"logs.delete.action" = "Protokoll löschen";
 "logs.entry.title" = "%@, %@ %@";
 "logs.summary.sleep" = "Schlaf";
 "logs.summary.diaperWithType" = "Windel – %@";
