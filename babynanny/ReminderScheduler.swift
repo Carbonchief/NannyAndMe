@@ -17,14 +17,15 @@ extension UNUserNotificationCenter: UserNotificationCenterType {
 
 protocol ReminderScheduling {
     func ensureAuthorization() async -> Bool
-    func refreshReminders(for profiles: [ChildProfile]) async
-    func upcomingReminders(for profiles: [ChildProfile], reference: Date) async -> [ReminderOverview]
+    func refreshReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState]) async
+    func upcomingReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState], reference: Date) async -> [ReminderOverview]
 }
 
 actor UserNotificationReminderScheduler: ReminderScheduling {
     private let center: UserNotificationCenterType
     private var calendar: Calendar
-    private let identifierPrefix = "age-reminder-"
+    private let ageIdentifierPrefix = "age-reminder-"
+    private let actionIdentifierPrefix = "action-reminder-"
     private let isoFormatter: ISO8601DateFormatter
     private let schedulingWindowMonths = 24
     private let maxNotifications = 64
@@ -62,65 +63,50 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
         }
     }
 
-    func refreshReminders(for profiles: [ChildProfile]) async {
+    func refreshReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState]) async {
         let status = await center.authorizationStatus()
         guard status == .authorized ||
             status == .provisional ||
             status == .ephemeral
         else {
-            await removePendingAgeReminders()
+            await removePendingReminders()
             return
         }
 
-        let now = Date()
-        let events = profiles
-            .filter { $0.remindersEnabled }
-            .flatMap { upcomingEvents(for: $0, reference: now) }
+        var payloads = reminderPayloads(for: profiles, actionStates: actionStates, reference: Date())
+            .sorted { $0.fireDate < $1.fireDate }
 
-        guard events.isEmpty == false else {
-            await removePendingAgeReminders()
+        guard payloads.isEmpty == false else {
+            await removePendingReminders()
             return
         }
 
-        let grouped = Dictionary(grouping: events, by: { $0.fireDate })
-        var groups = grouped.map { fireDate, events -> ReminderGroup in
-            let sorted = events.sorted { lhs, rhs in
-                lhs.profileName.localizedCaseInsensitiveCompare(rhs.profileName) == .orderedAscending
-            }
-            return ReminderGroup(fireDate: fireDate, events: sorted)
-        }
-        .sorted { $0.fireDate < $1.fireDate }
-
-        if groups.count > maxNotifications {
-            groups = Array(groups.prefix(maxNotifications))
+        if payloads.count > maxNotifications {
+            payloads = Array(payloads.prefix(maxNotifications))
         }
 
         let existingRequests = await center.pendingNotificationRequests()
-            .filter { $0.identifier.hasPrefix(identifierPrefix) }
+            .filter { $0.identifier.hasPrefix(ageIdentifierPrefix) || $0.identifier.hasPrefix(actionIdentifierPrefix) }
         let existingByIdentifier = Dictionary(uniqueKeysWithValues: existingRequests.map { ($0.identifier, $0) })
         let existingIdentifiers = Set(existingByIdentifier.keys)
-        let newIdentifiers = Set(groups.map { identifier(for: $0.fireDate) })
+        let newIdentifiers = Set(payloads.map { $0.identifier })
 
         let identifiersToRemove = existingIdentifiers.subtracting(newIdentifiers)
         if identifiersToRemove.isEmpty == false {
             center.removePendingNotificationRequests(withIdentifiers: Array(identifiersToRemove))
         }
 
-        for group in groups {
+        for payload in payloads {
             let content = UNMutableNotificationContent()
-            content.title = L10n.Notifications.ageReminderTitle
-            content.body = group.events
-                .map { L10n.Notifications.ageReminderMessage($0.profileName, $0.monthsOld) }
-                .joined(separator: " ")
+            content.title = payload.contentTitle
+            content.body = payload.contentBody
             content.sound = .default
 
-            let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: group.fireDate)
+            let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: payload.fireDate)
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-            let identifier = identifier(for: group.fireDate)
+            let request = UNNotificationRequest(identifier: payload.identifier, content: content, trigger: trigger)
 
-            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-
-            if let existing = existingByIdentifier[identifier],
+            if let existing = existingByIdentifier[payload.identifier],
                reminderRequest(existing, matchesContent: content, components: components) {
                 continue
             }
@@ -129,38 +115,70 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
         }
     }
 
-    func upcomingReminders(for profiles: [ChildProfile], reference: Date) async -> [ReminderOverview] {
+    func upcomingReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState], reference: Date) async -> [ReminderOverview] {
+        let payloads = reminderPayloads(for: profiles, actionStates: actionStates, reference: reference)
+        guard payloads.isEmpty == false else { return [] }
+
+        var sorted = payloads.sorted { $0.fireDate < $1.fireDate }
+        if sorted.count > maxNotifications {
+            sorted = Array(sorted.prefix(maxNotifications))
+        }
+        return sorted.map(\.overview)
+    }
+
+    private func reminderPayloads(
+        for profiles: [ChildProfile],
+        actionStates: [UUID: ProfileActionState],
+        reference: Date
+    ) -> [ReminderPayload] {
+        let agePayloads = ageReminderPayloads(for: profiles, reference: reference)
+        let actionPayloads = actionReminderPayloads(for: profiles, actionStates: actionStates, reference: reference)
+        return agePayloads + actionPayloads
+    }
+
+    private func ageReminderPayloads(for profiles: [ChildProfile], reference now: Date) -> [ReminderPayload] {
+        guard schedulingWindowMonths > 0 else { return [] }
+
         let events = profiles
             .filter { $0.remindersEnabled }
-            .flatMap { upcomingEvents(for: $0, reference: reference) }
+            .flatMap { ageReminderEvents(for: $0, reference: now) }
 
         guard events.isEmpty == false else { return [] }
 
         let grouped = Dictionary(grouping: events, by: { $0.fireDate })
 
-        let summaries: [ReminderOverview] = grouped.map { fireDate, events in
-            let entries = events.map { event in
+        return grouped.map { fireDate, events in
+            let sortedEvents = events.sorted { lhs, rhs in
+                lhs.profileName.localizedCaseInsensitiveCompare(rhs.profileName) == .orderedAscending
+            }
+            let body = sortedEvents
+                .map { L10n.Notifications.ageReminderMessage($0.profileName, $0.monthsOld) }
+                .joined(separator: " ")
+            let identifier = ageIdentifier(for: fireDate)
+            let entries = sortedEvents.map { event in
                 ReminderOverview.Entry(
                     profileID: event.profileID,
                     message: L10n.Notifications.ageReminderMessage(event.profileName, event.monthsOld)
                 )
             }
-
-            return ReminderOverview(
-                identifier: identifier(for: fireDate),
+            let overview = ReminderOverview(
+                identifier: identifier,
                 category: .ageMilestone,
                 fireDate: fireDate,
                 entries: entries
             )
-        }
-        .sorted { $0.fireDate < $1.fireDate }
 
-        return summaries
+            return ReminderPayload(
+                identifier: identifier,
+                fireDate: fireDate,
+                contentTitle: L10n.Notifications.ageReminderTitle,
+                contentBody: body,
+                overview: overview
+            )
+        }
     }
 
-    private func upcomingEvents(for profile: ChildProfile, reference now: Date) -> [ReminderEvent] {
-        guard schedulingWindowMonths > 0 else { return [] }
-
+    private func ageReminderEvents(for profile: ChildProfile, reference now: Date) -> [ReminderEvent] {
         let monthsSinceBirth = max(
             calendar.dateComponents([.month], from: profile.birthDate, to: now).month ?? 0,
             0
@@ -189,6 +207,99 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
         return events
     }
 
+    private func actionReminderPayloads(
+        for profiles: [ChildProfile],
+        actionStates: [UUID: ProfileActionState],
+        reference now: Date
+    ) -> [ReminderPayload] {
+        var payloads: [ReminderPayload] = []
+
+        for profile in profiles where profile.remindersEnabled {
+            let state = actionStates[profile.id]
+            let events = actionReminderEvents(for: profile, state: state, reference: now)
+
+            for event in events {
+                let intervalDescription = L10n.Notifications.actionReminderInterval(event.intervalHours)
+                let title = L10n.Notifications.actionReminderTitle(event.category.title)
+                let body = L10n.Notifications.actionReminderMessage(intervalDescription, event.profileName, event.category.title)
+                let overview = ReminderOverview(
+                    identifier: event.identifier,
+                    category: .action(event.category),
+                    fireDate: event.fireDate,
+                    entries: [
+                        ReminderOverview.Entry(
+                            profileID: event.profileID,
+                            message: body
+                        )
+                    ]
+                )
+
+                payloads.append(
+                    ReminderPayload(
+                        identifier: event.identifier,
+                        fireDate: event.fireDate,
+                        contentTitle: title,
+                        contentBody: body,
+                        overview: overview
+                    )
+                )
+            }
+        }
+
+        return payloads
+    }
+
+    private func actionReminderEvents(
+        for profile: ChildProfile,
+        state: ProfileActionState?,
+        reference now: Date
+    ) -> [ActionReminderEvent] {
+        var events: [ActionReminderEvent] = []
+
+        for category in BabyActionCategory.allCases {
+            let interval = profile.reminderInterval(for: category)
+            if interval <= 0 { continue }
+
+            if category.isInstant == false,
+               let active = state?.activeAction(for: category),
+               active.endDate == nil {
+                continue
+            }
+
+            let baseline: Date
+            if let lastAction = state?.lastCompletedAction(for: category) {
+                baseline = lastAction.endDate ?? lastAction.startDate
+            } else {
+                baseline = now
+            }
+
+            var fireDate = baseline.addingTimeInterval(interval)
+            let maxIterations = 48
+            var iterations = 0
+            while fireDate <= now && iterations < maxIterations {
+                fireDate = fireDate.addingTimeInterval(interval)
+                iterations += 1
+            }
+            if fireDate <= now {
+                fireDate = now.addingTimeInterval(max(interval, 60))
+            }
+
+            let hours = max(1, Int(round(interval / 3600)))
+            events.append(
+                ActionReminderEvent(
+                    identifier: actionIdentifier(for: profile.id, category: category),
+                    profileID: profile.id,
+                    profileName: profile.displayName,
+                    category: category,
+                    fireDate: fireDate,
+                    intervalHours: hours
+                )
+            )
+        }
+
+        return events
+    }
+
     private func fireDate(for anniversary: Date) -> Date? {
         var components = calendar.dateComponents([.year, .month, .day], from: anniversary)
         components.hour = 10
@@ -197,18 +308,24 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
         return calendar.date(from: components)
     }
 
-    private func identifier(for date: Date) -> String {
-        identifierPrefix + isoFormatter.string(from: date)
+    private func ageIdentifier(for date: Date) -> String {
+        ageIdentifierPrefix + isoFormatter.string(from: date)
+    }
+
+    private func actionIdentifier(for profileID: UUID, category: BabyActionCategory) -> String {
+        actionIdentifierPrefix + profileID.uuidString + "-" + category.rawValue
     }
 
     private func currentReminderIdentifiers() async -> [String] {
         let requests = await center.pendingNotificationRequests()
         return requests
             .map(\.identifier)
-            .filter { $0.hasPrefix(identifierPrefix) }
+            .filter { identifier in
+                identifier.hasPrefix(ageIdentifierPrefix) || identifier.hasPrefix(actionIdentifierPrefix)
+            }
     }
 
-    private func removePendingAgeReminders() async {
+    private func removePendingReminders() async {
         let identifiers = await currentReminderIdentifiers()
         if identifiers.isEmpty == false {
             center.removePendingNotificationRequests(withIdentifiers: identifiers)
@@ -264,9 +381,21 @@ private struct ReminderEvent {
     let fireDate: Date
 }
 
-private struct ReminderGroup {
+private struct ActionReminderEvent {
+    let identifier: String
+    let profileID: UUID
+    let profileName: String
+    let category: BabyActionCategory
     let fireDate: Date
-    let events: [ReminderEvent]
+    let intervalHours: Int
+}
+
+private struct ReminderPayload {
+    let identifier: String
+    let fireDate: Date
+    let contentTitle: String
+    let contentBody: String
+    let overview: ReminderOverview
 }
 
 struct ReminderOverview: Identifiable, Equatable, Sendable {
@@ -277,11 +406,14 @@ struct ReminderOverview: Identifiable, Equatable, Sendable {
 
     enum Category: Equatable, Sendable {
         case ageMilestone
+        case action(BabyActionCategory)
 
         var localizedTitle: String {
             switch self {
             case .ageMilestone:
                 return L10n.Notifications.ageReminderTitle
+            case .action(let category):
+                return L10n.Notifications.actionReminderOverviewTitle(category.title)
             }
         }
     }

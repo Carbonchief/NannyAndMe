@@ -276,19 +276,24 @@ struct ProfileActionState: Codable {
 @MainActor
 final class ActionLogStore: ObservableObject {
     private let saveURL: URL
+    private let reminderScheduler: ReminderScheduling?
+    private weak var profileStore: ProfileStore?
 
     @Published private var storage: ActionStoreState {
         didSet {
             persist()
+            scheduleReminders()
         }
     }
 
     init(
         fileManager: FileManager = .default,
         directory: URL? = nil,
-        filename: String = "babyActions.json"
+        filename: String = "babyActions.json",
+        reminderScheduler: ReminderScheduling? = nil
     ) {
         self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
+        self.reminderScheduler = reminderScheduler
 
         if let data = try? Data(contentsOf: saveURL) {
             let decoder = JSONDecoder()
@@ -304,21 +309,34 @@ final class ActionLogStore: ObservableObject {
         }
 
         persist()
+        scheduleReminders()
     }
 
     fileprivate init(
         initialState: ActionStoreState,
         fileManager: FileManager = .default,
         directory: URL? = nil,
-        filename: String = "babyActions.json"
+        filename: String = "babyActions.json",
+        reminderScheduler: ReminderScheduling? = nil
     ) {
         self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
         self.storage = Self.sanitized(state: initialState)
+        self.reminderScheduler = reminderScheduler
         persist()
+        scheduleReminders()
     }
 
     func state(for profileID: UUID) -> ProfileActionState {
         storage.profiles[profileID] ?? ProfileActionState()
+    }
+
+    func registerProfileStore(_ store: ProfileStore) {
+        profileStore = store
+        scheduleReminders()
+    }
+
+    var actionStatesSnapshot: [UUID: ProfileActionState] {
+        storage.profiles
     }
 
     func startAction(for profileID: UUID,
@@ -446,6 +464,16 @@ final class ActionLogStore: ObservableObject {
                 print("Failed to persist baby actions: \(error.localizedDescription)")
                 #endif
             }
+        }
+    }
+
+    private func scheduleReminders() {
+        guard let reminderScheduler else { return }
+        let profiles = profileStore?.profiles ?? []
+        let actionStates = storage.profiles
+
+        Task { [profiles, actionStates] in
+            await reminderScheduler.refreshReminders(for: profiles, actionStates: actionStates)
         }
     }
 

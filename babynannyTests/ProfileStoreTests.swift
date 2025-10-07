@@ -69,9 +69,9 @@ private actor MockReminderScheduler: ReminderScheduling {
         return authorizationResult
     }
 
-    func refreshReminders(for profiles: [ChildProfile]) async {}
+    func refreshReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState]) async {}
 
-    func upcomingReminders(for profiles: [ChildProfile], reference: Date) async -> [ReminderOverview] {
+    func upcomingReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState], reference: Date) async -> [ReminderOverview] {
         []
     }
 }

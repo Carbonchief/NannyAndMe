@@ -9,8 +9,18 @@ import SwiftUI
 
 @main
 struct babynannyApp: App {
-    @StateObject private var profileStore = ProfileStore()
-    @StateObject private var actionStore = ActionLogStore()
+    @StateObject private var profileStore: ProfileStore
+    @StateObject private var actionStore: ActionLogStore
+
+    init() {
+        let scheduler = UserNotificationReminderScheduler()
+        let profileStore = ProfileStore(reminderScheduler: scheduler)
+        let actionStore = ActionLogStore(reminderScheduler: scheduler)
+        profileStore.registerActionStore(actionStore)
+        actionStore.registerProfileStore(profileStore)
+        _profileStore = StateObject(wrappedValue: profileStore)
+        _actionStore = StateObject(wrappedValue: actionStore)
+    }
 
     var body: some Scene {
         WindowGroup {

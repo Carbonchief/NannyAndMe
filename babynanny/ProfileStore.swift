@@ -7,19 +7,23 @@ struct ChildProfile: Codable, Identifiable, Equatable {
     var birthDate: Date
     var imageData: Data?
     var remindersEnabled: Bool
+    var actionReminderIntervals: [BabyActionCategory: TimeInterval]
 
     init(
         id: UUID = UUID(),
         name: String,
         birthDate: Date,
         imageData: Data? = nil,
-        remindersEnabled: Bool = false
+        remindersEnabled: Bool = false,
+        actionReminderIntervals: [BabyActionCategory: TimeInterval] = ChildProfile.defaultActionReminderIntervals()
     ) {
         self.id = id
         self.name = name
         self.birthDate = birthDate
         self.imageData = imageData
         self.remindersEnabled = remindersEnabled
+        self.actionReminderIntervals = actionReminderIntervals
+        normalizeActionReminderIntervals()
     }
 
     var displayName: String {
@@ -67,6 +71,7 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         case birthDate
         case imageData
         case remindersEnabled
+        case actionReminderIntervals
     }
 
     init(from decoder: Decoder) throws {
@@ -76,6 +81,17 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         birthDate = try container.decode(Date.self, forKey: .birthDate)
         imageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
         remindersEnabled = try container.decodeIfPresent(Bool.self, forKey: .remindersEnabled) ?? false
+        if let rawIntervals = try container.decodeIfPresent([String: TimeInterval].self, forKey: .actionReminderIntervals) {
+            let mapped = rawIntervals.reduce(into: [:]) { partialResult, element in
+                let (key, value) = element
+                guard let category = BabyActionCategory(rawValue: key) else { return }
+                partialResult[category] = max(0, value)
+            }
+            actionReminderIntervals = mapped
+        } else {
+            actionReminderIntervals = Self.defaultActionReminderIntervals()
+        }
+        normalizeActionReminderIntervals()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -85,6 +101,32 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         try container.encode(birthDate, forKey: .birthDate)
         try container.encodeIfPresent(imageData, forKey: .imageData)
         try container.encode(remindersEnabled, forKey: .remindersEnabled)
+        let rawIntervals = Dictionary(uniqueKeysWithValues: actionReminderIntervals.map { ($0.key.rawValue, $0.value) })
+        try container.encode(rawIntervals, forKey: .actionReminderIntervals)
+    }
+
+    func reminderInterval(for category: BabyActionCategory) -> TimeInterval {
+        actionReminderIntervals[category] ?? Self.defaultActionReminderInterval
+    }
+
+    mutating func setReminderInterval(_ interval: TimeInterval, for category: BabyActionCategory) {
+        actionReminderIntervals[category] = max(0, interval)
+        normalizeActionReminderIntervals()
+    }
+
+    mutating func normalizeActionReminderIntervals() {
+        for category in BabyActionCategory.allCases {
+            if let value = actionReminderIntervals[category], value > 0 {
+                continue
+            }
+            actionReminderIntervals[category] = Self.defaultActionReminderInterval
+        }
+    }
+
+    static var defaultActionReminderInterval: TimeInterval { 3 * 60 * 60 }
+
+    static func defaultActionReminderIntervals() -> [BabyActionCategory: TimeInterval] {
+        Dictionary(uniqueKeysWithValues: BabyActionCategory.allCases.map { ($0, defaultActionReminderInterval) })
     }
 }
 
@@ -109,6 +151,7 @@ final class ProfileStore: ObservableObject {
 
     private let saveURL: URL
     private let reminderScheduler: ReminderScheduling
+    private weak var actionStore: ActionLogStore?
     @Published private var state: ProfileState {
         didSet {
             persistState()
@@ -155,6 +198,11 @@ final class ProfileStore: ObservableObject {
         let state = ProfileState(profiles: initialProfiles, activeProfileID: activeProfileID)
         self.state = Self.sanitized(state: state)
         persistState()
+        scheduleReminders()
+    }
+
+    func registerActionStore(_ store: ActionLogStore) {
+        actionStore = store
         scheduleReminders()
     }
 
@@ -220,7 +268,8 @@ final class ProfileStore: ObservableObject {
 
     func nextReminder(for profileID: UUID) async -> ReminderOverview? {
         let profiles = state.profiles
-        let reminders = await reminderScheduler.upcomingReminders(for: profiles, reference: Date())
+        let actionStates = actionStore?.actionStatesSnapshot ?? [:]
+        let reminders = await reminderScheduler.upcomingReminders(for: profiles, actionStates: actionStates, reference: Date())
         return reminders.first(where: { $0.includes(profileID: profileID) })
     }
 
@@ -251,8 +300,9 @@ final class ProfileStore: ObservableObject {
 
     private func scheduleReminders() {
         let profiles = state.profiles
+        let actionStates = actionStore?.actionStatesSnapshot ?? [:]
         Task {
-            await reminderScheduler.refreshReminders(for: profiles)
+            await reminderScheduler.refreshReminders(for: profiles, actionStates: actionStates)
         }
     }
 
@@ -268,6 +318,12 @@ final class ProfileStore: ObservableObject {
             state.activeProfileID = state.profiles.first?.id
         } else if state.activeProfileID == nil {
             state.activeProfileID = state.profiles.first?.id
+        }
+
+        state.profiles = state.profiles.map { profile in
+            var normalized = profile
+            normalized.normalizeActionReminderIntervals()
+            return normalized
         }
 
         return state
@@ -304,8 +360,8 @@ extension ProfileStore {
     static var preview: ProfileStore {
         struct PreviewReminderScheduler: ReminderScheduling {
             func ensureAuthorization() async -> Bool { true }
-            func refreshReminders(for profiles: [ChildProfile]) async {}
-            func upcomingReminders(for profiles: [ChildProfile], reference: Date) async -> [ReminderOverview] {
+            func refreshReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState]) async {}
+            func upcomingReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState], reference: Date) async -> [ReminderOverview] {
                 let enabledProfiles = profiles.filter { $0.remindersEnabled }
                 guard let profile = enabledProfiles.first else { return [] }
 
