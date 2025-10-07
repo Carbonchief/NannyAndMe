@@ -69,7 +69,7 @@ enum L10n {
         static func lastRunWithDuration(_ value: String, _ duration: String) -> String {
             let format = String(
                 localized: "home.card.lastRunWithDuration",
-                defaultValue: "Last run %@ • Duration %@"
+                defaultValue: "Last run %@ • %@"
             )
             return String(format: format, locale: Locale.current, value, duration)
         }

@@ -32,7 +32,7 @@
 "home.card.startedAt" = "Gestartet um %@";
 "home.card.elapsed" = "Verstrichen: %@";
 "home.card.lastRun" = "Zuletzt ausgeführt %@";
-"home.card.lastRunWithDuration" = "Zuletzt ausgeführt %@ • Dauer %@";
+"home.card.lastRunWithDuration" = "Zuletzt ausgeführt %@ • %@";
 "home.sheet.newActionTitle" = "Neue %@-Aktion";
 "home.bottle.presetLabel" = "%lld ml";
 "home.history.started" = "Gestartet %@";
