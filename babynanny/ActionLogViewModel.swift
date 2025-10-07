@@ -72,11 +72,11 @@ struct BabyAction: Identifiable, Codable {
 
     var id: UUID
     let category: BabyActionCategory
-    let startDate: Date
+    var startDate: Date
     var endDate: Date?
-    let diaperType: DiaperType?
-    let feedingType: FeedingType?
-    let bottleVolume: Int?
+    var diaperType: DiaperType?
+    var feedingType: FeedingType?
+    var bottleVolume: Int?
 
     init(id: UUID = UUID(),
          category: BabyActionCategory,
@@ -365,6 +365,20 @@ final class ActionLogStore: ObservableObject {
             guard var action = profileState.activeActions.removeValue(forKey: category) else { return }
             action.endDate = Date()
             profileState.history.insert(action, at: 0)
+        }
+    }
+
+    func updateAction(for profileID: UUID, action updatedAction: BabyAction) {
+        updateState(for: profileID) { profileState in
+            if let index = profileState.history.firstIndex(where: { $0.id == updatedAction.id }) {
+                profileState.history[index] = updatedAction
+            }
+
+            for (category, action) in profileState.activeActions {
+                guard action.id == updatedAction.id else { continue }
+                profileState.activeActions[category] = updatedAction
+                break
+            }
         }
     }
 
