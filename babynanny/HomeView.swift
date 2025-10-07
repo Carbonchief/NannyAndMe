@@ -509,9 +509,7 @@ struct ActionEditSheet: View {
     }
 
     private var endDateRange: ClosedRange<Date> {
-        let potentialUpperBounds = [endDate ?? action.endDate, Date()].compactMap { $0 }
-        let resolvedUpperBound = potentialUpperBounds.max() ?? Date()
-        return startDate...max(startDate, resolvedUpperBound)
+        startDate...Date.distantFuture
     }
 
     private var endDateBinding: Binding<Date> {
