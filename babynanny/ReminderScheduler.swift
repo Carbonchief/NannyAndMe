@@ -4,6 +4,7 @@ import UserNotifications
 protocol ReminderScheduling {
     func ensureAuthorization() async -> Bool
     func refreshReminders(for profiles: [ChildProfile]) async
+    func upcomingReminders(for profiles: [ChildProfile], reference: Date) async -> [ReminderOverview]
 }
 
 actor UserNotificationReminderScheduler: ReminderScheduling {
@@ -108,6 +109,35 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
         }
     }
 
+    func upcomingReminders(for profiles: [ChildProfile], reference: Date) async -> [ReminderOverview] {
+        let events = profiles
+            .filter { $0.remindersEnabled }
+            .flatMap { upcomingEvents(for: $0, reference: reference) }
+
+        guard events.isEmpty == false else { return [] }
+
+        let grouped = Dictionary(grouping: events, by: { $0.fireDate })
+
+        let summaries: [ReminderOverview] = grouped.map { fireDate, events in
+            let entries = events.map { event in
+                ReminderOverview.Entry(
+                    profileID: event.profileID,
+                    message: L10n.Notifications.ageReminderMessage(event.profileName, event.monthsOld)
+                )
+            }
+
+            return ReminderOverview(
+                identifier: identifier(for: fireDate),
+                category: .ageMilestone,
+                fireDate: fireDate,
+                entries: entries
+            )
+        }
+        .sorted { $0.fireDate < $1.fireDate }
+
+        return summaries
+    }
+
     private func upcomingEvents(for profile: ChildProfile, reference now: Date) -> [ReminderEvent] {
         guard schedulingWindowMonths > 0 else { return [] }
 
@@ -176,4 +206,41 @@ private struct ReminderEvent {
 private struct ReminderGroup {
     let fireDate: Date
     let events: [ReminderEvent]
+}
+
+struct ReminderOverview: Identifiable, Equatable, Sendable {
+    struct Entry: Equatable, Sendable {
+        let profileID: UUID
+        let message: String
+    }
+
+    enum Category: Equatable, Sendable {
+        case ageMilestone
+
+        var localizedTitle: String {
+            switch self {
+            case .ageMilestone:
+                return L10n.Notifications.ageReminderTitle
+            }
+        }
+    }
+
+    let identifier: String
+    let category: Category
+    let fireDate: Date
+    let entries: [Entry]
+
+    var id: String { identifier }
+
+    var combinedMessage: String {
+        entries.map(\.message).joined(separator: " ")
+    }
+
+    func message(for profileID: UUID) -> String? {
+        entries.first(where: { $0.profileID == profileID })?.message
+    }
+
+    func includes(profileID: UUID) -> Bool {
+        entries.contains(where: { $0.profileID == profileID })
+    }
 }

@@ -173,6 +173,12 @@ final class ProfileStore: ObservableObject {
         updateActiveProfile { $0.remindersEnabled = desiredValue }
     }
 
+    func nextReminder(for profileID: UUID) async -> ReminderOverview? {
+        let profiles = state.profiles
+        let reminders = await reminderScheduler.upcomingReminders(for: profiles, reference: Date())
+        return reminders.first(where: { $0.includes(profileID: profileID) })
+    }
+
     private func ensureValidState() {
         let sanitized = Self.sanitized(state: state)
         if sanitized != state {
@@ -254,10 +260,32 @@ extension ProfileStore {
         struct PreviewReminderScheduler: ReminderScheduling {
             func ensureAuthorization() async -> Bool { true }
             func refreshReminders(for profiles: [ChildProfile]) async {}
+            func upcomingReminders(for profiles: [ChildProfile], reference: Date) async -> [ReminderOverview] {
+                let enabledProfiles = profiles.filter { $0.remindersEnabled }
+                guard let profile = enabledProfiles.first else { return [] }
+
+                let entry = ReminderOverview.Entry(
+                    profileID: profile.id,
+                    message: L10n.Notifications.ageReminderMessage(profile.displayName, 1)
+                )
+
+                return [
+                    ReminderOverview(
+                        identifier: UUID().uuidString,
+                        category: .ageMilestone,
+                        fireDate: reference.addingTimeInterval(3600),
+                        entries: [entry]
+                    )
+                ]
+            }
         }
 
         let profiles = [
-            ChildProfile(name: "Aria", birthDate: Date(timeIntervalSince1970: 1_600_000_000)),
+            ChildProfile(
+                name: "Aria",
+                birthDate: Date(timeIntervalSince1970: 1_600_000_000),
+                remindersEnabled: true
+            ),
             ChildProfile(name: "Luca", birthDate: Date(timeIntervalSince1970: 1_650_000_000))
         ]
 

@@ -14,6 +14,9 @@ struct SettingsView: View {
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var isUpdatingReminders = false
     @State private var profilePendingDeletion: ChildProfile?
+    @State private var nextReminderOverview: ReminderOverview?
+    @State private var isLoadingNextReminder = false
+    @State private var reminderLoadTask: Task<Void, Never>?
 
     var body: some View {
         Form {
@@ -120,6 +123,7 @@ struct SettingsView: View {
                                 await profileStore.setRemindersEnabled(newValue)
                                 await MainActor.run {
                                     isUpdatingReminders = false
+                                    refreshNextReminder()
                                 }
                             }
                         }
@@ -128,6 +132,15 @@ struct SettingsView: View {
                     Text(L10n.Settings.enableReminders)
                 }
                 .disabled(isUpdatingReminders)
+
+                if profileStore.activeProfile.remindersEnabled {
+                    reminderStatusView(for: profileStore.activeProfile)
+                } else {
+                    Text(L10n.Settings.nextReminderDisabled)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 4)
+                }
             }
 
             Section(header: Text(L10n.Settings.aboutSection)) {
@@ -152,12 +165,109 @@ struct SettingsView: View {
                 }
             )
         }
+        .onAppear {
+            refreshNextReminder()
+        }
+        .onChange(of: profileStore.activeProfileID) { _ in
+            refreshNextReminder()
+        }
+        .onChange(of: profileStore.activeProfile.remindersEnabled) { _ in
+            refreshNextReminder()
+        }
+        .onChange(of: profileStore.activeProfile.birthDate) { _ in
+            refreshNextReminder()
+        }
+        .onChange(of: profileStore.activeProfile.name) { _ in
+            refreshNextReminder()
+        }
+        .onDisappear {
+            reminderLoadTask?.cancel()
+            reminderLoadTask = nil
+            isLoadingNextReminder = false
+        }
     }
 
     private func deleteProfile(_ profile: ChildProfile) {
         profileStore.deleteProfile(profile)
         actionStore.removeProfileData(for: profile.id)
         profilePendingDeletion = nil
+    }
+
+    private func refreshNextReminder() {
+        reminderLoadTask?.cancel()
+
+        guard profileStore.activeProfile.remindersEnabled else {
+            nextReminderOverview = nil
+            isLoadingNextReminder = false
+            reminderLoadTask = nil
+            return
+        }
+
+        let profileID = profileStore.activeProfile.id
+        isLoadingNextReminder = true
+        nextReminderOverview = nil
+
+        reminderLoadTask = Task {
+            let overview = await profileStore.nextReminder(for: profileID)
+
+            await MainActor.run {
+                defer { reminderLoadTask = nil }
+
+                guard profileStore.activeProfile.id == profileID else {
+                    isLoadingNextReminder = false
+                    return
+                }
+
+                if Task.isCancelled {
+                    isLoadingNextReminder = false
+                    return
+                }
+
+                nextReminderOverview = overview
+                isLoadingNextReminder = false
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func reminderStatusView(for profile: ChildProfile) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.Settings.nextReminderLabel)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            if isLoadingNextReminder {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                    Text(L10n.Settings.nextReminderLoading)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
+            } else if let overview = nextReminderOverview,
+                      overview.includes(profileID: profile.id),
+                      let message = overview.message(for: profile.id) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(overview.category.localizedTitle)
+                        .font(.footnote)
+                    Text(
+                        L10n.Settings.nextReminderScheduled(
+                            overview.fireDate.formatted(date: .abbreviated, time: .shortened),
+                            message
+                        )
+                    )
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
+            } else {
+                Text(L10n.Settings.nextReminderUnavailable)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 4)
+            }
+        }
     }
 }
 
