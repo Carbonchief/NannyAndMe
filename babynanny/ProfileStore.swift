@@ -97,10 +97,11 @@ struct ChildProfile: Codable, Identifiable, Equatable {
             actionReminderIntervals = Self.defaultActionReminderIntervals()
         }
         if let rawEnabled = try container.decodeIfPresent([String: Bool].self, forKey: .actionRemindersEnabled) {
-            let mapped = rawEnabled.reduce(into: [:]) { partialResult, element in
+            let mapped = rawEnabled.reduce(into: [BabyActionCategory: Bool]()) { partialResult, element in
                 let (key, value) = element
-                guard let category = BabyActionCategory(rawValue: key) else { return }
-                partialResult[category] = value
+                if let category = BabyActionCategory(rawValue: key) {
+                    partialResult[category] = value
+                }
             }
             actionRemindersEnabled = mapped
         } else {
