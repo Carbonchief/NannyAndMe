@@ -168,14 +168,15 @@ struct StatsView: View {
 
     private func categoryPicker(for state: ProfileActionState) -> some View {
         let selection = resolvedCategory(for: state)
+        let binding = Binding<BabyActionCategory>(
+            get: { resolvedCategory(for: state) },
+            set: { newValue in
+                selectedCategory = newValue
+            }
+        )
 
         return Picker(
-            selection: Binding(
-                get: { resolvedCategory(for: state) },
-                set: { newValue in
-                    selectedCategory = newValue
-                }
-            ),
+            selection: binding,
             label: {
                 HStack(spacing: 6) {
                     Image(systemName: selection.icon)
