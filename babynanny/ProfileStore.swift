@@ -82,10 +82,11 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         imageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
         remindersEnabled = try container.decodeIfPresent(Bool.self, forKey: .remindersEnabled) ?? false
         if let rawIntervals = try container.decodeIfPresent([String: TimeInterval].self, forKey: .actionReminderIntervals) {
-            let mapped = rawIntervals.reduce(into: [:]) { partialResult, element in
+            let mapped = rawIntervals.reduce(into: [BabyActionCategory: TimeInterval]()) { partialResult, element in
                 let (key, value) = element
-                guard let category = BabyActionCategory(rawValue: key) else { return }
-                partialResult[category] = max(0, value)
+                if let category = BabyActionCategory(rawValue: key) {
+                    partialResult[category] = max(0, value)
+                }
             }
             actionReminderIntervals = mapped
         } else {
