@@ -58,12 +58,12 @@ struct AllLogsView: View {
                     Section(header: Text(dateFormatter.string(from: entry.date))) {
                         ForEach(entry.actions) { action in
                             logRow(for: action, asOf: referenceDate)
-                                .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+                                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                         }
                     }
                 }
             }
-            .listRowSpacing(12)
+            .listRowSpacing(0)
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Color(.systemGroupedBackground))
@@ -120,6 +120,7 @@ struct AllLogsView: View {
                     }
                 }
             }
+            .padding(.vertical, 12)
         }
         .buttonStyle(.plain)
     }
