@@ -1,16 +1,16 @@
 import SwiftUI
 
 struct AllLogsView: View {
-    @EnvironmentObject private var profileStore: ProfileStore
-    @EnvironmentObject private var actionStore: ActionLogStore
-    @State private var editingAction: BabyAction?
-    @State private var actionPendingDeletion: BabyAction?
+    @EnvironmentObject var profileStore: ProfileStore
+    @EnvironmentObject var actionStore: ActionLogStore
+    @State var editingAction: BabyAction?
+    @State var actionPendingDeletion: BabyAction?
     @State private var isShowingFilter = false
-    @State private var filterStartDate: Date?
-    @State private var filterEndDate: Date?
+    @State var filterStartDate: Date?
+    @State var filterEndDate: Date?
 
-    private let calendar = Calendar.current
-    private let dateFormatter: DateFormatter = {
+    let calendar = Calendar.current
+    let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
