@@ -74,6 +74,12 @@ xcodebuild test \
 - UI components prefer dependency injection via `@EnvironmentObject` (`ProfileStore`) or `@StateObject` (`ActionLogViewModel`). Follow this pattern to maintain predictable SwiftUI state flows.
 - Preview your SwiftUI views regularly with the included `#Preview` providers to ensure layouts render correctly on different device sizes.
 
+## FAQ
+
+### Can I add Siri commands to start my actions?
+
+Siri Shortcuts are not currently integrated in the project. To support voice-triggered actions, you would need to add an App Intents extension (or legacy SiriKit intent definitions) that exposes the relevant start/stop log actions, handle those intents in a shared module, and update the app's entitlement and Info.plist declarations accordingly. Until those additions are made the app will not respond to Siri commands.
+
 ## Contributing
 
 1. Create a new feature branch: `git checkout -b feature/amazing-change`.
