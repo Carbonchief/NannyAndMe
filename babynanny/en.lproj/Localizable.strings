@@ -78,6 +78,16 @@
 "logs.delete.confirmationTitle" = "Delete log?";
 "logs.delete.confirmationMessage" = "Are you sure you want to delete this log? This action cannot be undone.";
 "logs.delete.action" = "Delete Log";
+"logs.filter.button" = "Filter";
+"logs.filter.title" = "Filter Logs";
+"logs.filter.startToggle" = "Filter from date";
+"logs.filter.startLabel" = "Start date";
+"logs.filter.endToggle" = "Filter to date";
+"logs.filter.endLabel" = "End date";
+"logs.filter.clear" = "Clear Filter";
+"logs.filter.summary.range" = "Showing %@ – %@";
+"logs.filter.summary.start" = "Showing from %@";
+"logs.filter.summary.end" = "Showing through %@";
 "logs.entry.title" = "%@, %@ %@";
 "logs.summary.sleep" = "sleep";
 "logs.summary.diaperWithType" = "diaper - %@";

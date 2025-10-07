@@ -78,6 +78,16 @@
 "logs.delete.confirmationTitle" = "¿Eliminar registro?";
 "logs.delete.confirmationMessage" = "¿Seguro que deseas eliminar este registro? Esta acción no se puede deshacer.";
 "logs.delete.action" = "Eliminar registro";
+"logs.filter.button" = "Filtrar";
+"logs.filter.title" = "Filtrar registros";
+"logs.filter.startToggle" = "Filtrar desde fecha";
+"logs.filter.startLabel" = "Fecha de inicio";
+"logs.filter.endToggle" = "Filtrar hasta fecha";
+"logs.filter.endLabel" = "Fecha de fin";
+"logs.filter.clear" = "Borrar filtro";
+"logs.filter.summary.range" = "Mostrando %@ – %@";
+"logs.filter.summary.start" = "Mostrando desde %@";
+"logs.filter.summary.end" = "Mostrando hasta %@";
 "logs.entry.title" = "%@, %@ %@";
 "logs.summary.sleep" = "sueño";
 "logs.summary.diaperWithType" = "pañal – %@";

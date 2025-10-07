@@ -211,10 +211,32 @@ enum L10n {
             defaultValue: "Are you sure you want to delete this log? This action cannot be undone."
         )
         static let deleteAction = String(localized: "logs.delete.action", defaultValue: "Delete Log")
+        static let filterButton = String(localized: "logs.filter.button", defaultValue: "Filter")
+        static let filterTitle = String(localized: "logs.filter.title", defaultValue: "Filter Logs")
+        static let filterStartToggle = String(localized: "logs.filter.startToggle", defaultValue: "Filter from date")
+        static let filterStartLabel = String(localized: "logs.filter.startLabel", defaultValue: "Start date")
+        static let filterEndToggle = String(localized: "logs.filter.endToggle", defaultValue: "Filter to date")
+        static let filterEndLabel = String(localized: "logs.filter.endLabel", defaultValue: "End date")
+        static let filterClear = String(localized: "logs.filter.clear", defaultValue: "Clear Filter")
 
         static func entryTitle(_ startTime: String, _ duration: String, _ summary: String) -> String {
             let format = String(localized: "logs.entry.title", defaultValue: "%@, %@ %@")
             return String(format: format, locale: Locale.current, startTime, duration, summary)
+        }
+
+        static func filterSummaryRange(_ start: String, _ end: String) -> String {
+            let format = String(localized: "logs.filter.summary.range", defaultValue: "Showing %@ – %@")
+            return String(format: format, locale: Locale.current, start, end)
+        }
+
+        static func filterSummaryStart(_ start: String) -> String {
+            let format = String(localized: "logs.filter.summary.start", defaultValue: "Showing from %@")
+            return String(format: format, locale: Locale.current, start)
+        }
+
+        static func filterSummaryEnd(_ end: String) -> String {
+            let format = String(localized: "logs.filter.summary.end", defaultValue: "Showing through %@")
+            return String(format: format, locale: Locale.current, end)
         }
 
         static func summarySleep() -> String {
