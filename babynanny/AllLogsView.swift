@@ -5,6 +5,9 @@ struct AllLogsView: View {
     @EnvironmentObject private var actionStore: ActionLogStore
     @State private var editingAction: BabyAction?
     @State private var actionPendingDeletion: BabyAction?
+    @State private var isShowingFilter = false
+    @State private var filterStartDate: Date?
+    @State private var filterEndDate: Date?
 
     private let calendar = Calendar.current
     private let dateFormatter: DateFormatter = {
@@ -27,12 +30,37 @@ struct AllLogsView: View {
         .navigationTitle(L10n.Logs.title)
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    isShowingFilter = true
+                } label: {
+                    Label(L10n.Logs.filterButton, systemImage: "line.3.horizontal.decrease.circle")
+                }
+            }
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let description = activeFilterDescription() {
+                filterSummaryView(description)
+            }
+        }
         .sheet(item: $editingAction) { action in
             ActionEditSheet(action: action) { updatedAction in
                 actionStore.updateAction(for: profileStore.activeProfile.id, action: updatedAction)
                 editingAction = nil
             } onDelete: { actionToDelete in
                 deleteAction(actionToDelete)
+            }
+        }
+        .sheet(isPresented: $isShowingFilter) {
+            AllLogsDateFilterSheet(
+                calendar: calendar,
+                startDate: filterStartDate,
+                endDate: filterEndDate
+            ) { start, end in
+                applyFilter(startDate: start, endDate: end)
+            } onClear: {
+                clearFilter()
             }
         }
         .alert(item: $actionPendingDeletion) { action in
@@ -72,8 +100,14 @@ struct AllLogsView: View {
                 ForEach(grouped, id: \.date) { entry in
                     Section(header: Text(dateFormatter.string(from: entry.date))) {
                         ForEach(entry.actions) { action in
-                            logRow(for: action, asOf: referenceDate)
-                                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                            AllLogsRowView(
+                                action: action,
+                                referenceDate: referenceDate,
+                                timeFormatter: timeFormatter,
+                                onEdit: { editingAction = $0 },
+                                onDelete: { actionPendingDeletion = $0 }
+                            )
+                            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                         }
                     }
                 }
@@ -85,140 +119,4 @@ struct AllLogsView: View {
         }
     }
 
-    private func groupedActions() -> [(date: Date, actions: [BabyAction])] {
-        let actions = actionStore.state(for: profileStore.activeProfile.id).history
-        var grouped: [Date: [BabyAction]] = [:]
-        var orderedDates: [Date] = []
-
-        for action in actions.sorted(by: { $0.startDate > $1.startDate }) {
-            let day = calendar.startOfDay(for: action.startDate)
-
-            if grouped[day] != nil {
-                grouped[day]?.append(action)
-            } else {
-                grouped[day] = [action]
-                orderedDates.append(day)
-            }
-        }
-
-        return orderedDates.map { date in
-            let actionsForDate = grouped[date] ?? []
-            return (date: date, actions: actionsForDate)
-        }
-    }
-
-    private func logRow(for action: BabyAction, asOf referenceDate: Date) -> some View {
-        Button {
-            editingAction = action
-        } label: {
-            HStack(alignment: .top, spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(action.category.accentColor.opacity(0.15))
-                        .frame(width: 36, height: 36)
-
-                    Image(systemName: action.icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(action.category.accentColor)
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(L10n.Logs.entryTitle(timeFormatter.string(from: action.startDate),
-                                               durationDescription(for: action, asOf: referenceDate),
-                                               actionSummary(for: action)))
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    if let detail = detailedDescription(for: action) {
-                        Text(detail)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .padding(.vertical, 12)
-        }
-        .buttonStyle(.plain)
-        .swipeActions(edge: .trailing) {
-            Button(role: .destructive) {
-                actionPendingDeletion = action
-            } label: {
-                Label(L10n.Logs.deleteAction, systemImage: "trash")
-            }
-        }
-    }
-
-    private func durationDescription(for action: BabyAction, asOf referenceDate: Date) -> String {
-        action.durationDescription(asOf: referenceDate)
-    }
-
-    private func deleteAction(_ action: BabyAction) {
-        actionStore.deleteAction(for: profileStore.activeProfile.id, actionID: action.id)
-        if editingAction?.id == action.id {
-            editingAction = nil
-        }
-        if actionPendingDeletion?.id == action.id {
-            actionPendingDeletion = nil
-        }
-    }
-
-    private func actionSummary(for action: BabyAction) -> String {
-        switch action.category {
-        case .sleep:
-            return L10n.Logs.summarySleep()
-        case .diaper:
-            if let type = action.diaperType {
-                return L10n.Logs.summaryDiaper(withType: type.title.localizedLowercase)
-            }
-            return L10n.Logs.summaryDiaper()
-        case .feeding:
-            if let type = action.feedingType {
-                if type == .bottle, let volume = action.bottleVolume {
-                    return L10n.Logs.summaryFeedingBottle(volume: volume)
-                }
-                return L10n.Logs.summaryFeeding(withType: type.title.localizedLowercase)
-            }
-            return L10n.Logs.summaryFeeding()
-        }
-    }
-
-    private func detailedDescription(for action: BabyAction) -> String? {
-        if action.endDate == nil {
-            return L10n.Logs.active
-        }
-        return nil
-    }
-}
-
-#Preview {
-    let profile = ChildProfile(name: "Aria", birthDate: Date())
-    var state = ProfileActionState()
-    state.history = [
-        BabyAction(
-            category: .sleep,
-            startDate: Date().addingTimeInterval(-3600),
-            endDate: Date().addingTimeInterval(-1800)
-        ),
-        BabyAction(
-            category: .feeding,
-            startDate: Date().addingTimeInterval(-7200),
-            endDate: Date().addingTimeInterval(-6600),
-            feedingType: .bottle,
-            bottleVolume: 120
-        ),
-        BabyAction(
-            category: .diaper,
-            startDate: Date().addingTimeInterval(-86000),
-            endDate: Date().addingTimeInterval(-85800),
-            diaperType: .pee
-        )
-    ]
-
-    let actionStore = ActionLogStore.previewStore(profiles: [profile.id: state])
-    let profileStore = ProfileStore(initialProfiles: [profile], activeProfileID: profile.id, directory: FileManager.default.temporaryDirectory, filename: "previewProfiles.json")
-
-    return NavigationStack {
-        AllLogsView()
-            .environmentObject(profileStore)
-            .environmentObject(actionStore)
-    }
 }
