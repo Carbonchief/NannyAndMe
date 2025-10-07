@@ -101,9 +101,10 @@ struct HomeView: View {
                             Text(recent.title)
                                 .font(.headline)
                         } icon: {
-                            Image(systemName: recent.icon)
-                                .font(.system(size: 22, weight: .semibold))
-                                .foregroundStyle(recent.category.accentColor)
+                            AnimatedActionIcon(
+                                systemName: recent.icon,
+                                color: recent.category.accentColor
+                            )
                         }
 
                         Spacer(minLength: 12)
@@ -267,6 +268,35 @@ private struct ActionCard: View {
                 .fill(Color(.systemBackground))
                 .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
         )
+    }
+}
+
+private struct AnimatedActionIcon: View {
+    let systemName: String
+    let color: Color
+
+    @State private var isAnimating = false
+
+    private let animation = Animation.easeInOut(duration: 1.2).repeatForever(autoreverses: true)
+
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.system(size: 22, weight: .semibold))
+            .foregroundStyle(color)
+            .scaleEffect(isAnimating ? 1.08 : 0.92)
+            .animation(animation, value: isAnimating)
+            .onAppear {
+                isAnimating = true
+            }
+            .onDisappear {
+                isAnimating = false
+            }
+            .onChange(of: systemName) { _ in
+                isAnimating = false
+                Task { @MainActor in
+                    isAnimating = true
+                }
+            }
     }
 }
 
