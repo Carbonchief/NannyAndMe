@@ -8,6 +8,7 @@
 "home.recentActivity" = "Recent Activity";
 "home.recentActivity.showAll" = "Show All";
 "home.header.title" = "Last Action";
+"home.header.edit" = "Edit";
 "home.header.placeholder" = "Start an action below to begin tracking your baby's day.";
 "home.noEntries" = "No entries yet";
 "home.sleep.info" = "Start tracking a sleep session. Stop it when your little one wakes up to capture the total rest time.";
@@ -19,6 +20,12 @@
 "home.bottle.pickerLabel" = "Bottle volume";
 "home.bottle.customFieldPlaceholder" = "Custom volume (ml)";
 "home.bottle.customOption" = "Custom";
+"home.sheet.editActionTitle" = "Edit Action";
+"home.edit.startSectionTitle" = "Start time";
+"home.edit.startPickerLabel" = "Start";
+"home.edit.categoryLabel" = "Category";
+"home.edit.endSectionTitle" = "End time";
+"home.edit.endNote" = "End time can't be changed from here.";
 "home.header.activeFor" = "Active for %@";
 "home.header.lastFinished" = "Last finished %@";
 "home.card.startedAt" = "Started at %@";

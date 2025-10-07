@@ -20,6 +20,7 @@ enum L10n {
         static let headerTitle = String(localized: "home.header.title", defaultValue: "Last Action")
         static let placeholder = String(localized: "home.header.placeholder", defaultValue: "Start an action below to begin tracking your baby's day.")
         static let noEntries = String(localized: "home.noEntries", defaultValue: "No entries yet")
+        static let editActionButton = String(localized: "home.header.edit", defaultValue: "Edit")
         static let sleepInfo = String(localized: "home.sleep.info", defaultValue: "Start tracking a sleep session. Stop it when your little one wakes up to capture the total rest time.")
         static let diaperTypeSectionTitle = String(localized: "home.diaper.sectionTitle", defaultValue: "Diaper type")
         static let diaperTypePickerLabel = String(localized: "home.diaper.pickerLabel", defaultValue: "Diaper type")
@@ -29,6 +30,12 @@ enum L10n {
         static let bottleVolumePickerLabel = String(localized: "home.bottle.pickerLabel", defaultValue: "Bottle volume")
         static let customVolumeFieldPlaceholder = String(localized: "home.bottle.customFieldPlaceholder", defaultValue: "Custom volume (ml)")
         static let customBottleOption = String(localized: "home.bottle.customOption", defaultValue: "Custom")
+        static let editActionTitle = String(localized: "home.sheet.editActionTitle", defaultValue: "Edit Action")
+        static let editStartSectionTitle = String(localized: "home.edit.startSectionTitle", defaultValue: "Start time")
+        static let editStartPickerLabel = String(localized: "home.edit.startPickerLabel", defaultValue: "Start")
+        static let editCategoryLabel = String(localized: "home.edit.categoryLabel", defaultValue: "Category")
+        static let editEndSectionTitle = String(localized: "home.edit.endSectionTitle", defaultValue: "End time")
+        static let editEndNote = String(localized: "home.edit.endNote", defaultValue: "End time can't be changed from here.")
 
         static func activeFor(_ duration: String) -> String {
             let format = String(localized: "home.header.activeFor", defaultValue: "Active for %@")
