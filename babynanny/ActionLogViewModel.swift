@@ -393,6 +393,21 @@ final class ActionLogStore: ObservableObject {
         }
     }
 
+    func deleteAction(for profileID: UUID, actionID: UUID) {
+        updateState(for: profileID) { profileState in
+            profileState.history.removeAll { $0.id == actionID }
+
+            let categoriesToRemove = profileState.activeActions.compactMap { element -> BabyActionCategory? in
+                let (category, action) = element
+                return action.id == actionID ? category : nil
+            }
+
+            for category in categoriesToRemove {
+                profileState.activeActions.removeValue(forKey: category)
+            }
+        }
+    }
+
     func removeProfileData(for profileID: UUID) {
         var profiles = storage.profiles
         guard profiles.removeValue(forKey: profileID) != nil else { return }

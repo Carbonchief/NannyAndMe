@@ -4,6 +4,7 @@ struct AllLogsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
     @State private var editingAction: BabyAction?
+    @State private var actionPendingDeletion: BabyAction?
 
     private let calendar = Calendar.current
     private let dateFormatter: DateFormatter = {
@@ -30,7 +31,21 @@ struct AllLogsView: View {
             ActionEditSheet(action: action) { updatedAction in
                 actionStore.updateAction(for: profileStore.activeProfile.id, action: updatedAction)
                 editingAction = nil
+            } onDelete: { actionToDelete in
+                deleteAction(actionToDelete)
             }
+        }
+        .alert(item: $actionPendingDeletion) { action in
+            Alert(
+                title: Text(L10n.Logs.deleteConfirmationTitle),
+                message: Text(L10n.Logs.deleteConfirmationMessage),
+                primaryButton: .destructive(Text(L10n.Logs.deleteAction)) {
+                    deleteAction(action)
+                },
+                secondaryButton: .cancel {
+                    actionPendingDeletion = nil
+                }
+            )
         }
     }
 
@@ -123,10 +138,27 @@ struct AllLogsView: View {
             .padding(.vertical, 12)
         }
         .buttonStyle(.plain)
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                actionPendingDeletion = action
+            } label: {
+                Label(L10n.Logs.deleteAction, systemImage: "trash")
+            }
+        }
     }
 
     private func durationDescription(for action: BabyAction, asOf referenceDate: Date) -> String {
         action.durationDescription(asOf: referenceDate)
+    }
+
+    private func deleteAction(_ action: BabyAction) {
+        actionStore.deleteAction(for: profileStore.activeProfile.id, actionID: action.id)
+        if editingAction?.id == action.id {
+            editingAction = nil
+        }
+        if actionPendingDeletion?.id == action.id {
+            actionPendingDeletion = nil
+        }
     }
 
     private func actionSummary(for action: BabyAction) -> String {

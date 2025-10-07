@@ -80,6 +80,9 @@ struct HomeView: View {
             ActionEditSheet(action: action) { updatedAction in
                 actionStore.updateAction(for: activeProfileID, action: updatedAction)
                 editingAction = nil
+            } onDelete: { actionToDelete in
+                actionStore.deleteAction(for: activeProfileID, actionID: actionToDelete.id)
+                editingAction = nil
             }
         }
     }
@@ -364,6 +367,7 @@ private enum BottleVolumeOption: Hashable, Identifiable {
 struct ActionEditSheet: View {
     let action: BabyAction
     let onSave: (BabyAction) -> Void
+    let onDelete: (BabyAction) -> Void
 
     @Environment(\.dismiss) private var dismiss
 
@@ -373,10 +377,12 @@ struct ActionEditSheet: View {
     @State private var bottleSelection: BottleVolumeOption
     @State private var customBottleVolume: String
     @State private var endDate: Date?
+    @State private var showDeleteConfirmation = false
 
-    init(action: BabyAction, onSave: @escaping (BabyAction) -> Void) {
+    init(action: BabyAction, onSave: @escaping (BabyAction) -> Void, onDelete: @escaping (BabyAction) -> Void) {
         self.action = action
         self.onSave = onSave
+        self.onDelete = onDelete
 
         _startDate = State(initialValue: action.startDate)
         _diaperSelection = State(initialValue: action.diaperType ?? .pee)
@@ -476,6 +482,14 @@ struct ActionEditSheet: View {
                         }
                     }
                 }
+
+                Section {
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Text(L10n.Logs.deleteAction)
+                    }
+                }
             }
             .navigationTitle(L10n.Home.editActionTitle)
             .navigationBarTitleDisplayMode(.inline)
@@ -493,6 +507,15 @@ struct ActionEditSheet: View {
                     .disabled(isSaveDisabled)
                 }
             }
+        }
+        .alert(Text(L10n.Logs.deleteConfirmationTitle), isPresented: $showDeleteConfirmation) {
+            Button(L10n.Logs.deleteAction, role: .destructive) {
+                onDelete(action)
+                dismiss()
+            }
+            Button(L10n.Common.cancel, role: .cancel) { }
+        } message: {
+            Text(L10n.Logs.deleteConfirmationMessage)
         }
         .onChange(of: startDate) { newValue in
             guard let currentEndDate = endDate else { return }
