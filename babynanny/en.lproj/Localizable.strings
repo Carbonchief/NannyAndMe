@@ -64,6 +64,9 @@
 "settings.notifications.actionReminder.title" = "%@ reminders";
 "settings.notifications.actionReminder.frequency.one" = "Every hour";
 "settings.notifications.actionReminder.frequency.other" = "Every %lld hours";
+"settings.notifications.actionReminder.disabled" = "Reminders are turned off for this action.";
+"settings.notifications.actionReminder.preview" = "Preview";
+"settings.notifications.actionReminder.previewUnavailable" = "No reminder is scheduled yet. Try logging this action to schedule one.";
 "settings.about.section" = "About";
 "settings.about.appVersion" = "App Version";
 "settings.title" = "Settings";
