@@ -118,6 +118,8 @@ struct StatsView: View {
                             AxisValueLabel {
                                 if let dateValue = value.as(Date.self) {
                                     Text(dateValue, format: .dateTime.weekday(.abbreviated))
+                                } else {
+                                    EmptyView()
                                 }
                             }
                         }
