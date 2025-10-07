@@ -245,7 +245,11 @@ private struct ActionCard: View {
 
             } else {
                 if let lastCompleted {
-                    Text(L10n.Home.lastRun(lastCompleted.endDateTimeDescription() ?? lastCompleted.startDateTimeDescription()))
+                    let timestampDescription = lastCompleted.endDateTimeDescription()
+                        ?? lastCompleted.startDateTimeDescription()
+                    let durationDescription = lastCompleted.durationDescription()
+
+                    Text(L10n.Home.lastRunWithDuration(timestampDescription, durationDescription))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
