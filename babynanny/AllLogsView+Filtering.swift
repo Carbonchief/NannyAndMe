@@ -1,7 +1,7 @@
 import SwiftUI
 
 extension AllLogsView {
-    fileprivate func groupedActions() -> [(date: Date, actions: [BabyAction])] {
+    func groupedActions() -> [(date: Date, actions: [BabyAction])] {
         let actions = actionStore.state(for: profileStore.activeProfile.id).history
         var grouped: [Date: [BabyAction]] = [:]
         var orderedDates: [Date] = []
@@ -25,7 +25,7 @@ extension AllLogsView {
         }
     }
 
-    fileprivate func deleteAction(_ action: BabyAction) {
+    func deleteAction(_ action: BabyAction) {
         actionStore.deleteAction(for: profileStore.activeProfile.id, actionID: action.id)
         if editingAction?.id == action.id {
             editingAction = nil
@@ -35,7 +35,7 @@ extension AllLogsView {
         }
     }
 
-    fileprivate func applyFilter(startDate: Date?, endDate: Date?) {
+    func applyFilter(startDate: Date?, endDate: Date?) {
         var normalizedStart = startDate.map { calendar.startOfDay(for: $0) }
         var normalizedEnd = endDate.map { calendar.startOfDay(for: $0) }
 
@@ -47,12 +47,12 @@ extension AllLogsView {
         filterEndDate = normalizedEnd
     }
 
-    fileprivate func clearFilter() {
+    func clearFilter() {
         filterStartDate = nil
         filterEndDate = nil
     }
 
-    fileprivate func activeFilterDescription() -> String? {
+    func activeFilterDescription() -> String? {
         switch (filterStartDate, filterEndDate) {
         case let (start?, end?):
             return L10n.Logs.filterSummaryRange(dateFormatter.string(from: start), dateFormatter.string(from: end))
@@ -65,7 +65,7 @@ extension AllLogsView {
         }
     }
 
-    fileprivate func filterSummaryView(_ description: String) -> some View {
+    func filterSummaryView(_ description: String) -> some View {
         HStack(spacing: 12) {
             Label(description, systemImage: "line.3.horizontal.decrease.circle")
                 .font(.subheadline)
