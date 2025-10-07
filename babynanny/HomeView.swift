@@ -220,9 +220,21 @@ private struct ActionCard: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         } else if let lastCompleted {
-                            Text(lastCompleted.detailDescription)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                            ZStack {
+                                HStack(alignment: .firstTextBaseline) {
+                                    Text(lastCompleted.detailDescription)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+
+                                    Spacer()
+                                }
+
+                                Text(lastCompleted.durationDescription())
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                            }
                         } else {
                             Text(L10n.Home.noEntries)
                                 .font(.subheadline)
@@ -259,9 +271,7 @@ private struct ActionCard: View {
                 if let lastCompleted {
                     let timestampDescription = lastCompleted.endDateTimeDescription()
                         ?? lastCompleted.startDateTimeDescription()
-                    let durationDescription = lastCompleted.durationDescription()
-
-                    Text(L10n.Home.lastRunWithDuration(timestampDescription, durationDescription))
+                    Text(L10n.Home.lastRun(timestampDescription))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
