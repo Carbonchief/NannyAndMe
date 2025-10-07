@@ -356,7 +356,7 @@ private enum BottleVolumeOption: Hashable, Identifiable {
     }
 }
 
-private struct ActionEditSheet: View {
+struct ActionEditSheet: View {
     let action: BabyAction
     let onSave: (BabyAction) -> Void
 
@@ -518,7 +518,7 @@ private struct ActionEditSheet: View {
             updated.bottleVolume = feedingSelection.requiresVolume ? resolvedBottleVolume : nil
         }
 
-        onSave(updated)
+        onSave(updated.withValidatedDates())
         dismiss()
     }
 }

@@ -380,13 +380,14 @@ final class ActionLogStore: ObservableObject {
 
     func updateAction(for profileID: UUID, action updatedAction: BabyAction) {
         updateState(for: profileID) { profileState in
+            let normalizedAction = updatedAction.withValidatedDates()
             if let index = profileState.history.firstIndex(where: { $0.id == updatedAction.id }) {
-                profileState.history[index] = updatedAction
+                profileState.history[index] = normalizedAction
             }
 
             for (category, action) in profileState.activeActions {
                 guard action.id == updatedAction.id else { continue }
-                profileState.activeActions[category] = updatedAction
+                profileState.activeActions[category] = normalizedAction
                 break
             }
         }
