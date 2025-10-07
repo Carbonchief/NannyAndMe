@@ -63,6 +63,7 @@ struct AllLogsView: View {
                     }
                 }
             }
+            .listRowSpacing(12)
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Color(.systemGroupedBackground))
