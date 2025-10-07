@@ -58,6 +58,40 @@ struct ReminderSchedulerTests {
         let updatedRequest = center.pendingRequests.first { $0.identifier == targetIdentifier }
         #expect(updatedRequest?.content.body.contains("Amelia") == true)
     }
+
+    @Test
+    func updatesActionReminderSchedulingWhenSettingsChange() async throws {
+        let center = MockUserNotificationCenter()
+        let scheduler = UserNotificationReminderScheduler(center: center, calendar: .gregorianCurrent)
+
+        var profile = ChildProfile(
+            name: "Noah",
+            birthDate: Calendar.current.date(byAdding: .month, value: -4, to: Date()) ?? Date(),
+            remindersEnabled: true
+        )
+
+        await scheduler.refreshReminders(for: [profile])
+
+        let profileID = profile.id
+        let sleepIdentifier = actionIdentifier(for: profileID, category: .sleep)
+        let feedingIdentifier = actionIdentifier(for: profileID, category: .feeding)
+        let diaperIdentifier = actionIdentifier(for: profileID, category: .diaper)
+
+        let initialIdentifiers = pendingActionIdentifiers(in: center)
+        #expect(initialIdentifiers.contains(sleepIdentifier))
+        #expect(initialIdentifiers.contains(feedingIdentifier))
+        #expect(initialIdentifiers.contains(diaperIdentifier))
+
+        profile.setReminderEnabled(false, for: .feeding)
+
+        await scheduler.refreshReminders(for: [profile])
+
+        let updatedIdentifiers = pendingActionIdentifiers(in: center)
+        #expect(updatedIdentifiers.contains(sleepIdentifier))
+        #expect(updatedIdentifiers.contains(diaperIdentifier))
+        #expect(updatedIdentifiers.contains(feedingIdentifier) == false)
+        #expect(center.removedIdentifiersHistory.flatMap { $0 }.contains(feedingIdentifier))
+    }
 }
 
 // MARK: - Helpers
@@ -106,6 +140,18 @@ private final class MockUserNotificationCenter: UserNotificationCenterType {
 
 private enum TestError: Error {
     case addFailed
+}
+
+private func actionIdentifier(for profileID: UUID, category: BabyActionCategory) -> String {
+    "action-reminder-" + profileID.uuidString + "-" + category.rawValue
+}
+
+private func pendingActionIdentifiers(in center: MockUserNotificationCenter) -> Set<String> {
+    Set(
+        center.pendingRequests
+            .map(\.identifier)
+            .filter { $0.hasPrefix("action-reminder-") }
+    )
 }
 
 private extension Calendar {
