@@ -6,16 +6,50 @@ struct ChildProfile: Codable, Identifiable, Equatable {
     var name: String
     var birthDate: Date
     var imageData: Data?
+    var remindersEnabled: Bool
 
-    init(id: UUID = UUID(), name: String, birthDate: Date, imageData: Data? = nil) {
+    init(
+        id: UUID = UUID(),
+        name: String,
+        birthDate: Date,
+        imageData: Data? = nil,
+        remindersEnabled: Bool = false
+    ) {
         self.id = id
         self.name = name
         self.birthDate = birthDate
         self.imageData = imageData
+        self.remindersEnabled = remindersEnabled
     }
 
     var displayName: String {
         name.isEmpty ? L10n.Profile.newProfile : name
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case birthDate
+        case imageData
+        case remindersEnabled
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        birthDate = try container.decode(Date.self, forKey: .birthDate)
+        imageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
+        remindersEnabled = try container.decodeIfPresent(Bool.self, forKey: .remindersEnabled) ?? false
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(birthDate, forKey: .birthDate)
+        try container.encodeIfPresent(imageData, forKey: .imageData)
+        try container.encode(remindersEnabled, forKey: .remindersEnabled)
     }
 }
 
@@ -39,18 +73,22 @@ final class ProfileStore: ObservableObject {
     }
 
     private let saveURL: URL
+    private let reminderScheduler: ReminderScheduling
     @Published private var state: ProfileState {
         didSet {
             persistState()
+            scheduleReminders()
         }
     }
 
     init(
         fileManager: FileManager = .default,
         directory: URL? = nil,
-        filename: String = "childProfiles.json"
+        filename: String = "childProfiles.json",
+        reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler()
     ) {
         self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
+        self.reminderScheduler = reminderScheduler
 
         if let data = try? Data(contentsOf: saveURL) {
             let decoder = JSONDecoder()
@@ -66,6 +104,7 @@ final class ProfileStore: ObservableObject {
         }
 
         persistState()
+        scheduleReminders()
     }
 
     init(
@@ -73,12 +112,15 @@ final class ProfileStore: ObservableObject {
         activeProfileID: UUID? = nil,
         fileManager: FileManager = .default,
         directory: URL? = nil,
-        filename: String = "childProfiles.json"
+        filename: String = "childProfiles.json",
+        reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler()
     ) {
         self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
+        self.reminderScheduler = reminderScheduler
         let state = ProfileState(profiles: initialProfiles, activeProfileID: activeProfileID)
         self.state = Self.sanitized(state: state)
         persistState()
+        scheduleReminders()
     }
 
     func setActiveProfile(_ profile: ChildProfile) {
@@ -105,6 +147,19 @@ final class ProfileStore: ObservableObject {
         state = Self.sanitized(state: newState)
     }
 
+    func setRemindersEnabled(_ isEnabled: Bool) async {
+        var desiredValue = isEnabled
+
+        if isEnabled {
+            let authorized = await reminderScheduler.ensureAuthorization()
+            if authorized == false {
+                desiredValue = false
+            }
+        }
+
+        updateActiveProfile { $0.remindersEnabled = desiredValue }
+    }
+
     private func ensureValidState() {
         let sanitized = Self.sanitized(state: state)
         if sanitized != state {
@@ -127,6 +182,13 @@ final class ProfileStore: ObservableObject {
                 print("Failed to save child profiles: \(error.localizedDescription)")
                 #endif
             }
+        }
+    }
+
+    private func scheduleReminders() {
+        let profiles = state.profiles
+        Task {
+            await reminderScheduler.refreshReminders(for: profiles)
         }
     }
 
@@ -176,6 +238,11 @@ private struct ProfileState: Codable, Equatable {
 
 extension ProfileStore {
     static var preview: ProfileStore {
+        struct PreviewReminderScheduler: ReminderScheduling {
+            func ensureAuthorization() async -> Bool { true }
+            func refreshReminders(for profiles: [ChildProfile]) async {}
+        }
+
         let profiles = [
             ChildProfile(name: "Aria", birthDate: Date(timeIntervalSince1970: 1_600_000_000)),
             ChildProfile(name: "Luca", birthDate: Date(timeIntervalSince1970: 1_650_000_000))
@@ -185,7 +252,8 @@ extension ProfileStore {
             initialProfiles: profiles,
             activeProfileID: profiles.first?.id,
             directory: FileManager.default.temporaryDirectory,
-            filename: "previewChildProfiles.json"
+            filename: "previewChildProfiles.json",
+            reminderScheduler: PreviewReminderScheduler()
         )
     }
 }

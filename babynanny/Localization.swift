@@ -94,6 +94,23 @@ enum L10n {
         static let title = String(localized: "settings.title", defaultValue: "Settings")
     }
 
+    enum Notifications {
+        static let ageReminderTitle = String(localized: "notifications.ageReminder.title", defaultValue: "Monthly milestone")
+
+        static func ageReminderMessage(_ name: String, _ months: Int) -> String {
+            if months == 1 {
+                let format = String(localized: "notifications.ageReminder.oneMonth", defaultValue: "%@ is 1 month old today.")
+                return String(format: format, locale: Locale.current, name)
+            }
+
+            let format = String(
+                localized: "notifications.ageReminder.months",
+                defaultValue: "%@ is %lld months old today."
+            )
+            return String(format: format, locale: Locale.current, name, months)
+        }
+    }
+
     enum Menu {
         static let title = String(localized: "menu.title", defaultValue: "Nanny & Me")
         static let subtitle = String(localized: "menu.subtitle", defaultValue: "Quick actions")

@@ -11,6 +11,7 @@ import PhotosUI
 struct SettingsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @State private var selectedPhoto: PhotosPickerItem?
+    @State private var isUpdatingReminders = false
 
     var body: some View {
         Form {
@@ -101,11 +102,23 @@ struct SettingsView: View {
             }
 
             Section(header: Text(L10n.Settings.notificationsSection)) {
-                Toggle(isOn: .constant(true)) {
+                Toggle(
+                    isOn: Binding(
+                        get: { profileStore.activeProfile.remindersEnabled },
+                        set: { newValue in
+                            isUpdatingReminders = true
+                            Task {
+                                await profileStore.setRemindersEnabled(newValue)
+                                await MainActor.run {
+                                    isUpdatingReminders = false
+                                }
+                            }
+                        }
+                    )
+                ) {
                     Text(L10n.Settings.enableReminders)
                 }
-                .disabled(true)
-                .foregroundStyle(.secondary)
+                .disabled(isUpdatingReminders)
             }
 
             Section(header: Text(L10n.Settings.aboutSection)) {

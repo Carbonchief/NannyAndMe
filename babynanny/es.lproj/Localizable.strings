@@ -40,6 +40,9 @@
 "settings.about.section" = "Acerca de";
 "settings.about.appVersion" = "Versión de la app";
 "settings.title" = "Configuración";
+"notifications.ageReminder.title" = "Hito mensual";
+"notifications.ageReminder.oneMonth" = "%@ cumple 1 mes hoy.";
+"notifications.ageReminder.months" = "%@ cumple %lld meses hoy.";
 "menu.title" = "Nanny & Me";
 "menu.subtitle" = "Acciones rápidas";
 "menu.allLogs" = "Todos los registros";
