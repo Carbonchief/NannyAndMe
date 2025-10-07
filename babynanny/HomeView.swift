@@ -372,6 +372,7 @@ struct ActionEditSheet: View {
     @State private var feedingSelection: BabyAction.FeedingType
     @State private var bottleSelection: BottleVolumeOption
     @State private var customBottleVolume: String
+    @State private var endDate: Date?
 
     init(action: BabyAction, onSave: @escaping (BabyAction) -> Void) {
         self.action = action
@@ -380,6 +381,7 @@ struct ActionEditSheet: View {
         _startDate = State(initialValue: action.startDate)
         _diaperSelection = State(initialValue: action.diaperType ?? .pee)
         _feedingSelection = State(initialValue: action.feedingType ?? .bottle)
+        _endDate = State(initialValue: action.endDate)
 
         let defaultSelection: BottleVolumeOption = .preset(120)
         if let volume = action.bottleVolume {
@@ -456,13 +458,22 @@ struct ActionEditSheet: View {
                     }
                 }
 
-                if let endDescription = action.endDateTimeDescription() {
-                    Section(header: Text(L10n.Home.editEndSectionTitle)) {
-                        Text(endDescription)
-                            .font(.body)
-                        Text(L10n.Home.editEndNote)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                if !action.category.isInstant {
+                    if (endDate ?? action.endDate) != nil {
+                        Section(header: Text(L10n.Home.editEndSectionTitle)) {
+                            DatePicker(
+                                L10n.Home.editEndPickerLabel,
+                                selection: endDateBinding,
+                                in: endDateRange,
+                                displayedComponents: [.date, .hourAndMinute]
+                            )
+                        }
+                    } else {
+                        Section(header: Text(L10n.Home.editEndSectionTitle)) {
+                            Text(L10n.Home.editEndNote)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -483,12 +494,31 @@ struct ActionEditSheet: View {
                 }
             }
         }
+        .onChange(of: startDate) { newValue in
+            guard let currentEndDate = endDate else { return }
+            if currentEndDate < newValue {
+                endDate = newValue
+            }
+        }
     }
 
     private var startDateRange: ClosedRange<Date> {
-        let proposedUpperBound = action.endDate ?? Date()
-        let upperBound = max(action.startDate, proposedUpperBound)
+        let proposedUpperBound = (endDate ?? action.endDate) ?? Date()
+        let upperBound = max(startDate, proposedUpperBound)
         return Date.distantPast...upperBound
+    }
+
+    private var endDateRange: ClosedRange<Date> {
+        let potentialUpperBounds = [endDate ?? action.endDate, Date()].compactMap { $0 }
+        let resolvedUpperBound = potentialUpperBounds.max() ?? Date()
+        return startDate...max(startDate, resolvedUpperBound)
+    }
+
+    private var endDateBinding: Binding<Date> {
+        Binding(
+            get: { endDate ?? action.endDate ?? Date() },
+            set: { endDate = $0 }
+        )
     }
 
     private var resolvedBottleVolume: Int? {
@@ -522,6 +552,8 @@ struct ActionEditSheet: View {
             updated.feedingType = feedingSelection
             updated.bottleVolume = feedingSelection.requiresVolume ? resolvedBottleVolume : nil
         }
+
+        updated.endDate = endDate ?? action.endDate
 
         onSave(updated.withValidatedDates())
         dismiss()
