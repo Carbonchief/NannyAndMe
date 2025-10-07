@@ -7,7 +7,7 @@
 "common.done" = "Listo";
 "home.recentActivity" = "Actividad reciente";
 "home.recentActivity.showAll" = "Ver todo";
-"home.header.title" = "Registra las actividades de cuidado de hoy";
+"home.header.title" = "Última acción";
 "home.header.placeholder" = "Inicia una acción abajo para comenzar a registrar el día de tu bebé.";
 "home.noEntries" = "Aún no hay registros";
 "home.sleep.info" = "Inicia una sesión de sueño. Detenla cuando tu pequeño despierte para capturar el tiempo total de descanso.";
