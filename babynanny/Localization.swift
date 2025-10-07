@@ -62,6 +62,14 @@ enum L10n {
             return String(format: format, locale: Locale.current, value)
         }
 
+        static func lastRunWithDuration(_ value: String, _ duration: String) -> String {
+            let format = String(
+                localized: "home.card.lastRunWithDuration",
+                defaultValue: "Last run %@ • Duration %@"
+            )
+            return String(format: format, locale: Locale.current, value, duration)
+        }
+
         static func newActionTitle(_ categoryTitle: String) -> String {
             let format = String(localized: "home.sheet.newActionTitle", defaultValue: "New %@ Action")
             return String(format: format, locale: Locale.current, categoryTitle)
