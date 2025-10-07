@@ -20,7 +20,6 @@ struct SettingsView: View {
     @State private var isLoadingActionReminders = false
     @State private var reminderLoadTask: Task<Void, Never>?
     @State private var showNotificationsSettingsPrompt = false
-    @State private var reminderPreview: ReminderPreview?
 
     var body: some View {
         Form {
@@ -188,9 +187,6 @@ struct SettingsView: View {
                 },
                 secondaryButton: .cancel(Text(L10n.Settings.notificationsPermissionCancel))
             )
-        }
-        .sheet(item: $reminderPreview) { preview in
-            ReminderPreviewSheet(preview: preview)
         }
         .onAppear {
             refreshActionReminderSummaries()
@@ -360,57 +356,10 @@ private extension SettingsView {
     }
 
     private func showReminderPreview(for category: BabyActionCategory) {
-        let title = L10n.Notifications.actionReminderOverviewTitle(category.title)
-
-        guard profileStore.activeProfile.remindersEnabled,
-              profileStore.activeProfile.isActionReminderEnabled(for: category) else {
-            reminderPreview = ReminderPreview(title: title, message: L10n.Settings.actionReminderDisabled)
-            return
-        }
-
-        if let summary = actionReminderSummaries[category] {
-            let date = summary.fireDate.formatted(date: .abbreviated, time: .shortened)
-            reminderPreview = ReminderPreview(
-                title: title,
-                message: L10n.Settings.nextReminderScheduled(date, summary.message)
-            )
-        } else if isLoadingActionReminders {
-            reminderPreview = ReminderPreview(title: title, message: L10n.Settings.nextReminderLoading)
-        } else {
-            reminderPreview = ReminderPreview(title: title, message: L10n.Settings.actionReminderPreviewUnavailable)
-        }
-    }
-
-    private struct ReminderPreview: Identifiable {
-        let id = UUID()
-        let title: String
-        let message: String
-    }
-
-    private struct ReminderPreviewSheet: View {
-        let preview: ReminderPreview
-        @Environment(\.dismiss) private var dismiss
-
-        var body: some View {
-            NavigationStack {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text(preview.message)
-                            .font(.body)
-                            .foregroundStyle(.primary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .padding()
-                }
-                .navigationTitle(preview.title)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button(L10n.Common.done) {
-                            dismiss()
-                        }
-                    }
-                }
+        Task { @MainActor in
+            let result = await profileStore.scheduleActionReminderPreview(for: category)
+            if result == .authorizationDenied {
+                showNotificationsSettingsPrompt = true
             }
         }
     }
