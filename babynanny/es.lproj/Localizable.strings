@@ -46,6 +46,10 @@
 "settings.notifications.nextReminder.unavailable" = "Todavía no hay recordatorios programados.";
 "settings.notifications.nextReminder.loading" = "Cargando…";
 "settings.notifications.nextReminder.scheduled" = "%@ — %@";
+"settings.notifications.permissionDenied.title" = "Activar notificaciones";
+"settings.notifications.permissionDenied.message" = "Las notificaciones están desactivadas para Nanny & Me. Actívalas en Configuración para recibir recordatorios.";
+"settings.notifications.permissionDenied.action" = "Abrir Configuración";
+"settings.notifications.permissionDenied.cancel" = "Ahora no";
 "settings.about.section" = "Acerca de";
 "settings.about.appVersion" = "Versión de la app";
 "settings.title" = "Configuración";
