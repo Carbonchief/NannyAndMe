@@ -220,21 +220,9 @@ private struct ActionCard: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         } else if let lastCompleted {
-                            ZStack {
-                                HStack(alignment: .firstTextBaseline) {
-                                    Text(lastCompleted.detailDescription)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-
-                                    Spacer()
-                                }
-
-                                Text(lastCompleted.durationDescription())
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .monospacedDigit()
-                                    .frame(maxWidth: .infinity, alignment: .center)
-                            }
+                            Text(lastCompleted.detailDescription)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         } else {
                             Text(L10n.Home.noEntries)
                                 .font(.subheadline)
@@ -269,11 +257,19 @@ private struct ActionCard: View {
 
             } else {
                 if let lastCompleted {
-                    let timestampDescription = lastCompleted.endDateTimeDescription()
-                        ?? lastCompleted.startDateTimeDescription()
-                    Text(L10n.Home.lastRun(timestampDescription))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if let timestampDescription = lastCompleted.endDateTimeDescription()
+                        ?? lastCompleted.startDateTimeDescription() {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(L10n.Home.lastRun(timestampDescription))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            Text(lastCompleted.durationDescription())
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
                 }
             }
         }
