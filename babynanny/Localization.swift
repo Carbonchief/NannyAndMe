@@ -35,8 +35,7 @@ enum L10n {
         static let editStartPickerLabel = String(localized: "home.edit.startPickerLabel", defaultValue: "Start")
         static let editCategoryLabel = String(localized: "home.edit.categoryLabel", defaultValue: "Category")
         static let editEndSectionTitle = String(localized: "home.edit.endSectionTitle", defaultValue: "End time")
-        static let editEndPickerLabel = String(localized: "home.edit.endPickerLabel", defaultValue: "End")
-        static let editEndNote = String(localized: "home.edit.endNote", defaultValue: "Stop this action to edit the end time.")
+        static let editEndNote = String(localized: "home.edit.endNote", defaultValue: "End time can't be changed from here.")
 
         static func activeFor(_ duration: String) -> String {
             let format = String(localized: "home.header.activeFor", defaultValue: "Active for %@")
@@ -131,6 +130,22 @@ enum L10n {
         static let nextReminderLoading = String(
             localized: "settings.notifications.nextReminder.loading",
             defaultValue: "Loading…"
+        )
+        static let notificationsPermissionTitle = String(
+            localized: "settings.notifications.permissionDenied.title",
+            defaultValue: "Enable notifications"
+        )
+        static let notificationsPermissionMessage = String(
+            localized: "settings.notifications.permissionDenied.message",
+            defaultValue: "Notifications are currently turned off for Nanny & Me. Enable notifications in Settings to receive reminders."
+        )
+        static let notificationsPermissionAction = String(
+            localized: "settings.notifications.permissionDenied.action",
+            defaultValue: "Open Settings"
+        )
+        static let notificationsPermissionCancel = String(
+            localized: "settings.notifications.permissionDenied.cancel",
+            defaultValue: "Not now"
         )
 
         static func nextReminderScheduled(_ date: String, _ detail: String) -> String {

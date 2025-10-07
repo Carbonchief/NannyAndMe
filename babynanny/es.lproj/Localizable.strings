@@ -25,8 +25,7 @@
 "home.edit.startPickerLabel" = "Inicio";
 "home.edit.categoryLabel" = "Categoría";
 "home.edit.endSectionTitle" = "Hora de finalización";
-"home.edit.endPickerLabel" = "Fin";
-"home.edit.endNote" = "Detén esta acción para editar la hora de finalización.";
+"home.edit.endNote" = "La hora de finalización no se puede cambiar aquí.";
 "home.header.activeFor" = "Activo durante %@";
 "home.header.lastFinished" = "Última finalización %@";
 "home.card.startedAt" = "Iniciado a las %@";
@@ -54,6 +53,10 @@
 "settings.notifications.nextReminder.unavailable" = "Todavía no hay recordatorios programados.";
 "settings.notifications.nextReminder.loading" = "Cargando…";
 "settings.notifications.nextReminder.scheduled" = "%@ — %@";
+"settings.notifications.permissionDenied.title" = "Activar notificaciones";
+"settings.notifications.permissionDenied.message" = "Las notificaciones están desactivadas para Nanny & Me. Actívalas en Configuración para recibir recordatorios.";
+"settings.notifications.permissionDenied.action" = "Abrir Configuración";
+"settings.notifications.permissionDenied.cancel" = "Ahora no";
 "settings.about.section" = "Acerca de";
 "settings.about.appVersion" = "Versión de la app";
 "settings.title" = "Configuración";

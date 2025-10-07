@@ -7,16 +7,19 @@
 
 import SwiftUI
 import PhotosUI
+import UIKit
 
 struct SettingsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
+    @Environment(\.openURL) private var openURL
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var isUpdatingReminders = false
     @State private var profilePendingDeletion: ChildProfile?
     @State private var nextReminderOverview: ReminderOverview?
     @State private var isLoadingNextReminder = false
     @State private var reminderLoadTask: Task<Void, Never>?
+    @State private var showNotificationsSettingsPrompt = false
 
     var body: some View {
         Form {
@@ -120,10 +123,13 @@ struct SettingsView: View {
                         set: { newValue in
                             isUpdatingReminders = true
                             Task {
-                                await profileStore.setRemindersEnabled(newValue)
+                                let result = await profileStore.setRemindersEnabled(newValue)
                                 await MainActor.run {
                                     isUpdatingReminders = false
                                     refreshNextReminder()
+                                    if result == .authorizationDenied {
+                                        showNotificationsSettingsPrompt = true
+                                    }
                                 }
                             }
                         }
@@ -163,6 +169,18 @@ struct SettingsView: View {
                 secondaryButton: .cancel {
                     profilePendingDeletion = nil
                 }
+            )
+        }
+        .alert(isPresented: $showNotificationsSettingsPrompt) {
+            Alert(
+                title: Text(L10n.Settings.notificationsPermissionTitle),
+                message: Text(L10n.Settings.notificationsPermissionMessage),
+                primaryButton: .default(Text(L10n.Settings.notificationsPermissionAction)) {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        openURL(url)
+                    }
+                },
+                secondaryButton: .cancel(Text(L10n.Settings.notificationsPermissionCancel))
             )
         }
         .onAppear {

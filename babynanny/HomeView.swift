@@ -344,7 +344,6 @@ private struct ActionEditSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var startDate: Date
-    @State private var endDate: Date?
     @State private var diaperSelection: BabyAction.DiaperType
     @State private var feedingSelection: BabyAction.FeedingType
     @State private var bottleSelection: BottleVolumeOption
@@ -355,11 +354,6 @@ private struct ActionEditSheet: View {
         self.onSave = onSave
 
         _startDate = State(initialValue: action.startDate)
-        if action.category.isInstant {
-            _endDate = State(initialValue: action.endDate ?? action.startDate)
-        } else {
-            _endDate = State(initialValue: action.endDate)
-        }
         _diaperSelection = State(initialValue: action.diaperType ?? .pee)
         _feedingSelection = State(initialValue: action.feedingType ?? .bottle)
 
@@ -392,23 +386,6 @@ private struct ActionEditSheet: View {
                         in: startDateRange,
                         displayedComponents: [.date, .hourAndMinute]
                     )
-                }
-
-                if canEditEndDate {
-                    Section(header: Text(L10n.Home.editEndSectionTitle)) {
-                        DatePicker(
-                            L10n.Home.editEndPickerLabel,
-                            selection: endDateBinding,
-                            in: endDateRange,
-                            displayedComponents: [.date, .hourAndMinute]
-                        )
-                    }
-                } else if shouldShowEndNote {
-                    Section(header: Text(L10n.Home.editEndSectionTitle)) {
-                        Text(L10n.Home.editEndNote)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
                 }
 
                 if action.category == .diaper {
@@ -455,6 +432,15 @@ private struct ActionEditSheet: View {
                     }
                 }
 
+                if let endDescription = action.endDateTimeDescription() {
+                    Section(header: Text(L10n.Home.editEndSectionTitle)) {
+                        Text(endDescription)
+                            .font(.body)
+                        Text(L10n.Home.editEndNote)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
             .navigationTitle(L10n.Home.editActionTitle)
             .navigationBarTitleDisplayMode(.inline)
@@ -472,56 +458,13 @@ private struct ActionEditSheet: View {
                     .disabled(isSaveDisabled)
                 }
             }
-            .onChange(of: startDate) { newValue in
-                if action.category.isInstant {
-                    endDate = newValue
-                } else if let currentEnd = endDate, currentEnd < newValue {
-                    endDate = newValue
-                }
-            }
-            .onChange(of: endDate) { newValue in
-                guard let newValue else { return }
-                if newValue < startDate {
-                    startDate = newValue
-                }
-            }
         }
     }
 
     private var startDateRange: ClosedRange<Date> {
-        let upperBound: Date
-        if action.category.isInstant {
-            upperBound = Date()
-        } else if let endDate {
-            upperBound = min(endDate, Date())
-        } else if let actionEnd = action.endDate {
-            upperBound = min(actionEnd, Date())
-        } else {
-            upperBound = Date()
-        }
+        let proposedUpperBound = action.endDate ?? Date()
+        let upperBound = max(action.startDate, proposedUpperBound)
         return Date.distantPast...upperBound
-    }
-
-    private var endDateRange: ClosedRange<Date> {
-        let upperBound = max(startDate, Date())
-        return startDate...upperBound
-    }
-
-    private var endDateBinding: Binding<Date> {
-        Binding(
-            get: { endDate ?? action.endDate ?? startDate },
-            set: { newValue in
-                endDate = newValue
-            }
-        )
-    }
-
-    private var canEditEndDate: Bool {
-        !action.category.isInstant && action.endDate != nil
-    }
-
-    private var shouldShowEndNote: Bool {
-        !action.category.isInstant && action.endDate == nil
     }
 
     private var resolvedBottleVolume: Int? {
@@ -554,15 +497,6 @@ private struct ActionEditSheet: View {
         case .feeding:
             updated.feedingType = feedingSelection
             updated.bottleVolume = feedingSelection.requiresVolume ? resolvedBottleVolume : nil
-        }
-
-        if action.category.isInstant {
-            updated.endDate = startDate
-        } else if action.endDate != nil {
-            let finalEnd = endDate ?? startDate
-            updated.endDate = max(finalEnd, startDate)
-        } else {
-            updated.endDate = nil
         }
 
         onSave(updated)

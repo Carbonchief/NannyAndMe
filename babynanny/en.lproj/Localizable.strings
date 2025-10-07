@@ -25,8 +25,7 @@
 "home.edit.startPickerLabel" = "Start";
 "home.edit.categoryLabel" = "Category";
 "home.edit.endSectionTitle" = "End time";
-"home.edit.endPickerLabel" = "End";
-"home.edit.endNote" = "Stop this action to edit the end time.";
+"home.edit.endNote" = "End time can't be changed from here.";
 "home.header.activeFor" = "Active for %@";
 "home.header.lastFinished" = "Last finished %@";
 "home.card.startedAt" = "Started at %@";
@@ -54,6 +53,10 @@
 "settings.notifications.nextReminder.unavailable" = "No reminders scheduled yet.";
 "settings.notifications.nextReminder.loading" = "Loading…";
 "settings.notifications.nextReminder.scheduled" = "%@ — %@";
+"settings.notifications.permissionDenied.title" = "Enable notifications";
+"settings.notifications.permissionDenied.message" = "Notifications are currently turned off for Nanny & Me. Enable notifications in Settings to receive reminders.";
+"settings.notifications.permissionDenied.action" = "Open Settings";
+"settings.notifications.permissionDenied.cancel" = "Not now";
 "settings.about.section" = "About";
 "settings.about.appVersion" = "App Version";
 "settings.title" = "Settings";

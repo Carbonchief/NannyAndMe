@@ -160,17 +160,27 @@ final class ProfileStore: ObservableObject {
         state = Self.sanitized(state: newState)
     }
 
-    func setRemindersEnabled(_ isEnabled: Bool) async {
+    enum ReminderAuthorizationResult: Equatable {
+        case enabled
+        case disabled
+        case authorizationDenied
+    }
+
+    @discardableResult
+    func setRemindersEnabled(_ isEnabled: Bool) async -> ReminderAuthorizationResult {
         var desiredValue = isEnabled
+        var result: ReminderAuthorizationResult = isEnabled ? .enabled : .disabled
 
         if isEnabled {
             let authorized = await reminderScheduler.ensureAuthorization()
             if authorized == false {
                 desiredValue = false
+                result = .authorizationDenied
             }
         }
 
         updateActiveProfile { $0.remindersEnabled = desiredValue }
+        return result
     }
 
     func nextReminder(for profileID: UUID) async -> ReminderOverview? {
