@@ -144,6 +144,9 @@ struct SettingsView: View {
 
                 if profileStore.activeProfile.remindersEnabled {
                     reminderStatusView(for: profileStore.activeProfile)
+                    ForEach(BabyActionCategory.allCases) { category in
+                        actionReminderRow(for: category)
+                    }
                 } else {
                     Text(L10n.Settings.nextReminderDisabled)
                         .font(.footnote)
@@ -287,6 +290,41 @@ struct SettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 4)
+            }
+        }
+    }
+}
+
+private extension SettingsView {
+    private func reminderHours(for category: BabyActionCategory) -> Int {
+        let interval = profileStore.activeProfile.reminderInterval(for: category)
+        return max(1, Int(round(interval / 3600)))
+    }
+
+    private func reminderIntervalBinding(for category: BabyActionCategory) -> Binding<Int> {
+        Binding(
+            get: { reminderHours(for: category) },
+            set: { newValue in
+                let clamped = max(1, min(12, newValue))
+                let interval = TimeInterval(clamped) * 3600
+                profileStore.updateActiveProfile { profile in
+                    profile.setReminderInterval(interval, for: category)
+                }
+                refreshNextReminder()
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func actionReminderRow(for category: BabyActionCategory) -> some View {
+        let binding = reminderIntervalBinding(for: category)
+        Stepper(value: binding, in: 1...12) {
+            HStack {
+                Label(L10n.Settings.actionReminderTitle(category.title), systemImage: category.icon)
+                Spacer()
+                Text(L10n.Settings.actionReminderFrequencyDescription(reminderHours(for: category)))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
         }
     }

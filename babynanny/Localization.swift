@@ -174,6 +174,29 @@ enum L10n {
             )
             return String(format: format, locale: Locale.current, date, detail)
         }
+
+        static func actionReminderTitle(_ category: String) -> String {
+            let format = String(
+                localized: "settings.notifications.actionReminder.title",
+                defaultValue: "%@ reminders"
+            )
+            return String(format: format, locale: Locale.current, category)
+        }
+
+        static func actionReminderFrequencyDescription(_ hours: Int) -> String {
+            if hours == 1 {
+                return String(
+                    localized: "settings.notifications.actionReminder.frequency.one",
+                    defaultValue: "Every hour"
+                )
+            }
+
+            let format = String(
+                localized: "settings.notifications.actionReminder.frequency.other",
+                defaultValue: "Every %lld hours"
+            )
+            return String(format: format, locale: Locale.current, hours)
+        }
     }
 
     enum Notifications {
@@ -190,6 +213,42 @@ enum L10n {
                 defaultValue: "%@ is %lld months old today."
             )
             return String(format: format, locale: Locale.current, name, months)
+        }
+
+        static func actionReminderTitle(_ category: String) -> String {
+            let format = String(localized: "notifications.actionReminder.title", defaultValue: "Log %@")
+            return String(format: format, locale: Locale.current, category)
+        }
+
+        static func actionReminderMessage(_ interval: String, _ name: String, _ category: String) -> String {
+            let format = String(
+                localized: "notifications.actionReminder.message",
+                defaultValue: "It's been %@ since %@'s last %@ log."
+            )
+            return String(format: format, locale: Locale.current, interval, name, category)
+        }
+
+        static func actionReminderInterval(_ hours: Int) -> String {
+            if hours == 1 {
+                return String(
+                    localized: "notifications.actionReminder.interval.one",
+                    defaultValue: "1 hour"
+                )
+            }
+
+            let format = String(
+                localized: "notifications.actionReminder.interval.other",
+                defaultValue: "%lld hours"
+            )
+            return String(format: format, locale: Locale.current, hours)
+        }
+
+        static func actionReminderOverviewTitle(_ category: String) -> String {
+            let format = String(
+                localized: "notifications.actionReminder.overviewTitle",
+                defaultValue: "%@ reminder"
+            )
+            return String(format: format, locale: Locale.current, category)
         }
     }
 
