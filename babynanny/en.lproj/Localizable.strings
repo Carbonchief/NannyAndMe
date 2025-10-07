@@ -36,6 +36,9 @@
 "profiles.birthDate" = "Birth date";
 "profiles.choosePhoto" = "Choose profile photo";
 "profiles.removePhoto" = "Remove profile photo";
+"profiles.delete.confirmationTitle" = "Delete %@?";
+"profiles.delete.confirmationMessage" = "This will remove %@ and all associated activity logs.";
+"profiles.delete.action" = "Delete Profile";
 "settings.notifications.section" = "Notifications";
 "settings.notifications.enable" = "Enable reminders";
 "settings.about.section" = "About";

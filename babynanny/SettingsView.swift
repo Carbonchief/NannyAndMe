@@ -10,8 +10,10 @@ import PhotosUI
 
 struct SettingsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
+    @EnvironmentObject private var actionStore: ActionLogStore
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var isUpdatingReminders = false
+    @State private var profilePendingDeletion: ChildProfile?
 
     var body: some View {
         Form {
@@ -38,6 +40,13 @@ struct SettingsView: View {
                     .contentShape(Rectangle())
                     .onTapGesture {
                         profileStore.setActiveProfile(profile)
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            profilePendingDeletion = profile
+                        } label: {
+                            Label(L10n.Profiles.deleteAction, systemImage: "trash")
+                        }
                     }
                 }
 
@@ -131,13 +140,32 @@ struct SettingsView: View {
             }
         }
         .navigationTitle(L10n.Settings.title)
+        .alert(item: $profilePendingDeletion) { profile in
+            Alert(
+                title: Text(L10n.Profiles.deleteConfirmationTitle(profile.displayName)),
+                message: Text(L10n.Profiles.deleteConfirmationMessage(profile.displayName)),
+                primaryButton: .destructive(Text(L10n.Profiles.deleteAction)) {
+                    deleteProfile(profile)
+                },
+                secondaryButton: .cancel {
+                    profilePendingDeletion = nil
+                }
+            )
+        }
     }
 
+    private func deleteProfile(_ profile: ChildProfile) {
+        profileStore.deleteProfile(profile)
+        actionStore.removeProfileData(for: profile.id)
+        profilePendingDeletion = nil
+    }
 }
 
 #Preview {
     NavigationStack {
-        SettingsView().environmentObject(ProfileStore.preview)
+        SettingsView()
+            .environmentObject(ProfileStore.preview)
+            .environmentObject(ActionLogStore.previewStore(profiles: [:]))
 
     }
 }

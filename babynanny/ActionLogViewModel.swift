@@ -357,6 +357,12 @@ final class ActionLogStore: ObservableObject {
         }
     }
 
+    func removeProfileData(for profileID: UUID) {
+        var profiles = storage.profiles
+        guard profiles.removeValue(forKey: profileID) != nil else { return }
+        storage = Self.sanitized(state: ActionStoreState(profiles: profiles))
+    }
+
     private func updateState(for profileID: UUID, _ updates: (inout ProfileActionState) -> Void) {
         var profiles = storage.profiles
         var profileState = profiles[profileID] ?? ProfileActionState()

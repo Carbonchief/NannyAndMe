@@ -85,6 +85,21 @@ enum L10n {
         static let birthDate = String(localized: "profiles.birthDate", defaultValue: "Birth date")
         static let choosePhoto = String(localized: "profiles.choosePhoto", defaultValue: "Choose profile photo")
         static let removePhoto = String(localized: "profiles.removePhoto", defaultValue: "Remove profile photo")
+
+        static func deleteConfirmationTitle(_ name: String) -> String {
+            let format = String(localized: "profiles.delete.confirmationTitle", defaultValue: "Delete %@?")
+            return String(format: format, locale: Locale.current, name)
+        }
+
+        static func deleteConfirmationMessage(_ name: String) -> String {
+            let format = String(
+                localized: "profiles.delete.confirmationMessage",
+                defaultValue: "This will remove %@ and all associated activity logs."
+            )
+            return String(format: format, locale: Locale.current, name)
+        }
+
+        static let deleteAction = String(localized: "profiles.delete.action", defaultValue: "Delete Profile")
     }
 
     enum Settings {

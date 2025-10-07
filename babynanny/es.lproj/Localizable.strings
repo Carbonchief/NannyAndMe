@@ -36,6 +36,9 @@
 "profiles.birthDate" = "Fecha de nacimiento";
 "profiles.choosePhoto" = "Elegir foto de perfil";
 "profiles.removePhoto" = "Quitar foto de perfil";
+"profiles.delete.confirmationTitle" = "¿Eliminar el perfil de %@?";
+"profiles.delete.confirmationMessage" = "Esto eliminará el perfil de %@ y todos los registros de actividad asociados.";
+"profiles.delete.action" = "Eliminar perfil";
 "settings.notifications.section" = "Notificaciones";
 "settings.notifications.enable" = "Activar recordatorios";
 "settings.about.section" = "Acerca de";
