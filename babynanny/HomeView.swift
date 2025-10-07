@@ -64,7 +64,8 @@ struct HomeView: View {
                 }
             }
             .padding(.horizontal)
-            .padding(.vertical, 24)
+            .padding(.top, 8)
+            .padding(.bottom, 24)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .sheet(item: $presentedCategory) { category in
