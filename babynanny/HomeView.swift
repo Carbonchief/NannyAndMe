@@ -372,6 +372,63 @@ private struct ActionConfiguration {
     var bottleVolume: Int?
 }
 
+private protocol ActionTypeOption: Identifiable, Hashable {
+    var title: String { get }
+    var icon: String { get }
+}
+
+extension BabyAction.DiaperType: ActionTypeOption { }
+extension BabyAction.FeedingType: ActionTypeOption { }
+
+private struct ActionTypeSelectionGrid<Option: ActionTypeOption>: View {
+    let options: [Option]
+    @Binding var selection: Option
+    let accentColor: Color
+
+    private let columns: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 16) {
+            ForEach(options) { option in
+                Button {
+                    selection = option
+                } label: {
+                    VStack(spacing: 12) {
+                        Image(systemName: option.icon)
+                            .font(.system(size: 26, weight: .semibold))
+                            .foregroundStyle(selection == option ? Color.white : accentColor)
+                            .frame(width: 52, height: 52)
+                            .background(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .fill(selection == option ? accentColor : accentColor.opacity(0.15))
+                            )
+
+                        Text(option.title)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(.primary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 18)
+                    .background(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .fill(selection == option ? accentColor.opacity(0.12) : Color(.secondarySystemBackground))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .stroke(selection == option ? accentColor : Color.clear, lineWidth: 2)
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(selection == option ? .isSelected : [])
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: selection)
+    }
+}
+
 private enum BottleVolumeOption: Hashable, Identifiable {
     case preset(Int)
     case custom
@@ -640,28 +697,22 @@ private struct ActionDetailSheet: View {
 
                 case .diaper:
                     Section {
-                        Picker(selection: $diaperSelection) {
-                            ForEach(BabyAction.DiaperType.allCases) { option in
-                                Text(option.title).tag(option)
-                            }
-                        } label: {
-                            Text(L10n.Home.diaperTypePickerLabel)
-                        }
-                        .pickerStyle(.segmented)
+                        ActionTypeSelectionGrid(
+                            options: BabyAction.DiaperType.allCases,
+                            selection: $diaperSelection,
+                            accentColor: category.accentColor
+                        )
                     } header: {
                         Text(L10n.Home.diaperTypeSectionTitle)
                     }
 
                 case .feeding:
                     Section {
-                        Picker(selection: $feedingSelection) {
-                            ForEach(BabyAction.FeedingType.allCases) { option in
-                                Text(option.title).tag(option)
-                            }
-                        } label: {
-                            Text(L10n.Home.feedingTypePickerLabel)
-                        }
-                        .pickerStyle(.segmented)
+                        ActionTypeSelectionGrid(
+                            options: BabyAction.FeedingType.allCases,
+                            selection: $feedingSelection,
+                            accentColor: category.accentColor
+                        )
                     } header: {
                         Text(L10n.Home.feedingTypeSectionTitle)
                     }
