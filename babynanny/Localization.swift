@@ -35,7 +35,11 @@ enum L10n {
         static let editStartPickerLabel = String(localized: "home.edit.startPickerLabel", defaultValue: "Start")
         static let editCategoryLabel = String(localized: "home.edit.categoryLabel", defaultValue: "Category")
         static let editEndSectionTitle = String(localized: "home.edit.endSectionTitle", defaultValue: "End time")
-        static let editEndNote = String(localized: "home.edit.endNote", defaultValue: "End time can't be changed from here.")
+        static let editEndPickerLabel = String(localized: "home.edit.endPickerLabel", defaultValue: "End")
+        static let editEndNote = String(
+            localized: "home.edit.endNote",
+            defaultValue: "End time can be adjusted once the action has ended."
+        )
 
         static func activeFor(_ duration: String) -> String {
             let format = String(localized: "home.header.activeFor", defaultValue: "Active for %@")

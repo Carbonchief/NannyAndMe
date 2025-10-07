@@ -25,7 +25,8 @@
 "home.edit.startPickerLabel" = "Inicio";
 "home.edit.categoryLabel" = "Categoría";
 "home.edit.endSectionTitle" = "Hora de finalización";
-"home.edit.endNote" = "La hora de finalización no se puede cambiar aquí.";
+"home.edit.endPickerLabel" = "Fin";
+"home.edit.endNote" = "La hora de finalización se podrá ajustar cuando la acción haya terminado.";
 "home.header.activeFor" = "Activo durante %@";
 "home.header.lastFinished" = "Última finalización %@";
 "home.card.startedAt" = "Iniciado a las %@";

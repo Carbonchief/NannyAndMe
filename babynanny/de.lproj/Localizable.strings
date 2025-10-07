@@ -25,7 +25,8 @@
 "home.edit.startPickerLabel" = "Start";
 "home.edit.categoryLabel" = "Kategorie";
 "home.edit.endSectionTitle" = "Endzeit";
-"home.edit.endNote" = "Die Endzeit kann hier nicht geändert werden.";
+"home.edit.endPickerLabel" = "Ende";
+"home.edit.endNote" = "Die Endzeit kann angepasst werden, sobald die Aktion beendet wurde.";
 "home.header.activeFor" = "Aktiv seit %@";
 "home.header.lastFinished" = "Zuletzt beendet %@";
 "home.card.startedAt" = "Gestartet um %@";
