@@ -187,35 +187,46 @@ private struct ActionCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(category.accentColor.opacity(0.15))
-                        .frame(width: 48, height: 48)
+            HStack(alignment: .top, spacing: 16) {
+                HStack(alignment: .center, spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(category.accentColor.opacity(0.15))
+                            .frame(width: 48, height: 48)
 
-                    Image(systemName: activeAction?.icon ?? lastCompleted?.icon ?? category.icon)
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(category.accentColor)
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(category.title)
-                        .font(.headline)
-
-                    if let activeAction {
-                        Text(activeAction.detailDescription)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    } else if let lastCompleted {
-                        Text(lastCompleted.detailDescription)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text(L10n.Home.noEntries)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                        Image(systemName: activeAction?.icon ?? lastCompleted?.icon ?? category.icon)
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(category.accentColor)
                     }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(category.title)
+                            .font(.headline)
+
+                        if let activeAction {
+                            Text(activeAction.detailDescription)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        } else if let lastCompleted {
+                            Text(lastCompleted.detailDescription)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text(L10n.Home.noEntries)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .layoutPriority(1)
                 }
+                .layoutPriority(1)
+
+                Spacer(minLength: 12)
+
+                actionButton
+                    .controlSize(.large)
+                    .font(.headline)
+                    .fixedSize()
             }
 
             if let activeAction {
@@ -232,23 +243,12 @@ private struct ActionCard: View {
                     }
                 }
 
-                Button(L10n.Common.stop) {
-                    onStop()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(category.accentColor)
             } else {
                 if let lastCompleted {
                     Text(L10n.Home.lastRun(lastCompleted.endDateTimeDescription() ?? lastCompleted.startDateTimeDescription()))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-
-                Button(category.startActionButtonTitle) {
-                    onStart()
-                }
-                .buttonStyle(.bordered)
-                .tint(category.accentColor)
             }
         }
         .padding()
@@ -258,6 +258,25 @@ private struct ActionCard: View {
                 .fill(Color(.systemBackground))
                 .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
         )
+    }
+}
+
+private extension ActionCard {
+    @ViewBuilder
+    var actionButton: some View {
+        if activeAction != nil {
+            Button(L10n.Common.stop) {
+                onStop()
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(category.accentColor)
+        } else {
+            Button(category.startActionButtonTitle) {
+                onStart()
+            }
+            .buttonStyle(.bordered)
+            .tint(category.accentColor)
+        }
     }
 }
 
