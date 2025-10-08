@@ -393,6 +393,7 @@ private struct ActionTypeSelectionGrid<Option: ActionTypeOption>: View {
     let options: [Option]
     @Binding var selection: Option
     let accentColor: Color
+    var onOptionActivated: ((Option) -> Void)? = nil
 
     private let columns: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
 
@@ -401,6 +402,7 @@ private struct ActionTypeSelectionGrid<Option: ActionTypeOption>: View {
             ForEach(options) { option in
                 Button {
                     selection = option
+                    onOptionActivated?(option)
                 } label: {
                     VStack(spacing: 12) {
                         Image(systemName: option.icon)
@@ -709,7 +711,10 @@ private struct ActionDetailSheet: View {
                         ActionTypeSelectionGrid(
                             options: BabyAction.DiaperType.allCases,
                             selection: $diaperSelection,
-                            accentColor: category.accentColor
+                            accentColor: category.accentColor,
+                            onOptionActivated: { _ in
+                                startIfReady()
+                            }
                         )
                     } header: {
                         Text(L10n.Home.diaperTypeSectionTitle)
@@ -720,7 +725,10 @@ private struct ActionDetailSheet: View {
                         ActionTypeSelectionGrid(
                             options: BabyAction.FeedingType.allCases,
                             selection: $feedingSelection,
-                            accentColor: category.accentColor
+                            accentColor: category.accentColor,
+                            onOptionActivated: { _ in
+                                startIfReady()
+                            }
                         )
                     } header: {
                         Text(L10n.Home.feedingTypeSectionTitle)
@@ -758,8 +766,7 @@ private struct ActionDetailSheet: View {
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button(category.startActionButtonTitle) {
-                        onStart(configuration)
-                        dismiss()
+                        startIfReady()
                     }
                     .disabled(isStartDisabled)
                 }
@@ -777,6 +784,12 @@ private struct ActionDetailSheet: View {
             let volume = feedingSelection.requiresVolume ? resolvedBottleVolume : nil
             return ActionConfiguration(diaperType: nil, feedingType: feedingSelection, bottleVolume: volume)
         }
+    }
+
+    private func startIfReady() {
+        guard isStartDisabled == false else { return }
+        onStart(configuration)
+        dismiss()
     }
 
     private var isStartDisabled: Bool {
