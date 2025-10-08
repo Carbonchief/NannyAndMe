@@ -34,13 +34,8 @@ struct ContentView: View {
                 .disabled(isMenuVisible)
                 .toolbar {
                     ToolbarItem(placement: .principal) {
-                        VStack(spacing: 2) {
-                            Text(profileStore.activeProfile.displayName)
-                                .font(.headline)
-                            Text(selectedTab.title)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                        Text(profileStore.activeProfile.displayName)
+                            .font(.headline)
                     }
 
                     ToolbarItem(placement: .topBarLeading) {
