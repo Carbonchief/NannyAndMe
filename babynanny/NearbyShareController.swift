@@ -182,29 +182,38 @@ extension NearbyShareController: MCSessionDelegate {
 }
 
 extension NearbyShareController: MCNearbyServiceAdvertiserDelegate {
-    func advertiser(
+    nonisolated func advertiser(
         _ advertiser: MCNearbyServiceAdvertiser,
         didReceiveInvitationFromPeer peerID: MCPeerID,
         withContext context: Data?,
         invitationHandler: @escaping (Bool, MCSession?) -> Void
     ) {
-        invitationHandler(true, session)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            invitationHandler(true, self.session)
+        }
     }
 }
 
 extension NearbyShareController: MCBrowserViewControllerDelegate {
-    func browserViewControllerDidFinish(_ browserViewController: MCBrowserViewController) {
-        if pendingData != nil {
-            latestResult = ShareResult(outcome: .cancelled)
+    nonisolated func browserViewControllerDidFinish(_ browserViewController: MCBrowserViewController) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            if self.pendingData != nil {
+                self.latestResult = ShareResult(outcome: .cancelled)
+            }
+            self.cleanup()
         }
-        cleanup()
     }
 
-    func browserViewControllerWasCancelled(_ browserViewController: MCBrowserViewController) {
-        if pendingData != nil {
-            latestResult = ShareResult(outcome: .cancelled)
+    nonisolated func browserViewControllerWasCancelled(_ browserViewController: MCBrowserViewController) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            if self.pendingData != nil {
+                self.latestResult = ShareResult(outcome: .cancelled)
+            }
+            self.cleanup()
         }
-        cleanup()
     }
 }
 
