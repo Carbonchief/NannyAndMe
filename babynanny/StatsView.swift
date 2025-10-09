@@ -24,6 +24,8 @@ struct StatsView: View {
                 statsGrid(for: state, todayActions: today)
 
                 dailyTrendSection(for: state)
+
+                actionPatternSection(for: state)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(24)
@@ -162,6 +164,80 @@ struct StatsView: View {
         }
     }
 
+    @ViewBuilder
+    private func actionPatternSection(for state: ProfileActionState) -> some View {
+        let focusCategory = resolvedCategory(for: state)
+        let patternMetrics = actionPatternMetrics(for: state, focusCategory: focusCategory)
+        let hasData = patternMetrics.contains { $0.value > 0 }
+        let yAxisTitle = focusCategory == .diaper ? L10n.Stats.diapersYAxis : L10n.Stats.minutesYAxis
+
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.Stats.patternTitle)
+                .font(.headline)
+
+            Text(L10n.Stats.patternSubtitle)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            if hasData {
+                Chart(patternMetrics) { metric in
+                    AreaMark(
+                        x: .value(L10n.Stats.hourAxisLabel, metric.hour),
+                        y: .value(yAxisTitle, metric.value)
+                    )
+                    .foregroundStyle(focusCategory.accentColor.opacity(0.25).gradient)
+
+                    LineMark(
+                        x: .value(L10n.Stats.hourAxisLabel, metric.hour),
+                        y: .value(yAxisTitle, metric.value)
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(focusCategory.accentColor)
+                    .lineStyle(.init(lineWidth: 3))
+
+                    PointMark(
+                        x: .value(L10n.Stats.hourAxisLabel, metric.hour),
+                        y: .value(yAxisTitle, metric.value)
+                    )
+                    .foregroundStyle(focusCategory.accentColor)
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading)
+                }
+                .chartXAxis {
+                    AxisMarks(values: Array(stride(from: 0, through: 23, by: 3))) { value in
+                        AxisGridLine()
+                        AxisTick()
+                        AxisValueLabel {
+                            if let hourValue = value.as(Int.self) {
+                                Text(hourLabel(for: hourValue))
+                            }
+                        }
+                    }
+                }
+                .frame(height: 220)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(L10n.Stats.patternEmptyTitle(focusCategory.title.localizedLowercase))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Text(L10n.Stats.patternEmptySubtitle(focusCategory.title.localizedLowercase))
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
+        )
+    }
+
     private func resolvedCategory(for state: ProfileActionState) -> BabyActionCategory {
         selectedCategory ?? state.mostRecentAction?.category ?? .sleep
     }
@@ -262,6 +338,72 @@ struct StatsView: View {
             .values
             .sorted { $0.date < $1.date }
     }
+
+    private func actionPatternMetrics(for state: ProfileActionState,
+                                      focusCategory: BabyActionCategory,
+                                      days: Int = 7) -> [ActionPatternMetric] {
+        let calendar = Calendar.current
+        let now = Date()
+        guard let windowStart = calendar.date(byAdding: .day, value: -(days - 1), to: calendar.startOfDay(for: now)) else {
+            return (0..<24).map { ActionPatternMetric(hour: $0, value: 0) }
+        }
+
+        var hourlyTotals = Array(repeating: 0.0, count: 24)
+
+        func accumulateDuration(from start: Date, to end: Date) {
+            var current = start
+
+            while current < end {
+                let hourIndex = calendar.component(.hour, from: current)
+                guard let hourStart = calendar.date(bySettingHour: hourIndex, minute: 0, second: 0, of: current) else {
+                    break
+                }
+
+                let nextHour = calendar.date(byAdding: .hour, value: 1, to: hourStart) ?? end
+                let segmentEnd = min(nextHour, end)
+                let minutes = segmentEnd.timeIntervalSince(current) / 60
+
+                if minutes > 0 {
+                    hourlyTotals[hourIndex] += minutes
+                }
+
+                current = segmentEnd
+            }
+        }
+
+        for action in state.history where action.category == focusCategory {
+            if focusCategory == .diaper {
+                if action.startDate >= windowStart {
+                    let hour = calendar.component(.hour, from: action.startDate)
+                    hourlyTotals[hour] += 1
+                }
+            } else {
+                let actionStart = max(action.startDate, windowStart)
+                let actionEnd = min(action.endDate ?? now, now)
+
+                if actionEnd > actionStart {
+                    accumulateDuration(from: actionStart, to: actionEnd)
+                }
+            }
+        }
+
+        if focusCategory != .diaper, let active = state.activeActions[focusCategory] {
+            let actionStart = max(active.startDate, windowStart)
+            let actionEnd = now
+
+            if actionEnd > actionStart {
+                accumulateDuration(from: actionStart, to: actionEnd)
+            }
+        }
+
+        return (0..<24).map { hour in
+            ActionPatternMetric(hour: hour, value: hourlyTotals[hour])
+        }
+    }
+
+    private func hourLabel(for hour: Int) -> String {
+        String(format: "%02d:00", hour)
+    }
 }
 
 private struct DailyActionMetric: Identifiable {
@@ -269,6 +411,13 @@ private struct DailyActionMetric: Identifiable {
     var value: Double
 
     var id: Date { date }
+}
+
+private struct ActionPatternMetric: Identifiable {
+    let hour: Int
+    var value: Double
+
+    var id: Int { hour }
 }
 
 private struct StatCard: View {
