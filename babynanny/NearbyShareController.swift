@@ -130,43 +130,49 @@ final class NearbyShareController: NSObject, ObservableObject {
 }
 
 extension NearbyShareController: MCSessionDelegate {
-    func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
-        switch state {
-        case .connected:
-            sendPendingData(to: session.connectedPeers)
-        case .notConnected:
-            if pendingData != nil {
-                latestResult = ShareResult(
-                    outcome: .failure(
-                        message: L10n.ShareData.Alert.nearbyFailureMessage(L10n.ShareData.Nearby.errorPeerDisconnected)
+    nonisolated func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
+        Task { @MainActor [weak self, currentSession = session] in
+            guard let self else { return }
+
+            switch state {
+            case .connected:
+                self.sendPendingData(to: currentSession.connectedPeers)
+            case .notConnected:
+                if self.pendingData != nil {
+                    self.latestResult = ShareResult(
+                        outcome: .failure(
+                            message: L10n.ShareData.Alert.nearbyFailureMessage(
+                                L10n.ShareData.Nearby.errorPeerDisconnected
+                            )
+                        )
                     )
-                )
-                cleanup()
+                    self.cleanup()
+                }
+            case .connecting:
+                break
+            @unknown default:
+                break
             }
-        case .connecting:
-            break
-        @unknown default:
-            break
         }
     }
 
-    func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) { }
+    nonisolated func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) { }
 
-    func session(
+    nonisolated func session(
         _ session: MCSession,
         didReceive stream: InputStream,
         withName streamName: String,
         fromPeer peerID: MCPeerID
     ) { }
 
-    func session(
+    nonisolated func session(
         _ session: MCSession,
         didStartReceivingResourceWithName resourceName: String,
         fromPeer peerID: MCPeerID,
         with progress: Progress
     ) { }
 
-    func session(
+    nonisolated func session(
         _ session: MCSession,
         didFinishReceivingResourceWithName resourceName: String,
         fromPeer peerID: MCPeerID,

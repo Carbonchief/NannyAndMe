@@ -81,17 +81,17 @@ struct AllLogsDateFilterSheet: View {
                     }
                 }
             }
-            .onChange(of: startDateSelection) { newValue in
+            .onChange(of: startDateSelection) { _, newValue in
                 if useEndDate, endDateSelection < newValue {
                     endDateSelection = newValue
                 }
             }
-            .onChange(of: useStartDate) { newValue in
+            .onChange(of: useStartDate) { _, newValue in
                 if newValue, useEndDate, endDateSelection < startDateSelection {
                     endDateSelection = startDateSelection
                 }
             }
-            .onChange(of: useEndDate) { newValue in
+            .onChange(of: useEndDate) { _, newValue in
                 if newValue, endDateSelection < startDateSelection {
                     endDateSelection = startDateSelection
                 }
