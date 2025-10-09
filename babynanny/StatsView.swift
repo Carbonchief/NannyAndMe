@@ -32,7 +32,7 @@ struct StatsView: View {
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle(L10n.Stats.title)
-        .onChange(of: profileStore.activeProfile.id) { _ in
+        .onChange(of: profileStore.activeProfile.id) {
             selectedCategory = nil
         }
     }
@@ -193,7 +193,7 @@ struct StatsView: View {
                     .foregroundStyle(focusCategory.accentColor.gradient)
                 }
                 .chartYAxis {
-                    AxisMarks(values: stride(from: 0, through: 1440, by: 180)) { value in
+                    AxisMarks(values: Array(stride(from: 0, through: 1440, by: 180))) { value in
                         AxisGridLine()
                         AxisTick()
                         AxisValueLabel {
