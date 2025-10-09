@@ -45,6 +45,9 @@
 "profiles.birthDate" = "Birth date";
 "profiles.choosePhoto" = "Choose profile photo";
 "profiles.removePhoto" = "Remove profile photo";
+"profiles.crop.title" = "Crop Photo";
+"profiles.crop.instruction" = "Move and scale to adjust.";
+"profiles.photo.processing" = "Preparing photo…";
 "profiles.age.format" = "%@ old";
 "profiles.age.newborn" = "Newborn";
 "profiles.delete.confirmationTitle" = "Delete %@?";

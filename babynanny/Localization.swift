@@ -104,6 +104,15 @@ enum L10n {
         static let birthDate = String(localized: "profiles.birthDate", defaultValue: "Birth date")
         static let choosePhoto = String(localized: "profiles.choosePhoto", defaultValue: "Choose profile photo")
         static let removePhoto = String(localized: "profiles.removePhoto", defaultValue: "Remove profile photo")
+        static let cropPhotoTitle = String(localized: "profiles.crop.title", defaultValue: "Crop Photo")
+        static let cropPhotoInstruction = String(
+            localized: "profiles.crop.instruction",
+            defaultValue: "Move and scale to adjust."
+        )
+        static let photoProcessing = String(
+            localized: "profiles.photo.processing",
+            defaultValue: "Preparing photo…"
+        )
 
         static func deleteConfirmationTitle(_ name: String) -> String {
             let format = String(localized: "profiles.delete.confirmationTitle", defaultValue: "Delete %@?")

@@ -8,6 +8,7 @@ NannyAndMe is a SwiftUI-based iOS application that helps caregivers keep track o
 - **Recent history** – View a chronological list of the latest actions with friendly descriptions and formatted timestamps.
 - **Context-aware controls** – Automatically surface active timers, offer start/stop buttons per category, and present configuration sheets when additional details are required.
 - **Profile switching** – Manage multiple baby profiles via an in-app profile switcher with dedicated avatars.
+- **Profile photos** – Choose, crop, and automatically optimize profile pictures for each child.
 - **Settings and stats views** – Review caregiver preferences and explore insights like weekly trends and daily patterns.
 - **Monthly age reminders** – Receive 10 a.m. notifications on each child's monthly milestones, with combined alerts when multiple profiles share the same celebration.
 - **Action reminders** – Get configurable notifications for sleep, diaper, and feeding actions with per-action intervals that reset whenever you log an entry.
