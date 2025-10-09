@@ -17,6 +17,7 @@ struct SettingsView: View {
     @State private var pendingCrop: PendingCropImage?
     @State private var isProcessingPhoto = false
     @State private var photoLoadingTask: Task<Void, Never>?
+    @State private var activePhotoRequestID: UUID?
     @State private var isUpdatingReminders = false
     @State private var profilePendingDeletion: ChildProfile?
     @State private var actionReminderSummaries: [BabyActionCategory: ProfileStore.ActionReminderSummary] = [:]
@@ -106,27 +107,33 @@ struct SettingsView: View {
                     guard let newValue else { return }
 
                     isProcessingPhoto = true
+                    let requestID = UUID()
+                    activePhotoRequestID = requestID
                     photoLoadingTask = Task {
-                        defer {
-                            await MainActor.run {
-                                isProcessingPhoto = false
-                                photoLoadingTask = nil
-                            }
-                        }
+                        var loadedImage: UIImage?
 
                         do {
                             if let data = try await newValue.loadTransferable(type: Data.self),
                                let image = UIImage(data: data) {
-                                await MainActor.run {
-                                    pendingCrop = PendingCropImage(image: image)
-                                }
+                                loadedImage = image
                             }
                         } catch {
                             // Ignore errors for now
                         }
 
+                        if Task.isCancelled == false, let image = loadedImage {
+                            await MainActor.run {
+                                guard activePhotoRequestID == requestID else { return }
+                                pendingCrop = PendingCropImage(image: image)
+                            }
+                        }
+
                         await MainActor.run {
+                            guard activePhotoRequestID == requestID else { return }
                             selectedPhoto = nil
+                            isProcessingPhoto = false
+                            activePhotoRequestID = nil
+                            photoLoadingTask = nil
                         }
                     }
                 }
@@ -222,16 +229,16 @@ struct SettingsView: View {
         .onAppear {
             refreshActionReminderSummaries()
         }
-        .onChange(of: profileStore.activeProfileID) { _ in
+        .onChange(of: profileStore.activeProfileID) {
             refreshActionReminderSummaries()
         }
-        .onChange(of: profileStore.activeProfile.remindersEnabled) { _ in
+        .onChange(of: profileStore.activeProfile.remindersEnabled) {
             refreshActionReminderSummaries()
         }
-        .onChange(of: profileStore.activeProfile.birthDate) { _ in
+        .onChange(of: profileStore.activeProfile.birthDate) {
             refreshActionReminderSummaries()
         }
-        .onChange(of: profileStore.activeProfile.name) { _ in
+        .onChange(of: profileStore.activeProfile.name) {
             refreshActionReminderSummaries()
         }
         .onDisappear {
@@ -240,6 +247,9 @@ struct SettingsView: View {
             isLoadingActionReminders = false
             photoLoadingTask?.cancel()
             photoLoadingTask = nil
+            activePhotoRequestID = nil
+            selectedPhoto = nil
+            isProcessingPhoto = false
         }
         .fullScreenCover(item: $pendingCrop) { crop in
             ImageCropperView(image: crop.image) {
