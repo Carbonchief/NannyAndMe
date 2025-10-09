@@ -36,7 +36,7 @@
 "home.sheet.newActionTitle" = "New %@ Action";
 "home.bottle.presetLabel" = "%lld ml";
 "home.history.started" = "Started %@";
-"home.history.ended" = "Ended %@ • Duration %@";
+"home.history.duration" = "Duration %@";
 "profiles.activeSection" = "Active Profiles";
 "profiles.add" = "Add Profile";
 "profiles.title" = "Profiles";
