@@ -13,6 +13,7 @@ struct ContentView: View {
     @State private var isMenuVisible = false
     @State private var showSettings = false
     @State private var showAllLogs = false
+    @State private var showShareData = false
     @State private var isProfileSwitcherPresented = false
 
     var body: some View {
@@ -62,6 +63,9 @@ struct ContentView: View {
                 .navigationDestination(isPresented: $showAllLogs) {
                     AllLogsView()
                 }
+                .navigationDestination(isPresented: $showShareData) {
+                    ShareDataView()
+                }
             }
             .sheet(isPresented: $isProfileSwitcherPresented) {
                 ProfileSwitcherView()
@@ -89,6 +93,12 @@ struct ContentView: View {
                         withAnimation(.easeInOut) {
                             isMenuVisible = false
                             showSettings = true
+                        }
+                    },
+                    onSelectShareData: {
+                        withAnimation(.easeInOut) {
+                            isMenuVisible = false
+                            showShareData = true
                         }
                     }
                 )
