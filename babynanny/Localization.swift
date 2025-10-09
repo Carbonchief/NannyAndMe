@@ -263,6 +263,90 @@ enum L10n {
         static let subtitle = String(localized: "menu.subtitle", defaultValue: "Quick actions")
         static let allLogs = String(localized: "menu.allLogs", defaultValue: "All Logs")
         static let settings = String(localized: "menu.settings", defaultValue: "Settings")
+        static let shareData = String(localized: "menu.shareData", defaultValue: "Share Data")
+    }
+
+    enum ShareData {
+        static let title = String(localized: "shareData.title", defaultValue: "Share Data")
+        static let profileSectionTitle = String(localized: "shareData.profileSection.title", defaultValue: "Active Profile")
+
+        static func profileName(_ name: String) -> String {
+            let format = String(localized: "shareData.profileSection.name", defaultValue: "Profile: %@")
+            return String(format: format, locale: Locale.current, name)
+        }
+
+        static func logCount(_ count: Int) -> String {
+            let format = String(localized: "shareData.profileSection.logCount", defaultValue: "Total logs: %lld")
+            return String(format: format, locale: Locale.current, count)
+        }
+
+        static let exportSectionTitle = String(localized: "shareData.export.title", defaultValue: "Export")
+        static let exportButton = String(localized: "shareData.export.button", defaultValue: "Export Data")
+        static let exportFooter = String(
+            localized: "shareData.export.footer",
+            defaultValue: "Save a JSON backup of this profile and its activity logs."
+        )
+
+        static let importSectionTitle = String(localized: "shareData.import.title", defaultValue: "Import")
+        static let importButton = String(localized: "shareData.import.button", defaultValue: "Import Data")
+        static let importFooter = String(
+            localized: "shareData.import.footer",
+            defaultValue: "Select a previously exported file to merge updates into this profile."
+        )
+
+        static func importSummary(_ added: Int, _ updated: Int) -> String {
+            let format = String(
+                localized: "shareData.import.summary",
+                defaultValue: "%lld new entries added • %lld updated"
+            )
+            return String(format: format, locale: Locale.current, added, updated)
+        }
+
+        static let profileUpdatedNote = String(
+            localized: "shareData.import.profileUpdated",
+            defaultValue: "Profile settings were updated from the import."
+        )
+
+        enum Alert {
+            static let exportSuccessTitle = String(
+                localized: "shareData.alert.exportSuccess.title",
+                defaultValue: "Export complete"
+            )
+            static func exportSuccessMessage(_ filename: String) -> String {
+                let format = String(
+                    localized: "shareData.alert.exportSuccess.message",
+                    defaultValue: "Saved file: %@"
+                )
+                return String(format: format, locale: Locale.current, filename)
+            }
+            static let exportFailureTitle = String(
+                localized: "shareData.alert.exportFailure.title",
+                defaultValue: "Export failed"
+            )
+            static let exportFailureMessage = String(
+                localized: "shareData.alert.exportFailure.message",
+                defaultValue: "We couldn't save your data. Please try again."
+            )
+            static let importSuccessTitle = String(
+                localized: "shareData.alert.importSuccess.title",
+                defaultValue: "Import complete"
+            )
+            static let importFailureTitle = String(
+                localized: "shareData.alert.importFailure.title",
+                defaultValue: "Import failed"
+            )
+        }
+
+        enum Error {
+            static let mismatchedProfile = String(
+                localized: "shareData.error.mismatchedProfile",
+                defaultValue: "This file belongs to a different profile. Switch to that profile and try again."
+            )
+            static let readFailed = String(
+                localized: "shareData.error.readFailed",
+                defaultValue: "The file could not be read. Make sure you selected a Nanny & Me export."
+            )
+        }
     }
 
     enum Logs {

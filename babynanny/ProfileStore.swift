@@ -285,6 +285,36 @@ final class ProfileStore: ObservableObject {
         state = Self.sanitized(state: newState)
     }
 
+    enum ShareDataError: LocalizedError {
+        case mismatchedProfile
+
+        var errorDescription: String? {
+            switch self {
+            case .mismatchedProfile:
+                return L10n.ShareData.Error.mismatchedProfile
+            }
+        }
+    }
+
+    @discardableResult
+    func mergeActiveProfile(with importedProfile: ChildProfile) throws -> Bool {
+        guard let activeID = state.activeProfileID else { return false }
+
+        guard importedProfile.id == activeID else {
+            throw ShareDataError.mismatchedProfile
+        }
+
+        let currentProfile = activeProfile
+
+        guard currentProfile != importedProfile else { return false }
+
+        updateActiveProfile { profile in
+            profile = importedProfile
+        }
+
+        return true
+    }
+
     enum ReminderAuthorizationResult: Equatable {
         case enabled
         case disabled

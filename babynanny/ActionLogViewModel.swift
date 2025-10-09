@@ -158,6 +158,18 @@ struct BabyAction: Identifiable, Codable {
     }
 }
 
+extension BabyAction: Equatable {
+    static func == (lhs: BabyAction, rhs: BabyAction) -> Bool {
+        lhs.id == rhs.id
+            && lhs.category == rhs.category
+            && lhs.startDate == rhs.startDate
+            && lhs.endDate == rhs.endDate
+            && lhs.diaperType == rhs.diaperType
+            && lhs.feedingType == rhs.feedingType
+            && lhs.bottleVolume == rhs.bottleVolume
+    }
+}
+
 enum BabyActionCategory: String, CaseIterable, Identifiable, Codable {
     case sleep
     case diaper
@@ -284,6 +296,57 @@ final class ActionLogStore: ObservableObject {
             persist()
             scheduleReminders()
         }
+    }
+
+    struct MergeSummary: Equatable {
+        var added: Int
+        var updated: Int
+
+        static let empty = MergeSummary(added: 0, updated: 0)
+    }
+
+    func mergeProfileState(_ importedState: ProfileActionState, for profileID: UUID) -> MergeSummary {
+        var summary = MergeSummary.empty
+
+        updateState(for: profileID) { profileState in
+            var existingHistory = Dictionary(uniqueKeysWithValues: profileState.history.map { ($0.id, $0) })
+
+            for action in importedState.history {
+                let sanitized = action.withValidatedDates()
+                if let existing = existingHistory[sanitized.id] {
+                    if existing != sanitized {
+                        existingHistory[sanitized.id] = sanitized
+                        summary.updated += 1
+                    }
+                } else {
+                    existingHistory[sanitized.id] = sanitized
+                    summary.added += 1
+                }
+            }
+
+            profileState.history = Array(existingHistory.values)
+
+            for (category, action) in importedState.activeActions {
+                let sanitized = action.withValidatedDates()
+
+                if let existing = profileState.activeActions[category] {
+                    if existing.id == sanitized.id {
+                        if existing != sanitized {
+                            profileState.activeActions[category] = sanitized
+                            summary.updated += 1
+                        }
+                    } else if sanitized.startDate >= existing.startDate {
+                        profileState.activeActions[category] = sanitized
+                        summary.added += 1
+                    }
+                } else {
+                    profileState.activeActions[category] = sanitized
+                    summary.added += 1
+                }
+            }
+        }
+
+        return summary
     }
 
     init(

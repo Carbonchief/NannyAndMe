@@ -10,6 +10,7 @@ import SwiftUI
 struct SideMenu: View {
     let onSelectAllLogs: () -> Void
     let onSelectSettings: () -> Void
+    let onSelectShareData: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 32) {
@@ -25,6 +26,11 @@ struct SideMenu: View {
 
             Button(action: onSelectAllLogs) {
                 Label(L10n.Menu.allLogs, systemImage: "list.bullet.rectangle")
+                    .font(.headline)
+            }
+
+            Button(action: onSelectShareData) {
+                Label(L10n.Menu.shareData, systemImage: "arrow.up.arrow.down.circle.fill")
                     .font(.headline)
             }
 
@@ -45,5 +51,5 @@ struct SideMenu: View {
 }
 
 #Preview {
-    SideMenu(onSelectAllLogs: {}, onSelectSettings: {})
+    SideMenu(onSelectAllLogs: {}, onSelectSettings: {}, onSelectShareData: {})
 }
