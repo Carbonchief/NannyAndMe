@@ -8,7 +8,7 @@ struct ProfileStoreTests {
     func deniesRemindersWhenNotificationsDisabled() async throws {
         let scheduler = MockReminderScheduler(authorizationResult: false)
         let profile = ChildProfile(name: "Alex", birthDate: Date())
-        let store = ProfileStore(
+        let store = await ProfileStore(
             initialProfiles: [profile],
             activeProfileID: profile.id,
             reminderScheduler: scheduler
@@ -17,7 +17,8 @@ struct ProfileStoreTests {
         let result = await store.setRemindersEnabled(true)
 
         #expect(result == .authorizationDenied)
-        #expect(store.activeProfile.remindersEnabled == false)
+        let activeProfile = await store.activeProfile
+        #expect(activeProfile.remindersEnabled == false)
         #expect(await scheduler.ensureAuthorizationInvocations == 1)
     }
 
@@ -25,7 +26,7 @@ struct ProfileStoreTests {
     func enablesRemindersWhenAuthorized() async throws {
         let scheduler = MockReminderScheduler(authorizationResult: true)
         let profile = ChildProfile(name: "Maya", birthDate: Date())
-        let store = ProfileStore(
+        let store = await ProfileStore(
             initialProfiles: [profile],
             activeProfileID: profile.id,
             reminderScheduler: scheduler
@@ -34,7 +35,8 @@ struct ProfileStoreTests {
         let result = await store.setRemindersEnabled(true)
 
         #expect(result == .enabled)
-        #expect(store.activeProfile.remindersEnabled == true)
+        let activeProfile = await store.activeProfile
+        #expect(activeProfile.remindersEnabled == true)
         #expect(await scheduler.ensureAuthorizationInvocations == 1)
     }
 
@@ -42,7 +44,7 @@ struct ProfileStoreTests {
     func disablingRemindersReturnsDisabled() async throws {
         let scheduler = MockReminderScheduler(authorizationResult: true)
         let profile = ChildProfile(name: "Avery", birthDate: Date(), remindersEnabled: true)
-        let store = ProfileStore(
+        let store = await ProfileStore(
             initialProfiles: [profile],
             activeProfileID: profile.id,
             reminderScheduler: scheduler
@@ -51,7 +53,8 @@ struct ProfileStoreTests {
         let result = await store.setRemindersEnabled(false)
 
         #expect(result == .disabled)
-        #expect(store.activeProfile.remindersEnabled == false)
+        let activeProfile = await store.activeProfile
+        #expect(activeProfile.remindersEnabled == false)
         #expect(await scheduler.ensureAuthorizationInvocations == 0)
     }
 }

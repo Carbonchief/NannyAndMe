@@ -16,13 +16,13 @@ struct ReminderSchedulerTests {
             remindersEnabled: true
         )
 
-        await scheduler.refreshReminders(for: [profile])
+        await scheduler.refreshReminders(for: [profile], actionStates: [:])
         #expect(center.pendingRequests.isEmpty == false)
 
         let previousIdentifiers = Set(center.pendingRequests.map(\.identifier))
 
         profile.birthDate = Calendar.current.date(byAdding: .month, value: -6, to: profile.birthDate) ?? profile.birthDate
-        await scheduler.refreshReminders(for: [profile])
+        await scheduler.refreshReminders(for: [profile], actionStates: [:])
 
         let updatedIdentifiers = Set(center.pendingRequests.map(\.identifier))
         let removedIdentifiers = previousIdentifiers.subtracting(updatedIdentifiers)
@@ -42,7 +42,7 @@ struct ReminderSchedulerTests {
             remindersEnabled: true
         )
 
-        await scheduler.refreshReminders(for: [profile])
+        await scheduler.refreshReminders(for: [profile], actionStates: [:])
         guard let targetIdentifier = center.pendingRequests.first?.identifier else {
             Issue.record("No reminder scheduled for profile")
             return
@@ -51,7 +51,7 @@ struct ReminderSchedulerTests {
         center.addFailures[targetIdentifier] = 1
 
         profile.name = "Amelia"
-        await scheduler.refreshReminders(for: [profile])
+        await scheduler.refreshReminders(for: [profile], actionStates: [:])
 
         #expect(center.addCallCounts[targetIdentifier] == 2)
         #expect(center.removedIdentifiersHistory.flatMap { $0 }.contains(targetIdentifier))
@@ -70,7 +70,7 @@ struct ReminderSchedulerTests {
             remindersEnabled: true
         )
 
-        await scheduler.refreshReminders(for: [profile])
+        await scheduler.refreshReminders(for: [profile], actionStates: [:])
 
         let profileID = profile.id
         let sleepIdentifier = actionIdentifier(for: profileID, category: .sleep)
@@ -84,7 +84,7 @@ struct ReminderSchedulerTests {
 
         profile.setReminderEnabled(false, for: .feeding)
 
-        await scheduler.refreshReminders(for: [profile])
+        await scheduler.refreshReminders(for: [profile], actionStates: [:])
 
         let updatedIdentifiers = pendingActionIdentifiers(in: center)
         #expect(updatedIdentifiers.contains(sleepIdentifier))
