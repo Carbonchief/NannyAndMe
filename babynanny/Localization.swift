@@ -316,6 +316,40 @@ enum L10n {
             defaultValue: "Profile settings were updated from the import."
         )
 
+        enum Nearby {
+            static let sectionTitle = String(
+                localized: "shareData.nearby.title",
+                defaultValue: "Nearby Share"
+            )
+            static let shareButton = String(
+                localized: "shareData.nearby.button",
+                defaultValue: "Share to Nearby Device"
+            )
+            static let footer = String(
+                localized: "shareData.nearby.footer",
+                defaultValue: "Send a JSON export directly to a nearby device running Nanny & Me."
+            )
+            static let statusPreparing = String(
+                localized: "shareData.nearby.status.preparing",
+                defaultValue: "Preparing data…"
+            )
+            static let statusWaiting = String(
+                localized: "shareData.nearby.status.waiting",
+                defaultValue: "Select a device to start sharing."
+            )
+            static func statusSending(_ peer: String) -> String {
+                let format = String(
+                    localized: "shareData.nearby.status.sending",
+                    defaultValue: "Sending to %@…"
+                )
+                return String(format: format, locale: Locale.current, peer)
+            }
+            static let errorPeerDisconnected = String(
+                localized: "shareData.nearby.error.peerDisconnected",
+                defaultValue: "The connection to the other device was lost."
+            )
+        }
+
         enum Alert {
             static let exportSuccessTitle = String(
                 localized: "shareData.alert.exportSuccess.title",
@@ -344,6 +378,36 @@ enum L10n {
                 localized: "shareData.alert.importFailure.title",
                 defaultValue: "Import failed"
             )
+            static let nearbySuccessTitle = String(
+                localized: "shareData.alert.nearbySuccess.title",
+                defaultValue: "Share complete"
+            )
+            static func nearbySuccessMessage(_ filename: String, _ peer: String) -> String {
+                let format = String(
+                    localized: "shareData.alert.nearbySuccess.message",
+                    defaultValue: "Sent %@ to %@."
+                )
+                return String(format: format, locale: Locale.current, filename, peer)
+            }
+            static let nearbyFailureTitle = String(
+                localized: "shareData.alert.nearbyFailure.title",
+                defaultValue: "Share failed"
+            )
+            private static let nearbyFailureDefault = String(
+                localized: "shareData.alert.nearbyFailure.message",
+                defaultValue: "We couldn't send your data. Please try again."
+            )
+            static func nearbyFailureMessage(_ reason: String) -> String {
+                let trimmed = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else {
+                    return nearbyFailureDefault
+                }
+                let format = String(
+                    localized: "shareData.alert.nearbyFailure.messageWithReason",
+                    defaultValue: "We couldn't send your data. (%@)"
+                )
+                return String(format: format, locale: Locale.current, trimmed)
+            }
         }
 
         enum Error {

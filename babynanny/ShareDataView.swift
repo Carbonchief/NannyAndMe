@@ -11,6 +11,8 @@ struct ShareDataView: View {
     @State private var lastImportSummary: ActionLogStore.MergeSummary?
     @State private var didUpdateProfile = false
     @State private var alert: ShareDataAlert?
+    @StateObject private var nearbyShareController = NearbyShareController()
+    @State private var isPresentingNearbyBrowser = false
 
     var body: some View {
         Form {
@@ -43,6 +45,17 @@ struct ShareDataView: View {
             } footer: {
                 importFooter
             }
+
+            Section {
+                Button(L10n.ShareData.Nearby.shareButton) {
+                    startNearbyShare()
+                }
+                .disabled(nearbyShareController.isBusy)
+            } header: {
+                Text(L10n.ShareData.Nearby.sectionTitle)
+            } footer: {
+                nearbyFooter
+            }
         }
         .navigationTitle(L10n.ShareData.title)
         .fileExporter(
@@ -66,6 +79,29 @@ struct ShareDataView: View {
                 message: Text(alert.message),
                 dismissButton: .default(Text(L10n.Common.done))
             )
+        }
+        .sheet(isPresented: $isPresentingNearbyBrowser, onDismiss: {
+            nearbyShareController.cancelSharing()
+        }) {
+            NearbyShareBrowserView(controller: nearbyShareController)
+        }
+        .onReceive(nearbyShareController.resultPublisher) { result in
+            isPresentingNearbyBrowser = false
+            switch result.outcome {
+            case let .success(peer, filename):
+                alert = ShareDataAlert(
+                    title: L10n.ShareData.Alert.nearbySuccessTitle,
+                    message: L10n.ShareData.Alert.nearbySuccessMessage(filename, peer)
+                )
+            case let .failure(message):
+                alert = ShareDataAlert(
+                    title: L10n.ShareData.Alert.nearbyFailureTitle,
+                    message: message
+                )
+            case .cancelled:
+                break
+            }
+            nearbyShareController.clearLatestResult()
         }
     }
 
@@ -99,12 +135,51 @@ struct ShareDataView: View {
         }
     }
 
+    @ViewBuilder
+    private var nearbyFooter: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.ShareData.Nearby.footer)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            if let status = nearbyStatusDescription {
+                Text(status)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private func startExport() {
         let profile = profileStore.activeProfile
         let state = actionStore.state(for: profile.id)
         let payload = SharedProfileData(profile: profile, actions: state)
         exportDocument = ShareDataDocument(payload: payload)
         isExporting = true
+    }
+
+    private func startNearbyShare() {
+        do {
+            let data = try makeExportData()
+            let filename = "\(defaultExportFilename).json"
+            nearbyShareController.prepareShare(data: data, filename: filename)
+            isPresentingNearbyBrowser = true
+        } catch {
+            alert = ShareDataAlert(
+                title: L10n.ShareData.Alert.nearbyFailureTitle,
+                message: L10n.ShareData.Alert.nearbyFailureMessage(error.localizedDescription)
+            )
+        }
+    }
+
+    private func makeExportData() throws -> Data {
+        let profile = profileStore.activeProfile
+        let state = actionStore.state(for: profile.id)
+        let payload = SharedProfileData(profile: profile, actions: state)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(payload)
     }
 
     private func handleExportResult(_ result: Result<URL, Error>) {
@@ -197,6 +272,19 @@ struct ShareDataView: View {
         let trimmed = sanitized.trimmingCharacters(in: CharacterSet(charactersIn: "-_"))
         let base = trimmed.isEmpty ? "Profile" : trimmed
         return "\(base)-share"
+    }
+
+    private var nearbyStatusDescription: String? {
+        switch nearbyShareController.phase {
+        case .idle:
+            return nil
+        case .preparing:
+            return L10n.ShareData.Nearby.statusPreparing
+        case .presenting:
+            return L10n.ShareData.Nearby.statusWaiting
+        case let .sending(peer):
+            return L10n.ShareData.Nearby.statusSending(peer)
+        }
     }
 }
 
