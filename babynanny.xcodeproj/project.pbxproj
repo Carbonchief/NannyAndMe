@@ -418,7 +418,7 @@
                                 DEVELOPMENT_TEAM = 4X6WL3Y28W;
                                 ENABLE_PREVIEWS = YES;
                                 GENERATE_INFOPLIST_FILE = YES;
-                                INFOPLIST_KEY_GADApplicationIdentifier = "ca-app-pub-3940256099942544~1458002511";
+                                INFOPLIST_KEY_GADApplicationIdentifier = "ca-app-pub-3394208212557901~8132136535";
                                 INFOPLIST_KEY_CFBundleDisplayName = "Nanny & Me";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.medical";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -450,7 +450,7 @@
                                 DEVELOPMENT_TEAM = 4X6WL3Y28W;
                                 ENABLE_PREVIEWS = YES;
                                 GENERATE_INFOPLIST_FILE = YES;
-                                INFOPLIST_KEY_GADApplicationIdentifier = "ca-app-pub-3940256099942544~1458002511";
+                                INFOPLIST_KEY_GADApplicationIdentifier = "ca-app-pub-3394208212557901~8132136535";
                                 INFOPLIST_KEY_CFBundleDisplayName = "Nanny & Me";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.medical";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
