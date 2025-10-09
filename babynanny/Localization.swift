@@ -89,9 +89,9 @@ enum L10n {
             return String(format: format, locale: Locale.current, value)
         }
 
-        static func historyEnded(_ end: String, _ duration: String) -> String {
-            let format = String(localized: "home.history.ended", defaultValue: "Ended %@ • Duration %@")
-            return String(format: format, locale: Locale.current, end, duration)
+        static func historyDuration(_ value: String) -> String {
+            let format = String(localized: "home.history.duration", defaultValue: "Duration %@")
+            return String(format: format, locale: Locale.current, value)
         }
     }
 

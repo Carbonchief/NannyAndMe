@@ -265,10 +265,12 @@ private struct ActionCard: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
-                        Text(lastCompleted.durationDescription())
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
+                        if !lastCompleted.category.isInstant {
+                            Text(lastCompleted.durationDescription())
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
                     }
                 }
             }
@@ -359,8 +361,8 @@ private struct HistoryRow: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
 
-                if let endDescription = action.endDateTimeDescription() {
-                    Text(L10n.Home.historyEnded(endDescription, action.durationDescription()))
+                if !action.category.isInstant {
+                    Text(L10n.Home.historyDuration(action.durationDescription()))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

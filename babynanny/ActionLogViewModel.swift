@@ -619,7 +619,7 @@ private final class BabyActionFormatter {
 
         dateTimeFormatter = DateFormatter()
         dateTimeFormatter.timeStyle = .short
-        dateTimeFormatter.dateStyle = .medium
+        dateTimeFormatter.dateStyle = .short
 
         durationFormatter = DateComponentsFormatter()
         durationFormatter.allowedUnits = [.hour, .minute, .second]
