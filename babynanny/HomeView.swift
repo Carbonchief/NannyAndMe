@@ -18,12 +18,17 @@ struct HomeView: View {
         self.onShowAllLogs = onShowAllLogs
     }
 
+    private static let testNativeAdUnitID = "ca-app-pub-3940256099942544/3986624511"
+
     var body: some View {
         let state = currentState
         let recentHistory = state.latestHistoryEntriesPerCategory()
 
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                AdMobNativeAdView(adUnitID: Self.testNativeAdUnitID)
+                    .frame(maxWidth: .infinity)
+
                 headerSection(for: state)
 
                 VStack(spacing: 16) {

@@ -4,7 +4,11 @@
 	classes = {
 	};
 	objectVersion = 77;
-	objects = {
+        objects = {
+
+/* Begin PBXBuildFile section */
+                EDF5C1E22FE2F12300795772 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = EDF5C1E12FE2F12300795772 /* GoogleMobileAds */; };
+/* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
 		EDD049A22E93FE1E00795772 /* PBXContainerItemProxy */ = {
@@ -48,13 +52,14 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		EDD0498E2E93FE1A00795772 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
+                EDD0498E2E93FE1A00795772 /* Frameworks */ = {
+                        isa = PBXFrameworksBuildPhase;
+                        buildActionMask = 2147483647;
+                        files = (
+                                EDF5C1E22FE2F12300795772 /* GoogleMobileAds in Frameworks */,
+                        );
+                        runOnlyForDeploymentPostprocessing = 0;
+                };
 		EDD0499E2E93FE1E00795772 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -111,8 +116,9 @@
 				EDD049932E93FE1A00795772 /* babynanny */,
 			);
 			name = babynanny;
-			packageProductDependencies = (
-			);
+                        packageProductDependencies = (
+                                EDF5C1E12FE2F12300795772 /* GoogleMobileAds */,
+                        );
 			productName = babynanny;
 			productReference = EDD049912E93FE1A00795772 /* babynanny.app */;
 			productType = "com.apple.product-type.application";
@@ -195,9 +201,12 @@
 				de,
 				es,
 			);
-			mainGroup = EDD049882E93FE1A00795772;
-			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
+                        mainGroup = EDD049882E93FE1A00795772;
+                        minimizedProjectReferenceProxies = 1;
+                        preferredProjectObjectVersion = 77;
+                        packageReferences = (
+                                EDF5C1E02FE2F12300795772 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
+                        );
 			productRefGroup = EDD049922E93FE1A00795772 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -269,6 +278,14 @@
 			targetProxy = EDD049AC2E93FE1E00795772 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+                EDF5C1E02FE2F12300795772 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads"; requirement = {kind = upToNextMajorVersion; minimumVersion = 11.9.0; }; };
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+                EDF5C1E12FE2F12300795772 /* GoogleMobileAds */ = {isa = XCSwiftPackageProductDependency; package = EDF5C1E02FE2F12300795772 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */; productName = GoogleMobileAds; };
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
 		EDD049B32E93FE1E00795772 /* Debug */ = {
@@ -398,10 +415,11 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"babynanny/Preview Content\"";
-				DEVELOPMENT_TEAM = 4X6WL3Y28W;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Nanny & Me";
+                                DEVELOPMENT_TEAM = 4X6WL3Y28W;
+                                ENABLE_PREVIEWS = YES;
+                                GENERATE_INFOPLIST_FILE = YES;
+                                INFOPLIST_KEY_GADApplicationIdentifier = "ca-app-pub-3940256099942544~1458002511";
+                                INFOPLIST_KEY_CFBundleDisplayName = "Nanny & Me";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.medical";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -429,10 +447,11 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"babynanny/Preview Content\"";
-				DEVELOPMENT_TEAM = 4X6WL3Y28W;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Nanny & Me";
+                                DEVELOPMENT_TEAM = 4X6WL3Y28W;
+                                ENABLE_PREVIEWS = YES;
+                                GENERATE_INFOPLIST_FILE = YES;
+                                INFOPLIST_KEY_GADApplicationIdentifier = "ca-app-pub-3940256099942544~1458002511";
+                                INFOPLIST_KEY_CFBundleDisplayName = "Nanny & Me";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.medical";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
