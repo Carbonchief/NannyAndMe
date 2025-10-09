@@ -32,7 +32,7 @@ struct StatsView: View {
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle(L10n.Stats.title)
-        .onChange(of: profileStore.activeProfile.id) { _ in
+        .onChange(of: profileStore.activeProfile.id) {
             selectedCategory = nil
         }
     }
@@ -167,9 +167,12 @@ struct StatsView: View {
     @ViewBuilder
     private func actionPatternSection(for state: ProfileActionState) -> some View {
         let focusCategory = resolvedCategory(for: state)
-        let patternMetrics = actionPatternMetrics(for: state, focusCategory: focusCategory)
-        let hasData = patternMetrics.contains { $0.value > 0 }
-        let yAxisTitle = focusCategory == .diaper ? L10n.Stats.diapersYAxis : L10n.Stats.minutesYAxis
+        let windowDays = 7
+        let patternSegments = actionPatternSegments(for: state,
+                                                   focusCategory: focusCategory,
+                                                   days: windowDays)
+        let hasData = !patternSegments.isEmpty
+        let dayAxisValues = orderedDays(for: patternSegments, totalDays: windowDays)
 
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.Stats.patternTitle)
@@ -180,37 +183,34 @@ struct StatsView: View {
                 .foregroundStyle(.secondary)
 
             if hasData {
-                Chart(patternMetrics) { metric in
-                    AreaMark(
-                        x: .value(L10n.Stats.hourAxisLabel, metric.hour),
-                        y: .value(yAxisTitle, metric.value)
+                Chart(patternSegments) { segment in
+                    BarMark(
+                        x: .value(L10n.Stats.dayAxisLabel, segment.day, unit: .day),
+                        yStart: .value(L10n.Stats.hourAxisLabel, segment.startMinutes),
+                        yEnd: .value(L10n.Stats.hourAxisLabel, segment.endMinutes)
                     )
-                    .foregroundStyle(focusCategory.accentColor.opacity(0.25).gradient)
-
-                    LineMark(
-                        x: .value(L10n.Stats.hourAxisLabel, metric.hour),
-                        y: .value(yAxisTitle, metric.value)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(focusCategory.accentColor)
-                    .lineStyle(.init(lineWidth: 3))
-
-                    PointMark(
-                        x: .value(L10n.Stats.hourAxisLabel, metric.hour),
-                        y: .value(yAxisTitle, metric.value)
-                    )
-                    .foregroundStyle(focusCategory.accentColor)
+                    .cornerRadius(6)
+                    .foregroundStyle(focusCategory.accentColor.gradient)
                 }
                 .chartYAxis {
-                    AxisMarks(position: .leading)
-                }
-                .chartXAxis {
-                    AxisMarks(values: Array(stride(from: 0, through: 23, by: 3))) { value in
+                    AxisMarks(values: Array(stride(from: 0, through: 1440, by: 180))) { value in
                         AxisGridLine()
                         AxisTick()
                         AxisValueLabel {
-                            if let hourValue = value.as(Int.self) {
-                                Text(hourLabel(for: hourValue))
+                            if let minutes = value.as(Double.self) {
+                                Text(timeLabel(for: minutes))
+                            }
+                        }
+                    }
+                }
+                .chartYScale(domain: 0...1440)
+                .chartXAxis {
+                    AxisMarks(values: dayAxisValues) { value in
+                        AxisGridLine()
+                        AxisTick()
+                        AxisValueLabel {
+                            if let dateValue = value.as(Date.self) {
+                                Text(dayLabel(for: dateValue))
                             }
                         }
                     }
@@ -339,51 +339,36 @@ struct StatsView: View {
             .sorted { $0.date < $1.date }
     }
 
-    private func actionPatternMetrics(for state: ProfileActionState,
-                                      focusCategory: BabyActionCategory,
-                                      days: Int = 7) -> [ActionPatternMetric] {
+    private func actionPatternSegments(for state: ProfileActionState,
+                                       focusCategory: BabyActionCategory,
+                                       days: Int = 7) -> [ActionPatternSegment] {
         let calendar = Calendar.current
         let now = Date()
         guard let windowStart = calendar.date(byAdding: .day, value: -(days - 1), to: calendar.startOfDay(for: now)) else {
-            return (0..<24).map { ActionPatternMetric(hour: $0, value: 0) }
+            return []
         }
 
-        var hourlyTotals = Array(repeating: 0.0, count: 24)
-
-        func accumulateDuration(from start: Date, to end: Date) {
-            var current = start
-
-            while current < end {
-                let hourIndex = calendar.component(.hour, from: current)
-                guard let hourStart = calendar.date(bySettingHour: hourIndex, minute: 0, second: 0, of: current) else {
-                    break
-                }
-
-                let nextHour = calendar.date(byAdding: .hour, value: 1, to: hourStart) ?? end
-                let segmentEnd = min(nextHour, end)
-                let minutes = segmentEnd.timeIntervalSince(current) / 60
-
-                if minutes > 0 {
-                    hourlyTotals[hourIndex] += minutes
-                }
-
-                current = segmentEnd
-            }
-        }
+        var segments: [ActionPatternSegment] = []
 
         for action in state.history where action.category == focusCategory {
             if focusCategory == .diaper {
-                if action.startDate >= windowStart {
-                    let hour = calendar.component(.hour, from: action.startDate)
-                    hourlyTotals[hour] += 1
-                }
+                guard action.startDate >= windowStart else { continue }
+                let day = calendar.startOfDay(for: action.startDate)
+                let minutes = Double(calendar.component(.hour, from: action.startDate) * 60 +
+                    calendar.component(.minute, from: action.startDate))
+                let endMinutes = min(minutes + 5, 1440)
+                segments.append(ActionPatternSegment(day: day,
+                                                     startMinutes: minutes,
+                                                     endMinutes: endMinutes))
             } else {
                 let actionStart = max(action.startDate, windowStart)
                 let actionEnd = min(action.endDate ?? now, now)
 
-                if actionEnd > actionStart {
-                    accumulateDuration(from: actionStart, to: actionEnd)
-                }
+                guard actionEnd > actionStart else { continue }
+
+                segments.append(contentsOf: splitAction(from: actionStart,
+                                                        to: actionEnd,
+                                                        calendar: calendar))
             }
         }
 
@@ -392,17 +377,84 @@ struct StatsView: View {
             let actionEnd = now
 
             if actionEnd > actionStart {
-                accumulateDuration(from: actionStart, to: actionEnd)
+                segments.append(contentsOf: splitAction(from: actionStart,
+                                                        to: actionEnd,
+                                                        calendar: calendar))
             }
         }
 
-        return (0..<24).map { hour in
-            ActionPatternMetric(hour: hour, value: hourlyTotals[hour])
+        return segments.sorted { lhs, rhs in
+            if lhs.day == rhs.day {
+                return lhs.startMinutes < rhs.startMinutes
+            }
+            return lhs.day < rhs.day
         }
     }
 
-    private func hourLabel(for hour: Int) -> String {
-        String(format: "%02d:00", hour)
+    private func splitAction(from start: Date,
+                              to end: Date,
+                              calendar: Calendar) -> [ActionPatternSegment] {
+        var results: [ActionPatternSegment] = []
+        var currentDayStart = calendar.startOfDay(for: start)
+
+        while currentDayStart < end {
+            guard let nextDayStart = calendar.date(byAdding: .day, value: 1, to: currentDayStart) else {
+                break
+            }
+
+            let segmentStart = max(start, currentDayStart)
+            let segmentEnd = min(end, nextDayStart)
+
+            if segmentEnd > segmentStart {
+                let startMinutes = minutesIntoDay(for: segmentStart, calendar: calendar)
+                let endMinutes = max(startMinutes + 3,
+                                     minutesIntoDay(for: segmentEnd, calendar: calendar))
+                results.append(ActionPatternSegment(day: currentDayStart,
+                                                    startMinutes: min(startMinutes, 1440),
+                                                    endMinutes: min(endMinutes, 1440)))
+            }
+            currentDayStart = nextDayStart
+        }
+
+        return results
+    }
+
+    private func minutesIntoDay(for date: Date, calendar: Calendar) -> Double {
+        let components = calendar.dateComponents([.hour, .minute], from: date)
+        let hours = Double(components.hour ?? 0)
+        let minutes = Double(components.minute ?? 0)
+        return hours * 60 + minutes
+    }
+
+    private func dayLabel(for date: Date) -> String {
+        date.formatted(.dateTime.weekday(.abbreviated))
+    }
+
+    private func timeLabel(for minutes: Double) -> String {
+        let clamped = max(0, min(minutes, 1440))
+        let hour = Int(clamped) / 60
+        let minute = Int(clamped) % 60
+        return String(format: "%02d:%02d", hour, minute)
+    }
+
+    private func orderedDays(for segments: [ActionPatternSegment], totalDays: Int) -> [Date] {
+        let calendar = Calendar.current
+        let todayStart = calendar.startOfDay(for: Date())
+        var axisDays: [Date] = []
+
+        for offset in stride(from: totalDays - 1, through: 0, by: -1) {
+            if let day = calendar.date(byAdding: .day, value: -offset, to: todayStart) {
+                axisDays.append(day)
+            }
+        }
+
+        let segmentDays = Set(segments.map { $0.day })
+
+        for segmentDay in segmentDays where !axisDays.contains(segmentDay) {
+            axisDays.append(segmentDay)
+        }
+
+        return axisDays.sorted()
     }
 }
 
@@ -413,11 +465,11 @@ private struct DailyActionMetric: Identifiable {
     var id: Date { date }
 }
 
-private struct ActionPatternMetric: Identifiable {
-    let hour: Int
-    var value: Double
-
-    var id: Int { hour }
+private struct ActionPatternSegment: Identifiable {
+    let id = UUID()
+    let day: Date
+    let startMinutes: Double
+    let endMinutes: Double
 }
 
 private struct StatCard: View {
