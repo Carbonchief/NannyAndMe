@@ -36,7 +36,7 @@ extension AllLogsView {
     }
 
     func applyFilter(startDate: Date?, endDate: Date?) {
-        var normalizedStart = startDate.map { calendar.startOfDay(for: $0) }
+        let normalizedStart = startDate.map { calendar.startOfDay(for: $0) }
         var normalizedEnd = endDate.map { calendar.startOfDay(for: $0) }
 
         if let start = normalizedStart, let end = normalizedEnd, start > end {
