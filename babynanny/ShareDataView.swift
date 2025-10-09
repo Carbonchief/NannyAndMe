@@ -123,9 +123,16 @@ struct ShareDataView: View {
         }
     }
 
-    private func handleImportResult(_ result: Result<URL, Error>) {
+    private func handleImportResult(_ result: Result<[URL], Error>) {
         switch result {
-        case .success(let url):
+        case .success(let urls):
+            guard let url = urls.first else {
+                alert = ShareDataAlert(
+                    title: L10n.ShareData.Alert.importFailureTitle,
+                    message: L10n.ShareData.Error.readFailed
+                )
+                return
+            }
             importData(from: url)
         case .failure(let error):
             guard (error as NSError).code != NSUserCancelledError else { return }
