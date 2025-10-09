@@ -144,6 +144,13 @@ struct ShareDataView: View {
     }
 
     private func importData(from url: URL) {
+        let didStartAccessing = url.startAccessingSecurityScopedResource()
+        defer {
+            if didStartAccessing {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+
         do {
             let data = try Data(contentsOf: url)
             let decoder = JSONDecoder()
