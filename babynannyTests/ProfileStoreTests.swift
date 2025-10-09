@@ -74,4 +74,10 @@ private actor MockReminderScheduler: ReminderScheduling {
     func upcomingReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState], reference: Date) async -> [ReminderOverview] {
         []
     }
+
+    func schedulePreviewReminder(for profile: ChildProfile,
+                                 category: BabyActionCategory,
+                                 delay: TimeInterval) async -> Bool {
+        false
+    }
 }
