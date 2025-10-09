@@ -438,9 +438,15 @@ enum L10n {
         static let minutesYAxis = String(localized: "stats.chart.yAxis.minutes", defaultValue: "Minutes")
         static let lastSevenDays = String(localized: "stats.chart.lastSevenDays", defaultValue: "Last 7 Days")
         static let actionPickerLabel = String(localized: "stats.chart.actionPicker.label", defaultValue: "Activity")
+        static let patternTitle = String(localized: "stats.pattern.title", defaultValue: "Daily Pattern")
+        static let patternSubtitle = String(
+            localized: "stats.pattern.subtitle",
+            defaultValue: "Typical activity times over the last week."
+        )
         static let activityTrendsTitle = String(localized: "stats.chart.activityTrends.title", defaultValue: "Activity Trends")
         static let activityTrendsSubtitle = String(localized: "stats.chart.activityTrends.subtitle", defaultValue: "Once you start logging activities you'll see a weekly breakdown here.")
         static let dayAxisLabel = String(localized: "stats.chart.xAxis.day", defaultValue: "Day")
+        static let hourAxisLabel = String(localized: "stats.chart.xAxis.hour", defaultValue: "Hour")
 
         static func emptyStateTitle(_ focus: String) -> String {
             let format = String(localized: "stats.chart.empty.title", defaultValue: "No %@ logged in the last week.")
@@ -449,6 +455,19 @@ enum L10n {
 
         static func emptyStateSubtitle(_ focus: String) -> String {
             let format = String(localized: "stats.chart.empty.subtitle", defaultValue: "Track %@ to see trends over time.")
+            return String(format: format, locale: Locale.current, focus)
+        }
+
+        static func patternEmptyTitle(_ focus: String) -> String {
+            let format = String(localized: "stats.pattern.empty.title", defaultValue: "No clear pattern for %@ yet.")
+            return String(format: format, locale: Locale.current, focus)
+        }
+
+        static func patternEmptySubtitle(_ focus: String) -> String {
+            let format = String(
+                localized: "stats.pattern.empty.subtitle",
+                defaultValue: "Log more %@ entries to uncover daily trends."
+            )
             return String(format: format, locale: Locale.current, focus)
         }
     }
