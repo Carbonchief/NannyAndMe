@@ -266,7 +266,6 @@ struct SettingsView: View {
 
     private func deleteProfile(_ profile: ChildProfile) {
         profileStore.deleteProfile(profile)
-        actionStore.removeProfileData(for: profile.id)
         profilePendingDeletion = nil
     }
 

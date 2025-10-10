@@ -270,10 +270,15 @@ final class ProfileStore: ObservableObject {
         newState.profiles.remove(at: index)
 
         if newState.activeProfileID == profile.id {
-            newState.activeProfileID = newState.profiles.first?.id
+            if index < newState.profiles.count {
+                newState.activeProfileID = newState.profiles[index].id
+            } else {
+                newState.activeProfileID = newState.profiles.last?.id
+            }
         }
 
         state = Self.sanitized(state: newState)
+        actionStore?.removeProfileData(for: profile.id)
     }
 
     func updateActiveProfile(_ updates: (inout ChildProfile) -> Void) {
