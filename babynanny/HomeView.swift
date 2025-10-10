@@ -120,9 +120,13 @@ struct HomeView: View {
                         .tint(.accentColor)
                     }
 
-                    Text(recent.detailDescription)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    if recent.endDate == nil {
+                        Text(recent.detailDescription)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .multilineTextAlignment(.center)
+                    }
 
                     if recent.endDate == nil {
                         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -135,12 +139,13 @@ struct HomeView: View {
                                 .foregroundStyle(.secondary)
                         }
                     } else {
-                        Text(recent.durationDescription())
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                            .monospacedDigit()
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        (Text(recent.detailDescription)
+                         + Text(" • ")
+                         + Text(recent.durationDescription()).monospacedDigit())
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .multilineTextAlignment(.center)
                     }
                 }
                 .padding()
