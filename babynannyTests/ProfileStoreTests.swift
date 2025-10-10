@@ -57,6 +57,45 @@ struct ProfileStoreTests {
         #expect(activeProfile.remindersEnabled == false)
         #expect(await scheduler.ensureAuthorizationInvocations == 0)
     }
+
+    @Test
+    func deletingProfileRemovesAssociatedActionState() async throws {
+        let scheduler = MockReminderScheduler(authorizationResult: true)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let profileA = ChildProfile(name: "Aria", birthDate: Date())
+        let profileB = ChildProfile(name: "Ben", birthDate: Date().addingTimeInterval(-86_400))
+
+        let store = await ProfileStore(
+            initialProfiles: [profileA, profileB],
+            activeProfileID: profileA.id,
+            directory: directory,
+            filename: "profiles.json",
+            reminderScheduler: scheduler
+        )
+
+        let actionStore = ActionLogStore(
+            directory: directory,
+            filename: "actions.json"
+        )
+        await store.registerActionStore(actionStore)
+        actionStore.registerProfileStore(store)
+
+        actionStore.startAction(for: profileA.id, category: .feeding)
+        actionStore.stopAction(for: profileA.id, category: .feeding)
+
+        await store.deleteProfile(profileA)
+
+        let remainingProfiles = await store.profiles
+        #expect(remainingProfiles.contains(where: { $0.id == profileA.id }) == false)
+        #expect(await store.activeProfileID == profileB.id)
+
+        let removedState = actionStore.state(for: profileA.id)
+        #expect(removedState.history.isEmpty)
+        #expect(removedState.activeActions.isEmpty)
+    }
 }
 
 private actor MockReminderScheduler: ReminderScheduling {
