@@ -90,7 +90,7 @@ enum L10n {
         }
 
         static func loggedAt(_ value: String) -> String {
-            let format = String(localized: "home.card.loggedAt", defaultValue: "Logged at %@")
+            let format = String(localized: "home.card.loggedAt", defaultValue: "%@")
             return String(format: format, locale: Locale.current, value)
         }
 
