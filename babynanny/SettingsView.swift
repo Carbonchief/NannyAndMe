@@ -23,6 +23,7 @@ struct SettingsView: View {
     @State private var isLoadingActionReminders = false
     @State private var reminderLoadTask: Task<Void, Never>?
     @State private var activeAlert: ActiveAlert?
+    @State private var profilePendingDeletion: ChildProfile?
 
     var body: some View {
         Form {
@@ -55,7 +56,7 @@ struct SettingsView: View {
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button(role: .destructive) {
-                            activeAlert = .confirmDeletion(profile)
+                            profilePendingDeletion = profile
                         } label: {
                             Label(L10n.Profiles.deleteAction, systemImage: "trash")
                         }
@@ -202,6 +203,21 @@ struct SettingsView: View {
         }
         .navigationTitle(L10n.Settings.title)
         .alert(item: $activeAlert, content: makeAlert)
+        .confirmationDialog(
+            deletionConfirmationTitle,
+            isPresented: deletionConfirmationBinding,
+            presenting: profilePendingDeletion,
+            titleVisibility: .visible
+        ) { profile in
+            Button(L10n.Profiles.deleteAction, role: .destructive) {
+                deleteProfile(profile)
+            }
+            Button(L10n.Common.cancel, role: .cancel) {
+                profilePendingDeletion = nil
+            }
+        } message: { profile in
+            Text(L10n.Profiles.deleteConfirmationMessage(profile.displayName))
+        }
         .onAppear {
             refreshActionReminderSummaries()
         }
@@ -242,20 +258,11 @@ struct SettingsView: View {
 
     private func deleteProfile(_ profile: ChildProfile) {
         profileStore.deleteProfile(profile)
-        activeAlert = nil
+        profilePendingDeletion = nil
     }
 
     private func makeAlert(_ alert: ActiveAlert) -> Alert {
         switch alert {
-        case .confirmDeletion(let profile):
-            return Alert(
-                title: Text(L10n.Profiles.deleteConfirmationTitle(profile.displayName)),
-                message: Text(L10n.Profiles.deleteConfirmationMessage(profile.displayName)),
-                primaryButton: .destructive(Text(L10n.Profiles.deleteAction)) {
-                    deleteProfile(profile)
-                },
-                secondaryButton: .cancel()
-            )
         case .notificationsSettings:
             return Alert(
                 title: Text(L10n.Settings.notificationsPermissionTitle),
@@ -314,17 +321,30 @@ private extension SettingsView {
     }
 
     enum ActiveAlert: Identifiable {
-        case confirmDeletion(ChildProfile)
         case notificationsSettings
 
         var id: String {
             switch self {
-            case .confirmDeletion(let profile):
-                return "confirm-deletion-\(profile.id)"
             case .notificationsSettings:
                 return "notifications-settings"
             }
         }
+    }
+
+    private var deletionConfirmationBinding: Binding<Bool> {
+        Binding(
+            get: { profilePendingDeletion != nil },
+            set: { isPresented in
+                if isPresented == false {
+                    profilePendingDeletion = nil
+                }
+            }
+        )
+    }
+
+    private var deletionConfirmationTitle: String {
+        guard let profile = profilePendingDeletion else { return "" }
+        return L10n.Profiles.deleteConfirmationTitle(profile.displayName)
     }
 
     private func reminderHours(for category: BabyActionCategory) -> Int {
