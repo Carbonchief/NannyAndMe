@@ -344,22 +344,19 @@ private struct ActionCard: View {
                     let timestampDescription = lastCompleted.endDateTimeDescription()
                         ?? lastCompleted.startDateTimeDescription()
 
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(L10n.Home.lastRun(timestampDescription))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    let dateText = Text(timestampDescription)
 
+                    Group {
                         if lastCompleted.category.isInstant {
-                            Text(L10n.Home.loggedAt(lastCompleted.loggedTimestampDescription()))
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
+                            dateText
                         } else {
-                            Text(lastCompleted.durationDescription())
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
+                            dateText
+                                + Text(". ")
+                                + Text(lastCompleted.durationDescription()).monospacedDigit()
                         }
                     }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
             }
         }
