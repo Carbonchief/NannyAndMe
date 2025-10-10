@@ -114,9 +114,9 @@ struct HomeView: View {
 
             if let recent = state.mostRecentAction {
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .top) {
+                    HStack(alignment: .center, spacing: 12) {
                         Label {
-                            Text(recent.title)
+                            Text(recent.detailDescription)
                                 .font(.headline)
                         } icon: {
                             AnimatedActionIcon(
@@ -127,44 +127,16 @@ struct HomeView: View {
 
                         Spacer(minLength: 12)
 
-                        Button {
-                            editingAction = recent
-                        } label: {
-                            Label(L10n.Home.editActionButton, systemImage: "square.and.pencil")
-                                .font(.subheadline)
-                                .labelStyle(.titleAndIcon)
+                        if recent.endDate == nil {
+                            Button(L10n.Common.stop) {
+                                stopAction(for: recent.category)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(recent.category.accentColor)
                         }
-                        .buttonStyle(.borderless)
-                        .tint(.accentColor)
                     }
 
-                    if recent.endDate == nil {
-                        Text(recent.detailDescription)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity)
-                            .multilineTextAlignment(.center)
-                    }
-
-                    if recent.endDate == nil {
-                        TimelineView(.periodic(from: .now, by: 1)) { context in
-                            Text(recent.durationDescription(asOf: context.date))
-                                .font(.title3)
-                                .fontWeight(.semibold)
-                                .monospacedDigit()
-                                .frame(maxWidth: .infinity)
-                                .multilineTextAlignment(.center)
-                                .foregroundStyle(.secondary)
-                        }
-                    } else {
-                        (Text(recent.detailDescription)
-                         + Text(" • ")
-                         + Text(recent.durationDescription()).monospacedDigit())
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity)
-                            .multilineTextAlignment(.center)
-                    }
+                    headerElapsedView(for: recent)
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -172,11 +144,38 @@ struct HomeView: View {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .fill(Color(.secondarySystemGroupedBackground))
                 )
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    editingAction = recent
+                }
+                .accessibilityAddTraits(.isButton)
             } else {
                 Text(L10n.Home.placeholder)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func headerElapsedView(for action: BabyAction) -> some View {
+        if action.endDate == nil {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                Text(action.durationDescription(asOf: context.date))
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+                    .frame(maxWidth: .infinity)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            Text(action.durationDescription())
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
+                .monospacedDigit()
         }
     }
 
