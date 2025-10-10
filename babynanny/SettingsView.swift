@@ -37,8 +37,8 @@ struct SettingsView: View {
         .confirmationDialog(
             deletionConfirmationTitle,
             isPresented: deletionConfirmationBinding,
-            presenting: profilePendingDeletion,
-            titleVisibility: .visible
+            titleVisibility: .visible,
+            presenting: profilePendingDeletion
         ) { profile in
             Button(L10n.Profiles.deleteAction, role: .destructive) {
                 deleteProfile(profile)
