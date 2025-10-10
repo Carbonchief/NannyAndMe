@@ -19,11 +19,10 @@ struct SettingsView: View {
     @State private var photoLoadingTask: Task<Void, Never>?
     @State private var activePhotoRequestID: UUID?
     @State private var isUpdatingReminders = false
-    @State private var profilePendingDeletion: ChildProfile?
     @State private var actionReminderSummaries: [BabyActionCategory: ProfileStore.ActionReminderSummary] = [:]
     @State private var isLoadingActionReminders = false
     @State private var reminderLoadTask: Task<Void, Never>?
-    @State private var showNotificationsSettingsPrompt = false
+    @State private var activeAlert: ActiveAlert?
 
     var body: some View {
         Form {
@@ -56,7 +55,7 @@ struct SettingsView: View {
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button(role: .destructive) {
-                            profilePendingDeletion = profile
+                            activeAlert = .confirmDeletion(profile)
                         } label: {
                             Label(L10n.Profiles.deleteAction, systemImage: "trash")
                         }
@@ -169,7 +168,7 @@ struct SettingsView: View {
                                     isUpdatingReminders = false
                                     refreshActionReminderSummaries()
                                     if result == .authorizationDenied {
-                                        showNotificationsSettingsPrompt = true
+                                        activeAlert = .notificationsSettings
                                     }
                                 }
                             }
@@ -202,30 +201,7 @@ struct SettingsView: View {
             }
         }
         .navigationTitle(L10n.Settings.title)
-        .alert(item: $profilePendingDeletion) { profile in
-            Alert(
-                title: Text(L10n.Profiles.deleteConfirmationTitle(profile.displayName)),
-                message: Text(L10n.Profiles.deleteConfirmationMessage(profile.displayName)),
-                primaryButton: .destructive(Text(L10n.Profiles.deleteAction)) {
-                    deleteProfile(profile)
-                },
-                secondaryButton: .cancel {
-                    profilePendingDeletion = nil
-                }
-            )
-        }
-        .alert(isPresented: $showNotificationsSettingsPrompt) {
-            Alert(
-                title: Text(L10n.Settings.notificationsPermissionTitle),
-                message: Text(L10n.Settings.notificationsPermissionMessage),
-                primaryButton: .default(Text(L10n.Settings.notificationsPermissionAction)) {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        openURL(url)
-                    }
-                },
-                secondaryButton: .cancel(Text(L10n.Settings.notificationsPermissionCancel))
-            )
-        }
+        .alert(item: $activeAlert, content: makeAlert)
         .onAppear {
             refreshActionReminderSummaries()
         }
@@ -266,7 +242,32 @@ struct SettingsView: View {
 
     private func deleteProfile(_ profile: ChildProfile) {
         profileStore.deleteProfile(profile)
-        profilePendingDeletion = nil
+        activeAlert = nil
+    }
+
+    private func makeAlert(_ alert: ActiveAlert) -> Alert {
+        switch alert {
+        case .confirmDeletion(let profile):
+            return Alert(
+                title: Text(L10n.Profiles.deleteConfirmationTitle(profile.displayName)),
+                message: Text(L10n.Profiles.deleteConfirmationMessage(profile.displayName)),
+                primaryButton: .destructive(Text(L10n.Profiles.deleteAction)) {
+                    deleteProfile(profile)
+                },
+                secondaryButton: .cancel()
+            )
+        case .notificationsSettings:
+            return Alert(
+                title: Text(L10n.Settings.notificationsPermissionTitle),
+                message: Text(L10n.Settings.notificationsPermissionMessage),
+                primaryButton: .default(Text(L10n.Settings.notificationsPermissionAction)) {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        openURL(url)
+                    }
+                },
+                secondaryButton: .cancel(Text(L10n.Settings.notificationsPermissionCancel))
+            )
+        }
     }
 
     private func refreshActionReminderSummaries() {
@@ -310,6 +311,20 @@ private extension SettingsView {
     struct PendingCropImage: Identifiable {
         let id = UUID()
         let image: UIImage
+    }
+
+    enum ActiveAlert: Identifiable {
+        case confirmDeletion(ChildProfile)
+        case notificationsSettings
+
+        var id: String {
+            switch self {
+            case .confirmDeletion(let profile):
+                return "confirm-deletion-\(profile.id)"
+            case .notificationsSettings:
+                return "notifications-settings"
+            }
+        }
     }
 
     private func reminderHours(for category: BabyActionCategory) -> Int {
