@@ -342,7 +342,6 @@ private struct ActionCard: View {
                 actionButton
                     .controlSize(.large)
                     .font(.headline)
-                    .fixedSize()
             }
 
             if let activeAction {
@@ -413,6 +412,8 @@ private struct AnimatedActionIcon: View {
 }
 
 private extension ActionCard {
+    static let buttonMinWidth: CGFloat = 112
+
     @ViewBuilder
     var actionButton: some View {
         if activeAction != nil {
@@ -421,12 +422,14 @@ private extension ActionCard {
             }
             .buttonStyle(.borderedProminent)
             .tint(category.accentColor)
+            .frame(minWidth: Self.buttonMinWidth)
         } else {
             Button(category.startActionButtonTitle) {
                 onStart()
             }
             .buttonStyle(.bordered)
             .tint(category.accentColor)
+            .frame(minWidth: Self.buttonMinWidth)
         }
     }
 }
