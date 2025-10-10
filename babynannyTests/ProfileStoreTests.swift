@@ -76,15 +76,15 @@ struct ProfileStoreTests {
             reminderScheduler: scheduler
         )
 
-        let actionStore = ActionLogStore(
+        let actionStore = await ActionLogStore(
             directory: directory,
             filename: "actions.json"
         )
         await store.registerActionStore(actionStore)
-        actionStore.registerProfileStore(store)
+        await actionStore.registerProfileStore(store)
 
-        actionStore.startAction(for: profileA.id, category: .feeding)
-        actionStore.stopAction(for: profileA.id, category: .feeding)
+        await actionStore.startAction(for: profileA.id, category: .feeding)
+        await actionStore.stopAction(for: profileA.id, category: .feeding)
 
         await store.deleteProfile(profileA)
 
@@ -92,7 +92,7 @@ struct ProfileStoreTests {
         #expect(remainingProfiles.contains(where: { $0.id == profileA.id }) == false)
         #expect(await store.activeProfileID == profileB.id)
 
-        let removedState = actionStore.state(for: profileA.id)
+        let removedState = await actionStore.state(for: profileA.id)
         #expect(removedState.history.isEmpty)
         #expect(removedState.activeActions.isEmpty)
     }
