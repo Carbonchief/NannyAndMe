@@ -298,6 +298,14 @@ final class ProfileStore: ObservableObject {
 
     @discardableResult
     func mergeActiveProfile(with importedProfile: ChildProfile) throws -> Bool {
+        if state.profiles.contains(where: { $0.id == importedProfile.id }) == false {
+            var newState = state
+            newState.profiles.append(importedProfile)
+            newState.activeProfileID = importedProfile.id
+            state = Self.sanitized(state: newState)
+            return true
+        }
+
         guard let activeID = state.activeProfileID else { return false }
 
         guard importedProfile.id == activeID else {
