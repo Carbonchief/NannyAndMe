@@ -38,6 +38,9 @@
 "home.bottle.presetLabel" = "%lld ml";
 "home.history.started" = "Gestartet %@";
 "home.history.duration" = "Dauer %@";
+"home.interruptionAlert.title" = "Aktuelle Aktion stoppen?";
+"home.interruptionAlert.message" = "Wenn du eine neue %@-Aktion startest, wird %@ beendet, das gerade läuft.";
+"home.interruptionAlert.confirm" = "Fortfahren";
 "profiles.activeSection" = "Aktive Profile";
 "profiles.add" = "Profil hinzufügen";
 "profiles.title" = "Profile";

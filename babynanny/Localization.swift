@@ -98,6 +98,24 @@ enum L10n {
             let format = String(localized: "home.history.duration", defaultValue: "Duration %@")
             return String(format: format, locale: Locale.current, value)
         }
+
+        static let interruptionAlertTitle = String(
+            localized: "home.interruptionAlert.title",
+            defaultValue: "Stop current action?"
+        )
+
+        static func interruptionAlertMessage(_ newAction: String, _ runningActions: String) -> String {
+            let format = String(
+                localized: "home.interruptionAlert.message",
+                defaultValue: "Starting a new %@ action will stop %@ that's currently running."
+            )
+            return String(format: format, locale: Locale.current, newAction, runningActions)
+        }
+
+        static let interruptionAlertConfirm = String(
+            localized: "home.interruptionAlert.confirm",
+            defaultValue: "Continue"
+        )
     }
 
     enum Profiles {
