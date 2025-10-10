@@ -37,7 +37,7 @@
 "home.card.startedAt" = "Started at %@";
 "home.card.elapsed" = "Elapsed: %@";
 "home.card.lastRun" = "Last run %@";
-"home.card.loggedAt" = "Logged at %@";
+"home.card.loggedAt" = "%@";
 "home.card.lastRunWithDuration" = "Last run %@ • %@";
 "home.sheet.newActionTitle" = "New %@ Action";
 "home.bottle.presetLabel" = "%lld ml";
