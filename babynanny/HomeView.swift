@@ -304,7 +304,7 @@ private struct ActionCard: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         } else if let lastCompleted {
-                            Text(lastCompleted.detailDescription)
+                            detailText(for: lastCompleted)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         } else {
@@ -339,25 +339,6 @@ private struct ActionCard: View {
                     }
                 }
 
-            } else {
-                if let lastCompleted {
-                    let timestampDescription = lastCompleted.endDateTimeDescription()
-                        ?? lastCompleted.startDateTimeDescription()
-
-                    let dateText = Text(timestampDescription)
-
-                    Group {
-                        if lastCompleted.category.isInstant {
-                            dateText
-                        } else {
-                            dateText
-                                + Text(". ")
-                                + Text(lastCompleted.durationDescription()).monospacedDigit()
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
             }
         }
         .padding()
@@ -367,6 +348,18 @@ private struct ActionCard: View {
                 .fill(Color(.systemBackground))
                 .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
         )
+    }
+}
+
+private extension ActionCard {
+    func detailText(for action: BabyAction) -> Text {
+        if action.category.isInstant {
+            return Text(action.detailDescription)
+        }
+
+        return Text(action.detailDescription)
+            + Text(" • ")
+            + Text(action.durationDescription()).monospacedDigit()
     }
 }
 
