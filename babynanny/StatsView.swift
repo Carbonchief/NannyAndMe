@@ -407,8 +407,15 @@ struct StatsView: View {
 
             if segmentEnd > segmentStart {
                 let startMinutes = minutesIntoDay(for: segmentStart, calendar: calendar)
-                let endMinutes = max(startMinutes + 3,
-                                     minutesIntoDay(for: segmentEnd, calendar: calendar))
+                let rawEndMinutes: Double
+
+                if segmentEnd == nextDayStart {
+                    rawEndMinutes = 1440
+                } else {
+                    rawEndMinutes = minutesIntoDay(for: segmentEnd, calendar: calendar)
+                }
+
+                let endMinutes = max(startMinutes + 3, rawEndMinutes)
                 results.append(ActionPatternSegment(day: currentDayStart,
                                                     startMinutes: min(startMinutes, 1440),
                                                     endMinutes: min(endMinutes, 1440)))
