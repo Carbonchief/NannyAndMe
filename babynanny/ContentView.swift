@@ -152,16 +152,16 @@ struct ContentView: View {
                 profileCount: profileStore.profiles.count
             )
         }
-        .onChange(of: profileStore.activeProfile) { profile in
+        .onChange(of: profileStore.activeProfile) { _, profile in
             isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(
                 for: profile,
                 profileCount: profileStore.profiles.count
             )
         }
-        .onChange(of: profileStore.profiles) { _ in
+        .onChange(of: profileStore.profiles) { _, profiles in
             isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(
                 for: profileStore.activeProfile,
-                profileCount: profileStore.profiles.count
+                profileCount: profiles.count
             )
         }
     }
