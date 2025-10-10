@@ -16,6 +16,7 @@ struct ContentView: View {
     @State private var showAllLogs = false
     @State private var showShareData = false
     @State private var isProfileSwitcherPresented = false
+    @State private var isInitialProfilePromptPresented = false
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -132,6 +133,22 @@ struct ContentView: View {
                 .zIndex(2)
             }
         }
+        .sheet(isPresented: $isInitialProfilePromptPresented) {
+            InitialProfileNamePromptView(initialName: profileStore.activeProfile.name) { newName in
+                let trimmedName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard trimmedName.isEmpty == false else { return }
+                profileStore.updateActiveProfile { profile in
+                    profile.name = trimmedName
+                }
+                isInitialProfilePromptPresented = false
+            }
+        }
+        .onAppear {
+            isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(for: profileStore.activeProfile)
+        }
+        .onChange(of: profileStore.activeProfile) { profile in
+            isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(for: profile)
+        }
     }
 }
 
@@ -168,6 +185,10 @@ private struct AnimatedTabContent: View {
         .animation(.easeInOut(duration: 0.3), value: selectedTab)
         .background(Color(.systemBackground))
     }
+}
+
+private func shouldShowInitialProfilePrompt(for profile: ChildProfile) -> Bool {
+    profile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 }
 
 private enum Tab: Hashable, CaseIterable {
