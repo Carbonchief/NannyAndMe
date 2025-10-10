@@ -147,10 +147,22 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(for: profileStore.activeProfile)
+            isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(
+                for: profileStore.activeProfile,
+                profileCount: profileStore.profiles.count
+            )
         }
         .onChange(of: profileStore.activeProfile) { profile in
-            isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(for: profile)
+            isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(
+                for: profile,
+                profileCount: profileStore.profiles.count
+            )
+        }
+        .onChange(of: profileStore.profiles) { _ in
+            isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(
+                for: profileStore.activeProfile,
+                profileCount: profileStore.profiles.count
+            )
         }
     }
 }
@@ -190,8 +202,8 @@ private struct AnimatedTabContent: View {
     }
 }
 
-private func shouldShowInitialProfilePrompt(for profile: ChildProfile) -> Bool {
-    profile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+private func shouldShowInitialProfilePrompt(for profile: ChildProfile, profileCount: Int) -> Bool {
+    profileCount <= 1 && profile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 }
 
 private enum Tab: Hashable, CaseIterable {
