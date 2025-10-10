@@ -114,15 +114,36 @@ struct HomeView: View {
 
             if let recent = state.mostRecentAction {
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .center, spacing: 12) {
-                        Label {
-                            Text(recent.detailDescription)
-                                .font(.headline)
-                        } icon: {
-                            AnimatedActionIcon(
-                                systemName: recent.icon,
-                                color: recent.category.accentColor
-                            )
+                    HStack(alignment: .top, spacing: 12) {
+                        AnimatedActionIcon(
+                            systemName: recent.icon,
+                            color: recent.category.accentColor
+                        )
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(recent.detailDescription)
+                                    .font(.headline)
+
+                                Spacer(minLength: 8)
+
+                                if let trailingInfo = headerTrailingInfo(for: recent) {
+                                    if trailingInfo.isDuration {
+                                        Text(trailingInfo.text)
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                            .monospacedDigit()
+                                            .lineLimit(1)
+                                    } else {
+                                        Text(trailingInfo.text)
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+                            }
+
+                            headerActiveDurationView(for: recent)
                         }
 
                         Spacer(minLength: 12)
@@ -135,8 +156,6 @@ struct HomeView: View {
                             .tint(recent.category.accentColor)
                         }
                     }
-
-                    headerElapsedView(for: recent)
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -158,25 +177,27 @@ struct HomeView: View {
     }
 
     @ViewBuilder
-    private func headerElapsedView(for action: BabyAction) -> some View {
+    private func headerActiveDurationView(for action: BabyAction) -> some View {
         if action.endDate == nil {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 Text(action.durationDescription(asOf: context.date))
                     .font(.title3)
                     .fontWeight(.semibold)
                     .monospacedDigit()
-                    .frame(maxWidth: .infinity)
-                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(.secondary)
             }
-        } else {
-            Text(action.durationDescription())
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity)
-                .multilineTextAlignment(.center)
-                .monospacedDigit()
         }
+    }
+
+    private func headerTrailingInfo(for action: BabyAction) -> (text: String, isDuration: Bool)? {
+        guard action.endDate != nil else { return nil }
+
+        if action.category.isInstant {
+            return (L10n.Home.loggedAt(action.loggedTimestampDescription()), false)
+        }
+
+        return (action.durationDescription(), true)
     }
 
     private func handleStartTap(for category: BabyActionCategory) {
