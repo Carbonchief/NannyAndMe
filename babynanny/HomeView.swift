@@ -14,6 +14,7 @@ struct HomeView: View {
     @State private var presentedCategory: BabyActionCategory?
     @State private var editingAction: BabyAction?
     @State private var pendingStartAction: PendingStartAction?
+    @State private var categoryClearedForSheet: BabyActionCategory?
     private let onShowAllLogs: () -> Void
 
     init(onShowAllLogs: @escaping () -> Void = {}) {
@@ -70,7 +71,9 @@ struct HomeView: View {
             .padding(.bottom, 24)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .sheet(item: $presentedCategory) { category in
+        .sheet(item: $presentedCategory, onDismiss: {
+            categoryClearedForSheet = nil
+        }) { category in
             ActionDetailSheet(category: category) { configuration in
                 requestStartAction(for: category,
                                    configuration: configuration,
@@ -184,6 +187,17 @@ struct HomeView: View {
                                     configuration: .sleep,
                                     dismissingSheet: false)
         case .diaper, .feeding:
+            let interruptedTitles = interruptedActionTitles(for: category)
+
+            guard interruptedTitles.isEmpty else {
+                pendingStartAction = PendingStartAction(
+                    category: category,
+                    interruptedActionTitles: interruptedTitles,
+                    nextStep: .presentCategorySheet
+                )
+                return
+            }
+
             presentedCategory = category
         }
     }
@@ -198,17 +212,18 @@ struct HomeView: View {
         }
 
         let interruptedTitles = interruptedActionTitles(for: category)
+        let shouldBypassWarning = categoryClearedForSheet == category
 
-        guard interruptedTitles.isEmpty else {
+        guard interruptedTitles.isEmpty || shouldBypassWarning else {
             pendingStartAction = PendingStartAction(
                 category: category,
-                configuration: configuration,
                 interruptedActionTitles: interruptedTitles,
-                shouldDismissSheet: dismissingSheet
+                nextStep: .start(configuration: configuration, dismissSheet: dismissingSheet)
             )
             return false
         }
 
+        categoryClearedForSheet = nil
         startAction(for: category, configuration: configuration)
         return true
     }
@@ -244,10 +259,17 @@ struct HomeView: View {
     }
 
     private func completePendingStartAction(_ pending: PendingStartAction) {
-        startAction(for: pending.category, configuration: pending.configuration)
+        switch pending.nextStep {
+        case let .start(configuration, dismissSheet):
+            categoryClearedForSheet = nil
+            startAction(for: pending.category, configuration: configuration)
 
-        if pending.shouldDismissSheet {
-            presentedCategory = nil
+            if dismissSheet {
+                presentedCategory = nil
+            }
+        case .presentCategorySheet:
+            categoryClearedForSheet = pending.category
+            presentedCategory = pending.category
         }
     }
 }
@@ -452,11 +474,15 @@ private struct ActionConfiguration {
 }
 
 private struct PendingStartAction: Identifiable {
+    enum NextStep {
+        case start(configuration: ActionConfiguration, dismissSheet: Bool)
+        case presentCategorySheet
+    }
+
     let id = UUID()
     let category: BabyActionCategory
-    let configuration: ActionConfiguration
     let interruptedActionTitles: [String]
-    let shouldDismissSheet: Bool
+    let nextStep: NextStep
 }
 
 private protocol ActionTypeOption: Identifiable, Hashable {
