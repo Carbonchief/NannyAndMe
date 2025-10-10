@@ -3,12 +3,14 @@ import SwiftUI
 /// A sheet prompting the user to name the initial child profile on first launch.
 struct InitialProfileNamePromptView: View {
     let onContinue: (String) -> Void
+    let allowsDismissal: Bool
 
     @State private var name: String
     @FocusState private var isNameFieldFocused: Bool
 
-    init(initialName: String, onContinue: @escaping (String) -> Void) {
+    init(initialName: String, allowsDismissal: Bool, onContinue: @escaping (String) -> Void) {
         self.onContinue = onContinue
+        self.allowsDismissal = allowsDismissal
         _name = State(initialValue: initialName)
     }
 
@@ -59,7 +61,7 @@ struct InitialProfileNamePromptView: View {
                 isNameFieldFocused = true
             }
         }
-        .interactiveDismissDisabled()
+        .interactiveDismissDisabled(!allowsDismissal)
         .presentationDetents([.medium])
         .presentationDragIndicator(.hidden)
     }
@@ -72,5 +74,5 @@ struct InitialProfileNamePromptView: View {
 }
 
 #Preview {
-    InitialProfileNamePromptView(initialName: "") { _ in }
+    InitialProfileNamePromptView(initialName: "", allowsDismissal: true) { _ in }
 }
