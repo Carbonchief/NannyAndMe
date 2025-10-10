@@ -32,6 +32,7 @@
 "home.card.startedAt" = "Iniciado a las %@";
 "home.card.elapsed" = "Transcurrido: %@";
 "home.card.lastRun" = "Última ejecución %@";
+"home.card.loggedAt" = "Registrado a las %@";
 "home.card.lastRunWithDuration" = "Última ejecución %@ • %@";
 "home.sheet.newActionTitle" = "Nueva acción de %@";
 "home.bottle.presetLabel" = "%lld ml";

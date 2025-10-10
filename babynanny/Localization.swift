@@ -66,6 +66,11 @@ enum L10n {
             return String(format: format, locale: Locale.current, value)
         }
 
+        static func loggedAt(_ value: String) -> String {
+            let format = String(localized: "home.card.loggedAt", defaultValue: "Logged at %@")
+            return String(format: format, locale: Locale.current, value)
+        }
+
         static func lastRunWithDuration(_ value: String, _ duration: String) -> String {
             let format = String(
                 localized: "home.card.lastRunWithDuration",

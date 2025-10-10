@@ -270,7 +270,11 @@ private struct ActionCard: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
-                        if !lastCompleted.category.isInstant {
+                        if lastCompleted.category.isInstant {
+                            Text(L10n.Home.loggedAt(lastCompleted.loggedTimestampDescription()))
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        } else {
                             Text(lastCompleted.durationDescription())
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
