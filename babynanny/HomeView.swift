@@ -5,6 +5,7 @@
 //  Created by OpenAI Assistant on 2024/10/07.
 //
 
+import Foundation
 import SwiftUI
 
 struct HomeView: View {
@@ -12,6 +13,7 @@ struct HomeView: View {
     @EnvironmentObject private var actionStore: ActionLogStore
     @State private var presentedCategory: BabyActionCategory?
     @State private var editingAction: BabyAction?
+    @State private var pendingStartAction: PendingStartAction?
     private let onShowAllLogs: () -> Void
 
     init(onShowAllLogs: @escaping () -> Void = {}) {
@@ -70,10 +72,9 @@ struct HomeView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .sheet(item: $presentedCategory) { category in
             ActionDetailSheet(category: category) { configuration in
-                startAction(for: category,
-                             diaperType: configuration.diaperType,
-                             feedingType: configuration.feedingType,
-                             bottleVolume: configuration.bottleVolume)
+                requestStartAction(for: category,
+                                   configuration: configuration,
+                                   dismissingSheet: true)
             }
         }
         .sheet(item: $editingAction) { action in
@@ -84,6 +85,20 @@ struct HomeView: View {
                 actionStore.deleteAction(for: activeProfileID, actionID: actionToDelete.id)
                 editingAction = nil
             }
+        }
+        .alert(item: $pendingStartAction) { pending in
+            let runningList = ListFormatter.localizedString(byJoining: pending.interruptedActionTitles)
+            return Alert(
+                title: Text(L10n.Home.interruptionAlertTitle),
+                message: Text(L10n.Home.interruptionAlertMessage(pending.category.title, runningList)),
+                primaryButton: .destructive(Text(L10n.Home.interruptionAlertConfirm)) {
+                    completePendingStartAction(pending)
+                    pendingStartAction = nil
+                },
+                secondaryButton: .cancel {
+                    pendingStartAction = nil
+                }
+            )
         }
     }
 
@@ -165,21 +180,45 @@ struct HomeView: View {
     private func handleStartTap(for category: BabyActionCategory) {
         switch category {
         case .sleep:
-            startAction(for: .sleep)
+            _ = requestStartAction(for: .sleep,
+                                    configuration: .sleep,
+                                    dismissingSheet: false)
         case .diaper, .feeding:
             presentedCategory = category
         }
     }
 
-    private func startAction(for category: BabyActionCategory,
-                             diaperType: BabyAction.DiaperType? = nil,
-                             feedingType: BabyAction.FeedingType? = nil,
-                             bottleVolume: Int? = nil) {
+    @discardableResult
+    private func requestStartAction(for category: BabyActionCategory,
+                                    configuration: ActionConfiguration,
+                                    dismissingSheet: Bool) -> Bool {
+        if category.isInstant {
+            startAction(for: category, configuration: configuration)
+            return true
+        }
+
+        let interruptedTitles = interruptedActionTitles(for: category)
+
+        guard interruptedTitles.isEmpty else {
+            pendingStartAction = PendingStartAction(
+                category: category,
+                configuration: configuration,
+                interruptedActionTitles: interruptedTitles,
+                shouldDismissSheet: dismissingSheet
+            )
+            return false
+        }
+
+        startAction(for: category, configuration: configuration)
+        return true
+    }
+
+    private func startAction(for category: BabyActionCategory, configuration: ActionConfiguration) {
         actionStore.startAction(for: activeProfileID,
                                 category: category,
-                                diaperType: diaperType,
-                                feedingType: feedingType,
-                                bottleVolume: bottleVolume)
+                                diaperType: configuration.diaperType,
+                                feedingType: configuration.feedingType,
+                                bottleVolume: configuration.bottleVolume)
     }
 
     private func stopAction(for category: BabyActionCategory) {
@@ -192,6 +231,24 @@ struct HomeView: View {
 
     private var currentState: ProfileActionState {
         actionStore.state(for: activeProfileID)
+    }
+
+    private func interruptedActionTitles(for category: BabyActionCategory) -> [String] {
+        guard !category.isInstant else { return [] }
+
+        return currentState.activeActions.compactMap { element -> String? in
+            let (key, action) = element
+            guard !key.isInstant else { return nil }
+            return action.detailDescription
+        }
+    }
+
+    private func completePendingStartAction(_ pending: PendingStartAction) {
+        startAction(for: pending.category, configuration: pending.configuration)
+
+        if pending.shouldDismissSheet {
+            presentedCategory = nil
+        }
     }
 }
 
@@ -390,6 +447,16 @@ private struct ActionConfiguration {
     var diaperType: BabyAction.DiaperType?
     var feedingType: BabyAction.FeedingType?
     var bottleVolume: Int?
+
+    static let sleep = ActionConfiguration(diaperType: nil, feedingType: nil, bottleVolume: nil)
+}
+
+private struct PendingStartAction: Identifiable {
+    let id = UUID()
+    let category: BabyActionCategory
+    let configuration: ActionConfiguration
+    let interruptedActionTitles: [String]
+    let shouldDismissSheet: Bool
 }
 
 private protocol ActionTypeOption: Identifiable, Hashable {
@@ -696,7 +763,7 @@ struct ActionEditSheet: View {
 
 private struct ActionDetailSheet: View {
     let category: BabyActionCategory
-    let onStart: (ActionConfiguration) -> Void
+    let onStart: (ActionConfiguration) -> Bool
 
     @Environment(\.dismiss) private var dismiss
 
@@ -799,8 +866,11 @@ private struct ActionDetailSheet: View {
 
     private func startIfReady() {
         guard isStartDisabled == false else { return }
-        onStart(configuration)
-        dismiss()
+        let didStart = onStart(configuration)
+
+        if didStart {
+            dismiss()
+        }
     }
 
     private var isStartDisabled: Bool {
