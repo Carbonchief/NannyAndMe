@@ -147,6 +147,17 @@ struct BabyAction: Identifiable, Codable {
         return BabyActionFormatter.shared.format(dateTime: endDate)
     }
 
+    func loggedTimestampDescription(relativeTo referenceDate: Date = Date()) -> String {
+        let logDate = endDate ?? startDate
+        let calendar = Calendar.current
+
+        if calendar.isDate(logDate, inSameDayAs: referenceDate) {
+            return BabyActionFormatter.shared.format(time: logDate)
+        }
+
+        return BabyActionFormatter.shared.format(dateTime: logDate)
+    }
+
     func withValidatedDates() -> BabyAction {
         var copy = self
         if category.isInstant {
