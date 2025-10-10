@@ -472,7 +472,20 @@ final class ActionLogStore: ObservableObject {
 
     func updateAction(for profileID: UUID, action updatedAction: BabyAction) {
         updateState(for: profileID) { profileState in
-            let normalizedAction = updatedAction.withValidatedDates()
+            var normalizedAction = updatedAction.withValidatedDates()
+
+            let relatedHistory = profileState.history.filter {
+                $0.category == normalizedAction.category && $0.id != normalizedAction.id
+            }
+            let relatedActive = profileState.activeActions.values.filter {
+                $0.category == normalizedAction.category && $0.id != normalizedAction.id
+            }
+            let conflictingActions = relatedHistory + relatedActive
+
+            if !conflictingActions.isEmpty {
+                normalizedAction = Self.clamp(normalizedAction, avoiding: conflictingActions)
+            }
+
             if let index = profileState.history.firstIndex(where: { $0.id == updatedAction.id }) {
                 profileState.history[index] = normalizedAction
             }
@@ -498,6 +511,53 @@ final class ActionLogStore: ObservableObject {
                 profileState.activeActions.removeValue(forKey: category)
             }
         }
+    }
+
+    private static func clamp(_ action: BabyAction, avoiding conflicts: [BabyAction]) -> BabyAction {
+        guard !conflicts.isEmpty else { return action.withValidatedDates() }
+
+        func effectiveEndDate(for other: BabyAction) -> Date {
+            if let endDate = other.endDate {
+                return endDate
+            }
+
+            if other.category.isInstant {
+                return other.startDate
+            }
+
+            return .distantFuture
+        }
+
+        var adjustedStart = action.startDate
+
+        while true {
+            let lowerBound = conflicts
+                .filter { $0.startDate <= adjustedStart }
+                .map { effectiveEndDate(for: $0) }
+                .max()
+
+            guard let lowerBound, adjustedStart < lowerBound else { break }
+            adjustedStart = lowerBound
+        }
+
+        var adjustedAction = action
+        adjustedAction.startDate = adjustedStart
+
+        if let upperBound = conflicts
+            .filter({ $0.startDate >= adjustedStart })
+            .map({ $0.startDate })
+            .min()
+        {
+            if let currentEnd = adjustedAction.endDate {
+                if currentEnd > upperBound {
+                    adjustedAction.endDate = max(adjustedStart, upperBound)
+                }
+            } else if !adjustedAction.category.isInstant {
+                adjustedAction.endDate = max(adjustedStart, upperBound)
+            }
+        }
+
+        return adjustedAction.withValidatedDates()
     }
 
     func removeProfileData(for profileID: UUID) {
