@@ -27,179 +27,10 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section(header: Text(L10n.Profiles.title)) {
-                ForEach(profileStore.profiles) { profile in
-                    HStack(spacing: 16) {
-                        ProfileAvatarView(imageData: profile.imageData, size: 48)
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(profile.displayName)
-                                .font(.headline)
-                            Text(profile.birthDate, style: .date)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(profile.ageDescription())
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Spacer()
-
-                        if profile.id == profileStore.activeProfileID {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(Color.accentColor)
-                        }
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        profileStore.setActiveProfile(profile)
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            profilePendingDeletion = profile
-                        } label: {
-                            Label(L10n.Profiles.deleteAction, systemImage: "trash")
-                        }
-                    }
-                }
-
-                Button {
-                    profileStore.addProfile()
-                } label: {
-                    Label(L10n.Profiles.addProfile, systemImage: "plus")
-                }
-            }
-
-            Section(header: Text(L10n.Profiles.activeProfileSection)) {
-                HStack(alignment: .center, spacing: 16) {
-                    ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 72)
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        TextField(L10n.Profiles.childName, text: Binding(
-                            get: { profileStore.activeProfile.name },
-                            set: { newValue in
-                                profileStore.updateActiveProfile { $0.name = newValue }
-                            }
-                        ))
-                        .textInputAutocapitalization(.words)
-                        .disableAutocorrection(true)
-
-                        DatePicker(
-                            selection: Binding(
-                                get: { profileStore.activeProfile.birthDate },
-                                set: { newValue in
-                                    profileStore.updateActiveProfile { $0.birthDate = newValue }
-                                }
-                            ),
-                            in: Date.distantPast...Date(),
-                            displayedComponents: .date
-                        ) {
-                            Text(L10n.Profiles.birthDate)
-                        }
-                    }
-                }
-
-                PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
-                    Label(L10n.Profiles.choosePhoto, systemImage: "photo.on.rectangle")
-                }
-                .onChange(of: selectedPhoto) { _, newValue in
-                    photoLoadingTask?.cancel()
-                    guard let newValue else { return }
-
-                    isProcessingPhoto = true
-                    let requestID = UUID()
-                    activePhotoRequestID = requestID
-                    photoLoadingTask = Task {
-                        var loadedImage: UIImage?
-
-                        do {
-                            if let data = try await newValue.loadTransferable(type: Data.self),
-                               let image = UIImage(data: data) {
-                                loadedImage = image
-                            }
-                        } catch {
-                            // Ignore errors for now
-                        }
-
-                        if Task.isCancelled == false, let image = loadedImage {
-                            await MainActor.run {
-                                guard activePhotoRequestID == requestID else { return }
-                                pendingCrop = PendingCropImage(image: image)
-                            }
-                        }
-
-                        await MainActor.run {
-                            guard activePhotoRequestID == requestID else { return }
-                            selectedPhoto = nil
-                            isProcessingPhoto = false
-                            activePhotoRequestID = nil
-                            photoLoadingTask = nil
-                        }
-                    }
-                }
-
-                if isProcessingPhoto {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                        Text(L10n.Profiles.photoProcessing)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 4)
-                }
-
-                if profileStore.activeProfile.imageData != nil {
-                    Button(role: .destructive) {
-                        profileStore.updateActiveProfile { $0.imageData = nil }
-                    } label: {
-                        Label(L10n.Profiles.removePhoto, systemImage: "trash")
-                    }
-                }
-            }
-
-            Section(header: Text(L10n.Settings.notificationsSection)) {
-                Toggle(
-                    isOn: Binding(
-                        get: { profileStore.activeProfile.remindersEnabled },
-                        set: { newValue in
-                            isUpdatingReminders = true
-                            Task {
-                                let result = await profileStore.setRemindersEnabled(newValue)
-                                await MainActor.run {
-                                    isUpdatingReminders = false
-                                    refreshActionReminderSummaries()
-                                    if result == .authorizationDenied {
-                                        activeAlert = .notificationsSettings
-                                    }
-                                }
-                            }
-                        }
-                    )
-                ) {
-                    Text(L10n.Settings.enableReminders)
-                }
-                .disabled(isUpdatingReminders)
-
-                if profileStore.activeProfile.remindersEnabled {
-                    ForEach(BabyActionCategory.allCases) { category in
-                        actionReminderRow(for: category)
-                    }
-                } else {
-                    Text(L10n.Settings.nextReminderDisabled)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .padding(.vertical, 4)
-                }
-            }
-
-            Section(header: Text(L10n.Settings.aboutSection)) {
-                HStack {
-                    Text(L10n.Settings.appVersion)
-                    Spacer()
-                    Text("1.0")
-                        .foregroundStyle(.secondary)
-                }
-            }
+            profilesSection
+            activeProfileSection
+            notificationsSection
+            aboutSection
         }
         .navigationTitle(L10n.Settings.title)
         .alert(item: $activeAlert, content: makeAlert)
@@ -253,6 +84,221 @@ struct SettingsView: View {
                 pendingCrop = nil
             }
             .preferredColorScheme(.dark)
+        }
+    }
+
+    private var profilesSection: some View {
+        Section(header: Text(L10n.Profiles.title)) {
+            ForEach(profileStore.profiles) { profile in
+                profileRow(for: profile)
+            }
+
+            Button {
+                profileStore.addProfile()
+            } label: {
+                Label(L10n.Profiles.addProfile, systemImage: "plus")
+            }
+        }
+    }
+
+    private func profileRow(for profile: ChildProfile) -> some View {
+        HStack(spacing: 16) {
+            ProfileAvatarView(imageData: profile.imageData, size: 48)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(profile.displayName)
+                    .font(.headline)
+                Text(profile.birthDate, style: .date)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(profile.ageDescription())
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            if profile.id == profileStore.activeProfileID {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            profileStore.setActiveProfile(profile)
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) {
+                profilePendingDeletion = profile
+            } label: {
+                Label(L10n.Profiles.deleteAction, systemImage: "trash")
+            }
+        }
+    }
+
+    private var activeProfileSection: some View {
+        Section(header: Text(L10n.Profiles.activeProfileSection)) {
+            activeProfileHeader
+            profilePhotoPicker
+            processingPhotoIndicator
+            removePhotoButton
+        }
+    }
+
+    private var activeProfileHeader: some View {
+        HStack(alignment: .center, spacing: 16) {
+            ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 72)
+
+            VStack(alignment: .leading, spacing: 12) {
+                TextField(L10n.Profiles.childName, text: Binding(
+                    get: { profileStore.activeProfile.name },
+                    set: { newValue in
+                        profileStore.updateActiveProfile { $0.name = newValue }
+                    }
+                ))
+                .textInputAutocapitalization(.words)
+                .disableAutocorrection(true)
+
+                DatePicker(
+                    selection: Binding(
+                        get: { profileStore.activeProfile.birthDate },
+                        set: { newValue in
+                            profileStore.updateActiveProfile { $0.birthDate = newValue }
+                        }
+                    ),
+                    in: Date.distantPast...Date(),
+                    displayedComponents: .date
+                ) {
+                    Text(L10n.Profiles.birthDate)
+                }
+            }
+        }
+    }
+
+    private var profilePhotoPicker: some View {
+        PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
+            Label(L10n.Profiles.choosePhoto, systemImage: "photo.on.rectangle")
+        }
+        .onChange(of: selectedPhoto) { _, newValue in
+            handlePhotoSelectionChange(newValue)
+        }
+    }
+
+    private var processingPhotoIndicator: some View {
+        Group {
+            if isProcessingPhoto {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text(L10n.Profiles.photoProcessing)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
+            }
+        }
+    }
+
+    private var removePhotoButton: some View {
+        Group {
+            if profileStore.activeProfile.imageData != nil {
+                Button(role: .destructive) {
+                    profileStore.updateActiveProfile { $0.imageData = nil }
+                } label: {
+                    Label(L10n.Profiles.removePhoto, systemImage: "trash")
+                }
+            }
+        }
+    }
+
+    private var notificationsSection: some View {
+        Section(header: Text(L10n.Settings.notificationsSection)) {
+            remindersToggle
+
+            if profileStore.activeProfile.remindersEnabled {
+                ForEach(BabyActionCategory.allCases) { category in
+                    actionReminderRow(for: category)
+                }
+            } else {
+                Text(L10n.Settings.nextReminderDisabled)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 4)
+            }
+        }
+    }
+
+    private var remindersToggle: some View {
+        Toggle(
+            isOn: Binding(
+                get: { profileStore.activeProfile.remindersEnabled },
+                set: { newValue in
+                    handleReminderToggleChange(newValue)
+                }
+            )
+        ) {
+            Text(L10n.Settings.enableReminders)
+        }
+        .disabled(isUpdatingReminders)
+    }
+
+    private var aboutSection: some View {
+        Section(header: Text(L10n.Settings.aboutSection)) {
+            HStack {
+                Text(L10n.Settings.appVersion)
+                Spacer()
+                Text("1.0")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func handlePhotoSelectionChange(_ newValue: PhotosPickerItem?) {
+        photoLoadingTask?.cancel()
+        guard let newValue else { return }
+
+        isProcessingPhoto = true
+        let requestID = UUID()
+        activePhotoRequestID = requestID
+        photoLoadingTask = Task {
+            var loadedImage: UIImage?
+
+            do {
+                if let data = try await newValue.loadTransferable(type: Data.self),
+                   let image = UIImage(data: data) {
+                    loadedImage = image
+                }
+            } catch {
+                // Ignore errors for now
+            }
+
+            if Task.isCancelled == false, let image = loadedImage {
+                await MainActor.run {
+                    guard activePhotoRequestID == requestID else { return }
+                    pendingCrop = PendingCropImage(image: image)
+                }
+            }
+
+            await MainActor.run {
+                guard activePhotoRequestID == requestID else { return }
+                selectedPhoto = nil
+                isProcessingPhoto = false
+                activePhotoRequestID = nil
+                photoLoadingTask = nil
+            }
+        }
+    }
+
+    private func handleReminderToggleChange(_ newValue: Bool) {
+        isUpdatingReminders = true
+        Task {
+            let result = await profileStore.setRemindersEnabled(newValue)
+            await MainActor.run {
+                isUpdatingReminders = false
+                refreshActionReminderSummaries()
+                if result == .authorizationDenied {
+                    activeAlert = .notificationsSettings
+                }
+            }
         }
     }
 
