@@ -31,7 +31,6 @@ struct StatsView: View {
             .padding(24)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .navigationTitle(L10n.Stats.title)
         .onChange(of: profileStore.activeProfile.id) {
             selectedCategory = nil
         }
