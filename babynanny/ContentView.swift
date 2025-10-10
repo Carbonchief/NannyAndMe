@@ -134,7 +134,10 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $isInitialProfilePromptPresented) {
-            InitialProfileNamePromptView(initialName: profileStore.activeProfile.name) { newName in
+            InitialProfileNamePromptView(
+                initialName: profileStore.activeProfile.name,
+                allowsDismissal: profileStore.profiles.count > 1
+            ) { newName in
                 let trimmedName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard trimmedName.isEmpty == false else { return }
                 profileStore.updateActiveProfile { profile in
