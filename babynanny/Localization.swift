@@ -14,6 +14,29 @@ enum L10n {
         static let done = String(localized: "common.done", defaultValue: "Done")
     }
 
+    enum Onboarding {
+        static let profilePromptTitle = String(
+            localized: "onboarding.profilePrompt.title",
+            defaultValue: "Welcome to Nanny & Me"
+        )
+        static let profilePromptSubtitle = String(
+            localized: "onboarding.profilePrompt.subtitle",
+            defaultValue: "Let's start by naming your first profile."
+        )
+        static let profilePromptNameLabel = String(
+            localized: "onboarding.profilePrompt.nameLabel",
+            defaultValue: "Profile name"
+        )
+        static let profilePromptNamePlaceholder = String(
+            localized: "onboarding.profilePrompt.namePlaceholder",
+            defaultValue: "Enter a name"
+        )
+        static let profilePromptContinue = String(
+            localized: "onboarding.profilePrompt.continue",
+            defaultValue: "Continue"
+        )
+    }
+
     enum Home {
         static let recentActivity = String(localized: "home.recentActivity", defaultValue: "Recent Activity")
         static let recentActivityShowAll = String(localized: "home.recentActivity.showAll", defaultValue: "Show All")

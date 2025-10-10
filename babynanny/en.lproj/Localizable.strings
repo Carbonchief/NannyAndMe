@@ -5,6 +5,11 @@
 "common.log" = "Log";
 "common.cancel" = "Cancel";
 "common.done" = "Done";
+"onboarding.profilePrompt.title" = "Welcome to Nanny & Me";
+"onboarding.profilePrompt.subtitle" = "Let's start by naming your first profile.";
+"onboarding.profilePrompt.nameLabel" = "Profile name";
+"onboarding.profilePrompt.namePlaceholder" = "Enter a name";
+"onboarding.profilePrompt.continue" = "Continue";
 "home.recentActivity" = "Recent Activity";
 "home.recentActivity.showAll" = "Show All";
 "home.header.title" = "Last Action";
