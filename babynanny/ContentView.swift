@@ -10,6 +10,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @State private var selectedTab: Tab = .home
+    @State private var previousTab: Tab = .home
     @State private var isMenuVisible = false
     @State private var showSettings = false
     @State private var showAllLogs = false
@@ -19,18 +20,43 @@ struct ContentView: View {
     var body: some View {
         ZStack(alignment: .leading) {
             NavigationStack {
-                TabView(selection: $selectedTab) {
-                    HomeView(onShowAllLogs: { showAllLogs = true })
-                        .tag(Tab.home)
-                        .tabItem {
-                            Label(L10n.Tab.home, systemImage: Tab.home.icon)
-                        }
+                VStack(spacing: 0) {
+                    AnimatedTabContent(
+                        selectedTab: selectedTab,
+                        previousTab: previousTab,
+                        onShowAllLogs: { showAllLogs = true }
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                    StatsView()
-                        .tag(Tab.stats)
-                        .tabItem {
-                            Label(L10n.Tab.stats, systemImage: Tab.stats.icon)
+                    Divider()
+
+                    HStack(spacing: 0) {
+                        ForEach(Tab.allCases, id: \.self) { tab in
+                            Button {
+                                guard tab != selectedTab else { return }
+                                let oldValue = selectedTab
+                                previousTab = oldValue
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    selectedTab = tab
+                                }
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Image(systemName: tab.icon)
+                                        .font(.system(size: 18, weight: .semibold))
+
+                                    Text(tab.title)
+                                        .font(.footnote)
+                                }
+                                .padding(.vertical, 10)
+                                .foregroundStyle(selectedTab == tab ? Color.accentColor : Color.secondary)
+                                .frame(maxWidth: .infinity)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .frame(maxWidth: .infinity)
                         }
+                    }
+                    .background(.ultraThinMaterial)
                 }
                 .disabled(isMenuVisible)
                 .toolbar {
@@ -109,7 +135,42 @@ struct ContentView: View {
     }
 }
 
-private enum Tab: Hashable {
+private struct AnimatedTabContent: View {
+    let selectedTab: Tab
+    let previousTab: Tab
+    let onShowAllLogs: () -> Void
+
+    private var transition: AnyTransition {
+        guard selectedTab != previousTab else {
+            return .identity
+        }
+
+        let isForward = selectedTab.order > previousTab.order
+
+        return .asymmetric(
+            insertion: .move(edge: isForward ? .trailing : .leading),
+            removal: .move(edge: isForward ? .leading : .trailing)
+        )
+    }
+
+    var body: some View {
+        ZStack {
+            switch selectedTab {
+            case .home:
+                HomeView(onShowAllLogs: onShowAllLogs)
+                    .transition(transition)
+
+            case .stats:
+                StatsView()
+                    .transition(transition)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: selectedTab)
+        .background(Color(.systemBackground))
+    }
+}
+
+private enum Tab: Hashable, CaseIterable {
     case home
     case stats
 
@@ -128,6 +189,15 @@ private enum Tab: Hashable {
             return "house"
         case .stats:
             return "chart.bar"
+        }
+    }
+
+    var order: Int {
+        switch self {
+        case .home:
+            return 0
+        case .stats:
+            return 1
         }
     }
 }
