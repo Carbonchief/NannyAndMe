@@ -13,6 +13,7 @@ struct ShareDataView: View {
     @State private var alert: ShareDataAlert?
     @StateObject private var nearbyShareController = NearbyShareController()
     @State private var isPresentingNearbyBrowser = false
+    @State private var pendingNearbyAlert: ShareDataAlert?
 
     var body: some View {
         Form {
@@ -82,25 +83,41 @@ struct ShareDataView: View {
         }
         .sheet(isPresented: $isPresentingNearbyBrowser, onDismiss: {
             nearbyShareController.cancelSharing()
+            if let pendingAlert = pendingNearbyAlert {
+                alert = pendingAlert
+                pendingNearbyAlert = nil
+            }
         }) {
             NearbyShareBrowserView(controller: nearbyShareController)
         }
         .onReceive(nearbyShareController.resultPublisher) { result in
+            let wasPresentingBrowser = isPresentingNearbyBrowser
             isPresentingNearbyBrowser = false
+
+            let pendingAlert: ShareDataAlert?
             switch result.outcome {
             case let .success(peer, filename):
-                alert = ShareDataAlert(
+                pendingAlert = ShareDataAlert(
                     title: L10n.ShareData.Alert.nearbySuccessTitle,
                     message: L10n.ShareData.Alert.nearbySuccessMessage(filename, peer)
                 )
             case let .failure(message):
-                alert = ShareDataAlert(
+                pendingAlert = ShareDataAlert(
                     title: L10n.ShareData.Alert.nearbyFailureTitle,
                     message: message
                 )
             case .cancelled:
-                break
+                pendingAlert = nil
             }
+
+            if let pendingAlert {
+                if wasPresentingBrowser {
+                    pendingNearbyAlert = pendingAlert
+                } else {
+                    alert = pendingAlert
+                }
+            }
+
             nearbyShareController.clearLatestResult()
         }
     }
