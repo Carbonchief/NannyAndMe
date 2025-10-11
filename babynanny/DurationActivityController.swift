@@ -20,7 +20,6 @@ struct DurationActivityAttributes: ActivityAttributes {
     }
 
     var profileName: String?
-    var profileImageData: Data?
 }
 
 @available(iOS 17.0, *)
@@ -39,7 +38,7 @@ final class DurationActivityController {
 
     private init() {}
 
-    func update(for profileName: String?, profileImageData: Data?, actions: [BabyAction]) {
+    func update(for profileName: String?, actions: [BabyAction]) {
         guard #available(iOS 17.0, *) else { return }
 
         let authorization = ActivityAuthorizationInfo()
@@ -59,8 +58,7 @@ final class DurationActivityController {
         }
 
         if let activity,
-           activity.attributes.profileName != profileName ||
-           activity.attributes.profileImageData != profileImageData {
+           activity.attributes.profileName != profileName {
             endActivity()
         }
 
@@ -74,7 +72,7 @@ final class DurationActivityController {
                 await activity.update(using: contentState)
             }
         } else {
-            let attributes = DurationActivityAttributes(profileName: profileName, profileImageData: profileImageData)
+            let attributes = DurationActivityAttributes(profileName: profileName)
 
             do {
                 activity = try Activity<DurationActivityAttributes>.request(

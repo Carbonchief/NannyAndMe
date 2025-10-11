@@ -2,14 +2,13 @@ import Foundation
 
 struct DurationWidgetSnapshot: Equatable {
     var profileName: String?
-    var profileImageData: Data?
     var actions: [DurationWidgetAction]
 
     var hasActiveActions: Bool {
         actions.isEmpty == false
     }
 
-    static let empty = DurationWidgetSnapshot(profileName: nil, profileImageData: nil, actions: [])
+    static let empty = DurationWidgetSnapshot(profileName: nil, actions: [])
 
     static let placeholder: DurationWidgetSnapshot = {
         let now = Date()
@@ -31,7 +30,7 @@ struct DurationWidgetSnapshot: Equatable {
             feedingType: .bottle,
             bottleVolume: 120
         )
-        return DurationWidgetSnapshot(profileName: "Aria", profileImageData: nil, actions: [sleep, feeding])
+        return DurationWidgetSnapshot(profileName: "Aria", actions: [sleep, feeding])
     }()
 }
 
@@ -157,7 +156,6 @@ struct DurationDataStore {
 
         return DurationWidgetSnapshot(
             profileName: profile.displayName,
-            profileImageData: profile.imageData,
             actions: running
         )
     }

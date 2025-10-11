@@ -10,3 +10,4 @@
 "profile.new" = "New Profile";
 "formatter.justNow" = "Just now";
 "widget.duration.noActive" = "No active timers";
+"widget.duration.tracking" = "Currently tracking";
