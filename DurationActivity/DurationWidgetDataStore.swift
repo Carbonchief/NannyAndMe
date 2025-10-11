@@ -146,7 +146,7 @@ struct DurationDataStore {
             return nil
         }
 
-        let activeActions = actionState.profiles[activeProfileID]?.activeActions.values ?? []
+        let activeActions = Array(actionState.profiles[activeProfileID]?.activeActions.values ?? [:].values)
         let running = activeActions
             .filter { $0.category.isLongRunning && $0.endDate == nil }
             .sorted(by: { $0.startDate < $1.startDate })
