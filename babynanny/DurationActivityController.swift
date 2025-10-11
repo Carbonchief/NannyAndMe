@@ -30,78 +30,39 @@ enum DurationActivityCategory: String, Codable, Hashable {
 }
 
 @available(iOS 17.0, *)
-@MainActor
-final class DurationActivityController {
-    static let shared = DurationActivityController()
-
-    private var activity: Activity<DurationActivityAttributes>?
-
-    private init() {}
-
-    func update(for profileName: String?, actions: [BabyAction]) {
-        guard #available(iOS 17.0, *) else { return }
-
-        let authorization = ActivityAuthorizationInfo()
-        guard authorization.areActivitiesEnabled else {
-            endActivity()
-            return
-        }
-
-        let runningActions = actions
-            .filter { !$0.category.isInstant && $0.endDate == nil }
-            .sorted(by: { $0.startDate < $1.startDate })
-            .map(DurationActivityAttributes.ContentState.RunningAction.init)
-
-        guard runningActions.isEmpty == false else {
-            endActivity()
-            return
-        }
-
-        if let activity,
-           activity.attributes.profileName != profileName {
-            endActivity()
-        }
-
-        let contentState = DurationActivityAttributes.ContentState(
-            actions: runningActions,
-            updatedAt: Date()
+enum DurationActivityController {
+    static func request(
+        profileName: String?,
+        actions: [DurationActivityAttributes.ContentState.RunningAction]
+    ) async throws -> Activity<DurationActivityAttributes> {
+        let attributes = DurationActivityAttributes(profileName: profileName)
+        let content = DurationActivityAttributes.ContentState(actions: actions, updatedAt: Date())
+        return try Activity.request(
+            attributes: attributes,
+            content: .init(state: content, staleDate: nil),
+            pushType: nil
         )
+    }
 
-        if let activity {
-            Task {
-                await activity.update(using: contentState)
-            }
-        } else {
-            let attributes = DurationActivityAttributes(profileName: profileName)
-
-            do {
-                activity = try Activity<DurationActivityAttributes>.request(
-                    attributes: attributes,
-                    contentState: contentState,
-                    pushType: nil
-                )
-            } catch {
-                #if DEBUG
-                print("Failed to start DurationActivity: \(error.localizedDescription)")
-                #endif
-            }
+    static func updateAll(_ actions: [DurationActivityAttributes.ContentState.RunningAction]) async {
+        let state = DurationActivityAttributes.ContentState(actions: actions, updatedAt: Date())
+        for activity in Activity<DurationActivityAttributes>.activities {
+            await activity.update(.init(state: state, staleDate: nil))
         }
     }
 
-    func endActivity() {
-        guard #available(iOS 17.0, *) else { return }
-        guard let activity else { return }
-
-        Task {
-            await activity.end(dismissalPolicy: .immediate)
+    static func endAll() async {
+        for activity in Activity<DurationActivityAttributes>.activities {
+            await activity.end(
+                .init(state: activity.content.state, staleDate: nil),
+                dismissalPolicy: .immediate
+            )
         }
-
-        self.activity = nil
     }
 }
 
 @available(iOS 17.0, *)
-private extension DurationActivityAttributes.ContentState.RunningAction {
+extension DurationActivityAttributes.ContentState.RunningAction {
     init(action: BabyAction) {
         id = action.id
         category = DurationActivityCategory(rawValue: action.category.rawValue) ?? .sleep

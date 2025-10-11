@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(ActivityKit)
+import ActivityKit
+#endif
 
 struct BabyAction: Identifiable, Codable {
     enum DiaperType: String, CaseIterable, Identifiable, Codable {
@@ -611,16 +614,33 @@ final class ActionLogStore: ObservableObject {
 #if canImport(ActivityKit)
         guard #available(iOS 17.0, *) else { return }
 
-        let profile = profileStore?.profiles.first(where: { $0.id == profileID })
-        let profileName = profile?.displayName
-        let activeActions = Array(
-            storage.profiles[profileID]?.activeActions.values
-                ?? Dictionary<BabyActionCategory, BabyAction>().values
-        )
-        DurationActivityController.shared.update(
-            for: profileName,
-            actions: activeActions
-        )
+        let profileName = profileStore?.profiles.first(where: { $0.id == profileID })?.displayName
+        let activeActions = storage.profiles[profileID]?.activeActions.values ?? []
+        let running = activeActions
+            .filter { $0.endDate == nil && $0.category.isInstant == false }
+            .sorted(by: { $0.startDate < $1.startDate })
+            .map(DurationActivityAttributes.ContentState.RunningAction.init(action:))
+
+        RunningActionStore.save(running.map(RunningActionDTO.init))
+
+        let authorization = ActivityAuthorizationInfo()
+        guard authorization.areActivitiesEnabled else {
+            Task { await DurationActivityController.endAll() }
+            return
+        }
+
+        guard running.isEmpty == false else {
+            Task { await DurationActivityController.endAll() }
+            return
+        }
+
+        Task {
+            if Activity<DurationActivityAttributes>.activities.isEmpty {
+                _ = try? await DurationActivityController.request(profileName: profileName, actions: running)
+            } else {
+                await DurationActivityController.updateAll(running)
+            }
+        }
 #endif
     }
 

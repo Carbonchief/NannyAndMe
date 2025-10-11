@@ -98,11 +98,16 @@
 			path = babynannyTests;
 			sourceTree = "<group>";
 		};
-		EDD049AE2E93FE1E00795772 /* babynannyUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = babynannyUITests;
-			sourceTree = "<group>";
-		};
+                EDD049AE2E93FE1E00795772 /* babynannyUITests */ = {
+                        isa = PBXFileSystemSynchronizedRootGroup;
+                        path = babynannyUITests;
+                        sourceTree = "<group>";
+                };
+                EDDF00012EA0AA1100795772 /* Shared */ = {
+                        isa = PBXFileSystemSynchronizedRootGroup;
+                        path = Shared;
+                        sourceTree = "<group>";
+                };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -155,9 +160,10 @@
 				EDD049A42E93FE1E00795772 /* babynannyTests */,
 				EDD049AE2E93FE1E00795772 /* babynannyUITests */,
 				EDBCCD082E9A324500C65A0E /* DurationActivity */,
-				EDBCCD032E9A324500C65A0E /* Frameworks */,
-				EDD049922E93FE1A00795772 /* Products */,
-			);
+                                EDBCCD032E9A324500C65A0E /* Frameworks */,
+                                EDDF00012EA0AA1100795772 /* Shared */,
+                                EDD049922E93FE1A00795772 /* Products */,
+                        );
 			sourceTree = "<group>";
 		};
 		EDD049922E93FE1A00795772 /* Products */ = {
@@ -186,9 +192,10 @@
 			);
 			dependencies = (
 			);
-			fileSystemSynchronizedGroups = (
-				EDBCCD082E9A324500C65A0E /* DurationActivity */,
-			);
+                        fileSystemSynchronizedGroups = (
+                                EDBCCD082E9A324500C65A0E /* DurationActivity */,
+                                EDDF00012EA0AA1100795772 /* Shared */,
+                        );
 			name = DurationActivityExtension;
 			packageProductDependencies = (
 			);
@@ -210,9 +217,10 @@
 			dependencies = (
 				EDBCCD172E9A324800C65A0E /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				EDD049932E93FE1A00795772 /* babynanny */,
-			);
+                        fileSystemSynchronizedGroups = (
+                                EDD049932E93FE1A00795772 /* babynanny */,
+                                EDDF00012EA0AA1100795772 /* Shared */,
+                        );
 			name = babynanny;
 			packageProductDependencies = (
 			);
