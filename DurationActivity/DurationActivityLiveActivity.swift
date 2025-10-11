@@ -9,72 +9,210 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
+@available(iOS 17.0, *)
 struct DurationActivityAttributes: ActivityAttributes {
-    public struct ContentState: Codable, Hashable {
-        // Dynamic stateful properties about your activity go here!
-        var emoji: String
+    struct ContentState: Codable, Hashable {
+        struct RunningAction: Codable, Hashable, Identifiable {
+            var id: UUID
+            var category: DurationActivityCategory
+            var title: String
+            var subtitle: String?
+            var startDate: Date
+            var iconSystemName: String
+        }
+
+        var actions: [RunningAction]
+        var updatedAt: Date
     }
 
-    // Fixed non-changing properties about your activity go here!
-    var name: String
+    var profileName: String?
 }
 
+@available(iOS 17.0, *)
+enum DurationActivityCategory: String, Codable, Hashable {
+    case sleep
+    case diaper
+    case feeding
+}
+
+@available(iOS 17.0, *)
 struct DurationActivityLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: DurationActivityAttributes.self) { context in
-            // Lock screen/banner UI goes here
-            VStack {
-                Text("Hello \(context.state.emoji)")
-            }
-            .activityBackgroundTint(Color.cyan)
-            .activitySystemActionForegroundColor(Color.black)
-
+            DurationActivityLockScreenView(context: context)
+                .activityBackgroundTint(Color(.systemBackground))
+                .activitySystemActionForegroundColor(.accentColor)
         } dynamicIsland: { context in
             DynamicIsland {
-                // Expanded UI goes here.  Compose the expanded UI through
-                // various regions, like leading/trailing/center/bottom
                 DynamicIslandExpandedRegion(.leading) {
-                    Text("Leading")
+                    if let action = context.state.actions.first {
+                        DurationActivityIconView(action: action)
+                    }
                 }
+
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text("Trailing")
+                    if let action = context.state.actions.first {
+                        Text(action.startDate, style: .timer)
+                            .font(.title3)
+                            .monospacedDigit()
+                            .foregroundStyle(action.category.accentColor)
+                    }
                 }
+
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text("Bottom \(context.state.emoji)")
-                    // more content
+                    VStack(alignment: .leading, spacing: 8) {
+                        if let name = context.attributes.profileName, name.isEmpty == false {
+                            Text(name)
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                        }
+
+                        ForEach(context.state.actions.prefix(2)) { action in
+                            DurationActivityActionRow(action: action)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } compactLeading: {
-                Text("L")
+                if let action = context.state.actions.first {
+                    Image(systemName: action.iconSystemName)
+                        .font(.headline)
+                }
             } compactTrailing: {
-                Text("T \(context.state.emoji)")
+                if let action = context.state.actions.first {
+                    Text(action.startDate, style: .timer)
+                        .monospacedDigit()
+                        .font(.footnote)
+                }
             } minimal: {
-                Text(context.state.emoji)
+                if let action = context.state.actions.first {
+                    Image(systemName: action.iconSystemName)
+                }
             }
-            .widgetURL(URL(string: "http://www.apple.com"))
-            .keylineTint(Color.red)
         }
     }
 }
 
-extension DurationActivityAttributes {
-    fileprivate static var preview: DurationActivityAttributes {
-        DurationActivityAttributes(name: "World")
+@available(iOS 17.0, *)
+private struct DurationActivityLockScreenView: View {
+    let context: ActivityViewContext<DurationActivityAttributes>
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let profileName = context.attributes.profileName, profileName.isEmpty == false {
+                Text(profileName)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+            }
+
+            ForEach(context.state.actions.prefix(3)) { action in
+                DurationActivityActionRow(action: action)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
     }
 }
 
-extension DurationActivityAttributes.ContentState {
-    fileprivate static var smiley: DurationActivityAttributes.ContentState {
-        DurationActivityAttributes.ContentState(emoji: "😀")
-     }
-     
-     fileprivate static var starEyes: DurationActivityAttributes.ContentState {
-         DurationActivityAttributes.ContentState(emoji: "🤩")
-     }
+@available(iOS 17.0, *)
+private struct DurationActivityActionRow: View {
+    let action: DurationActivityAttributes.ContentState.RunningAction
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            DurationActivityIconView(action: action)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(action.title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.primary)
+
+                if let subtitle = action.subtitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text(action.startDate, style: .timer)
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(action.category.accentColor)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+@available(iOS 17.0, *)
+private struct DurationActivityIconView: View {
+    let action: DurationActivityAttributes.ContentState.RunningAction
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(action.category.accentColor.opacity(0.2))
+                .frame(width: 40, height: 40)
+
+            Image(systemName: action.iconSystemName)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(action.category.accentColor)
+        }
+    }
+}
+
+@available(iOS 17.0, *)
+private extension DurationActivityCategory {
+    var accentColor: Color {
+        switch self {
+        case .sleep:
+            return .indigo
+        case .diaper:
+            return .green
+        case .feeding:
+            return .orange
+        }
+    }
+}
+
+@available(iOS 17.0, *)
+private extension DurationActivityAttributes {
+    static var preview: DurationActivityAttributes {
+        DurationActivityAttributes(profileName: "Aria")
+    }
+}
+
+@available(iOS 17.0, *)
+private extension DurationActivityAttributes.ContentState {
+    static var preview: DurationActivityAttributes.ContentState {
+        let now = Date()
+        let sleep = RunningAction(
+            id: UUID(),
+            category: .sleep,
+            title: WidgetL10n.Actions.sleep,
+            subtitle: nil,
+            startDate: now.addingTimeInterval(-5400),
+            iconSystemName: "moon.zzz.fill"
+        )
+        let feeding = RunningAction(
+            id: UUID(),
+            category: .feeding,
+            title: WidgetL10n.Actions.feeding,
+            subtitle: WidgetL10n.Actions.feedingWithType(WidgetL10n.FeedingType.bottle),
+            startDate: now.addingTimeInterval(-1200),
+            iconSystemName: "takeoutbag.and.cup.and.straw.fill"
+        )
+
+        return DurationActivityAttributes.ContentState(
+            actions: [sleep, feeding],
+            updatedAt: now
+        )
+    }
 }
 
 #Preview("Notification", as: .content, using: DurationActivityAttributes.preview) {
-   DurationActivityLiveActivity()
+    DurationActivityLiveActivity()
 } contentStates: {
-    DurationActivityAttributes.ContentState.smiley
-    DurationActivityAttributes.ContentState.starEyes
+    DurationActivityAttributes.ContentState.preview
 }

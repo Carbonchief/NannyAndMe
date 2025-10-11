@@ -357,6 +357,8 @@ final class ActionLogStore: ObservableObject {
             }
         }
 
+        refreshDurationActivity(for: profileID)
+
         return summary
     }
 
@@ -460,6 +462,8 @@ final class ActionLogStore: ObservableObject {
                                     bottleVolume: bottleVolume)
             profileState.activeActions[category] = action
         }
+
+        refreshDurationActivity(for: profileID)
     }
 
     func stopAction(for profileID: UUID, category: BabyActionCategory) {
@@ -468,6 +472,8 @@ final class ActionLogStore: ObservableObject {
             action.endDate = Date()
             profileState.history.insert(action, at: 0)
         }
+
+        refreshDurationActivity(for: profileID)
     }
 
     func updateAction(for profileID: UUID, action updatedAction: BabyAction) {
@@ -496,6 +502,8 @@ final class ActionLogStore: ObservableObject {
                 break
             }
         }
+
+        refreshDurationActivity(for: profileID)
     }
 
     func deleteAction(for profileID: UUID, actionID: UUID) {
@@ -511,6 +519,8 @@ final class ActionLogStore: ObservableObject {
                 profileState.activeActions.removeValue(forKey: category)
             }
         }
+
+        refreshDurationActivity(for: profileID)
     }
 
     private static func clamp(_ action: BabyAction, avoiding conflicts: [BabyAction]) -> BabyAction {
@@ -564,6 +574,8 @@ final class ActionLogStore: ObservableObject {
         var profiles = storage.profiles
         guard profiles.removeValue(forKey: profileID) != nil else { return }
         storage = Self.sanitized(state: ActionStoreState(profiles: profiles))
+
+        refreshDurationActivity(for: profileID)
     }
 
     private func updateState(for profileID: UUID, _ updates: (inout ProfileActionState) -> Void) {
@@ -581,6 +593,16 @@ final class ActionLogStore: ObservableObject {
         }
         profiles[profileID] = profileState
         storage = ActionStoreState(profiles: profiles)
+    }
+
+    private func refreshDurationActivity(for profileID: UUID) {
+#if canImport(ActivityKit)
+        guard #available(iOS 17.0, *) else { return }
+
+        let profileName = profileStore?.profiles.first(where: { $0.id == profileID })?.displayName
+        let activeActions = storage.profiles[profileID]?.activeActions.values ?? []
+        DurationActivityController.shared.update(for: profileName, actions: Array(activeActions))
+#endif
     }
 
     private func persist() {
