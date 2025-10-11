@@ -29,9 +29,22 @@
 		EDD049AB2E93FE1E00795772 /* babynannyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = babynannyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		EDBCCCFD2E9A312E00C65A0E /* Exceptions for "babynanny" folder in "babynanny" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = EDD049902E93FE1A00795772 /* babynanny */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		EDD049932E93FE1A00795772 /* babynanny */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				EDBCCCFD2E9A312E00C65A0E /* Exceptions for "babynanny" folder in "babynanny" target */,
+			);
 			path = babynanny;
 			sourceTree = "<group>";
 		};
@@ -401,14 +414,14 @@
 				DEVELOPMENT_TEAM = 4X6WL3Y28W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = babynanny/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Nanny & Me";
-                                INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.medical";
-                                INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Nearby sharing uses Bluetooth to discover family devices.";
-                                INFOPLIST_KEY_NSBonjourServices = (
-                                        "_nannyshare._tcp",
-                                );
-                                INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Nearby sharing temporarily connects to nearby family devices on your local network.";
-                                INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.medical";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Nearby sharing uses Bluetooth to discover family devices.";
+				INFOPLIST_KEY_NSBonjourServices = _nannyshare._tcp;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Nearby sharing temporarily connects to nearby family devices on your local network.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -437,14 +450,14 @@
 				DEVELOPMENT_TEAM = 4X6WL3Y28W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = babynanny/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Nanny & Me";
-                                INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.medical";
-                                INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Nearby sharing uses Bluetooth to discover family devices.";
-                                INFOPLIST_KEY_NSBonjourServices = (
-                                        "_nannyshare._tcp",
-                                );
-                                INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Nearby sharing temporarily connects to nearby family devices on your local network.";
-                                INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.medical";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Nearby sharing uses Bluetooth to discover family devices.";
+				INFOPLIST_KEY_NSBonjourServices = _nannyshare._tcp;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Nearby sharing temporarily connects to nearby family devices on your local network.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
