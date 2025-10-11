@@ -420,6 +420,7 @@ final class ActionLogStore: ObservableObject {
     func registerProfileStore(_ store: ProfileStore) {
         profileStore = store
         scheduleReminders()
+        refreshDurationActivityOnLaunch()
     }
 
     var actionStatesSnapshot: [UUID: ProfileActionState] {
@@ -620,6 +621,23 @@ final class ActionLogStore: ObservableObject {
             for: profileName,
             actions: activeActions
         )
+#endif
+    }
+
+    private func refreshDurationActivityOnLaunch() {
+#if canImport(ActivityKit)
+        guard #available(iOS 17.0, *) else { return }
+
+        if let runningProfileID = storage.profiles.first(where: { _, state in
+            state.activeActions.values.contains(where: { $0.endDate == nil && $0.category.isInstant == false })
+        })?.key {
+            refreshDurationActivity(for: runningProfileID)
+            return
+        }
+
+        if let fallbackProfileID = profileStore?.activeProfileID ?? storage.profiles.keys.first {
+            refreshDurationActivity(for: fallbackProfileID)
+        }
 #endif
     }
 
