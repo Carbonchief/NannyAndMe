@@ -3,25 +3,25 @@ import Foundation
 @available(iOS 17.0, *)
 extension RunningActionDTO {
     init(_ source: DurationActivityAttributes.ContentState.RunningAction) {
-        self.id = source.id
-        self.category = source.category.rawValue
-        self.title = source.title
-        self.subtitle = source.subtitle
-        self.subtypeWord = source.subtypeWord
-        self.startDate = source.startDate
-        self.iconSystemName = source.iconSystemName
+        id = source.id
+        category = source.category.rawValue
+        title = source.title
+        subtitle = source.subtitle
+        subtypeWord = source.subtypeWord
+        startDate = source.startDate
+        iconSystemName = source.iconSystemName
     }
 }
 
 @available(iOS 17.0, *)
 extension DurationActivityAttributes.ContentState.RunningAction {
     init(_ dto: RunningActionDTO) {
-        self.id = dto.id
-        self.category = DurationActivityCategory(rawValue: dto.category) ?? .feeding
-        self.title = dto.title
-        self.subtitle = dto.subtitle
-        self.subtypeWord = dto.subtypeWord
-        self.startDate = dto.startDate
-        self.iconSystemName = dto.iconSystemName
+        id = dto.id
+        category = DurationActivityCategory(rawValue: dto.category) ?? .feeding
+        title = dto.title
+        subtitle = dto.subtitle
+        subtypeWord = dto.subtypeWord
+        startDate = dto.startDate
+        iconSystemName = dto.iconSystemName
     }
 }

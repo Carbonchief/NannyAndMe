@@ -7,30 +7,24 @@ struct StopRunningActionIntent: AppIntent {
     static var title: LocalizedStringResource = "Stop Running Action"
 
     @Parameter(title: "Action ID")
-    var actionID: String
+    var actionID: UUID
 
     private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "LiveActivities")
 
     init() {}
-    init(actionID: UUID) { self.actionID = actionID.uuidString }
+    init(actionID: UUID) { self.actionID = actionID }
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        logger.debug("StopRunningActionIntent invoked for id: \(self.actionID, privacy: .public)")
+        logger.debug("StopRunningActionIntent for id: \(self.actionID.uuidString, privacy: .public)")
 
-        guard let actionUUID = UUID(uuidString: actionID) else {
-            logger.error("Invalid action identifier supplied: \(self.actionID, privacy: .public)")
-            return .result()
-        }
+        var items = RunningActionStore.load()
+        let beforeCount = items.count
+        items.removeAll { $0.id == actionID }
+        logger.debug("Removed action? \(beforeCount != items.count)")
 
-        var current = RunningActionStore.load()
-        let beforeCount = current.count
-        current.removeAll { $0.id == actionUUID }
-        logger.debug("Removed action? \(beforeCount != current.count)")
-
-        RunningActionStore.save(current)
-
-        let mapped = current.map(DurationActivityAttributes.ContentState.RunningAction.init)
+        RunningActionStore.save(items)
+        let mapped = items.map(DurationActivityAttributes.ContentState.RunningAction.init)
 
         if mapped.isEmpty {
             await DurationActivityController.endAll()

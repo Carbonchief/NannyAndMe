@@ -1,4 +1,3 @@
-#if canImport(ActivityKit)
 import ActivityKit
 import Foundation
 
@@ -36,10 +35,10 @@ enum DurationActivityController {
         actions: [DurationActivityAttributes.ContentState.RunningAction]
     ) async throws -> Activity<DurationActivityAttributes> {
         let attributes = DurationActivityAttributes(profileName: profileName)
-        let content = DurationActivityAttributes.ContentState(actions: actions, updatedAt: Date())
+        let state = DurationActivityAttributes.ContentState(actions: actions, updatedAt: Date())
         return try Activity.request(
             attributes: attributes,
-            content: .init(state: content, staleDate: nil),
+            content: .init(state: state, staleDate: nil),
             pushType: nil
         )
     }
@@ -75,4 +74,3 @@ extension DurationActivityAttributes.ContentState.RunningAction {
         iconSystemName = action.icon
     }
 }
-#endif

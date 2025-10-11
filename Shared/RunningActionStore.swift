@@ -30,7 +30,8 @@ enum RunningActionStore {
     static func save(_ items: [RunningActionDTO]) {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.withoutEscapingSlashes]
-        let data = try? encoder.encode(items)
-        try? data?.write(to: url, options: [.atomic])
+        if let data = try? encoder.encode(items) {
+            try? data.write(to: url, options: [.atomic])
+        }
     }
 }
