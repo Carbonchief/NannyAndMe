@@ -52,7 +52,7 @@ struct DurationWidgetAction: Identifiable, Codable, Equatable {
     let id: UUID
     let category: BabyActionCategory
     let startDate: Date
-    let endDate: Date?
+    var endDate: Date?
     let diaperType: DiaperType?
     let feedingType: FeedingType?
     let bottleVolume: Int?
