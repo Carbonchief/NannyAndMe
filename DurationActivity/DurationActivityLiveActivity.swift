@@ -62,7 +62,7 @@ struct DurationActivityLiveActivity: Widget {
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 10) {
                         DurationActivityHeaderView(
                             profileName: context.attributes.profileName,
                             accentColor: context.primaryAccentColor,
@@ -74,10 +74,10 @@ struct DurationActivityLiveActivity: Widget {
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 10)
                     .background(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
                             .fill(
                                 LinearGradient(
                                     colors: [
@@ -89,7 +89,7 @@ struct DurationActivityLiveActivity: Widget {
                                 )
                             )
                             .overlay(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
                                     .stroke(context.primaryAccentColor.opacity(0.15), lineWidth: 1)
                             )
                     )
@@ -198,13 +198,13 @@ private struct DurationActivityActionRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 14) {
+        HStack(alignment: .center, spacing: 12) {
             DurationActivityIconView(action: action)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(action.title)
-                        .font(.subheadline)
+                        .font(.footnote)
                         .fontWeight(.semibold)
                         .foregroundStyle(.primary)
 
@@ -225,12 +225,12 @@ private struct DurationActivityActionRow: View {
 
                 if let subtitle = action.subtitle {
                     Text(subtitle)
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
 
                 Text(action.startDate, style: .timer)
-                    .font(.caption)
+                    .font(.caption2)
                     .monospacedDigit()
                     .foregroundStyle(action.category.accentColor)
             }
@@ -247,10 +247,10 @@ private struct DurationActivityActionRow: View {
                 .tint(action.category.accentColor)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(action.category.accentColor.opacity(0.08))
         )
     }
@@ -273,7 +273,7 @@ private struct DurationActivityIconView: View {
                         endPoint: .bottomTrailing
                     )
                 )
-                .frame(width: 44, height: 44)
+                .frame(width: 40, height: 40)
                 .shadow(color: action.category.accentColor.opacity(0.2), radius: 6, x: 0, y: 4)
 
             Image(systemName: action.iconSystemName)
