@@ -600,7 +600,10 @@ final class ActionLogStore: ObservableObject {
         guard #available(iOS 17.0, *) else { return }
 
         let profileName = profileStore?.profiles.first(where: { $0.id == profileID })?.displayName
-        let activeActions = Array(storage.profiles[profileID]?.activeActions.values ?? [])
+        let activeActions = Array(
+            storage.profiles[profileID]?.activeActions.values
+                ?? Dictionary<BabyActionCategory, BabyAction>().values
+        )
         DurationActivityController.shared.update(for: profileName, actions: activeActions)
 #endif
     }
