@@ -54,17 +54,28 @@ struct DurationActivityLiveActivity: Widget {
 
                 DynamicIslandExpandedRegion(.trailing) {
                     if let action = context.state.actions.first {
-                        Text(action.startDate, style: .timer)
-                            .font(.title3)
-                            .monospacedDigit()
+                        HStack(spacing: 12) {
+                            Button(intent: StopRunningActionIntent(actionID: action.id)) {
+                                Image(systemName: "stop.circle.fill")
+                                    .font(.title2)
+                            }
+                            .buttonStyle(.plain)
                             .foregroundStyle(action.category.accentColor)
+
+                            Spacer(minLength: 0)
+
+                            Text(action.startDate, style: .timer)
+                                .font(.title3)
+                                .monospacedDigit()
+                                .foregroundStyle(action.category.accentColor)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                     }
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 10) {
                         DurationActivityHeaderView(
-                            profileName: context.attributes.profileName,
                             accentColor: context.primaryAccentColor,
                             spacingStyle: .compact
                         )
@@ -150,7 +161,6 @@ private struct DurationActivityLockScreenView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             DurationActivityHeaderView(
-                profileName: context.attributes.profileName,
                 accentColor: context.primaryAccentColor,
                 spacingStyle: .regular
             )
@@ -290,7 +300,6 @@ private struct DurationActivityHeaderView: View {
         case regular
     }
 
-    let profileName: String?
     let accentColor: Color
     var spacingStyle: SpacingStyle
 
@@ -315,13 +324,6 @@ private struct DurationActivityHeaderView: View {
                     Capsule()
                         .fill(accentColor.opacity(0.18))
                 )
-
-            if let profileName, profileName.isEmpty == false {
-                Text(profileName)
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.primary)
-            }
         }
     }
 }

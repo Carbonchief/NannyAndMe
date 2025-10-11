@@ -70,14 +70,6 @@ struct DurationActivityEntryView: View {
         Array(entry.snapshot.actions.prefix(maxVisibleActions))
     }
 
-    private var showProfileName: Bool {
-        guard let name = entry.snapshot.profileName, name.isEmpty == false else { return false }
-        if family == .systemSmall && visibleActions.isEmpty == false {
-            return false
-        }
-        return true
-    }
-
     private var durationFont: Font {
         switch family {
         case .systemSmall:
@@ -91,13 +83,6 @@ struct DurationActivityEntryView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if showProfileName, let profileName = entry.snapshot.profileName {
-                Text(profileName)
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .lineLimit(1)
-            }
-
             if visibleActions.isEmpty {
                 Text(WidgetL10n.Duration.noActiveTimers)
                     .font(.subheadline)
