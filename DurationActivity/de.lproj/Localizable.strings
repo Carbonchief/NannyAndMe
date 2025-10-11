@@ -1,0 +1,11 @@
+"actions.sleep" = "Schlaf";
+"actions.feeding" = "Füttern";
+"actions.feeding.bottle" = "Flasche (%lld ml)";
+"actions.feeding.withType" = "%@";
+"feeding.bottle" = "Flasche";
+"feeding.leftBreast" = "Linke Brust";
+"feeding.rightBreast" = "Rechte Brust";
+"feeding.meal" = "Mahlzeit";
+"profile.new" = "Neues Profil";
+"formatter.justNow" = "Gerade eben";
+"widget.duration.noActive" = "Keine aktiven Timer";

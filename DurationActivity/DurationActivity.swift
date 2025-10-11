@@ -9,49 +9,123 @@ import WidgetKit
 import SwiftUI
 
 struct Provider: AppIntentTimelineProvider {
+    private let dataStore = DurationDataStore()
+
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), configuration: ConfigurationAppIntent())
+        SimpleEntry(
+            date: Date(),
+            configuration: ConfigurationAppIntent(),
+            snapshot: .placeholder
+        )
     }
 
     func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
-        SimpleEntry(date: Date(), configuration: configuration)
+        let snapshot = dataStore.loadSnapshot() ?? .placeholder
+        return SimpleEntry(date: Date(), configuration: configuration, snapshot: snapshot)
     }
-    
-    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
-        var entries: [SimpleEntry] = []
 
-        // Generate a timeline consisting of five entries an hour apart, starting from the current date.
-        let currentDate = Date()
-        for hourOffset in 0 ..< 5 {
-            let entryDate = Calendar.current.date(byAdding: .hour, value: hourOffset, to: currentDate)!
-            let entry = SimpleEntry(date: entryDate, configuration: configuration)
-            entries.append(entry)
+    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
+        let now = Date()
+        let snapshot = dataStore.loadSnapshot() ?? .empty
+        let entryCount = snapshot.hasActiveActions ? 60 : 1
+
+        var entries: [SimpleEntry] = []
+        for minute in 0 ..< entryCount {
+            guard let entryDate = Calendar.current.date(byAdding: .minute, value: minute, to: now) else { continue }
+            entries.append(SimpleEntry(date: entryDate, configuration: configuration, snapshot: snapshot))
         }
 
-        return Timeline(entries: entries, policy: .atEnd)
-    }
+        if entries.isEmpty {
+            entries.append(SimpleEntry(date: now, configuration: configuration, snapshot: snapshot))
+        }
 
-//    func relevances() async -> WidgetRelevances<ConfigurationAppIntent> {
-//        // Generate a list containing the contexts this widget is relevant in.
-//    }
+        let reloadInterval: TimeInterval = snapshot.hasActiveActions ? 10 * 60 : 15 * 60
+        let reloadDate = now.addingTimeInterval(reloadInterval)
+        return Timeline(entries: entries, policy: .after(reloadDate))
+    }
 }
 
 struct SimpleEntry: TimelineEntry {
     let date: Date
     let configuration: ConfigurationAppIntent
+    let snapshot: DurationWidgetSnapshot
 }
 
-struct DurationActivityEntryView : View {
+struct DurationActivityEntryView: View {
+    @Environment(\.widgetFamily) private var family
     var entry: Provider.Entry
 
-    var body: some View {
-        VStack {
-            Text("Time:")
-            Text(entry.date, style: .time)
-
-            Text("Favorite Emoji:")
-            Text(entry.configuration.favoriteEmoji)
+    private var maxVisibleActions: Int {
+        switch family {
+        case .systemSmall:
+            return 1
+        case .systemMedium:
+            return 2
+        default:
+            return 3
         }
+    }
+
+    private var visibleActions: [DurationWidgetAction] {
+        Array(entry.snapshot.actions.prefix(maxVisibleActions))
+    }
+
+    private var showProfileName: Bool {
+        guard let name = entry.snapshot.profileName, name.isEmpty == false else { return false }
+        if family == .systemSmall && visibleActions.isEmpty == false {
+            return false
+        }
+        return true
+    }
+
+    private var durationFont: Font {
+        switch family {
+        case .systemSmall:
+            return .title3
+        case .systemMedium:
+            return .title3
+        default:
+            return .title2
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if showProfileName, let profileName = entry.snapshot.profileName {
+                Text(profileName)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
+            }
+
+            if visibleActions.isEmpty {
+                Text(WidgetL10n.Duration.noActiveTimers)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
+            } else {
+                ForEach(visibleActions) { action in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(action.displayTitle)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .lineLimit(1)
+
+                        Text(action.durationDescription(asOf: entry.date))
+                            .font(durationFont)
+                            .fontWeight(.semibold)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.clear)
     }
 }
 
@@ -72,7 +146,7 @@ extension ConfigurationAppIntent {
         intent.favoriteEmoji = "😀"
         return intent
     }
-    
+
     fileprivate static var starEyes: ConfigurationAppIntent {
         let intent = ConfigurationAppIntent()
         intent.favoriteEmoji = "🤩"
@@ -80,9 +154,9 @@ extension ConfigurationAppIntent {
     }
 }
 
-#Preview(as: .systemSmall) {
+#Preview(as: .systemMedium) {
     DurationActivity()
 } timeline: {
-    SimpleEntry(date: .now, configuration: .smiley)
-    SimpleEntry(date: .now, configuration: .starEyes)
+    SimpleEntry(date: .now, configuration: .smiley, snapshot: .placeholder)
+    SimpleEntry(date: .now.addingTimeInterval(300), configuration: .smiley, snapshot: .placeholder)
 }
