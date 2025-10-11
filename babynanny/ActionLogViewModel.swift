@@ -128,6 +128,17 @@ struct BabyAction: Identifiable, Codable {
         }
     }
 
+    var subtypeWord: String? {
+        switch category {
+        case .sleep:
+            return nil
+        case .diaper:
+            return diaperType?.title
+        case .feeding:
+            return feedingType?.title
+        }
+    }
+
     func durationDescription(asOf referenceDate: Date = Date()) -> String {
         let endReference = endDate ?? referenceDate
         let duration = endReference.timeIntervalSince(startDate)
