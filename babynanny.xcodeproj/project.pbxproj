@@ -6,7 +6,20 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		EDBCCD052E9A324500C65A0E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBCCD042E9A324500C65A0E /* WidgetKit.framework */; };
+		EDBCCD072E9A324500C65A0E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBCCD062E9A324500C65A0E /* SwiftUI.framework */; };
+		EDBCCD182E9A324800C65A0E /* DurationActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EDBCCD022E9A324500C65A0E /* DurationActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
+		EDBCCD162E9A324800C65A0E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EDD049892E93FE1A00795772 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EDBCCD012E9A324500C65A0E;
+			remoteInfo = DurationActivityExtension;
+		};
 		EDD049A22E93FE1E00795772 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = EDD049892E93FE1A00795772 /* Project object */;
@@ -23,7 +36,24 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		EDBCCD1D2E9A324800C65A0E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				EDBCCD182E9A324800C65A0E /* DurationActivityExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		EDBCCD022E9A324500C65A0E /* DurationActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DurationActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		EDBCCD042E9A324500C65A0E /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		EDBCCD062E9A324500C65A0E /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		EDD049912E93FE1A00795772 /* babynanny.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = babynanny.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EDD049A12E93FE1E00795772 /* babynannyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = babynannyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EDD049AB2E93FE1E00795772 /* babynannyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = babynannyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -37,9 +67,24 @@
 			);
 			target = EDD049902E93FE1A00795772 /* babynanny */;
 		};
+		EDBCCD1C2E9A324800C65A0E /* Exceptions for "DurationActivity" folder in "DurationActivityExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = EDBCCD012E9A324500C65A0E /* DurationActivityExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		EDBCCD082E9A324500C65A0E /* DurationActivity */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				EDBCCD1C2E9A324800C65A0E /* Exceptions for "DurationActivity" folder in "DurationActivityExtension" target */,
+			);
+			path = DurationActivity;
+			sourceTree = "<group>";
+		};
 		EDD049932E93FE1A00795772 /* babynanny */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -61,6 +106,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		EDBCCCFF2E9A324500C65A0E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EDBCCD072E9A324500C65A0E /* SwiftUI.framework in Frameworks */,
+				EDBCCD052E9A324500C65A0E /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EDD0498E2E93FE1A00795772 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -85,12 +139,23 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		EDBCCD032E9A324500C65A0E /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				EDBCCD042E9A324500C65A0E /* WidgetKit.framework */,
+				EDBCCD062E9A324500C65A0E /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		EDD049882E93FE1A00795772 = {
 			isa = PBXGroup;
 			children = (
 				EDD049932E93FE1A00795772 /* babynanny */,
 				EDD049A42E93FE1E00795772 /* babynannyTests */,
 				EDD049AE2E93FE1E00795772 /* babynannyUITests */,
+				EDBCCD082E9A324500C65A0E /* DurationActivity */,
+				EDBCCD032E9A324500C65A0E /* Frameworks */,
 				EDD049922E93FE1A00795772 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -101,6 +166,7 @@
 				EDD049912E93FE1A00795772 /* babynanny.app */,
 				EDD049A12E93FE1E00795772 /* babynannyTests.xctest */,
 				EDD049AB2E93FE1E00795772 /* babynannyUITests.xctest */,
+				EDBCCD022E9A324500C65A0E /* DurationActivityExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -108,6 +174,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		EDBCCD012E9A324500C65A0E /* DurationActivityExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EDBCCD192E9A324800C65A0E /* Build configuration list for PBXNativeTarget "DurationActivityExtension" */;
+			buildPhases = (
+				EDBCCCFE2E9A324500C65A0E /* Sources */,
+				EDBCCCFF2E9A324500C65A0E /* Frameworks */,
+				EDBCCD002E9A324500C65A0E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				EDBCCD082E9A324500C65A0E /* DurationActivity */,
+			);
+			name = DurationActivityExtension;
+			packageProductDependencies = (
+			);
+			productName = DurationActivityExtension;
+			productReference = EDBCCD022E9A324500C65A0E /* DurationActivityExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		EDD049902E93FE1A00795772 /* babynanny */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = EDD049B52E93FE1E00795772 /* Build configuration list for PBXNativeTarget "babynanny" */;
@@ -115,10 +203,12 @@
 				EDD0498D2E93FE1A00795772 /* Sources */,
 				EDD0498E2E93FE1A00795772 /* Frameworks */,
 				EDD0498F2E93FE1A00795772 /* Resources */,
+				EDBCCD1D2E9A324800C65A0E /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				EDBCCD172E9A324800C65A0E /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				EDD049932E93FE1A00795772 /* babynanny */,
@@ -186,6 +276,9 @@
 				LastSwiftUpdateCheck = 1620;
 				LastUpgradeCheck = 1620;
 				TargetAttributes = {
+					EDBCCD012E9A324500C65A0E = {
+						CreatedOnToolsVersion = 16.2;
+					};
 					EDD049902E93FE1A00795772 = {
 						CreatedOnToolsVersion = 16.2;
 					};
@@ -218,11 +311,19 @@
 				EDD049902E93FE1A00795772 /* babynanny */,
 				EDD049A02E93FE1E00795772 /* babynannyTests */,
 				EDD049AA2E93FE1E00795772 /* babynannyUITests */,
+				EDBCCD012E9A324500C65A0E /* DurationActivityExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		EDBCCD002E9A324500C65A0E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EDD0498F2E93FE1A00795772 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -247,6 +348,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		EDBCCCFE2E9A324500C65A0E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EDD0498D2E93FE1A00795772 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -271,6 +379,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		EDBCCD172E9A324800C65A0E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EDBCCD012E9A324500C65A0E /* DurationActivityExtension */;
+			targetProxy = EDBCCD162E9A324800C65A0E /* PBXContainerItemProxy */;
+		};
 		EDD049A32E93FE1E00795772 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = EDD049902E93FE1A00795772 /* babynanny */;
@@ -284,6 +397,60 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		EDBCCD1A2E9A324800C65A0E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4X6WL3Y28W;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DurationActivity/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DurationActivity;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.prioritybit.babynanny.DurationActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		EDBCCD1B2E9A324800C65A0E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4X6WL3Y28W;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DurationActivity/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DurationActivity;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.prioritybit.babynanny.DurationActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		EDD049B32E93FE1E00795772 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -550,6 +717,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		EDBCCD192E9A324800C65A0E /* Build configuration list for PBXNativeTarget "DurationActivityExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EDBCCD1A2E9A324800C65A0E /* Debug */,
+				EDBCCD1B2E9A324800C65A0E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		EDD0498C2E93FE1A00795772 /* Build configuration list for PBXProject "babynanny" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
