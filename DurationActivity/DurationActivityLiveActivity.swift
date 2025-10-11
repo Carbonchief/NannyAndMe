@@ -6,8 +6,12 @@
 //
 
 import ActivityKit
+import AppIntents
 import WidgetKit
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 @available(iOS 17.0, *)
 struct DurationActivityAttributes: ActivityAttributes {
@@ -27,6 +31,7 @@ struct DurationActivityAttributes: ActivityAttributes {
     }
 
     var profileName: String?
+    var profileImageData: Data?
 }
 
 @available(iOS 17.0, *)
@@ -41,8 +46,8 @@ struct DurationActivityLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: DurationActivityAttributes.self) { context in
             DurationActivityLockScreenView(context: context)
-                .activityBackgroundTint(Color(.systemBackground))
-                .activitySystemActionForegroundColor(.accentColor)
+                .activityBackgroundTint(context.primaryAccentColor.opacity(0.12))
+                .activitySystemActionForegroundColor(context.primaryAccentColor)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -61,7 +66,9 @@ struct DurationActivityLiveActivity: Widget {
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        DurationActivityProfileAvatarView(imageData: context.attributes.profileImageData, size: 44)
+
                         if let name = context.attributes.profileName, name.isEmpty == false {
                             Text(name)
                                 .font(.headline)
@@ -69,10 +76,16 @@ struct DurationActivityLiveActivity: Widget {
                         }
 
                         ForEach(context.state.actions.prefix(2)) { action in
-                            DurationActivityActionRow(action: action)
+                            DurationActivityActionRow(action: action, showsStopButton: true)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(context.primaryAccentColor.opacity(0.12))
+                    )
                 }
             } compactLeading: {
                 if let action = context.state.actions.first {
@@ -118,6 +131,7 @@ struct DurationActivityLiveActivity: Widget {
                     }
                 }
             }
+            .keylineTint(context.primaryAccentColor)
         }
     }
 }
@@ -128,6 +142,8 @@ private struct DurationActivityLockScreenView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            DurationActivityProfileAvatarView(imageData: context.attributes.profileImageData, size: 48)
+
             if let profileName = context.attributes.profileName, profileName.isEmpty == false {
                 Text(profileName)
                     .font(.headline)
@@ -135,17 +151,22 @@ private struct DurationActivityLockScreenView: View {
             }
 
             ForEach(context.state.actions.prefix(3)) { action in
-                DurationActivityActionRow(action: action)
+                DurationActivityActionRow(action: action, showsStopButton: true)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(context.primaryAccentColor.opacity(0.12))
+        )
     }
 }
 
 @available(iOS 17.0, *)
 private struct DurationActivityActionRow: View {
     let action: DurationActivityAttributes.ContentState.RunningAction
+    let showsStopButton: Bool
 
     private var highlightedSubtype: String? {
         guard let subtype = action.subtypeWord, subtype.isEmpty == false else { return nil }
@@ -197,7 +218,47 @@ private struct DurationActivityActionRow: View {
             }
 
             Spacer(minLength: 0)
+
+            if showsStopButton {
+                Button(intent: StopRunningActionIntent(actionID: action.id)) {
+                    Label(WidgetL10n.Common.stop, systemImage: "stop.circle.fill")
+                        .font(.caption)
+                        .labelStyle(.titleAndIcon)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(action.category.accentColor)
+            }
         }
+    }
+}
+
+@available(iOS 17.0, *)
+private struct DurationActivityProfileAvatarView: View {
+    let imageData: Data?
+    var size: CGFloat
+
+    private var avatarImage: Image {
+        #if canImport(UIKit)
+        if let imageData,
+           let uiImage = UIImage(data: imageData) {
+            return Image(uiImage: uiImage)
+        }
+        #endif
+
+        return Image(systemName: "person.crop.circle.fill")
+    }
+
+    var body: some View {
+        avatarImage
+            .resizable()
+            .scaledToFill()
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+            .overlay(
+                Circle()
+                    .strokeBorder(Color.white.opacity(0.3), lineWidth: 1)
+            )
+            .shadow(radius: 2, x: 0, y: 1)
     }
 }
 
@@ -233,9 +294,16 @@ private extension DurationActivityCategory {
 }
 
 @available(iOS 17.0, *)
+private extension ActivityViewContext where Attributes == DurationActivityAttributes {
+    var primaryAccentColor: Color {
+        state.actions.first?.category.accentColor ?? .accentColor
+    }
+}
+
+@available(iOS 17.0, *)
 private extension DurationActivityAttributes {
     static var preview: DurationActivityAttributes {
-        DurationActivityAttributes(profileName: "Aria")
+        DurationActivityAttributes(profileName: "Aria", profileImageData: nil)
     }
 }
 
