@@ -6,19 +6,23 @@ struct StopRunningActionIntent: AppIntent {
     static let title: LocalizedStringResource = "Stop Action"
 
     @Parameter(title: "Action Identifier")
-    var actionID: UUID
+    var actionID: String
 
     init() {}
 
     init(actionID: UUID) {
-        self.actionID = actionID
+        self.actionID = actionID.uuidString
     }
 
     func perform() async throws -> some IntentResult {
         let dataStore = DurationDataStore()
 
         do {
-            try dataStore.stopAction(withID: actionID)
+            guard let uuid = UUID(uuidString: actionID) else {
+                return .result()
+            }
+
+            try dataStore.stopAction(withID: uuid)
         } catch DurationDataStore.StopActionError.actionNotFound {
             return .result()
         } catch DurationDataStore.StopActionError.stateUnavailable {
