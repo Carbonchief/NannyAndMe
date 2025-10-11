@@ -17,6 +17,7 @@ struct DurationActivityAttributes: ActivityAttributes {
             var category: DurationActivityCategory
             var title: String
             var subtitle: String?
+            var subtypeWord: String?
             var startDate: Date
             var iconSystemName: String
         }
@@ -80,13 +81,41 @@ struct DurationActivityLiveActivity: Widget {
                 }
             } compactTrailing: {
                 if let action = context.state.actions.first {
-                    Text(action.startDate, style: .timer)
-                        .monospacedDigit()
-                        .font(.footnote)
+                    VStack(spacing: 2) {
+                        if let subtypeWord = action.subtypeWord, subtypeWord.isEmpty == false {
+                            Text(subtypeWord)
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .minimumScaleFactor(0.6)
+                                .lineLimit(1)
+                                .foregroundStyle(action.category.accentColor)
+                        }
+
+                        Text(action.startDate, style: .timer)
+                            .monospacedDigit()
+                            .font(.footnote)
+                    }
                 }
             } minimal: {
                 if let action = context.state.actions.first {
-                    Image(systemName: action.iconSystemName)
+                    ZStack {
+                        Circle()
+                            .fill(action.category.accentColor.opacity(0.15))
+                            .frame(width: 36, height: 36)
+
+                        if let subtypeWord = action.subtypeWord, subtypeWord.isEmpty == false {
+                            Text(subtypeWord)
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .minimumScaleFactor(0.5)
+                                .lineLimit(1)
+                                .foregroundStyle(action.category.accentColor)
+                                .padding(6)
+                        } else {
+                            Image(systemName: action.iconSystemName)
+                                .foregroundStyle(action.category.accentColor)
+                        }
+                    }
                 }
             }
         }
@@ -118,15 +147,42 @@ private struct DurationActivityLockScreenView: View {
 private struct DurationActivityActionRow: View {
     let action: DurationActivityAttributes.ContentState.RunningAction
 
+    private var highlightedSubtype: String? {
+        guard let subtype = action.subtypeWord, subtype.isEmpty == false else { return nil }
+
+        if let subtitle = action.subtitle?.trimmingCharacters(in: .whitespacesAndNewlines),
+           subtitle.caseInsensitiveCompare(subtype) == .orderedSame {
+            return nil
+        }
+
+        return subtype
+    }
+
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             DurationActivityIconView(action: action)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(action.title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.primary)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(action.title)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
+
+                    if let subtypeWord = highlightedSubtype {
+                        Text(subtypeWord)
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .textCase(.uppercase)
+                            .foregroundStyle(action.category.accentColor)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(action.category.accentColor.opacity(0.12))
+                            )
+                    }
+                }
 
                 if let subtitle = action.subtitle {
                     Text(subtitle)
@@ -192,6 +248,7 @@ private extension DurationActivityAttributes.ContentState {
             category: .sleep,
             title: WidgetL10n.Actions.sleep,
             subtitle: nil,
+            subtypeWord: nil,
             startDate: now.addingTimeInterval(-5400),
             iconSystemName: "moon.zzz.fill"
         )
@@ -200,6 +257,7 @@ private extension DurationActivityAttributes.ContentState {
             category: .feeding,
             title: WidgetL10n.Actions.feeding,
             subtitle: WidgetL10n.Actions.feedingWithType(WidgetL10n.FeedingType.bottle),
+            subtypeWord: WidgetL10n.FeedingType.bottle,
             startDate: now.addingTimeInterval(-1200),
             iconSystemName: "takeoutbag.and.cup.and.straw.fill"
         )

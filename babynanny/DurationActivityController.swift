@@ -10,6 +10,7 @@ struct DurationActivityAttributes: ActivityAttributes {
             var category: DurationActivityCategory
             var title: String
             var subtitle: String?
+            var subtypeWord: String?
             var startDate: Date
             var iconSystemName: String
         }
@@ -107,6 +108,7 @@ private extension DurationActivityAttributes.ContentState.RunningAction {
 
         let detail = action.detailDescription
         subtitle = detail == action.category.title ? nil : detail
+        subtypeWord = action.subtypeWord
         startDate = action.startDate
         iconSystemName = action.icon
     }
