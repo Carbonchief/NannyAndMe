@@ -33,6 +33,7 @@ enum WidgetL10n {
 
     enum Duration {
         static let noActiveTimers = String(localized: "widget.duration.noActive", defaultValue: "No active timers")
+        static let trackingLabel = String(localized: "widget.duration.tracking", defaultValue: "Currently tracking")
     }
 
     enum Common {

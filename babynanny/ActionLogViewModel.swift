@@ -612,14 +612,12 @@ final class ActionLogStore: ObservableObject {
 
         let profile = profileStore?.profiles.first(where: { $0.id == profileID })
         let profileName = profile?.displayName
-        let profileImageData = profile?.imageData
         let activeActions = Array(
             storage.profiles[profileID]?.activeActions.values
                 ?? Dictionary<BabyActionCategory, BabyAction>().values
         )
         DurationActivityController.shared.update(
             for: profileName,
-            profileImageData: profileImageData,
             actions: activeActions
         )
 #endif
