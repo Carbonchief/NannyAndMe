@@ -707,9 +707,15 @@ final class ActionLogStore: ObservableObject {
         ActionStoreState(profiles: [:])
     }
 
+    private static let appGroupIdentifier = "group.com.prioritybit.babynanny"
+
     private static func resolveSaveURL(fileManager: FileManager, directory: URL?, filename: String) -> URL {
         if let directory {
             return directory.appendingPathComponent(filename)
+        }
+
+        if let containerURL = fileManager.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) {
+            return containerURL.appendingPathComponent(filename)
         }
 
         if let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
