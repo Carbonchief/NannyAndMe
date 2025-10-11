@@ -2,13 +2,14 @@ import Foundation
 
 struct DurationWidgetSnapshot: Equatable {
     var profileName: String?
+    var profileImageData: Data?
     var actions: [DurationWidgetAction]
 
     var hasActiveActions: Bool {
         actions.isEmpty == false
     }
 
-    static let empty = DurationWidgetSnapshot(profileName: nil, actions: [])
+    static let empty = DurationWidgetSnapshot(profileName: nil, profileImageData: nil, actions: [])
 
     static let placeholder: DurationWidgetSnapshot = {
         let now = Date()
@@ -30,7 +31,7 @@ struct DurationWidgetSnapshot: Equatable {
             feedingType: .bottle,
             bottleVolume: 120
         )
-        return DurationWidgetSnapshot(profileName: "Aria", actions: [sleep, feeding])
+        return DurationWidgetSnapshot(profileName: "Aria", profileImageData: nil, actions: [sleep, feeding])
     }()
 }
 
@@ -128,6 +129,7 @@ private final class DurationWidgetFormatter {
 struct DurationDataStore {
     private let fileManager: FileManager
     private let decoder: JSONDecoder
+    private let encoder: JSONEncoder
     private let actionFilename = "babyActions.json"
     private let profileFilename = "childProfiles.json"
     private let appGroupIdentifier = "group.com.prioritybit.babynanny"
@@ -136,6 +138,8 @@ struct DurationDataStore {
         self.fileManager = fileManager
         decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
+        encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
     }
 
     func loadSnapshot() -> DurationWidgetSnapshot? {
@@ -146,12 +150,49 @@ struct DurationDataStore {
             return nil
         }
 
-        let activeActions = Array(actionState.profiles[activeProfileID]?.activeActions.values ?? [:].values)
+        let activeActions = actionState.profiles[activeProfileID]?.activeActions.map(\.value) ?? []
         let running = activeActions
             .filter { $0.category.isLongRunning && $0.endDate == nil }
             .sorted(by: { $0.startDate < $1.startDate })
 
-        return DurationWidgetSnapshot(profileName: profile.displayName, actions: running)
+        return DurationWidgetSnapshot(
+            profileName: profile.displayName,
+            profileImageData: profile.imageData,
+            actions: running
+        )
+    }
+
+    func stopAction(withID actionID: UUID, at stopDate: Date = Date()) throws {
+        guard let url = url(for: actionFilename) else {
+            throw StopActionError.stateUnavailable
+        }
+
+        let data = try Data(contentsOf: url)
+        var state = try decoder.decode(SharedActionStoreState.self, from: data)
+
+        var didUpdate = false
+
+        for (profileID, profileState) in state.profiles {
+            guard let match = profileState.activeActions.first(where: { $0.value.id == actionID }) else { continue }
+
+            var updatedProfile = profileState
+            var finishedAction = updatedProfile.activeActions.removeValue(forKey: match.key)
+            finishedAction?.endDate = stopDate
+
+            if let finishedAction {
+                updatedProfile.history.insert(finishedAction, at: 0)
+                state.profiles[profileID] = updatedProfile
+                didUpdate = true
+                break
+            }
+        }
+
+        guard didUpdate else {
+            throw StopActionError.actionNotFound
+        }
+
+        let updatedData = try encoder.encode(state)
+        try updatedData.write(to: url, options: .atomic)
     }
 
     private func loadProfileState() -> SharedProfileState? {
@@ -198,13 +239,21 @@ struct DurationDataStore {
         }
         return directories
     }
+    enum StopActionError: Error {
+        case stateUnavailable
+        case actionNotFound
+    }
 }
 
-private struct SharedActionStoreState: Decodable {
+private struct SharedActionStoreState: Codable {
     var profiles: [UUID: SharedProfileActionState]
 
     private enum CodingKeys: String, CodingKey {
         case profiles
+    }
+
+    init(profiles: [UUID: SharedProfileActionState]) {
+        self.profiles = profiles
     }
 
     init(from decoder: Decoder) throws {
@@ -217,13 +266,26 @@ private struct SharedActionStoreState: Decodable {
         }
         profiles = mapped
     }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        let rawProfiles = Dictionary(uniqueKeysWithValues: profiles.map { ($0.key.uuidString, $0.value) })
+        try container.encode(rawProfiles, forKey: .profiles)
+    }
 }
 
-private struct SharedProfileActionState: Decodable {
+private struct SharedProfileActionState: Codable {
     var activeActions: [BabyActionCategory: DurationWidgetAction]
+    var history: [DurationWidgetAction]
 
     private enum CodingKeys: String, CodingKey {
         case activeActions
+        case history
+    }
+
+    init(activeActions: [BabyActionCategory: DurationWidgetAction], history: [DurationWidgetAction]) {
+        self.activeActions = activeActions
+        self.history = history
     }
 
     init(from decoder: Decoder) throws {
@@ -235,6 +297,14 @@ private struct SharedProfileActionState: Decodable {
             mapped[category] = value
         }
         activeActions = mapped
+        history = try container.decodeIfPresent([DurationWidgetAction].self, forKey: .history) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        let rawActive = Dictionary(uniqueKeysWithValues: activeActions.map { ($0.key.rawValue, $0.value) })
+        try container.encode(rawActive, forKey: .activeActions)
+        try container.encode(history, forKey: .history)
     }
 }
 
@@ -255,6 +325,7 @@ private struct SharedProfileState: Decodable {
 private struct SharedChildProfile: Decodable {
     var id: UUID
     var name: String
+    var imageData: Data?
 
     var displayName: String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -264,11 +335,13 @@ private struct SharedChildProfile: Decodable {
     private enum CodingKeys: String, CodingKey {
         case id
         case name
+        case imageData
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
         name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
+        imageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
     }
 }

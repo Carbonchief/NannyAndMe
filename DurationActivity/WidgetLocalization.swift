@@ -34,4 +34,8 @@ enum WidgetL10n {
     enum Duration {
         static let noActiveTimers = String(localized: "widget.duration.noActive", defaultValue: "No active timers")
     }
+
+    enum Common {
+        static let stop = String(localized: "common.stop", defaultValue: "Stop")
+    }
 }

@@ -6,6 +6,7 @@
 "feeding.leftBreast" = "Pecho izquierdo";
 "feeding.rightBreast" = "Pecho derecho";
 "feeding.meal" = "Comida";
+"common.stop" = "Detener";
 "profile.new" = "Perfil nuevo";
 "formatter.justNow" = "Justo ahora";
 "widget.duration.noActive" = "No hay temporizadores activos";
