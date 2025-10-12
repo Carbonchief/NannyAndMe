@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct BabyAction: Identifiable, Codable {
     enum DiaperType: String, CaseIterable, Identifiable, Codable {
@@ -55,7 +58,7 @@ struct BabyAction: Identifiable, Codable {
         var icon: String {
             switch self {
             case .bottle:
-                return "takeoutbag.and.cup.and.straw.fill"
+                return Self.bottleIconSystemName
             case .leftBreast:
                 return "heart.fill"
             case .rightBreast:
@@ -63,6 +66,20 @@ struct BabyAction: Identifiable, Codable {
             case .meal:
                 return "fork.knife.circle.fill"
             }
+        }
+
+        static var bottleIconSystemName: String {
+#if canImport(UIKit)
+            if UIImage(systemName: "baby.bottle.fill") != nil {
+                return "baby.bottle.fill"
+            }
+
+            if UIImage(systemName: "baby.bottle") != nil {
+                return "baby.bottle"
+            }
+#endif
+
+            return "takeoutbag.and.cup.and.straw.fill"
         }
 
         var requiresVolume: Bool {

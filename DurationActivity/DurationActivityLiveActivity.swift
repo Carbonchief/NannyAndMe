@@ -8,6 +8,9 @@
 import ActivityKit
 import Foundation
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 import WidgetKit
 
 @available(iOS 17.0, *)
@@ -551,7 +554,7 @@ private extension DurationActivityAttributes.ContentState {
             subtitle: WidgetL10n.Actions.feedingBottleWithType(WidgetL10n.BottleType.formula, 120),
             subtypeWord: WidgetL10n.BottleType.formula,
             startDate: now.addingTimeInterval(-1200),
-            iconSystemName: "takeoutbag.and.cup.and.straw.fill"
+            iconSystemName: liveActivityBottleIconSystemName
         )
 
         return DurationActivityAttributes.ContentState(
@@ -560,6 +563,21 @@ private extension DurationActivityAttributes.ContentState {
         )
     }
 }
+
+@available(iOS 17.0, *)
+private let liveActivityBottleIconSystemName: String = {
+#if canImport(UIKit)
+    if UIImage(systemName: "baby.bottle.fill") != nil {
+        return "baby.bottle.fill"
+    }
+
+    if UIImage(systemName: "baby.bottle") != nil {
+        return "baby.bottle"
+    }
+#endif
+
+    return "takeoutbag.and.cup.and.straw.fill"
+}()
 
 #Preview("Notification", as: .content, using: DurationActivityAttributes.preview) {
     DurationActivityLiveActivity()
