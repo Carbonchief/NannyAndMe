@@ -5,6 +5,7 @@
 "common.log" = "Eintragen";
 "common.cancel" = "Abbrechen";
 "common.done" = "Fertig";
+"common.unspecified" = "Nicht angegeben";
 "onboarding.profilePrompt.title" = "Willkommen bei Nanny & Me";
 "onboarding.profilePrompt.subtitle" = "Benennen Sie zunächst Ihr erstes Profil.";
 "onboarding.profilePrompt.nameLabel" = "Profilname";
@@ -169,6 +170,7 @@
 "stats.chart.yAxis.minutes" = "Minuten";
 "stats.chart.lastSevenDays" = "Letzte 7 Tage";
 "stats.chart.actionPicker.label" = "Aktivität";
+"stats.chart.series.subtype" = "Untertyp";
 "stats.chart.xAxis.hour" = "Stunde";
 "stats.chart.xAxis.day" = "Tag";
 "stats.chart.activityTrends.title" = "Aktivitätstrends";
