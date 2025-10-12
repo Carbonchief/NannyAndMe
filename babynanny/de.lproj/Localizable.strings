@@ -25,6 +25,8 @@
 "home.bottle.pickerLabel" = "Flaschenmenge";
 "home.bottle.customFieldPlaceholder" = "Individuelles Volumen (ml)";
 "home.bottle.customOption" = "Individuell";
+"home.meal.notesSectionTitle" = "Details zur Mahlzeit";
+"home.meal.notesFieldPlaceholder" = "Notizen zu dieser Mahlzeit hinzufügen";
 "home.sheet.editActionTitle" = "Aktion bearbeiten";
 "home.edit.startSectionTitle" = "Startzeit";
 "home.edit.startPickerLabel" = "Start";
@@ -182,6 +184,7 @@
 "actions.diaper.withType" = "%@";
 "actions.feeding.bottle" = "Flasche (%lld ml)";
 "actions.feeding.withType" = "%@";
+"actions.feeding.mealWithNotes" = "Mahlzeit – %@";
 "diaper.pee" = "Nass";
 "diaper.poo" = "Stuhl";
 "diaper.both" = "Nass & Stuhl";

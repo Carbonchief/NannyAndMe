@@ -48,7 +48,7 @@ final class DurationActivityController {
         }
 
         let runningActions = actions
-            .filter { !$0.category.isInstant && $0.endDate == nil }
+            .filter { !$0.isInstant && $0.endDate == nil }
             .sorted(by: { $0.startDate < $1.startDate })
             .map(DurationActivityAttributes.ContentState.RunningAction.init)
 

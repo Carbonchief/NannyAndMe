@@ -25,6 +25,8 @@
 "home.bottle.pickerLabel" = "Bottle volume";
 "home.bottle.customFieldPlaceholder" = "Custom volume (ml)";
 "home.bottle.customOption" = "Custom";
+"home.meal.notesSectionTitle" = "Meal details";
+"home.meal.notesFieldPlaceholder" = "Add notes about this meal";
 "home.sheet.editActionTitle" = "Edit Action";
 "home.edit.startSectionTitle" = "Start time";
 "home.edit.startPickerLabel" = "Start";
@@ -182,6 +184,7 @@
 "actions.diaper.withType" = "%@";
 "actions.feeding.bottle" = "Bottle (%lld ml)";
 "actions.feeding.withType" = "%@";
+"actions.feeding.mealWithNotes" = "Meal – %@";
 "diaper.pee" = "Pee";
 "diaper.poo" = "Poo";
 "diaper.both" = "Pee & Poo";

@@ -73,6 +73,12 @@ struct AllLogsRowView: View {
                 if type == .bottle, let volume = action.bottleVolume {
                     return L10n.Logs.summaryFeedingBottle(volume: volume)
                 }
+                if type == .meal,
+                   let notes = action.mealNotes?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   notes.isEmpty == false {
+                    let base = type.title.localizedLowercase
+                    return L10n.Logs.summaryFeeding(withType: "\(base) – \(notes)")
+                }
                 return L10n.Logs.summaryFeeding(withType: type.title.localizedLowercase)
             }
             return L10n.Logs.summaryFeeding()

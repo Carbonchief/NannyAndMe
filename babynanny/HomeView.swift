@@ -193,7 +193,7 @@ struct HomeView: View {
     private func headerTrailingInfo(for action: BabyAction) -> (text: String, isDuration: Bool)? {
         guard action.endDate != nil else { return nil }
 
-        if action.category.isInstant {
+        if action.isInstant {
             return (L10n.Home.loggedAt(action.loggedTimestampDescription()), false)
         }
 
@@ -206,7 +206,7 @@ struct HomeView: View {
             _ = requestStartAction(for: .sleep,
                                     configuration: .sleep,
                                     dismissingSheet: false)
-        case .diaper, .feeding:
+        case .diaper:
             let interruptedTitles = interruptedActionTitles(for: category)
 
             guard interruptedTitles.isEmpty else {
@@ -219,6 +219,8 @@ struct HomeView: View {
             }
 
             presentedCategory = category
+        case .feeding:
+            presentedCategory = category
         }
     }
 
@@ -226,7 +228,8 @@ struct HomeView: View {
     private func requestStartAction(for category: BabyActionCategory,
                                     configuration: ActionConfiguration,
                                     dismissingSheet: Bool) -> Bool {
-        if category.isInstant {
+        if configuration.isInstant(for: category) {
+            categoryClearedForSheet = nil
             startAction(for: category, configuration: configuration)
             return true
         }
@@ -372,7 +375,7 @@ private struct ActionCard: View {
 
 private extension ActionCard {
     func detailText(for action: BabyAction) -> Text {
-        if action.category.isInstant {
+        if action.isInstant {
             return Text(action.detailDescription)
         }
 
@@ -462,7 +465,7 @@ private struct HistoryRow: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
 
-                if !action.category.isInstant {
+                if !action.isInstant {
                     Text(L10n.Home.historyDuration(action.durationDescription()))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -484,6 +487,10 @@ private struct ActionConfiguration {
     var bottleVolume: Int?
 
     static let sleep = ActionConfiguration(diaperType: nil, feedingType: nil, bottleVolume: nil)
+
+    func isInstant(for category: BabyActionCategory) -> Bool {
+        category.isInstant(feedingType: feedingType)
+    }
 }
 
 private struct PendingStartAction: Identifiable {
@@ -595,6 +602,7 @@ struct ActionEditSheet: View {
     @State private var feedingSelection: BabyAction.FeedingType
     @State private var bottleSelection: BottleVolumeOption
     @State private var customBottleVolume: String
+    @State private var mealNotes: String
     @State private var endDate: Date?
     @State private var showDeleteConfirmation = false
 
@@ -607,6 +615,7 @@ struct ActionEditSheet: View {
         _diaperSelection = State(initialValue: action.diaperType ?? .pee)
         _feedingSelection = State(initialValue: action.feedingType ?? .bottle)
         _endDate = State(initialValue: action.endDate)
+        _mealNotes = State(initialValue: action.mealNotes ?? "")
 
         let defaultSelection: BottleVolumeOption = .preset(120)
         if let volume = action.bottleVolume {
@@ -681,9 +690,17 @@ struct ActionEditSheet: View {
                             }
                         }
                     }
+
+                    if feedingSelection == .meal {
+                        Section(header: Text(L10n.Home.mealNotesSectionTitle)) {
+                            TextField(L10n.Home.mealNotesFieldPlaceholder, text: $mealNotes, axis: .vertical)
+                                .lineLimit(3, reservesSpace: true)
+                                .textInputAutocapitalization(.sentences)
+                        }
+                    }
                 }
 
-                if !action.category.isInstant {
+                if !isInstantAction {
                     if (endDate ?? action.endDate) != nil {
                         Section(header: Text(L10n.Home.editEndSectionTitle)) {
                             DatePicker(
@@ -761,6 +778,21 @@ struct ActionEditSheet: View {
         )
     }
 
+    private var isInstantAction: Bool {
+        switch action.category {
+        case .sleep:
+            return false
+        case .diaper:
+            return true
+        case .feeding:
+            return action.category.isInstant(feedingType: feedingSelection)
+        }
+    }
+
+    private var trimmedMealNotes: String {
+        mealNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private var resolvedBottleVolume: Int? {
         switch bottleSelection {
         case .preset(let value):
@@ -785,12 +817,20 @@ struct ActionEditSheet: View {
 
         switch action.category {
         case .sleep:
+            updated.mealNotes = nil
             break
         case .diaper:
             updated.diaperType = diaperSelection
+            updated.mealNotes = nil
         case .feeding:
             updated.feedingType = feedingSelection
             updated.bottleVolume = feedingSelection.requiresVolume ? resolvedBottleVolume : nil
+            if feedingSelection == .meal {
+                let notes = trimmedMealNotes
+                updated.mealNotes = notes.isEmpty ? nil : notes
+            } else {
+                updated.mealNotes = nil
+            }
         }
 
         updated.endDate = endDate ?? action.endDate
@@ -882,7 +922,7 @@ private struct ActionDetailSheet: View {
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(category.startActionButtonTitle) {
+                    Button(startButtonTitle) {
                         startIfReady()
                     }
                     .disabled(isStartDisabled)
@@ -900,6 +940,15 @@ private struct ActionDetailSheet: View {
         case .feeding:
             let volume = feedingSelection.requiresVolume ? resolvedBottleVolume : nil
             return ActionConfiguration(diaperType: nil, feedingType: feedingSelection, bottleVolume: volume)
+        }
+    }
+
+    private var startButtonTitle: String {
+        switch category {
+        case .feeding:
+            return category.startActionButtonTitle(feedingType: feedingSelection)
+        default:
+            return category.startActionButtonTitle
         }
     }
 

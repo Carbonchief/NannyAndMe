@@ -53,6 +53,11 @@ enum L10n {
         static let bottleVolumePickerLabel = String(localized: "home.bottle.pickerLabel", defaultValue: "Bottle volume")
         static let customVolumeFieldPlaceholder = String(localized: "home.bottle.customFieldPlaceholder", defaultValue: "Custom volume (ml)")
         static let customBottleOption = String(localized: "home.bottle.customOption", defaultValue: "Custom")
+        static let mealNotesSectionTitle = String(localized: "home.meal.notesSectionTitle", defaultValue: "Meal details")
+        static let mealNotesFieldPlaceholder = String(
+            localized: "home.meal.notesFieldPlaceholder",
+            defaultValue: "Add notes about this meal"
+        )
         static let editActionTitle = String(localized: "home.sheet.editActionTitle", defaultValue: "Edit Action")
         static let editStartSectionTitle = String(localized: "home.edit.startSectionTitle", defaultValue: "Start time")
         static let editStartPickerLabel = String(localized: "home.edit.startPickerLabel", defaultValue: "Start")
@@ -610,6 +615,11 @@ enum L10n {
         static func feedingWithType(_ type: String) -> String {
             let format = String(localized: "actions.feeding.withType", defaultValue: "%@")
             return String(format: format, locale: Locale.current, type)
+        }
+
+        static func feedingMealWithNotes(_ notes: String) -> String {
+            let format = String(localized: "actions.feeding.mealWithNotes", defaultValue: "Meal – %@")
+            return String(format: format, locale: Locale.current, notes)
         }
     }
 

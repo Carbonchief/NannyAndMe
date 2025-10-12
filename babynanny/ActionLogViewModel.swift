@@ -77,6 +77,7 @@ struct BabyAction: Identifiable, Codable {
     var diaperType: DiaperType?
     var feedingType: FeedingType?
     var bottleVolume: Int?
+    var mealNotes: String?
 
     init(id: UUID = UUID(),
          category: BabyActionCategory,
@@ -84,7 +85,8 @@ struct BabyAction: Identifiable, Codable {
          endDate: Date? = nil,
          diaperType: DiaperType? = nil,
          feedingType: FeedingType? = nil,
-         bottleVolume: Int? = nil) {
+         bottleVolume: Int? = nil,
+         mealNotes: String? = nil) {
         self.id = id
         self.category = category
         self.startDate = startDate
@@ -92,6 +94,7 @@ struct BabyAction: Identifiable, Codable {
         self.diaperType = diaperType
         self.feedingType = feedingType
         self.bottleVolume = bottleVolume
+        self.mealNotes = mealNotes
     }
 
     var title: String {
@@ -122,6 +125,11 @@ struct BabyAction: Identifiable, Codable {
                 if feedingType == .bottle, let bottleVolume {
                     return L10n.Actions.feedingBottle(bottleVolume)
                 }
+                if feedingType == .meal,
+                   let note = mealNotes?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   note.isEmpty == false {
+                    return L10n.Actions.feedingMealWithNotes(note)
+                }
                 return L10n.Actions.feedingWithType(feedingType.title)
             }
             return L10n.Actions.feeding
@@ -137,6 +145,10 @@ struct BabyAction: Identifiable, Codable {
         case .feeding:
             return feedingType?.title
         }
+    }
+
+    var isInstant: Bool {
+        category.isInstant(feedingType: feedingType)
     }
 
     func durationDescription(asOf referenceDate: Date = Date()) -> String {
@@ -171,7 +183,7 @@ struct BabyAction: Identifiable, Codable {
 
     func withValidatedDates() -> BabyAction {
         var copy = self
-        if category.isInstant {
+        if isInstant {
             copy.endDate = copy.startDate
         } else if let endDate = copy.endDate, endDate < copy.startDate {
             copy.endDate = copy.startDate
@@ -189,6 +201,7 @@ extension BabyAction: Equatable {
             && lhs.diaperType == rhs.diaperType
             && lhs.feedingType == rhs.feedingType
             && lhs.bottleVolume == rhs.bottleVolume
+            && lhs.mealNotes == rhs.mealNotes
     }
 }
 
@@ -232,17 +245,27 @@ enum BabyActionCategory: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    var isInstant: Bool {
+    func isInstant(feedingType: BabyAction.FeedingType? = nil) -> Bool {
         switch self {
         case .diaper:
             return true
-        case .sleep, .feeding:
+        case .sleep:
             return false
+        case .feeding:
+            return feedingType == .meal
         }
     }
 
+    var isInstant: Bool {
+        isInstant()
+    }
+
+    func startActionButtonTitle(feedingType: BabyAction.FeedingType? = nil) -> String {
+        isInstant(feedingType: feedingType) ? L10n.Common.log : L10n.Common.start
+    }
+
     var startActionButtonTitle: String {
-        isInstant ? L10n.Common.log : L10n.Common.start
+        startActionButtonTitle()
     }
 }
 
@@ -435,7 +458,7 @@ final class ActionLogStore: ObservableObject {
         updateState(for: profileID) { profileState in
             let now = Date()
 
-            if category.isInstant {
+            if category.isInstant(feedingType: feedingType) {
                 if var existing = profileState.activeActions.removeValue(forKey: category) {
                     existing.endDate = now
                     profileState.history.insert(existing, at: 0)
@@ -543,7 +566,7 @@ final class ActionLogStore: ObservableObject {
                 return endDate
             }
 
-            if other.category.isInstant {
+            if other.isInstant {
                 return other.startDate
             }
 
@@ -574,7 +597,7 @@ final class ActionLogStore: ObservableObject {
                 if currentEnd > upperBound {
                     adjustedAction.endDate = max(adjustedStart, upperBound)
                 }
-            } else if !adjustedAction.category.isInstant {
+            } else if !adjustedAction.isInstant {
                 adjustedAction.endDate = max(adjustedStart, upperBound)
             }
         }
@@ -629,7 +652,7 @@ final class ActionLogStore: ObservableObject {
         guard #available(iOS 17.0, *) else { return }
 
         if let runningProfileID = storage.profiles.first(where: { _, state in
-            state.activeActions.values.contains(where: { $0.endDate == nil && $0.category.isInstant == false })
+            state.activeActions.values.contains(where: { $0.endDate == nil && $0.isInstant == false })
         })?.key {
             refreshDurationActivity(for: runningProfileID)
             return

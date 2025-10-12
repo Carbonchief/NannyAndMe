@@ -25,6 +25,8 @@
 "home.bottle.pickerLabel" = "Volumen del biberón";
 "home.bottle.customFieldPlaceholder" = "Volumen personalizado (ml)";
 "home.bottle.customOption" = "Personalizado";
+"home.meal.notesSectionTitle" = "Detalles de la comida";
+"home.meal.notesFieldPlaceholder" = "Añade notas sobre esta comida";
 "home.sheet.editActionTitle" = "Editar acción";
 "home.edit.startSectionTitle" = "Hora de inicio";
 "home.edit.startPickerLabel" = "Inicio";
@@ -182,6 +184,7 @@
 "actions.diaper.withType" = "%@";
 "actions.feeding.bottle" = "Biberón (%lld ml)";
 "actions.feeding.withType" = "%@";
+"actions.feeding.mealWithNotes" = "Comida – %@";
 "diaper.pee" = "Mojado";
 "diaper.poo" = "Sólido";
 "diaper.both" = "Mojado y sólido";
