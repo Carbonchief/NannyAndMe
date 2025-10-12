@@ -106,6 +106,10 @@ struct DurationWidgetAction: Identifiable, Codable, Equatable {
         let duration = max(0, endReference.timeIntervalSince(startDate))
         return DurationWidgetFormatter.shared.format(duration: duration)
     }
+
+    func startDescription(asOf referenceDate: Date) -> String {
+        DurationWidgetRelativeFormatter.shared.format(start: startDate, reference: referenceDate)
+    }
 }
 
 private extension DurationWidgetAction.BottleType {
@@ -148,6 +152,21 @@ private final class DurationWidgetFormatter {
 
     func format(duration: TimeInterval) -> String {
         durationFormatter.string(from: duration) ?? WidgetL10n.Formatter.justNow
+    }
+}
+
+private final class DurationWidgetRelativeFormatter {
+    static let shared = DurationWidgetRelativeFormatter()
+
+    private let formatter: RelativeDateTimeFormatter
+
+    private init() {
+        formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+    }
+
+    func format(start: Date, reference: Date) -> String {
+        formatter.localizedString(for: start, relativeTo: reference)
     }
 }
 

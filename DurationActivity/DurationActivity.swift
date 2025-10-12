@@ -81,21 +81,89 @@ struct DurationActivityEntryView: View {
         }
     }
 
+    private var profileTitle: String {
+        entry.snapshot.profileName ?? WidgetL10n.Profile.newProfile
+    }
+
+    private var shouldShowRelativeStartTime: Bool {
+        switch family {
+        case .systemSmall:
+            return false
+        default:
+            return true
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if visibleActions.isEmpty {
-                Text(WidgetL10n.Duration.noActiveTimers)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.leading)
-            } else {
-                ForEach(visibleActions) { action in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(action.displayTitle)
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .lineLimit(1)
+            header
+            content
+            Spacer(minLength: 0)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.clear)
+    }
+}
 
+private extension DurationActivityEntryView {
+    @ViewBuilder
+    var header: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(profileTitle)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+
+                Text(entry.date, style: .time)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if entry.snapshot.hasActiveActions {
+                Text(WidgetL10n.Duration.trackingLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    var content: some View {
+        if visibleActions.isEmpty {
+            Text(WidgetL10n.Duration.noActiveTimers)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.leading)
+        } else {
+            ForEach(visibleActions) { action in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(action.displayTitle)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
+
+                    if shouldShowRelativeStartTime {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(action.durationDescription(asOf: entry.date))
+                                .font(durationFont)
+                                .fontWeight(.semibold)
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+
+                            Spacer(minLength: 0)
+
+                            Text(action.startDescription(asOf: entry.date))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                        }
+                    } else {
                         Text(action.durationDescription(asOf: entry.date))
                             .font(durationFont)
                             .fontWeight(.semibold)
@@ -105,12 +173,7 @@ struct DurationActivityEntryView: View {
                     }
                 }
             }
-
-            Spacer(minLength: 0)
         }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color.clear)
     }
 }
 
