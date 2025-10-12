@@ -39,11 +39,8 @@ struct ImageCropperView: View {
                             image: image,
                             cropSize: cropSize,
                             scale: scale,
-                            offset: offset
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .strokeBorder(Color.white.opacity(0.8), lineWidth: 1)
+                            offset: offset,
+                            showsOverlay: true
                         )
                         .gesture(
                             SimultaneousGesture(
@@ -179,7 +176,8 @@ private extension ImageCropperView {
             image: image,
             cropSize: cropSize,
             scale: scale,
-            offset: offset
+            offset: offset,
+            showsOverlay: false
         ))
         renderer.scale = UIScreen.main.scale
 
@@ -194,8 +192,46 @@ private struct CroppingCanvas: View {
     let cropSize: CGSize
     let scale: CGFloat
     let offset: CGSize
+    let showsOverlay: Bool
 
     var body: some View {
+        ZStack {
+            transformedImage
+
+            if showsOverlay {
+                ZStack {
+                    transformedImage
+                        .blur(radius: 12)
+                        .mask(
+                            CircularHoleShape(cropSize: cropSize)
+                                .fill(.white, style: FillStyle(eoFill: true))
+                        )
+
+                    CircularHoleShape(cropSize: cropSize)
+                        .fill(Color.black.opacity(0.55), style: FillStyle(eoFill: true))
+
+                    Circle()
+                        .strokeBorder(Color.white.opacity(0.85), lineWidth: 2)
+                        .frame(width: cropSize.width, height: cropSize.height)
+                }
+                .allowsHitTesting(false)
+            }
+        }
+        .frame(width: cropSize.width, height: cropSize.height)
+        .clipped()
+        .mask {
+            if showsOverlay {
+                Rectangle()
+            } else {
+                Circle()
+                    .frame(width: cropSize.width, height: cropSize.height)
+            }
+        }
+    }
+}
+
+private extension CroppingCanvas {
+    var transformedImage: some View {
         Image(uiImage: image)
             .resizable()
             .aspectRatio(contentMode: .fit)
@@ -203,6 +239,25 @@ private struct CroppingCanvas: View {
             .offset(offset)
             .frame(width: cropSize.width, height: cropSize.height)
             .clipped()
+    }
+}
+
+private struct CircularHoleShape: Shape {
+    let cropSize: CGSize
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.addRect(rect)
+
+        let circleRect = CGRect(
+            x: (rect.width - cropSize.width) / 2,
+            y: (rect.height - cropSize.height) / 2,
+            width: cropSize.width,
+            height: cropSize.height
+        )
+
+        path.addEllipse(in: circleRect)
+        return path
     }
 }
 
