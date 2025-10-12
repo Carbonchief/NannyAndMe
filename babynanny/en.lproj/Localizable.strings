@@ -64,6 +64,8 @@
 "profiles.delete.action" = "Delete Profile";
 "settings.notifications.section" = "Notifications";
 "settings.notifications.enable" = "Enable reminders";
+"settings.home.section" = "Home";
+"settings.home.showRecentActivity" = "Show recent activity";
 "settings.notifications.nextReminder.label" = "Next reminder";
 "settings.notifications.nextReminder.disabled" = "Reminders are turned off.";
 "settings.notifications.nextReminder.unavailable" = "No reminders scheduled yet.";

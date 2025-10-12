@@ -187,6 +187,10 @@ final class ProfileStore: ObservableObject {
         return state.activeProfile ?? ChildProfile(name: "", birthDate: Date())
     }
 
+    var showRecentActivityOnHome: Bool {
+        state.showRecentActivityOnHome
+    }
+
     private let saveURL: URL
     private let reminderScheduler: ReminderScheduling
     private weak var actionStore: ActionLogStore?
@@ -260,6 +264,12 @@ final class ProfileStore: ObservableObject {
         let profile = ChildProfile(name: "", birthDate: Date())
         newState.profiles.append(profile)
         newState.activeProfileID = profile.id
+        state = Self.sanitized(state: newState)
+    }
+
+    func setShowRecentActivityOnHome(_ newValue: Bool) {
+        var newState = state
+        newState.showRecentActivityOnHome = newValue
         state = Self.sanitized(state: newState)
     }
 
@@ -476,6 +486,7 @@ final class ProfileStore: ObservableObject {
 private struct ProfileState: Codable, Equatable {
     var profiles: [ChildProfile]
     var activeProfileID: UUID?
+    var showRecentActivityOnHome: Bool = true
 
     var activeProfile: ChildProfile? {
         guard let activeProfileID else { return nil }

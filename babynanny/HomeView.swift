@@ -41,7 +41,7 @@ struct HomeView: View {
                     }
                 }
 
-                if !recentHistory.isEmpty {
+                if profileStore.showRecentActivityOnHome && !recentHistory.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Text(L10n.Home.recentActivity)

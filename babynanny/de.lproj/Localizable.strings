@@ -64,6 +64,8 @@
 "profiles.delete.action" = "Profil löschen";
 "settings.notifications.section" = "Benachrichtigungen";
 "settings.notifications.enable" = "Erinnerungen aktivieren";
+"settings.home.section" = "Startseite";
+"settings.home.showRecentActivity" = "Aktuelle Aktivitäten anzeigen";
 "settings.notifications.nextReminder.label" = "Nächste Erinnerung";
 "settings.notifications.nextReminder.disabled" = "Erinnerungen sind deaktiviert.";
 "settings.notifications.nextReminder.unavailable" = "Noch keine Erinnerungen geplant.";
