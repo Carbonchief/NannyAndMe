@@ -92,6 +92,7 @@ struct StatsView: View {
             let yAxisTitle = focusCategory == .diaper ? L10n.Stats.diapersYAxis : L10n.Stats.minutesYAxis
             let axisDays = recentDayStarts(count: windowDays)
             let subtypeTitle = L10n.Stats.subtypeLegend
+            let subtypeColors = colorScale(for: metrics.map(\.subtype))
 
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
@@ -112,6 +113,7 @@ struct StatsView: View {
                         .foregroundStyle(by: .value(subtypeTitle, metric.subtype.legendLabel))
                         .cornerRadius(6)
                     }
+                    .chartForegroundStyleScale(subtypeColors)
                     .chartLegend(position: .bottom, alignment: .leading, spacing: 12)
                     .chartYAxis {
                         AxisMarks(position: .leading)
@@ -176,6 +178,8 @@ struct StatsView: View {
                                                    days: windowDays)
         let hasData = !patternSegments.isEmpty
         let dayAxisValues = orderedDays(for: patternSegments, totalDays: windowDays)
+        let subtypeTitle = L10n.Stats.subtypeLegend
+        let subtypeColors = colorScale(for: patternSegments.map(\.subtype))
 
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.Stats.patternTitle)
@@ -193,8 +197,10 @@ struct StatsView: View {
                         yEnd: .value(L10n.Stats.hourAxisLabel, segment.endMinutes)
                     )
                     .cornerRadius(6)
-                    .foregroundStyle(focusCategory.accentColor.gradient)
+                    .foregroundStyle(by: .value(subtypeTitle, segment.subtype.legendLabel))
                 }
+                .chartForegroundStyleScale(subtypeColors)
+                .chartLegend(position: .bottom, alignment: .leading, spacing: 12)
                 .chartYAxis {
                     AxisMarks(values: Array(stride(from: 0, through: 1440, by: 180))) { value in
                         AxisGridLine()
@@ -392,24 +398,33 @@ struct StatsView: View {
         var segments: [ActionPatternSegment] = []
 
         for action in state.history where action.category == focusCategory {
+            let actionSubtypes = subtypes(for: action, focusCategory: focusCategory)
+
             if focusCategory == .diaper {
                 guard action.startDate >= windowStart else { continue }
                 let day = calendar.startOfDay(for: action.startDate)
                 let minutes = Double(calendar.component(.hour, from: action.startDate) * 60 +
                     calendar.component(.minute, from: action.startDate))
                 let endMinutes = min(minutes + 5, 1440)
-                segments.append(ActionPatternSegment(day: day,
-                                                     startMinutes: minutes,
-                                                     endMinutes: endMinutes))
+
+                for subtype in actionSubtypes {
+                    segments.append(ActionPatternSegment(day: day,
+                                                         startMinutes: minutes,
+                                                         endMinutes: endMinutes,
+                                                         subtype: subtype))
+                }
             } else {
                 let actionStart = max(action.startDate, windowStart)
                 let actionEnd = min(action.endDate ?? now, now)
 
                 guard actionEnd > actionStart else { continue }
 
-                segments.append(contentsOf: splitAction(from: actionStart,
-                                                        to: actionEnd,
-                                                        calendar: calendar))
+                for subtype in actionSubtypes {
+                    segments.append(contentsOf: splitAction(from: actionStart,
+                                                            to: actionEnd,
+                                                            calendar: calendar,
+                                                            subtype: subtype))
+                }
             }
         }
 
@@ -418,9 +433,13 @@ struct StatsView: View {
             let actionEnd = now
 
             if actionEnd > actionStart {
-                segments.append(contentsOf: splitAction(from: actionStart,
-                                                        to: actionEnd,
-                                                        calendar: calendar))
+                let actionSubtypes = subtypes(for: active, focusCategory: focusCategory)
+                for subtype in actionSubtypes {
+                    segments.append(contentsOf: splitAction(from: actionStart,
+                                                            to: actionEnd,
+                                                            calendar: calendar,
+                                                            subtype: subtype))
+                }
             }
         }
 
@@ -434,7 +453,8 @@ struct StatsView: View {
 
     private func splitAction(from start: Date,
                               to end: Date,
-                              calendar: Calendar) -> [ActionPatternSegment] {
+                              calendar: Calendar,
+                              subtype: ActionSubtype) -> [ActionPatternSegment] {
         var results: [ActionPatternSegment] = []
         var currentDayStart = calendar.startOfDay(for: start)
 
@@ -459,7 +479,8 @@ struct StatsView: View {
                 let endMinutes = max(startMinutes + 3, rawEndMinutes)
                 results.append(ActionPatternSegment(day: currentDayStart,
                                                     startMinutes: min(startMinutes, 1440),
-                                                    endMinutes: min(endMinutes, 1440)))
+                                                    endMinutes: min(endMinutes, 1440),
+                                                    subtype: subtype))
             }
             currentDayStart = nextDayStart
         }
@@ -514,6 +535,16 @@ struct StatsView: View {
         }
 
         return axisDays.sorted()
+    }
+
+    private func colorScale<S: Sequence>(for subtypes: S) -> [String: Color] where S.Element == ActionSubtype {
+        var mapping: [String: Color] = [:]
+
+        for subtype in subtypes {
+            mapping[subtype.legendLabel] = subtype.color
+        }
+
+        return mapping
     }
 }
 
@@ -607,6 +638,7 @@ private struct ActionPatternSegment: Identifiable {
     let day: Date
     let startMinutes: Double
     let endMinutes: Double
+    let subtype: ActionSubtype
 }
 
 private extension BabyAction.DiaperType {
