@@ -169,6 +169,21 @@ struct BabyAction: Identifiable, Codable {
         return BabyActionFormatter.shared.format(dateTime: logDate)
     }
 
+    func timeSinceCompletionDescription(asOf referenceDate: Date = Date()) -> String? {
+        guard let endDate else { return nil }
+        let interval = referenceDate.timeIntervalSince(endDate)
+        guard interval > 1 else { return L10n.Formatter.justNow }
+        return BabyActionFormatter.shared.format(timeSince: interval)
+    }
+
+    func timeSinceCompletionAccessibilityDescription(asOf referenceDate: Date = Date()) -> String? {
+        guard let endDate else { return nil }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        formatter.dateTimeStyle = .named
+        return formatter.localizedString(for: endDate, relativeTo: referenceDate)
+    }
+
     func withValidatedDates() -> BabyAction {
         var copy = self
         if category.isInstant {
@@ -746,6 +761,7 @@ private final class BabyActionFormatter {
     private let timeFormatter: DateFormatter
     private let dateTimeFormatter: DateFormatter
     private let durationFormatter: DateComponentsFormatter
+    private let timeSinceFormatter: DateComponentsFormatter
 
     private init() {
         timeFormatter = DateFormatter()
@@ -760,6 +776,12 @@ private final class BabyActionFormatter {
         durationFormatter.allowedUnits = [.hour, .minute, .second]
         durationFormatter.unitsStyle = .abbreviated
         durationFormatter.zeroFormattingBehavior = [.dropLeading, .dropTrailing]
+
+        timeSinceFormatter = DateComponentsFormatter()
+        timeSinceFormatter.allowedUnits = [.day, .hour, .minute]
+        timeSinceFormatter.unitsStyle = .abbreviated
+        timeSinceFormatter.maximumUnitCount = 1
+        timeSinceFormatter.zeroFormattingBehavior = [.dropLeading, .dropTrailing]
     }
 
     func format(time: Date) -> String {
@@ -772,5 +794,12 @@ private final class BabyActionFormatter {
 
     func format(duration: TimeInterval) -> String {
         durationFormatter.string(from: duration) ?? L10n.Formatter.justNow
+    }
+
+    func format(timeSince interval: TimeInterval) -> String {
+        guard let value = timeSinceFormatter.string(from: interval), !value.isEmpty else {
+            return L10n.Formatter.justNow
+        }
+        return L10n.Formatter.ago(value)
     }
 }

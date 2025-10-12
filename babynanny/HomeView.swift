@@ -127,20 +127,7 @@ struct HomeView: View {
 
                                 Spacer(minLength: 8)
 
-                                if let trailingInfo = headerTrailingInfo(for: recent) {
-                                    if trailingInfo.isDuration {
-                                        Text(trailingInfo.text)
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
-                                            .monospacedDigit()
-                                            .lineLimit(1)
-                                    } else {
-                                        Text(trailingInfo.text)
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
-                                            .lineLimit(1)
-                                    }
-                                }
+                                headerCompletionElapsedView(for: recent)
                             }
 
                             headerActiveDurationView(for: recent)
@@ -190,14 +177,21 @@ struct HomeView: View {
         }
     }
 
-    private func headerTrailingInfo(for action: BabyAction) -> (text: String, isDuration: Bool)? {
-        guard action.endDate != nil else { return nil }
+    @ViewBuilder
+    private func headerCompletionElapsedView(for action: BabyAction) -> some View {
+        if action.endDate != nil {
+            TimelineView(.periodic(from: .now, by: 60)) { context in
+                let display = action.timeSinceCompletionDescription(asOf: context.date) ?? L10n.Formatter.justNow
+                let accessibility = action.timeSinceCompletionAccessibilityDescription(asOf: context.date) ?? display
 
-        if action.category.isInstant {
-            return (L10n.Home.loggedAt(action.loggedTimestampDescription()), false)
+                Text(display)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .accessibilityLabel(L10n.Home.lastFinished(accessibility))
+            }
         }
-
-        return (action.durationDescription(), true)
     }
 
     private func handleStartTap(for category: BabyActionCategory) {

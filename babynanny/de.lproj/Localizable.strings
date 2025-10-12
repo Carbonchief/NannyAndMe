@@ -193,3 +193,4 @@
 "feeding.meal" = "Mahlzeit";
 "profile.new" = "Neues Profil";
 "formatter.justNow" = "Gerade eben";
+"formatter.ago" = "vor %@";
