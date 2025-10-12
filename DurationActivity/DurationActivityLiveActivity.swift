@@ -132,7 +132,6 @@ private struct DurationActivityLockScreenView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             DurationActivityHeaderView(
-                accentColor: context.primaryAccentColor,
                 profileName: context.attributes.profileName,
                 updatedAt: context.state.updatedAt,
                 spacingStyle: .regular
@@ -254,7 +253,6 @@ private struct DurationActivityHeaderView: View {
         case regular
     }
 
-    let accentColor: Color
     var profileName: String?
     var updatedAt: Date?
     var spacingStyle: SpacingStyle
@@ -270,17 +268,6 @@ private struct DurationActivityHeaderView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: headerSpacing) {
-            Text(WidgetL10n.Duration.trackingLabel.uppercased())
-                .font(.caption2)
-                .fontWeight(.semibold)
-                .foregroundStyle(accentColor)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(accentColor.opacity(0.18))
-                )
-
             if let profileName, profileName.isEmpty == false {
                 Text(profileName)
                     .font(.headline)
@@ -311,7 +298,6 @@ private struct DurationActivityExpandedHighlightView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             DurationActivityHeaderView(
-                accentColor: accentColor,
                 profileName: attributes.profileName,
                 updatedAt: updatedAt,
                 spacingStyle: .compact
