@@ -114,7 +114,7 @@ struct HomeView: View {
 
             if let recent = state.mostRecentAction {
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .top, spacing: 12) {
+                    HStack(alignment: headerCardAlignment(for: recent), spacing: 12) {
                         AnimatedActionIcon(
                             systemName: recent.icon,
                             color: recent.category.accentColor
@@ -171,7 +171,7 @@ struct HomeView: View {
                     .font(.title3)
                     .fontWeight(.semibold)
                     .monospacedDigit()
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .center)
                     .foregroundStyle(.secondary)
             }
         }
@@ -192,6 +192,10 @@ struct HomeView: View {
                     .accessibilityLabel(L10n.Home.lastFinished(accessibility))
             }
         }
+    }
+
+    private func headerCardAlignment(for action: BabyAction) -> VerticalAlignment {
+        action.endDate == nil ? .top : .center
     }
 
     private func handleStartTap(for category: BabyActionCategory) {
