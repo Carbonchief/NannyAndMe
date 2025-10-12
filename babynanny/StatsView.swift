@@ -92,7 +92,7 @@ struct StatsView: View {
             let yAxisTitle = focusCategory == .diaper ? L10n.Stats.diapersYAxis : L10n.Stats.minutesYAxis
             let axisDays = recentDayStarts(count: windowDays)
             let subtypeTitle = L10n.Stats.subtypeLegend
-            let subtypeColors = colorScale(for: metrics.map(\.subtype))
+            let subtypeScale = colorScale(for: metrics.map(\.subtype))
 
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
@@ -113,7 +113,7 @@ struct StatsView: View {
                         .foregroundStyle(by: .value(subtypeTitle, metric.subtype.legendLabel))
                         .cornerRadius(6)
                     }
-                    .chartForegroundStyleScale(subtypeColors)
+                    .chartForegroundStyleScale(domain: subtypeScale.domain, range: subtypeScale.range)
                     .chartLegend(position: .bottom, alignment: .leading, spacing: 12)
                     .chartYAxis {
                         AxisMarks(position: .leading)
@@ -179,7 +179,7 @@ struct StatsView: View {
         let hasData = !patternSegments.isEmpty
         let dayAxisValues = orderedDays(for: patternSegments, totalDays: windowDays)
         let subtypeTitle = L10n.Stats.subtypeLegend
-        let subtypeColors = colorScale(for: patternSegments.map(\.subtype))
+        let subtypeScale = colorScale(for: patternSegments.map(\.subtype))
 
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.Stats.patternTitle)
@@ -199,7 +199,7 @@ struct StatsView: View {
                     .cornerRadius(6)
                     .foregroundStyle(by: .value(subtypeTitle, segment.subtype.legendLabel))
                 }
-                .chartForegroundStyleScale(subtypeColors)
+                .chartForegroundStyleScale(domain: subtypeScale.domain, range: subtypeScale.range)
                 .chartLegend(position: .bottom, alignment: .leading, spacing: 12)
                 .chartYAxis {
                     AxisMarks(values: Array(stride(from: 0, through: 1440, by: 180))) { value in
@@ -537,14 +537,23 @@ struct StatsView: View {
         return axisDays.sorted()
     }
 
-    private func colorScale<S: Sequence>(for subtypes: S) -> [String: Color] where S.Element == ActionSubtype {
-        var mapping: [String: Color] = [:]
+    private func colorScale<S: Sequence>(for subtypes: S) -> (domain: [String], range: [Color])
+        where S.Element == ActionSubtype
+    {
+        var seen: Set<String> = []
+        var domain: [String] = []
+        var range: [Color] = []
 
         for subtype in subtypes {
-            mapping[subtype.legendLabel] = subtype.color
+            let label = subtype.legendLabel
+            guard !seen.contains(label) else { continue }
+
+            seen.insert(label)
+            domain.append(label)
+            range.append(subtype.color)
         }
 
-        return mapping
+        return (domain, range)
     }
 }
 
