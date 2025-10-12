@@ -6,7 +6,6 @@
 //
 
 import ActivityKit
-import AppIntents
 import WidgetKit
 import SwiftUI
 
@@ -54,22 +53,11 @@ struct DurationActivityLiveActivity: Widget {
 
                 DynamicIslandExpandedRegion(.trailing) {
                     if let action = context.state.actions.first {
-                        HStack(spacing: 12) {
-                            Button(intent: StopRunningActionIntent(actionID: action.id)) {
-                                Image(systemName: "stop.circle.fill")
-                                    .font(.title2)
-                            }
-                            .buttonStyle(.plain)
+                        Text(action.startDate, style: .timer)
+                            .font(.title3)
+                            .monospacedDigit()
                             .foregroundStyle(action.category.accentColor)
-
-                            Spacer(minLength: 0)
-
-                            Text(action.startDate, style: .timer)
-                                .font(.title3)
-                                .monospacedDigit()
-                                .foregroundStyle(action.category.accentColor)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .trailing)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
                     }
                 }
 
@@ -81,7 +69,7 @@ struct DurationActivityLiveActivity: Widget {
                         )
 
                         ForEach(context.state.actions.prefix(2)) { action in
-                            DurationActivityActionRow(action: action, showsStopButton: true)
+                            DurationActivityActionRow(action: action)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -166,7 +154,7 @@ private struct DurationActivityLockScreenView: View {
             )
 
             ForEach(context.state.actions.prefix(3)) { action in
-                DurationActivityActionRow(action: action, showsStopButton: true)
+                DurationActivityActionRow(action: action)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -194,7 +182,6 @@ private struct DurationActivityLockScreenView: View {
 @available(iOS 17.0, *)
 private struct DurationActivityActionRow: View {
     let action: DurationActivityAttributes.ContentState.RunningAction
-    let showsStopButton: Bool
 
     private var highlightedSubtype: String? {
         guard let subtype = action.subtypeWord, subtype.isEmpty == false else { return nil }
@@ -246,16 +233,6 @@ private struct DurationActivityActionRow: View {
             }
 
             Spacer(minLength: 0)
-
-            if showsStopButton {
-                Button(intent: StopRunningActionIntent(actionID: action.id)) {
-                    Label(WidgetL10n.Common.stop, systemImage: "stop.circle.fill")
-                        .font(.caption)
-                        .labelStyle(.titleAndIcon)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(action.category.accentColor)
-            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
