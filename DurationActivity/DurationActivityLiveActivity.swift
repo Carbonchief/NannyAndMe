@@ -551,7 +551,7 @@ private extension DurationActivityAttributes.ContentState {
             subtitle: WidgetL10n.Actions.feedingBottleWithType(WidgetL10n.BottleType.formula, 120),
             subtypeWord: WidgetL10n.BottleType.formula,
             startDate: now.addingTimeInterval(-1200),
-            iconSystemName: "baby.bottle.fill"
+            iconSystemName: "waterbottle.fill"
         )
 
         return DurationActivityAttributes.ContentState(
