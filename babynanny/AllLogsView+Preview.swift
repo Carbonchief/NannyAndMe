@@ -14,6 +14,7 @@ import SwiftUI
             startDate: Date().addingTimeInterval(-7200),
             endDate: Date().addingTimeInterval(-6600),
             feedingType: .bottle,
+            bottleType: .formula,
             bottleVolume: 120
         ),
         BabyAction(

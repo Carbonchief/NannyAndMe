@@ -22,6 +22,8 @@
 "home.diaper.pickerLabel" = "Tipo de pañal";
 "home.feeding.sectionTitle" = "Tipo de alimentación";
 "home.feeding.pickerLabel" = "Tipo de alimentación";
+"home.bottleType.sectionTitle" = "Tipo de biberón";
+"home.bottleType.pickerLabel" = "Tipo de biberón";
 "home.bottle.sectionTitle" = "Volumen del biberón";
 "home.bottle.pickerLabel" = "Volumen del biberón";
 "home.bottle.customFieldPlaceholder" = "Volumen personalizado (ml)";
@@ -151,6 +153,8 @@
 "logs.summary.diaperWithType" = "pañal – %@";
 "logs.summary.diaper" = "pañal";
 "logs.summary.feedingBottle" = "alimentación – biberón (%lld ml)";
+"logs.summary.feedingBottleWithTypeAndVolume" = "alimentación – biberón (%1$@, %2$lld ml)";
+"logs.summary.feedingBottleWithType" = "alimentación – biberón (%@)";
 "logs.summary.feedingWithType" = "alimentación – %@";
 "logs.summary.feeding" = "alimentación";
 "stats.title" = "Estadísticas";
@@ -185,11 +189,15 @@
 "actions.diaper.change" = "Cambio de pañal";
 "actions.diaper.withType" = "%@";
 "actions.feeding.bottle" = "Biberón (%lld ml)";
+"actions.feeding.bottleWithTypeAndVolume" = "Biberón (%1$@, %2$lld ml)";
+"actions.feeding.bottleWithType" = "Biberón (%@)";
 "actions.feeding.withType" = "%@";
 "diaper.pee" = "Mojado";
 "diaper.poo" = "Sólido";
 "diaper.both" = "Mojado y sólido";
 "feeding.bottle" = "Biberón";
+"feeding.bottleType.formula" = "Leche de fórmula";
+"feeding.bottleType.breastMilk" = "Leche materna";
 "feeding.leftBreast" = "Pecho izquierdo";
 "feeding.rightBreast" = "Pecho derecho";
 "feeding.meal" = "Comida";

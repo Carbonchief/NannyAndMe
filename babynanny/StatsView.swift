@@ -698,6 +698,7 @@ private struct StatCard: View {
                    startDate: Date().addingTimeInterval(-7200),
                    endDate: Date().addingTimeInterval(-6900),
                    feedingType: .bottle,
+                   bottleType: .formula,
                    bottleVolume: 120),
         BabyAction(category: .diaper,
                    startDate: Date().addingTimeInterval(-5400),

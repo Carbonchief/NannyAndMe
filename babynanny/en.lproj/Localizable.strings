@@ -22,6 +22,8 @@
 "home.diaper.pickerLabel" = "Diaper type";
 "home.feeding.sectionTitle" = "Feeding type";
 "home.feeding.pickerLabel" = "Feeding type";
+"home.bottleType.sectionTitle" = "Bottle type";
+"home.bottleType.pickerLabel" = "Bottle type";
 "home.bottle.sectionTitle" = "Bottle volume";
 "home.bottle.pickerLabel" = "Bottle volume";
 "home.bottle.customFieldPlaceholder" = "Custom volume (ml)";
@@ -151,6 +153,8 @@
 "logs.summary.diaperWithType" = "diaper - %@";
 "logs.summary.diaper" = "diaper";
 "logs.summary.feedingBottle" = "feeding - bottle (%lld ml)";
+"logs.summary.feedingBottleWithTypeAndVolume" = "feeding - bottle (%1$@, %2$lld ml)";
+"logs.summary.feedingBottleWithType" = "feeding - bottle (%@)";
 "logs.summary.feedingWithType" = "feeding - %@";
 "logs.summary.feeding" = "feeding";
 "stats.title" = "Stats";
@@ -185,11 +189,15 @@
 "actions.diaper.change" = "Diaper change";
 "actions.diaper.withType" = "%@";
 "actions.feeding.bottle" = "Bottle (%lld ml)";
+"actions.feeding.bottleWithTypeAndVolume" = "Bottle (%1$@, %2$lld ml)";
+"actions.feeding.bottleWithType" = "Bottle (%@)";
 "actions.feeding.withType" = "%@";
 "diaper.pee" = "Pee";
 "diaper.poo" = "Poo";
 "diaper.both" = "Pee & Poo";
 "feeding.bottle" = "Bottle";
+"feeding.bottleType.formula" = "Formula";
+"feeding.bottleType.breastMilk" = "Breast milk";
 "feeding.leftBreast" = "Left Breast";
 "feeding.rightBreast" = "Right Breast";
 "feeding.meal" = "Meal";

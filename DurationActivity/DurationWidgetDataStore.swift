@@ -19,6 +19,7 @@ struct DurationWidgetSnapshot: Equatable {
             endDate: nil,
             diaperType: nil,
             feedingType: nil,
+            bottleType: nil,
             bottleVolume: nil
         )
         let feeding = DurationWidgetAction(
@@ -28,6 +29,7 @@ struct DurationWidgetSnapshot: Equatable {
             endDate: nil,
             diaperType: nil,
             feedingType: .bottle,
+            bottleType: .formula,
             bottleVolume: 120
         )
         return DurationWidgetSnapshot(profileName: "Aria", actions: [sleep, feeding])
@@ -48,12 +50,18 @@ struct DurationWidgetAction: Identifiable, Codable, Equatable {
         case meal
     }
 
+    enum BottleType: String, Codable {
+        case formula
+        case breastMilk
+    }
+
     let id: UUID
     let category: BabyActionCategory
     let startDate: Date
     var endDate: Date?
     let diaperType: DiaperType?
     let feedingType: FeedingType?
+    let bottleType: BottleType?
     let bottleVolume: Int?
 
     var isRunning: Bool {
@@ -72,8 +80,15 @@ struct DurationWidgetAction: Identifiable, Codable, Equatable {
             }
             switch feedingType {
             case .bottle:
+                let bottleTypeTitle = bottleType?.localizedTitle
+                if let bottleTypeTitle, let bottleVolume, bottleVolume > 0 {
+                    return WidgetL10n.Actions.feedingBottleWithType(bottleTypeTitle, bottleVolume)
+                }
                 if let bottleVolume, bottleVolume > 0 {
                     return WidgetL10n.Actions.feedingBottle(bottleVolume)
+                }
+                if let bottleTypeTitle {
+                    return WidgetL10n.Actions.feedingBottleWithTypeOnly(bottleTypeTitle)
                 }
                 return WidgetL10n.Actions.feedingWithType(WidgetL10n.FeedingType.bottle)
             case .leftBreast:
@@ -90,6 +105,17 @@ struct DurationWidgetAction: Identifiable, Codable, Equatable {
         let endReference = endDate ?? referenceDate
         let duration = max(0, endReference.timeIntervalSince(startDate))
         return DurationWidgetFormatter.shared.format(duration: duration)
+    }
+}
+
+private extension DurationWidgetAction.BottleType {
+    var localizedTitle: String {
+        switch self {
+        case .formula:
+            return WidgetL10n.BottleType.formula
+        case .breastMilk:
+            return WidgetL10n.BottleType.breastMilk
+        }
     }
 }
 

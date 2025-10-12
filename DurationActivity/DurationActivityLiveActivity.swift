@@ -350,8 +350,8 @@ private extension DurationActivityAttributes.ContentState {
             id: UUID(),
             category: .feeding,
             title: WidgetL10n.Actions.feeding,
-            subtitle: WidgetL10n.Actions.feedingWithType(WidgetL10n.FeedingType.bottle),
-            subtypeWord: WidgetL10n.FeedingType.bottle,
+            subtitle: WidgetL10n.Actions.feedingBottleWithType(WidgetL10n.BottleType.formula, 120),
+            subtypeWord: WidgetL10n.BottleType.formula,
             startDate: now.addingTimeInterval(-1200),
             iconSystemName: "takeoutbag.and.cup.and.straw.fill"
         )

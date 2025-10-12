@@ -50,6 +50,8 @@ enum L10n {
         static let diaperTypePickerLabel = String(localized: "home.diaper.pickerLabel", defaultValue: "Diaper type")
         static let feedingTypeSectionTitle = String(localized: "home.feeding.sectionTitle", defaultValue: "Feeding type")
         static let feedingTypePickerLabel = String(localized: "home.feeding.pickerLabel", defaultValue: "Feeding type")
+        static let bottleTypeSectionTitle = String(localized: "home.bottleType.sectionTitle", defaultValue: "Bottle type")
+        static let bottleTypePickerLabel = String(localized: "home.bottleType.pickerLabel", defaultValue: "Bottle type")
         static let bottleVolumeSectionTitle = String(localized: "home.bottle.sectionTitle", defaultValue: "Bottle volume")
         static let bottleVolumePickerLabel = String(localized: "home.bottle.pickerLabel", defaultValue: "Bottle volume")
         static let customVolumeFieldPlaceholder = String(localized: "home.bottle.customFieldPlaceholder", defaultValue: "Custom volume (ml)")
@@ -532,6 +534,19 @@ enum L10n {
             return String(format: format, locale: Locale.current, volume)
         }
 
+        static func summaryFeedingBottle(type: String, volume: Int) -> String {
+            let format = String(
+                localized: "logs.summary.feedingBottleWithTypeAndVolume",
+                defaultValue: "feeding - bottle (%1$@, %2$lld ml)"
+            )
+            return String(format: format, locale: Locale.current, type, volume)
+        }
+
+        static func summaryFeedingBottleTypeOnly(_ type: String) -> String {
+            let format = String(localized: "logs.summary.feedingBottleWithType", defaultValue: "feeding - bottle (%@)")
+            return String(format: format, locale: Locale.current, type)
+        }
+
         static func summaryFeeding(withType type: String) -> String {
             let format = String(localized: "logs.summary.feedingWithType", defaultValue: "feeding - %@")
             return String(format: format, locale: Locale.current, type)
@@ -614,6 +629,19 @@ enum L10n {
             return String(format: format, locale: Locale.current, volume)
         }
 
+        static func feedingBottleWithType(_ type: String, _ volume: Int) -> String {
+            let format = String(
+                localized: "actions.feeding.bottleWithTypeAndVolume",
+                defaultValue: "Bottle (%1$@, %2$lld ml)"
+            )
+            return String(format: format, locale: Locale.current, type, volume)
+        }
+
+        static func feedingBottleWithTypeOnly(_ type: String) -> String {
+            let format = String(localized: "actions.feeding.bottleWithType", defaultValue: "Bottle (%@)")
+            return String(format: format, locale: Locale.current, type)
+        }
+
         static func feedingWithType(_ type: String) -> String {
             let format = String(localized: "actions.feeding.withType", defaultValue: "%@")
             return String(format: format, locale: Locale.current, type)
@@ -631,6 +659,11 @@ enum L10n {
         static let leftBreast = String(localized: "feeding.leftBreast", defaultValue: "Left Breast")
         static let rightBreast = String(localized: "feeding.rightBreast", defaultValue: "Right Breast")
         static let meal = String(localized: "feeding.meal", defaultValue: "Meal")
+    }
+
+    enum BottleType {
+        static let formula = String(localized: "feeding.bottleType.formula", defaultValue: "Formula")
+        static let breastMilk = String(localized: "feeding.bottleType.breastMilk", defaultValue: "Breast milk")
     }
 
     enum Profile {
