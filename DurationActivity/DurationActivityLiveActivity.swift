@@ -65,7 +65,7 @@ struct DurationActivityLiveActivity: Widget {
                             .allowsTightening(true)
                             .contentTransition(.numericText())
                             .foregroundStyle(action.category.accentColor)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
 
@@ -73,9 +73,7 @@ struct DurationActivityLiveActivity: Widget {
                     if let action = primaryAction {
                         DurationActivityExpandedHighlightView(
                             action: action,
-                            attributes: context.attributes,
-                            accentColor: accentColor,
-                            updatedAt: context.state.updatedAt
+                            accentColor: accentColor
                         )
                     } else {
                         DurationActivityEmptyExpandedView(accentColor: accentColor)
@@ -312,43 +310,33 @@ private extension DurationActivityHeaderView {
 @available(iOS 17.0, *)
 private struct DurationActivityExpandedHighlightView: View {
     let action: DurationActivityAttributes.ContentState.RunningAction
-    let attributes: DurationActivityAttributes
     let accentColor: Color
-    let updatedAt: Date
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            DurationActivityHeaderView(
-                profileName: attributes.profileName,
-                updatedAt: updatedAt,
-                spacingStyle: .compact
-            )
+        VStack(alignment: .leading, spacing: 6) {
+            Text(action.title)
+                .font(.headline)
+                .foregroundStyle(.primary)
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(action.title)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
+            if let subtitle = action.subtitle {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
 
-                if let subtitle = action.subtitle {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-
-                if let subtypeWord = action.highlightedSubtypeWord {
-                    Text(subtypeWord)
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .textCase(.uppercase)
-                        .foregroundStyle(accentColor)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(accentColor.opacity(0.16))
-                        )
-                }
+            if let subtypeWord = action.highlightedSubtypeWord {
+                Text(subtypeWord)
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .textCase(.uppercase)
+                    .foregroundStyle(accentColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(accentColor.opacity(0.16))
+                    )
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
