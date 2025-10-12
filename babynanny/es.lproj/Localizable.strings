@@ -136,6 +136,8 @@
 "logs.delete.confirmationMessage" = "¿Seguro que deseas eliminar este registro? Esta acción no se puede deshacer.";
 "logs.delete.action" = "Eliminar registro";
 "logs.edit.action" = "Editar registro";
+"logs.continue.action" = "Continuar acción";
+"logs.continue.info" = "Continúa esta acción para seguir registrándola desde su hora de inicio original.";
 "logs.filter.button" = "Filtrar";
 "logs.filter.title" = "Filtrar registros";
 "logs.filter.startToggle" = "Filtrar desde fecha";

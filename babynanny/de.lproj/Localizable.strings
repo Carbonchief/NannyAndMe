@@ -136,6 +136,8 @@
 "logs.delete.confirmationMessage" = "Möchtest du dieses Protokoll wirklich löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.";
 "logs.delete.action" = "Protokoll löschen";
 "logs.edit.action" = "Protokoll bearbeiten";
+"logs.continue.action" = "Aktion fortsetzen";
+"logs.continue.info" = "Setze diese Aktion fort, um ab der ursprünglichen Startzeit weiter aufzuzeichnen.";
 "logs.filter.button" = "Filter";
 "logs.filter.title" = "Protokolle filtern";
 "logs.filter.startToggle" = "Ab Datum filtern";

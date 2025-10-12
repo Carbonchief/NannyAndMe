@@ -587,6 +587,8 @@ struct ActionEditSheet: View {
     let onDelete: (BabyAction) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var profileStore: ProfileStore
+    @EnvironmentObject private var actionStore: ActionLogStore
 
     @State private var startDate: Date
     @State private var diaperSelection: BabyAction.DiaperType
@@ -700,6 +702,20 @@ struct ActionEditSheet: View {
                     }
                 }
 
+                if canContinueAction {
+                    Section {
+                        Button {
+                            continueAction()
+                        } label: {
+                            Label(L10n.Logs.continueAction, systemImage: "play.circle.fill")
+                        }
+                    } footer: {
+                        Text(L10n.Logs.continueActionInfo)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 Section {
                     Button(role: .destructive) {
                         showDeleteConfirmation = true
@@ -777,6 +793,14 @@ struct ActionEditSheet: View {
         return false
     }
 
+    private var canContinueAction: Bool {
+        guard action.category.isInstant == false else { return false }
+        guard (endDate ?? action.endDate) != nil else { return false }
+        guard let profileID = profileStore.activeProfileID else { return false }
+        let state = actionStore.state(for: profileID)
+        return state.history.first?.id == action.id
+    }
+
     private func save() {
         var updated = action
         updated.startDate = startDate
@@ -794,6 +818,12 @@ struct ActionEditSheet: View {
         updated.endDate = endDate ?? action.endDate
 
         onSave(updated.withValidatedDates())
+        dismiss()
+    }
+
+    private func continueAction() {
+        guard let profileID = profileStore.activeProfileID else { return }
+        actionStore.continueAction(for: profileID, actionID: action.id)
         dismiss()
     }
 }

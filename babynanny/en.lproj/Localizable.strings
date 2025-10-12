@@ -136,6 +136,8 @@
 "logs.delete.confirmationMessage" = "Are you sure you want to delete this log? This action cannot be undone.";
 "logs.delete.action" = "Delete Log";
 "logs.edit.action" = "Edit Log";
+"logs.continue.action" = "Continue Action";
+"logs.continue.info" = "Resume this action to keep tracking from its original start time.";
 "logs.filter.button" = "Filter";
 "logs.filter.title" = "Filter Logs";
 "logs.filter.startToggle" = "Filter from date";
