@@ -189,11 +189,13 @@ struct SettingsView: View {
     }
 
     private var profilePhotoSelector: some View {
-        ZStack(alignment: .bottomTrailing) {
+        let activeImageData = profileStore.activeProfile.imageData
+
+        return ZStack(alignment: .bottomTrailing) {
             PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
-                ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 72)
+                ProfileAvatarView(imageData: activeImageData, size: 72)
                     .overlay(alignment: .bottomTrailing) {
-                        if profileStore.activeProfile.imageData == nil {
+                        if activeImageData == nil {
                             Image(systemName: "plus.circle.fill")
                                 .symbolRenderingMode(.multicolor)
                                 .font(.system(size: 20))
@@ -209,7 +211,7 @@ struct SettingsView: View {
                 handlePhotoSelectionChange(newValue)
             }
 
-            if profileStore.activeProfile.imageData != nil {
+            if activeImageData != nil {
                 Button {
                     profileStore.updateActiveProfile { $0.imageData = nil }
                 } label: {
