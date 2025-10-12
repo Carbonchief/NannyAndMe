@@ -64,7 +64,7 @@ struct DurationActivityLiveActivity: Widget {
                             .minimumScaleFactor(0.8)
                             .allowsTightening(true)
                             .contentTransition(.numericText())
-                            .foregroundStyle(action.category.accentColor)
+                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
@@ -110,6 +110,7 @@ struct DurationActivityLiveActivity: Widget {
                             .allowsTightening(true)
                             .contentTransition(.numericText())
                             .font(.footnote)
+                            .foregroundStyle(.white)
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel(Text(action.accessibilityDescription))
@@ -209,7 +210,7 @@ private struct DurationActivityActionRow: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
                     .allowsTightening(true)
-                    .foregroundStyle(action.category.accentColor)
+                    .foregroundStyle(.white)
                     .contentTransition(.numericText())
             }
 
