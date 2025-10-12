@@ -93,27 +93,16 @@ struct DurationActivityLiveActivity: Widget {
                 }
             } compactTrailing: {
                 if let action = primaryAction {
-                    VStack(spacing: 2) {
-                        if let subtypeWord = action.subtypeWord, subtypeWord.isEmpty == false {
-                            Text(subtypeWord)
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .minimumScaleFactor(0.6)
-                                .lineLimit(1)
-                                .foregroundStyle(action.category.accentColor)
-                        }
-
-                        Text(action.startDate, style: .timer)
-                            .monospacedDigit()
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                            .allowsTightening(true)
-                            .contentTransition(.numericText())
-                            .font(.footnote)
-                            .foregroundStyle(.white)
-                    }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(Text(action.accessibilityDescription))
+                    Text(action.startDate, style: .timer)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .allowsTightening(true)
+                        .contentTransition(.numericText())
+                        .font(.footnote)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityLabel(Text(action.accessibilityDescription))
                 }
             } minimal: {
                 if let action = primaryAction {
