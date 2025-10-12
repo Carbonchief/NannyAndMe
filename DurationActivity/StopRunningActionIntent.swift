@@ -57,7 +57,7 @@ private extension StopRunningActionIntent {
         )
 
         if newState.actions.isEmpty {
-            await activity.end(content: updatedContent, dismissalPolicy: .immediate)
+            await activity.end(updatedContent, dismissalPolicy: .immediate)
         } else {
             await activity.update(updatedContent)
         }
