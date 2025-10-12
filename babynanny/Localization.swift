@@ -486,6 +486,14 @@ enum L10n {
         )
         static let deleteAction = String(localized: "logs.delete.action", defaultValue: "Delete Log")
         static let editAction = String(localized: "logs.edit.action", defaultValue: "Edit Log")
+        static let continueAction = String(
+            localized: "logs.continue.action",
+            defaultValue: "Continue Action"
+        )
+        static let continueActionInfo = String(
+            localized: "logs.continue.info",
+            defaultValue: "Resume this action to keep tracking from its original start time."
+        )
         static let filterButton = String(localized: "logs.filter.button", defaultValue: "Filter")
         static let filterTitle = String(localized: "logs.filter.title", defaultValue: "Filter Logs")
         static let filterStartToggle = String(localized: "logs.filter.startToggle", defaultValue: "Filter from date")

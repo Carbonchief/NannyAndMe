@@ -533,6 +533,24 @@ final class ActionLogStore: ObservableObject {
         refreshDurationActivity(for: profileID)
     }
 
+    func continueAction(for profileID: UUID, actionID: UUID) {
+        updateState(for: profileID) { profileState in
+            guard let index = profileState.history.firstIndex(where: { $0.id == actionID }) else { return }
+            guard index == 0 else { return }
+
+            let action = profileState.history[index]
+            guard action.category.isInstant == false else { return }
+
+            profileState.history.remove(at: index)
+
+            var resumedAction = action
+            resumedAction.endDate = nil
+            profileState.activeActions[action.category] = resumedAction
+        }
+
+        refreshDurationActivity(for: profileID)
+    }
+
     func deleteAction(for profileID: UUID, actionID: UUID) {
         updateState(for: profileID) { profileState in
             profileState.history.removeAll { $0.id == actionID }
