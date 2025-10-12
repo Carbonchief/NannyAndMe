@@ -172,7 +172,7 @@ struct HomeView: View {
                     .fontWeight(.semibold)
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(action.category.accentColor)
             }
         }
     }
@@ -356,7 +356,6 @@ private struct ActionCard: View {
                             .foregroundStyle(category.accentColor)
                     }
                 }
-
             }
         }
         .padding()
