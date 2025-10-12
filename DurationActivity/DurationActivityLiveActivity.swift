@@ -90,6 +90,7 @@ struct DurationActivityLiveActivity: Widget {
                     Image(systemName: action.iconSystemName)
                         .font(.headline)
                         .accessibilityHidden(true)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             } compactTrailing: {
                 if let action = primaryAction {
@@ -102,6 +103,7 @@ struct DurationActivityLiveActivity: Widget {
                         .font(.footnote)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .multilineTextAlignment(.leading)
                         .accessibilityLabel(Text(action.accessibilityDescription))
                 }
             } minimal: {
