@@ -736,7 +736,7 @@ struct ActionEditSheet: View {
                     Button(role: .destructive) {
                         showDeleteConfirmation = true
                     } label: {
-                        Text(L10n.Logs.deleteAction)
+                        Label(L10n.Logs.deleteAction, systemImage: "trash")
                     }
                 }
             }
