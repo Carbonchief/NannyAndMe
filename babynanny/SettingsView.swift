@@ -140,15 +140,13 @@ struct SettingsView: View {
     private var activeProfileSection: some View {
         Section(header: Text(L10n.Profiles.activeProfileSection)) {
             activeProfileHeader
-            profilePhotoPicker
             processingPhotoIndicator
-            removePhotoButton
         }
     }
 
     private var activeProfileHeader: some View {
         HStack(alignment: .center, spacing: 16) {
-            ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 72)
+            profilePhotoSelector
 
             VStack(alignment: .leading, spacing: 12) {
                 TextField(L10n.Profiles.childName, text: Binding(
@@ -176,15 +174,6 @@ struct SettingsView: View {
         }
     }
 
-    private var profilePhotoPicker: some View {
-        PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
-            Label(L10n.Profiles.choosePhoto, systemImage: "photo.on.rectangle")
-        }
-        .onChange(of: selectedPhoto) { _, newValue in
-            handlePhotoSelectionChange(newValue)
-        }
-    }
-
     private var processingPhotoIndicator: some View {
         Group {
             if isProcessingPhoto {
@@ -199,14 +188,42 @@ struct SettingsView: View {
         }
     }
 
-    private var removePhotoButton: some View {
-        Group {
+    private var profilePhotoSelector: some View {
+        ZStack(alignment: .bottomTrailing) {
+            PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
+                ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 72)
+                    .overlay(alignment: .bottomTrailing) {
+                        if profileStore.activeProfile.imageData == nil {
+                            Image(systemName: "plus.circle.fill")
+                                .symbolRenderingMode(.multicolor)
+                                .font(.system(size: 20))
+                                .shadow(radius: 1)
+                                .accessibilityHidden(true)
+                        }
+                    }
+            }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .accessibilityLabel(L10n.Profiles.choosePhoto)
+            .onChange(of: selectedPhoto) { _, newValue in
+                handlePhotoSelectionChange(newValue)
+            }
+
             if profileStore.activeProfile.imageData != nil {
-                Button(role: .destructive) {
+                Button {
                     profileStore.updateActiveProfile { $0.imageData = nil }
                 } label: {
-                    Label(L10n.Profiles.removePhoto, systemImage: "trash")
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(6)
+                        .background(Color.red)
+                        .clipShape(Circle())
+                        .shadow(radius: 2)
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.Profiles.removePhoto)
+                .padding(4)
             }
         }
     }
