@@ -29,6 +29,7 @@ struct SettingsView: View {
         Form {
             profilesSection
             activeProfileSection
+            homeSection
             notificationsSection
             aboutSection
         }
@@ -223,6 +224,19 @@ struct SettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 4)
+            }
+        }
+    }
+
+    private var homeSection: some View {
+        Section(header: Text(L10n.Settings.homeSection)) {
+            Toggle(
+                isOn: Binding(
+                    get: { profileStore.showRecentActivityOnHome },
+                    set: { profileStore.setShowRecentActivityOnHome($0) }
+                )
+            ) {
+                Text(L10n.Settings.showRecentActivity)
             }
         }
     }
