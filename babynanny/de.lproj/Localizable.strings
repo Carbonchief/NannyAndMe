@@ -22,6 +22,8 @@
 "home.diaper.pickerLabel" = "Windeltyp";
 "home.feeding.sectionTitle" = "Fütterungsart";
 "home.feeding.pickerLabel" = "Fütterungsart";
+"home.bottleType.sectionTitle" = "Flaschentyp";
+"home.bottleType.pickerLabel" = "Flaschentyp";
 "home.bottle.sectionTitle" = "Flaschenmenge";
 "home.bottle.pickerLabel" = "Flaschenmenge";
 "home.bottle.customFieldPlaceholder" = "Individuelles Volumen (ml)";
@@ -153,6 +155,8 @@
 "logs.summary.diaperWithType" = "Windel – %@";
 "logs.summary.diaper" = "Windel";
 "logs.summary.feedingBottle" = "Füttern – Flasche (%lld ml)";
+"logs.summary.feedingBottleWithTypeAndVolume" = "Füttern – Flasche (%1$@, %2$lld ml)";
+"logs.summary.feedingBottleWithType" = "Füttern – Flasche (%@)";
 "logs.summary.feedingWithType" = "Füttern – %@";
 "logs.summary.feeding" = "Füttern";
 "stats.title" = "Statistiken";
@@ -187,11 +191,15 @@
 "actions.diaper.change" = "Windelwechsel";
 "actions.diaper.withType" = "%@";
 "actions.feeding.bottle" = "Flasche (%lld ml)";
+"actions.feeding.bottleWithTypeAndVolume" = "Flasche (%1$@, %2$lld ml)";
+"actions.feeding.bottleWithType" = "Flasche (%@)";
 "actions.feeding.withType" = "%@";
 "diaper.pee" = "Nass";
 "diaper.poo" = "Stuhl";
 "diaper.both" = "Nass & Stuhl";
 "feeding.bottle" = "Flasche";
+"feeding.bottleType.formula" = "Milchpulver";
+"feeding.bottleType.breastMilk" = "Muttermilch";
 "feeding.leftBreast" = "Linke Brust";
 "feeding.rightBreast" = "Rechte Brust";
 "feeding.meal" = "Mahlzeit";

@@ -70,12 +70,29 @@ struct BabyAction: Identifiable, Codable {
         }
     }
 
+    enum BottleType: String, CaseIterable, Identifiable, Codable {
+        case formula
+        case breastMilk
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .formula:
+                return L10n.BottleType.formula
+            case .breastMilk:
+                return L10n.BottleType.breastMilk
+            }
+        }
+    }
+
     var id: UUID
     let category: BabyActionCategory
     var startDate: Date
     var endDate: Date?
     var diaperType: DiaperType?
     var feedingType: FeedingType?
+    var bottleType: BottleType?
     var bottleVolume: Int?
 
     init(id: UUID = UUID(),
@@ -84,6 +101,7 @@ struct BabyAction: Identifiable, Codable {
          endDate: Date? = nil,
          diaperType: DiaperType? = nil,
          feedingType: FeedingType? = nil,
+         bottleType: BottleType? = nil,
          bottleVolume: Int? = nil) {
         self.id = id
         self.category = category
@@ -91,6 +109,7 @@ struct BabyAction: Identifiable, Codable {
         self.endDate = endDate
         self.diaperType = diaperType
         self.feedingType = feedingType
+        self.bottleType = bottleType
         self.bottleVolume = bottleVolume
     }
 
@@ -119,8 +138,16 @@ struct BabyAction: Identifiable, Codable {
             return L10n.Actions.diaperChange
         case .feeding:
             if let feedingType {
-                if feedingType == .bottle, let bottleVolume {
-                    return L10n.Actions.feedingBottle(bottleVolume)
+                if feedingType == .bottle {
+                    if let bottleType, let bottleVolume {
+                        return L10n.Actions.feedingBottleWithType(bottleType.title, bottleVolume)
+                    }
+                    if let bottleType {
+                        return L10n.Actions.feedingBottleWithTypeOnly(bottleType.title)
+                    }
+                    if let bottleVolume {
+                        return L10n.Actions.feedingBottle(bottleVolume)
+                    }
                 }
                 return L10n.Actions.feedingWithType(feedingType.title)
             }
@@ -135,7 +162,13 @@ struct BabyAction: Identifiable, Codable {
         case .diaper:
             return diaperType?.title
         case .feeding:
-            return feedingType?.title
+            if let feedingType {
+                if feedingType == .bottle, let bottleType {
+                    return bottleType.title
+                }
+                return feedingType.title
+            }
+            return nil
         }
     }
 
@@ -203,6 +236,7 @@ extension BabyAction: Equatable {
             && lhs.endDate == rhs.endDate
             && lhs.diaperType == rhs.diaperType
             && lhs.feedingType == rhs.feedingType
+            && lhs.bottleType == rhs.bottleType
             && lhs.bottleVolume == rhs.bottleVolume
     }
 }
@@ -446,6 +480,7 @@ final class ActionLogStore: ObservableObject {
                      category: BabyActionCategory,
                      diaperType: BabyAction.DiaperType? = nil,
                      feedingType: BabyAction.FeedingType? = nil,
+                     bottleType: BabyAction.BottleType? = nil,
                      bottleVolume: Int? = nil) {
         updateState(for: profileID) { profileState in
             let now = Date()
@@ -461,6 +496,7 @@ final class ActionLogStore: ObservableObject {
                                         endDate: now,
                                         diaperType: diaperType,
                                         feedingType: feedingType,
+                                        bottleType: bottleType,
                                         bottleVolume: bottleVolume)
                 profileState.history.insert(action, at: 0)
                 return
@@ -486,6 +522,7 @@ final class ActionLogStore: ObservableObject {
                                     startDate: now,
                                     diaperType: diaperType,
                                     feedingType: feedingType,
+                                    bottleType: bottleType,
                                     bottleVolume: bottleVolume)
             profileState.activeActions[category] = action
         }

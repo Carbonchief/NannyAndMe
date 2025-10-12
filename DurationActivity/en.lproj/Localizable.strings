@@ -1,11 +1,15 @@
 "actions.sleep" = "Sleep";
 "actions.feeding" = "Feeding";
 "actions.feeding.bottle" = "Bottle (%lld ml)";
+"actions.feeding.bottleWithTypeAndVolume" = "Bottle (%1$@, %2$lld ml)";
+"actions.feeding.bottleWithType" = "Bottle (%@)";
 "actions.feeding.withType" = "%@";
 "feeding.bottle" = "Bottle";
 "feeding.leftBreast" = "Left Breast";
 "feeding.rightBreast" = "Right Breast";
 "feeding.meal" = "Meal";
+"feeding.bottleType.formula" = "Formula";
+"feeding.bottleType.breastMilk" = "Breast milk";
 "common.stop" = "Stop";
 "profile.new" = "New Profile";
 "formatter.justNow" = "Just now";

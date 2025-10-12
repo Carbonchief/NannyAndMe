@@ -251,6 +251,7 @@ struct HomeView: View {
                                 category: category,
                                 diaperType: configuration.diaperType,
                                 feedingType: configuration.feedingType,
+                                bottleType: configuration.bottleType,
                                 bottleVolume: configuration.bottleVolume)
     }
 
@@ -479,9 +480,10 @@ private struct HistoryRow: View {
 private struct ActionConfiguration {
     var diaperType: BabyAction.DiaperType?
     var feedingType: BabyAction.FeedingType?
+    var bottleType: BabyAction.BottleType?
     var bottleVolume: Int?
 
-    static let sleep = ActionConfiguration(diaperType: nil, feedingType: nil, bottleVolume: nil)
+    static let sleep = ActionConfiguration(diaperType: nil, feedingType: nil, bottleType: nil, bottleVolume: nil)
 }
 
 private struct PendingStartAction: Identifiable {
@@ -593,6 +595,7 @@ struct ActionEditSheet: View {
     @State private var startDate: Date
     @State private var diaperSelection: BabyAction.DiaperType
     @State private var feedingSelection: BabyAction.FeedingType
+    @State private var bottleTypeSelection: BabyAction.BottleType
     @State private var bottleSelection: BottleVolumeOption
     @State private var customBottleVolume: String
     @State private var endDate: Date?
@@ -606,6 +609,7 @@ struct ActionEditSheet: View {
         _startDate = State(initialValue: action.startDate)
         _diaperSelection = State(initialValue: action.diaperType ?? .pee)
         _feedingSelection = State(initialValue: action.feedingType ?? .bottle)
+        _bottleTypeSelection = State(initialValue: action.bottleType ?? .formula)
         _endDate = State(initialValue: action.endDate)
 
         let defaultSelection: BottleVolumeOption = .preset(120)
@@ -662,6 +666,19 @@ struct ActionEditSheet: View {
                             Text(L10n.Home.feedingTypePickerLabel)
                         }
                         .pickerStyle(.segmented)
+                    }
+
+                    if feedingSelection == .bottle {
+                        Section(header: Text(L10n.Home.bottleTypeSectionTitle)) {
+                            Picker(selection: $bottleTypeSelection) {
+                                ForEach(BabyAction.BottleType.allCases) { option in
+                                    Text(option.title).tag(option)
+                                }
+                            } label: {
+                                Text(L10n.Home.bottleTypePickerLabel)
+                            }
+                            .pickerStyle(.segmented)
+                        }
                     }
 
                     if feedingSelection.requiresVolume {
@@ -812,6 +829,7 @@ struct ActionEditSheet: View {
             updated.diaperType = diaperSelection
         case .feeding:
             updated.feedingType = feedingSelection
+            updated.bottleType = feedingSelection == .bottle ? bottleTypeSelection : nil
             updated.bottleVolume = feedingSelection.requiresVolume ? resolvedBottleVolume : nil
         }
 
@@ -836,6 +854,7 @@ private struct ActionDetailSheet: View {
 
     @State private var diaperSelection: BabyAction.DiaperType = .pee
     @State private var feedingSelection: BabyAction.FeedingType = .bottle
+    @State private var bottleTypeSelection: BabyAction.BottleType = .formula
     @State private var bottleSelection: BottleVolumeOption = .preset(120)
     @State private var customBottleVolume: String = ""
 
@@ -877,6 +896,21 @@ private struct ActionDetailSheet: View {
                         )
                     } header: {
                         Text(L10n.Home.feedingTypeSectionTitle)
+                    }
+
+                    if feedingSelection == .bottle {
+                        Section {
+                            Picker(selection: $bottleTypeSelection) {
+                                ForEach(BabyAction.BottleType.allCases) { option in
+                                    Text(option.title).tag(option)
+                                }
+                            } label: {
+                                Text(L10n.Home.bottleTypePickerLabel)
+                            }
+                            .pickerStyle(.segmented)
+                        } header: {
+                            Text(L10n.Home.bottleTypeSectionTitle)
+                        }
                     }
 
                     if feedingSelection.requiresVolume {
@@ -922,12 +956,13 @@ private struct ActionDetailSheet: View {
     private var configuration: ActionConfiguration {
         switch category {
         case .sleep:
-            return ActionConfiguration(diaperType: nil, feedingType: nil, bottleVolume: nil)
+            return ActionConfiguration(diaperType: nil, feedingType: nil, bottleType: nil, bottleVolume: nil)
         case .diaper:
-            return ActionConfiguration(diaperType: diaperSelection, feedingType: nil, bottleVolume: nil)
+            return ActionConfiguration(diaperType: diaperSelection, feedingType: nil, bottleType: nil, bottleVolume: nil)
         case .feeding:
             let volume = feedingSelection.requiresVolume ? resolvedBottleVolume : nil
-            return ActionConfiguration(diaperType: nil, feedingType: feedingSelection, bottleVolume: volume)
+            let bottleType = feedingSelection == .bottle ? bottleTypeSelection : nil
+            return ActionConfiguration(diaperType: nil, feedingType: feedingSelection, bottleType: bottleType, bottleVolume: volume)
         }
     }
 
@@ -967,7 +1002,7 @@ private struct ActionDetailSheet: View {
     var state = ProfileActionState()
     state.activeActions[.sleep] = BabyAction(category: .sleep, startDate: Date().addingTimeInterval(-1200))
     state.history = [
-        BabyAction(category: .feeding, startDate: Date().addingTimeInterval(-5400), endDate: Date().addingTimeInterval(-5100), feedingType: .bottle, bottleVolume: 110),
+        BabyAction(category: .feeding, startDate: Date().addingTimeInterval(-5400), endDate: Date().addingTimeInterval(-5100), feedingType: .bottle, bottleType: .formula, bottleVolume: 110),
         BabyAction(category: .diaper, startDate: Date().addingTimeInterval(-3600), endDate: Date().addingTimeInterval(-3500), diaperType: .pee)
     ]
 

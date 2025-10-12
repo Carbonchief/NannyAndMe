@@ -70,8 +70,17 @@ struct AllLogsRowView: View {
             return L10n.Logs.summaryDiaper()
         case .feeding:
             if let type = action.feedingType {
-                if type == .bottle, let volume = action.bottleVolume {
-                    return L10n.Logs.summaryFeedingBottle(volume: volume)
+                if type == .bottle {
+                    let bottleTypeTitle = action.bottleType?.title.localizedLowercase
+                    if let bottleTypeTitle, let volume = action.bottleVolume {
+                        return L10n.Logs.summaryFeedingBottle(type: bottleTypeTitle, volume: volume)
+                    }
+                    if let volume = action.bottleVolume {
+                        return L10n.Logs.summaryFeedingBottle(volume: volume)
+                    }
+                    if let bottleTypeTitle {
+                        return L10n.Logs.summaryFeedingBottleTypeOnly(bottleTypeTitle)
+                    }
                 }
                 return L10n.Logs.summaryFeeding(withType: type.title.localizedLowercase)
             }
