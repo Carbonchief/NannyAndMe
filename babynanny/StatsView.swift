@@ -68,7 +68,7 @@ struct StatsView: View {
                 StatCard(title: L10n.Stats.bottleFeedTitle,
                          value: "\(todayBottleVolume(for: todayActions))",
                          subtitle: L10n.Stats.bottleFeedSubtitle,
-                         icon: "takeoutbag.and.cup.and.straw.fill",
+                         icon: "baby.bottle.fill",
                          tint: .orange)
 
                 StatCard(title: L10n.Stats.sleepSessionsTitle,
