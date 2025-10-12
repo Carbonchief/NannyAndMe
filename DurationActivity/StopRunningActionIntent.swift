@@ -1,7 +1,6 @@
 import ActivityKit
 import AppIntents
 import Foundation
-import WidgetKit
 
 @available(iOS 17.0, *)
 struct StopRunningActionIntent: AppIntent {
@@ -26,7 +25,6 @@ struct StopRunningActionIntent: AppIntent {
 
             try dataStore.stopAction(withID: uuid)
             await updateLiveActivity(afterStoppingActionWithID: uuid)
-            await reloadDurationWidgets()
         } catch DurationDataStore.StopActionError.actionNotFound {
             return .result()
         } catch DurationDataStore.StopActionError.stateUnavailable {
@@ -60,14 +58,6 @@ private extension StopRunningActionIntent {
             await activity.end(updatedContent, dismissalPolicy: .immediate)
         } else {
             await activity.update(updatedContent)
-        }
-    }
-
-    func reloadDurationWidgets() async {
-        await MainActor.run {
-            let center = WidgetCenter.shared
-            center.reloadTimelines(ofKind: DurationActivity().kind)
-            center.reloadTimelines(ofKind: DurationActivityControl.kind)
         }
     }
 }
