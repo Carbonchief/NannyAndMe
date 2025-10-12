@@ -6,8 +6,9 @@
 //
 
 import ActivityKit
-import WidgetKit
+import Foundation
 import SwiftUI
+import WidgetKit
 
 @available(iOS 17.0, *)
 struct DurationActivityAttributes: ActivityAttributes {
@@ -44,62 +45,53 @@ struct DurationActivityLiveActivity: Widget {
                 .activityBackgroundTint(context.primaryAccentColor.opacity(0.12))
                 .activitySystemActionForegroundColor(context.primaryAccentColor)
         } dynamicIsland: { context in
+            let accentColor = context.primaryAccentColor
+            let primaryAction = context.state.actions.first
+
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    if let action = context.state.actions.first {
+                    if let action = primaryAction {
                         DurationActivityIconView(action: action)
                     }
                 }
 
                 DynamicIslandExpandedRegion(.trailing) {
-                    if let action = context.state.actions.first {
+                    if let action = primaryAction {
                         Text(action.startDate, style: .timer)
                             .font(.title3)
                             .monospacedDigit()
+                            .contentTransition(.numericText())
                             .foregroundStyle(action.category.accentColor)
                             .frame(maxWidth: .infinity, alignment: .trailing)
                     }
                 }
 
-                DynamicIslandExpandedRegion(.bottom) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        DurationActivityHeaderView(
-                            accentColor: context.primaryAccentColor,
-                            spacingStyle: .compact
+                DynamicIslandExpandedRegion(.center) {
+                    if let action = primaryAction {
+                        DurationActivityExpandedHighlightView(
+                            action: action,
+                            attributes: context.attributes,
+                            accentColor: accentColor,
+                            updatedAt: context.state.updatedAt
                         )
-
-                        ForEach(context.state.actions.prefix(2)) { action in
-                            DurationActivityActionRow(action: action)
-                        }
+                    } else {
+                        DurationActivityEmptyExpandedView(accentColor: accentColor)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        context.primaryAccentColor.opacity(0.2),
-                                        context.primaryAccentColor.opacity(0.08)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .stroke(context.primaryAccentColor.opacity(0.15), lineWidth: 1)
-                            )
+                }
+
+                DynamicIslandExpandedRegion(.bottom) {
+                    DurationActivitySupplementaryActionsView(
+                        actions: Array(context.state.actions.dropFirst().prefix(2))
                     )
                 }
             } compactLeading: {
-                if let action = context.state.actions.first {
+                if let action = primaryAction {
                     Image(systemName: action.iconSystemName)
                         .font(.headline)
+                        .accessibilityHidden(true)
                 }
             } compactTrailing: {
-                if let action = context.state.actions.first {
+                if let action = primaryAction {
                     VStack(spacing: 2) {
                         if let subtypeWord = action.subtypeWord, subtypeWord.isEmpty == false {
                             Text(subtypeWord)
@@ -112,32 +104,23 @@ struct DurationActivityLiveActivity: Widget {
 
                         Text(action.startDate, style: .timer)
                             .monospacedDigit()
+                            .contentTransition(.numericText())
                             .font(.footnote)
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(Text(action.accessibilityDescription))
                 }
             } minimal: {
-                if let action = context.state.actions.first {
-                    ZStack {
-                        Circle()
-                            .fill(action.category.accentColor.opacity(0.15))
-                            .frame(width: 36, height: 36)
-
-                        if let subtypeWord = action.subtypeWord, subtypeWord.isEmpty == false {
-                            Text(subtypeWord)
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .minimumScaleFactor(0.5)
-                                .lineLimit(1)
-                                .foregroundStyle(action.category.accentColor)
-                                .padding(6)
-                        } else {
-                            Image(systemName: action.iconSystemName)
-                                .foregroundStyle(action.category.accentColor)
-                        }
-                    }
+                if let action = primaryAction {
+                    DurationActivityMinimalView(action: action)
+                } else {
+                    Image(systemName: "pause.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(accentColor)
+                        .accessibilityLabel(Text(WidgetL10n.Duration.noActiveTimers))
                 }
             }
-            .keylineTint(context.primaryAccentColor)
+            .keylineTint(accentColor)
         }
     }
 }
@@ -150,6 +133,8 @@ private struct DurationActivityLockScreenView: View {
         VStack(alignment: .leading, spacing: 12) {
             DurationActivityHeaderView(
                 accentColor: context.primaryAccentColor,
+                profileName: context.attributes.profileName,
+                updatedAt: context.state.updatedAt,
                 spacingStyle: .regular
             )
 
@@ -183,17 +168,6 @@ private struct DurationActivityLockScreenView: View {
 private struct DurationActivityActionRow: View {
     let action: DurationActivityAttributes.ContentState.RunningAction
 
-    private var highlightedSubtype: String? {
-        guard let subtype = action.subtypeWord, subtype.isEmpty == false else { return nil }
-
-        if let subtitle = action.subtitle?.trimmingCharacters(in: .whitespacesAndNewlines),
-           subtitle.caseInsensitiveCompare(subtype) == .orderedSame {
-            return nil
-        }
-
-        return subtype
-    }
-
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             DurationActivityIconView(action: action)
@@ -205,7 +179,7 @@ private struct DurationActivityActionRow: View {
                         .fontWeight(.semibold)
                         .foregroundStyle(.primary)
 
-                    if let subtypeWord = highlightedSubtype {
+                    if let subtypeWord = action.highlightedSubtypeWord {
                         Text(subtypeWord)
                             .font(.caption2)
                             .fontWeight(.semibold)
@@ -230,6 +204,7 @@ private struct DurationActivityActionRow: View {
                     .font(.caption2)
                     .monospacedDigit()
                     .foregroundStyle(action.category.accentColor)
+                    .contentTransition(.numericText())
             }
 
             Spacer(minLength: 0)
@@ -240,6 +215,8 @@ private struct DurationActivityActionRow: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(action.category.accentColor.opacity(0.08))
         )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(action.accessibilityDescription))
     }
 }
 
@@ -261,12 +238,12 @@ private struct DurationActivityIconView: View {
                     )
                 )
                 .frame(width: 40, height: 40)
-                .shadow(color: action.category.accentColor.opacity(0.2), radius: 6, x: 0, y: 4)
 
             Image(systemName: action.iconSystemName)
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(.white)
         }
+        .accessibilityHidden(true)
     }
 }
 
@@ -278,6 +255,8 @@ private struct DurationActivityHeaderView: View {
     }
 
     let accentColor: Color
+    var profileName: String?
+    var updatedAt: Date?
     var spacingStyle: SpacingStyle
 
     private var headerSpacing: CGFloat {
@@ -301,8 +280,181 @@ private struct DurationActivityHeaderView: View {
                     Capsule()
                         .fill(accentColor.opacity(0.18))
                 )
+
+            if let profileName, profileName.isEmpty == false {
+                Text(profileName)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+            } else {
+                Text(WidgetL10n.Profile.newProfile)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+            }
+
+            if let updatedAt {
+                Text(updatedAt, format: .relative(presentation: .named))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+@available(iOS 17.0, *)
+private struct DurationActivityExpandedHighlightView: View {
+    let action: DurationActivityAttributes.ContentState.RunningAction
+    let attributes: DurationActivityAttributes
+    let accentColor: Color
+    let updatedAt: Date
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            DurationActivityHeaderView(
+                accentColor: accentColor,
+                profileName: attributes.profileName,
+                updatedAt: updatedAt,
+                spacingStyle: .compact
+            )
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(action.title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+
+                if let subtitle = action.subtitle {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+
+                if let subtypeWord = action.highlightedSubtypeWord {
+                    Text(subtypeWord)
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .textCase(.uppercase)
+                        .foregroundStyle(accentColor)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(accentColor.opacity(0.16))
+                        )
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(action.accessibilityDescription))
+    }
+}
+
+@available(iOS 17.0, *)
+private struct DurationActivitySupplementaryActionsView: View {
+    let actions: [DurationActivityAttributes.ContentState.RunningAction]
+
+    var body: some View {
+        if actions.isEmpty {
+            EmptyView()
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(actions) { action in
+                    DurationActivityActionRow(action: action)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
+}
+
+@available(iOS 17.0, *)
+private struct DurationActivityEmptyExpandedView: View {
+    let accentColor: Color
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "pause.circle.fill")
+                .font(.largeTitle)
+                .foregroundStyle(accentColor)
+                .accessibilityHidden(true)
+
+            Text(WidgetL10n.Duration.noActiveTimers)
+                .font(.subheadline)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.vertical, 12)
+    }
+}
+
+@available(iOS 17.0, *)
+private struct DurationActivityMinimalView: View {
+    let action: DurationActivityAttributes.ContentState.RunningAction
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(action.category.accentColor.opacity(0.15))
+                .frame(width: 36, height: 36)
+
+            if let subtypeWord = action.subtypeWord, subtypeWord.isEmpty == false {
+                Text(subtypeWord)
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                    .foregroundStyle(action.category.accentColor)
+                    .padding(6)
+            } else {
+                Image(systemName: action.iconSystemName)
+                    .foregroundStyle(action.category.accentColor)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(action.accessibilityDescription))
+    }
+}
+
+@available(iOS 17.0, *)
+private extension DurationActivityAttributes.ContentState.RunningAction {
+    var highlightedSubtypeWord: String? {
+        guard let subtype = subtypeWord, subtype.isEmpty == false else { return nil }
+
+        if let subtitle = subtitle?.trimmingCharacters(in: .whitespacesAndNewlines),
+           subtitle.caseInsensitiveCompare(subtype) == .orderedSame {
+            return nil
+        }
+
+        return subtype
+    }
+
+    var accessibilityDescription: String {
+        var components: [String] = [title]
+
+        if let subtitle, subtitle.isEmpty == false {
+            components.append(subtitle)
+        }
+
+        let relativeDescription = DurationActivityFormatter.relativeDate.localizedString(
+            for: startDate,
+            relativeTo: Date()
+        )
+
+        components.append(relativeDescription)
+
+        return components.joined(separator: ", ")
+    }
+}
+
+@available(iOS 17.0, *)
+private enum DurationActivityFormatter {
+    static let relativeDate: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter
+    }()
 }
 
 @available(iOS 17.0, *)
