@@ -51,20 +51,13 @@ struct DurationActivityLiveActivity: Widget {
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     if let action = primaryAction {
-                        DurationActivityIconView(action: action)
+                        DurationActivityExpandedIconView(action: action)
                     }
                 }
 
                 DynamicIslandExpandedRegion(.trailing) {
                     if let action = primaryAction {
-                        Text(action.startDate, style: .timer)
-                            .font(.title3)
-                            .monospacedDigit()
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                            .allowsTightening(true)
-                            .contentTransition(.numericText())
-                            .foregroundStyle(.white)
+                        DurationActivityExpandedTimerView(action: action)
                     }
                 }
 
@@ -86,10 +79,7 @@ struct DurationActivityLiveActivity: Widget {
                 }
             } compactLeading: {
                 if let action = primaryAction {
-                    Image(systemName: action.iconSystemName)
-                        .imageScale(.medium)
-                        .font(.system(size: 14, weight: .semibold))
-                        .accessibilityHidden(true)
+                    DurationActivityCompactLeadingView(iconSystemName: action.iconSystemName)
                 }
             } compactTrailing: {
                 if let action = primaryAction {
@@ -107,10 +97,7 @@ struct DurationActivityLiveActivity: Widget {
                 if let action = primaryAction {
                     DurationActivityMinimalView(action: action)
                 } else {
-                    Image(systemName: "pause.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(accentColor)
-                        .accessibilityLabel(Text(WidgetL10n.Duration.noActiveTimers))
+                    DurationActivityMinimalPlaceholderView(accentColor: accentColor)
                 }
             }
             .keylineTint(accentColor)
@@ -297,6 +284,41 @@ private extension DurationActivityHeaderView {
 }
 
 @available(iOS 17.0, *)
+private struct DurationActivityExpandedIconView: View {
+    let action: DurationActivityAttributes.ContentState.RunningAction
+
+    var body: some View {
+        VStack(spacing: 0) {
+            DurationActivityIconView(action: action)
+
+            Spacer(minLength: 0)
+        }
+        .frame(width: 44, alignment: .trailing)
+    }
+}
+
+@available(iOS 17.0, *)
+private struct DurationActivityExpandedTimerView: View {
+    let action: DurationActivityAttributes.ContentState.RunningAction
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 0) {
+            Text(action.startDate, style: .timer)
+                .font(.title3)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .allowsTightening(true)
+                .contentTransition(.numericText())
+                .foregroundStyle(.white)
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+    }
+}
+
+@available(iOS 17.0, *)
 private struct DurationActivityExpandedHighlightView: View {
     let action: DurationActivityAttributes.ContentState.RunningAction
     let accentColor: Color
@@ -353,6 +375,23 @@ private struct DurationActivitySupplementaryActionsView: View {
 }
 
 @available(iOS 17.0, *)
+private struct DurationActivityCompactLeadingView: View {
+    let iconSystemName: String
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Spacer(minLength: 0)
+
+            Image(systemName: iconSystemName)
+                .imageScale(.medium)
+                .font(.system(size: 14, weight: .semibold))
+        }
+        .frame(width: 26, alignment: .trailing)
+        .accessibilityHidden(true)
+    }
+}
+
+@available(iOS 17.0, *)
 private struct DurationActivityEmptyExpandedView: View {
     let accentColor: Color
 
@@ -378,26 +417,49 @@ private struct DurationActivityMinimalView: View {
     let action: DurationActivityAttributes.ContentState.RunningAction
 
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(action.category.accentColor.opacity(0.15))
-                .frame(width: 36, height: 36)
+        HStack(spacing: 0) {
+            Spacer(minLength: 0)
 
-            if let subtypeWord = action.subtypeWord, subtypeWord.isEmpty == false {
-                Text(subtypeWord)
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .minimumScaleFactor(0.5)
-                    .lineLimit(1)
-                    .foregroundStyle(action.category.accentColor)
-                    .padding(6)
-            } else {
-                Image(systemName: action.iconSystemName)
-                    .foregroundStyle(action.category.accentColor)
+            ZStack {
+                Circle()
+                    .fill(action.category.accentColor.opacity(0.15))
+                    .frame(width: 36, height: 36)
+
+                if let subtypeWord = action.subtypeWord, subtypeWord.isEmpty == false {
+                    Text(subtypeWord)
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(1)
+                        .foregroundStyle(action.category.accentColor)
+                        .padding(6)
+                } else {
+                    Image(systemName: action.iconSystemName)
+                        .foregroundStyle(action.category.accentColor)
+                }
             }
         }
+        .frame(width: 38, height: 36, alignment: .trailing)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(action.accessibilityDescription))
+    }
+}
+
+@available(iOS 17.0, *)
+private struct DurationActivityMinimalPlaceholderView: View {
+    let accentColor: Color
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Spacer(minLength: 0)
+
+            Image(systemName: "pause.circle.fill")
+                .font(.title3)
+                .foregroundStyle(accentColor)
+        }
+        .frame(width: 38, height: 36, alignment: .trailing)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(WidgetL10n.Duration.noActiveTimers))
     }
 }
 
