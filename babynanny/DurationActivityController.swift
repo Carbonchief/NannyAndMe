@@ -39,8 +39,6 @@ final class DurationActivityController {
     private init() {}
 
     func update(for profileName: String?, actions: [BabyAction]) {
-        guard #available(iOS 17.0, *) else { return }
-
         let authorization = ActivityAuthorizationInfo()
         guard authorization.areActivitiesEnabled else {
             endActivity()
@@ -67,9 +65,14 @@ final class DurationActivityController {
             updatedAt: Date()
         )
 
+        let content = ActivityContent(
+            state: contentState,
+            staleDate: activity?.content.staleDate
+        )
+
         if let activity {
             Task {
-                await activity.update(using: contentState)
+                await activity.update(content)
             }
         } else {
             let attributes = DurationActivityAttributes(profileName: profileName)
@@ -77,7 +80,7 @@ final class DurationActivityController {
             do {
                 activity = try Activity<DurationActivityAttributes>.request(
                     attributes: attributes,
-                    contentState: contentState,
+                    content: content,
                     pushType: nil
                 )
             } catch {
@@ -89,11 +92,10 @@ final class DurationActivityController {
     }
 
     func endActivity() {
-        guard #available(iOS 17.0, *) else { return }
         guard let activity else { return }
 
         Task {
-            await activity.end(dismissalPolicy: .immediate)
+            await activity.end(activity.content, dismissalPolicy: .immediate)
         }
 
         self.activity = nil
