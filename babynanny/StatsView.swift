@@ -92,9 +92,6 @@ struct StatsView: View {
             let yAxisTitle = focusCategory == .diaper ? L10n.Stats.diapersYAxis : L10n.Stats.minutesYAxis
             let axisDays = recentDayStarts(count: windowDays)
             let subtypeTitle = L10n.Stats.subtypeLegend
-            let colorScale = metrics.reduce(into: [String: Color]()) { partialResult, metric in
-                partialResult[metric.subtype.legendLabel] = metric.subtype.color
-            }
 
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
@@ -116,7 +113,6 @@ struct StatsView: View {
                         .cornerRadius(6)
                     }
                     .chartLegend(position: .bottom, alignment: .leading, spacing: 12)
-                    .chartForegroundStyleScale(colorScale)
                     .chartYAxis {
                         AxisMarks(position: .leading)
                     }
