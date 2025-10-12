@@ -43,17 +43,23 @@ private extension StopRunningActionIntent {
         let activities = Activity<DurationActivityAttributes>.activities
 
         guard let activity = activities.first(where: { activity in
-            activity.contentState.actions.contains(where: { $0.id == actionID })
+            activity.content.state.actions.contains(where: { $0.id == actionID })
         }) else { return }
 
-        var newState = activity.contentState
+        let currentContent = activity.content
+        var newState = currentContent.state
         newState.actions.removeAll(where: { $0.id == actionID })
         newState.updatedAt = Date()
 
+        let updatedContent = ActivityContent(
+            state: newState,
+            staleDate: currentContent.staleDate
+        )
+
         if newState.actions.isEmpty {
-            await activity.end(dismissalPolicy: .immediate)
+            await activity.end(content: updatedContent, dismissalPolicy: .immediate)
         } else {
-            await activity.update(using: newState)
+            await activity.update(updatedContent)
         }
     }
 
