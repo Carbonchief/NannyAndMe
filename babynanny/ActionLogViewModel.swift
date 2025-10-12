@@ -55,7 +55,7 @@ struct BabyAction: Identifiable, Codable {
         var icon: String {
             switch self {
             case .bottle:
-                return "baby.bottle.fill"
+                return "waterbottle.fill"
             case .leftBreast:
                 return "heart.fill"
             case .rightBreast:
