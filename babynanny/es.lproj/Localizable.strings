@@ -191,3 +191,4 @@
 "feeding.meal" = "Comida";
 "profile.new" = "Perfil nuevo";
 "formatter.justNow" = "Justo ahora";
+"formatter.ago" = "hace %@";

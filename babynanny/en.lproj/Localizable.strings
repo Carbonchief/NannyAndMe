@@ -191,3 +191,4 @@
 "feeding.meal" = "Meal";
 "profile.new" = "New Profile";
 "formatter.justNow" = "Just now";
+"formatter.ago" = "%@ ago";

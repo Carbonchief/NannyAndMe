@@ -632,5 +632,10 @@ enum L10n {
 
     enum Formatter {
         static let justNow = String(localized: "formatter.justNow", defaultValue: "Just now")
+
+        static func ago(_ value: String) -> String {
+            let format = String(localized: "formatter.ago", defaultValue: "%@ ago")
+            return String(format: format, locale: Locale.current, value)
+        }
     }
 }
