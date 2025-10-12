@@ -86,9 +86,15 @@ struct StatsView: View {
 
         if hasAnyTrackedData {
             let focusCategory = resolvedCategory(for: state)
-            let metrics = dailyMetrics(for: state, focusCategory: focusCategory)
+            let windowDays = 7
+            let metrics = dailyMetrics(for: state, focusCategory: focusCategory, days: windowDays)
             let hasData = metrics.contains { $0.value > 0 }
             let yAxisTitle = focusCategory == .diaper ? L10n.Stats.diapersYAxis : L10n.Stats.minutesYAxis
+            let axisDays = recentDayStarts(count: windowDays)
+            let subtypeTitle = L10n.Stats.subtypeLegend
+            let colorScale = metrics.reduce(into: [String: Color]()) { partialResult, metric in
+                partialResult[metric.subtype.legendLabel] = metric.subtype.color
+            }
 
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
@@ -106,14 +112,16 @@ struct StatsView: View {
                             x: .value(L10n.Stats.dayAxisLabel, metric.date, unit: .day),
                             y: .value(yAxisTitle, metric.value)
                         )
-                        .foregroundStyle(focusCategory.accentColor.gradient)
+                        .foregroundStyle(by: .value(subtypeTitle, metric.subtype.legendLabel))
                         .cornerRadius(6)
                     }
+                    .chartLegend(position: .bottom, alignment: .leading, spacing: 12)
+                    .chartForegroundStyleScale(colorScale)
                     .chartYAxis {
                         AxisMarks(position: .leading)
                     }
                     .chartXAxis {
-                        AxisMarks(values: metrics.map { $0.date }) { value in
+                        AxisMarks(values: axisDays) { value in
                             AxisGridLine()
                             AxisTick()
                             AxisValueLabel {
@@ -299,43 +307,81 @@ struct StatsView: View {
                               focusCategory: BabyActionCategory,
                               days: Int = 7) -> [DailyActionMetric] {
         let calendar = Calendar.current
-        let startOfToday = calendar.startOfDay(for: Date())
-        var dailyTotals: [Date: DailyActionMetric] = [:]
-
-        for offset in 0..<days {
-            if let day = calendar.date(byAdding: .day, value: -offset, to: startOfToday) {
-                dailyTotals[day] = DailyActionMetric(date: day, value: 0)
-            }
-        }
+        let dayStarts = recentDayStarts(count: days)
+        var totals = Dictionary(uniqueKeysWithValues: dayStarts.map { ($0, [ActionSubtype: Double]()) })
 
         for action in state.history where action.category == focusCategory {
             let day = calendar.startOfDay(for: action.startDate)
-            guard var metric = dailyTotals[day] else { continue }
+            guard totals[day] != nil else { continue }
+
+            let increment: Double
 
             if focusCategory == .diaper {
-                metric.value += 1
+                increment = 1
             } else {
                 let endDate = action.endDate ?? Date()
                 let duration = max(0, endDate.timeIntervalSince(action.startDate))
-                metric.value += duration / 60 // minutes
+                increment = duration / 60
             }
 
-            dailyTotals[day] = metric
+            for subtype in subtypes(for: action, focusCategory: focusCategory) {
+                var bucket = totals[day] ?? [:]
+                bucket[subtype, default: 0] += increment
+                totals[day] = bucket
+            }
         }
 
         if focusCategory != .diaper,
            let active = state.activeActions[focusCategory] {
             let day = calendar.startOfDay(for: active.startDate)
-            if var metric = dailyTotals[day] {
-                let duration = max(0, Date().timeIntervalSince(active.startDate))
-                metric.value += duration / 60
-                dailyTotals[day] = metric
+            if totals[day] != nil {
+                let increment = max(0, Date().timeIntervalSince(active.startDate)) / 60
+
+                for subtype in subtypes(for: active, focusCategory: focusCategory) {
+                    var bucket = totals[day] ?? [:]
+                    bucket[subtype, default: 0] += increment
+                    totals[day] = bucket
+                }
             }
         }
 
-        return dailyTotals
-            .values
-            .sorted { $0.date < $1.date }
+        return dayStarts.flatMap { day -> [DailyActionMetric] in
+            guard let bucket = totals[day] else { return [] }
+
+            return bucket
+                .sorted { lhs, rhs in
+                    if lhs.key.sortIndex == rhs.key.sortIndex {
+                        return lhs.key.legendLabel < rhs.key.legendLabel
+                    }
+                    return lhs.key.sortIndex < rhs.key.sortIndex
+                }
+                .map { DailyActionMetric(date: day, subtype: $0.key, value: $0.value) }
+        }
+    }
+
+    private func subtypes(for action: BabyAction, focusCategory: BabyActionCategory) -> [ActionSubtype] {
+        switch focusCategory {
+        case .sleep:
+            return [.general(.sleep)]
+        case .diaper:
+            guard let diaperType = action.diaperType else {
+                return [.unspecified(.diaper)]
+            }
+
+            switch diaperType {
+            case .pee:
+                return [.diaper(.pee)]
+            case .poo:
+                return [.diaper(.poo)]
+            case .both:
+                return [.diaper(.pee), .diaper(.poo)]
+            }
+        case .feeding:
+            guard let feedingType = action.feedingType else {
+                return [.unspecified(.feeding)]
+            }
+            return [.feeding(feedingType)]
+        }
     }
 
     private func actionPatternSegments(for state: ProfileActionState,
@@ -425,6 +471,17 @@ struct StatsView: View {
         return results
     }
 
+    private func recentDayStarts(count: Int) -> [Date] {
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: Date())
+
+        return (0..<count)
+            .compactMap { offset in
+                calendar.date(byAdding: .day, value: -offset, to: startOfToday)
+            }
+            .sorted()
+    }
+
     private func minutesIntoDay(for date: Date, calendar: Calendar) -> Double {
         let components = calendar.dateComponents([.hour, .minute], from: date)
         let hours = Double(components.hour ?? 0)
@@ -466,9 +523,87 @@ struct StatsView: View {
 
 private struct DailyActionMetric: Identifiable {
     let date: Date
+    let subtype: ActionSubtype
     var value: Double
 
-    var id: Date { date }
+    var id: String {
+        "\(date.timeIntervalSinceReferenceDate)-\(subtype.id)"
+    }
+}
+
+private enum ActionSubtype: Hashable {
+    case general(BabyActionCategory)
+    case diaper(BabyAction.DiaperType)
+    case feeding(BabyAction.FeedingType)
+    case unspecified(BabyActionCategory)
+
+    var id: String {
+        switch self {
+        case .general(let category):
+            return "general-\(category.rawValue)"
+        case .diaper(let type):
+            return "diaper-\(type.rawValue)"
+        case .feeding(let type):
+            return "feeding-\(type.rawValue)"
+        case .unspecified(let category):
+            return "unspecified-\(category.rawValue)"
+        }
+    }
+
+    var legendLabel: String {
+        switch self {
+        case .general(let category):
+            return category.title
+        case .diaper(let type):
+            return type.title
+        case .feeding(let type):
+            return type.title
+        case .unspecified:
+            return L10n.Common.unspecified
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .general(let category):
+            return category.accentColor
+        case .diaper(let type):
+            switch type {
+            case .pee:
+                return .teal
+            case .poo:
+                return .brown
+            case .both:
+                return .mint
+            }
+        case .feeding(let type):
+            switch type {
+            case .bottle:
+                return .orange
+            case .leftBreast:
+                return .pink
+            case .rightBreast:
+                return .purple
+            case .meal:
+                return .green
+            }
+        case .unspecified:
+            return Color(.systemGray3)
+        }
+    }
+
+    var sortIndex: Int {
+        switch self {
+        case .general:
+            return 0
+        case .diaper(let type):
+            return 10 + type.sortIndex
+        case .feeding(let type):
+            return 20 + type.sortIndex
+        case .unspecified:
+            return 99
+        }
+    }
 }
 
 private struct ActionPatternSegment: Identifiable {
@@ -476,6 +611,34 @@ private struct ActionPatternSegment: Identifiable {
     let day: Date
     let startMinutes: Double
     let endMinutes: Double
+}
+
+private extension BabyAction.DiaperType {
+    var sortIndex: Int {
+        switch self {
+        case .pee:
+            return 0
+        case .poo:
+            return 1
+        case .both:
+            return 2
+        }
+    }
+}
+
+private extension BabyAction.FeedingType {
+    var sortIndex: Int {
+        switch self {
+        case .bottle:
+            return 0
+        case .leftBreast:
+            return 1
+        case .rightBreast:
+            return 2
+        case .meal:
+            return 3
+        }
+    }
 }
 
 private struct StatCard: View {
