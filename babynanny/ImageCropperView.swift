@@ -17,7 +17,9 @@ struct ImageCropperView: View {
         NavigationStack {
             GeometryReader { geometry in
                 let size = geometry.size
-                let cropLength = min(size.width, size.height)
+                let horizontalPadding: CGFloat = 32
+                let availableWidth = max(size.width - horizontalPadding, 0)
+                let cropLength = max(min(availableWidth, size.height), 1)
                 let cropSize = CGSize(width: cropLength, height: cropLength)
                 let imageWidth = max(image.size.width, 1)
                 let imageHeight = max(image.size.height, 1)
