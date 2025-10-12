@@ -60,6 +60,9 @@ struct DurationActivityLiveActivity: Widget {
                         Text(action.startDate, style: .timer)
                             .font(.title3)
                             .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .allowsTightening(true)
                             .contentTransition(.numericText())
                             .foregroundStyle(action.category.accentColor)
                             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -104,6 +107,9 @@ struct DurationActivityLiveActivity: Widget {
 
                         Text(action.startDate, style: .timer)
                             .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            .allowsTightening(true)
                             .contentTransition(.numericText())
                             .font(.footnote)
                     }
@@ -202,6 +208,9 @@ private struct DurationActivityActionRow: View {
                 Text(action.startDate, style: .timer)
                     .font(.caption2)
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .allowsTightening(true)
                     .foregroundStyle(action.category.accentColor)
                     .contentTransition(.numericText())
             }
@@ -268,23 +277,35 @@ private struct DurationActivityHeaderView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: headerSpacing) {
-            if let profileName, profileName.isEmpty == false {
-                Text(profileName)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-            } else {
-                Text(WidgetL10n.Profile.newProfile)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-            }
-
-            if let updatedAt {
-                Text(updatedAt, format: .relative(presentation: .named))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            Text(displayName)
+                .font(.headline)
+                .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+    }
+}
+
+private extension DurationActivityHeaderView {
+    private var displayName: String {
+        if let profileName, profileName.isEmpty == false {
+            return profileName
+        }
+
+        return WidgetL10n.Profile.newProfile
+    }
+
+    private var accessibilityLabel: Text {
+        guard let updatedAt else {
+            return Text(displayName)
+        }
+
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        let relativeUpdate = formatter.localizedString(for: updatedAt, relativeTo: Date())
+
+        return Text(verbatim: "\(displayName), \(relativeUpdate)")
     }
 }
 
