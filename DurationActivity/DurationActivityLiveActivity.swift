@@ -65,7 +65,6 @@ struct DurationActivityLiveActivity: Widget {
                             .allowsTightening(true)
                             .contentTransition(.numericText())
                             .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
 
@@ -88,22 +87,20 @@ struct DurationActivityLiveActivity: Widget {
             } compactLeading: {
                 if let action = primaryAction {
                     Image(systemName: action.iconSystemName)
-                        .font(.headline)
+                        .imageScale(.medium)
+                        .font(.system(size: 14, weight: .semibold))
                         .accessibilityHidden(true)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             } compactTrailing: {
                 if let action = primaryAction {
                     Text(action.startDate, style: .timer)
                         .monospacedDigit()
+                        .font(.caption2)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                        .minimumScaleFactor(0.6)
                         .allowsTightening(true)
                         .contentTransition(.numericText())
-                        .font(.footnote)
                         .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .multilineTextAlignment(.leading)
                         .accessibilityLabel(Text(action.accessibilityDescription))
                 }
             } minimal: {
