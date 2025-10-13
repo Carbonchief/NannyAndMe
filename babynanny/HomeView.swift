@@ -318,18 +318,20 @@ private struct ActionCard: View {
                         Text(category.title)
                             .font(.headline)
 
-                        if let activeAction {
-                            Text(activeAction.detailDescription)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        } else if let lastCompleted {
-                            detailText(for: lastCompleted)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Text(L10n.Home.noEntries)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                        if category != .sleep {
+                            if let activeAction {
+                                Text(activeAction.detailDescription)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            } else if let lastCompleted {
+                                detailText(for: lastCompleted)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text(L10n.Home.noEntries)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                     .layoutPriority(1)
