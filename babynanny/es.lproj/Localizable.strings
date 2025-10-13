@@ -37,7 +37,7 @@
 "home.edit.endNote" = "La hora de finalización se podrá ajustar cuando la acción haya terminado.";
 "home.header.activeFor" = "Activo durante %@";
 "home.header.lastFinished" = "Última finalización %@";
-"home.card.startedAt" = "Iniciado a las %@";
+"home.card.startedAt" = "Iniciado: %@";
 "home.card.elapsed" = "Transcurrido: %@";
 "home.card.lastRun" = "Última ejecución %@";
 "home.card.loggedAt" = "%@";

@@ -37,7 +37,7 @@
 "home.edit.endNote" = "Die Endzeit kann angepasst werden, sobald die Aktion beendet wurde.";
 "home.header.activeFor" = "Aktiv seit %@";
 "home.header.lastFinished" = "Zuletzt beendet %@";
-"home.card.startedAt" = "Gestartet um %@";
+"home.card.startedAt" = "Gestartet: %@";
 "home.card.elapsed" = "Verstrichen: %@";
 "home.card.lastRun" = "Zuletzt ausgeführt %@";
 "home.card.loggedAt" = "%@";

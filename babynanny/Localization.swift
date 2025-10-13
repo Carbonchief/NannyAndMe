@@ -78,7 +78,7 @@ enum L10n {
         }
 
         static func startedAt(_ value: String) -> String {
-            let format = String(localized: "home.card.startedAt", defaultValue: "Started at %@")
+            let format = String(localized: "home.card.startedAt", defaultValue: "Started: %@")
             return String(format: format, locale: Locale.current, value)
         }
 
