@@ -11,14 +11,14 @@ struct AllLogsRowView: View {
         Button {
             onEdit(action)
         } label: {
-            HStack(alignment: .top, spacing: 16) {
+            HStack(alignment: .top, spacing: 12) {
                 ZStack {
                     Circle()
                         .fill(action.category.accentColor.opacity(0.15))
-                        .frame(width: 36, height: 36)
+                        .frame(width: 32, height: 32)
 
                     Image(systemName: action.icon)
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(action.category.accentColor)
                 }
 
@@ -26,16 +26,16 @@ struct AllLogsRowView: View {
                     Text(L10n.Logs.entryTitle(timeFormatter.string(from: action.startDate),
                                                durationDescription,
                                                actionSummary))
-                        .font(.headline)
+                        .font(.subheadline)
                         .foregroundStyle(.primary)
                     if let detail = detailDescription {
                         Text(detail)
-                            .font(.subheadline)
+                            .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
                 }
             }
-            .padding(.vertical, 12)
+            .padding(.vertical, 10)
         }
         .buttonStyle(.plain)
         .swipeActions(edge: .leading, allowsFullSwipe: false) {

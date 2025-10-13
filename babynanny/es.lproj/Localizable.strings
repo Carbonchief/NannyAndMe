@@ -150,7 +150,7 @@
 "logs.filter.summary.range" = "Mostrando %@ – %@";
 "logs.filter.summary.start" = "Mostrando desde %@";
 "logs.filter.summary.end" = "Mostrando hasta %@";
-"logs.entry.title" = "%@, %@ %@";
+"logs.entry.title" = "%@. %@. %@";
 "logs.summary.sleep" = "sueño";
 "logs.summary.diaperWithType" = "pañal – %@";
 "logs.summary.diaper" = "pañal";

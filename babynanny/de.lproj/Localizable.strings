@@ -150,7 +150,7 @@
 "logs.filter.summary.range" = "Angezeigt: %@ – %@";
 "logs.filter.summary.start" = "Angezeigt ab %@";
 "logs.filter.summary.end" = "Angezeigt bis %@";
-"logs.entry.title" = "%@, %@ %@";
+"logs.entry.title" = "%@. %@. %@";
 "logs.summary.sleep" = "Schlaf";
 "logs.summary.diaperWithType" = "Windel – %@";
 "logs.summary.diaper" = "Windel";
