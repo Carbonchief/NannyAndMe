@@ -742,11 +742,22 @@ struct ActionEditSheet: View {
                     } label: {
                         Label(L10n.Logs.deleteAction, systemImage: "trash")
                     }
+                    .tint(.red)
                 }
             }
             .navigationTitle(L10n.Home.editActionTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 4) {
+                        Image(systemName: currentIconName)
+                            .font(.largeTitle)
+                            .foregroundStyle(action.category.accentColor)
+                        Text(L10n.Home.editActionTitle)
+                            .font(.headline)
+                    }
+                }
+
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L10n.Common.cancel) {
                         dismiss()
@@ -775,6 +786,17 @@ struct ActionEditSheet: View {
             if currentEndDate < newValue {
                 endDate = newValue
             }
+        }
+    }
+
+    private var currentIconName: String {
+        switch action.category {
+        case .diaper:
+            return diaperSelection.icon
+        case .feeding:
+            return feedingSelection.icon
+        case .sleep:
+            return action.category.icon
         }
     }
 
