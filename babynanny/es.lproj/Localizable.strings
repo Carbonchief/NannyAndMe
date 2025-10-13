@@ -38,6 +38,7 @@
 "home.header.activeFor" = "Activo durante %@";
 "home.header.lastFinished" = "Última finalización %@";
 "home.card.startedAt" = "Iniciado: %@";
+"home.card.startedLabel" = "Iniciado:";
 "home.card.elapsed" = "Transcurrido: %@";
 "home.card.lastRun" = "Última ejecución %@";
 "home.card.loggedAt" = "%@";

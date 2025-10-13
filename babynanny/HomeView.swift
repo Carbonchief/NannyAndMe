@@ -386,10 +386,15 @@ private struct ActionCard: View {
                         .frame(maxWidth: .infinity)
                 }
 
-                Text(L10n.Home.startedAt(activeAction.startTimeDescription()))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                VStack(spacing: 2) {
+                    Text(L10n.Home.startedLabel)
+                    Text(activeAction.startTimeDescription())
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(L10n.Home.startedAt(activeAction.startTimeDescription()))
             }
         }
     }
