@@ -113,6 +113,10 @@ struct HomeView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
 
             if let recent = state.mostRecentAction {
+                let isRunning = recent.endDate == nil
+                let trailingTransition = AnyTransition.move(edge: .trailing)
+                    .combined(with: .opacity)
+
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: headerCardAlignment(for: recent), spacing: 12) {
                         AnimatedActionIcon(
@@ -128,22 +132,26 @@ struct HomeView: View {
                                 Spacer(minLength: 8)
 
                                 headerCompletionElapsedView(for: recent)
+                                    .transition(trailingTransition)
                             }
                         }
 
                         Spacer(minLength: 12)
 
-                        if recent.endDate == nil {
+                        if isRunning {
                             Button(L10n.Common.stop) {
                                 stopAction(for: recent.category)
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(recent.category.accentColor)
+                            .transition(trailingTransition)
                         }
                     }
+                    .animation(.easeInOut(duration: 0.28), value: isRunning)
 
                     headerActiveDurationView(for: recent)
                         .frame(maxWidth: .infinity, alignment: .center)
+                        .animation(.easeInOut(duration: 0.28), value: isRunning)
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -175,6 +183,7 @@ struct HomeView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .foregroundStyle(action.category.accentColor)
             }
+            .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
 
