@@ -82,6 +82,11 @@ enum L10n {
             return String(format: format, locale: Locale.current, value)
         }
 
+        static let startedLabel = String(
+            localized: "home.card.startedLabel",
+            defaultValue: "Started:"
+        )
+
         static func elapsed(_ value: String) -> String {
             let format = String(localized: "home.card.elapsed", defaultValue: "Elapsed: %@")
             return String(format: format, locale: Locale.current, value)
