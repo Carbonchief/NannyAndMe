@@ -84,6 +84,7 @@ struct ContentView: View {
                         }
                     }
                 }
+                .navigationBarTitleDisplayMode(.inline)
                 .navigationDestination(isPresented: $showSettings) {
                     SettingsView()
                 }
