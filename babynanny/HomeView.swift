@@ -112,64 +112,86 @@ struct HomeView: View {
                 .fontWeight(.semibold)
                 .frame(maxWidth: .infinity, alignment: .center)
 
-            if let recent = state.mostRecentAction {
-                let isRunning = recent.endDate == nil
-                let trailingTransition = AnyTransition.move(edge: .trailing)
-                    .combined(with: .opacity)
-
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(alignment: headerCardAlignment(for: recent), spacing: 12) {
-                        AnimatedActionIcon(
-                            systemName: recent.icon,
-                            color: recent.category.accentColor
-                        )
-
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text(recent.detailDescription)
-                                    .font(.headline)
-
-                                Spacer(minLength: 8)
-
-                                headerCompletionElapsedView(for: recent)
-                                    .transition(trailingTransition)
-                            }
-                        }
-
-                        Spacer(minLength: 12)
-
-                        if isRunning {
-                            Button(L10n.Common.stop) {
-                                stopAction(for: recent.category)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(recent.category.accentColor)
-                            .transition(trailingTransition)
-                        }
-                    }
-                    .animation(.easeInOut(duration: 0.28), value: isRunning)
-
-                    headerActiveDurationView(for: recent)
+            ZStack {
+                if let recent = state.mostRecentAction {
+                    headerCard(for: recent)
+                        .id(recent.category)
+                        .transition(headerCardTransition)
+                } else {
+                    Text(L10n.Home.placeholder)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
-                        .animation(.easeInOut(duration: 0.28), value: isRunning)
+                        .transition(.opacity)
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color(.secondarySystemGroupedBackground))
-                )
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    editingAction = recent
-                }
-                .accessibilityAddTraits(.isButton)
-            } else {
-                Text(L10n.Home.placeholder)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
             }
+            .animation(headerCardAnimation, value: state.mostRecentAction?.category)
         }
+    }
+
+    private var headerCardTransition: AnyTransition {
+        .asymmetric(
+            insertion: .move(edge: .trailing).combined(with: .opacity),
+            removal: .move(edge: .leading).combined(with: .opacity)
+        )
+    }
+
+    private var headerCardAnimation: Animation {
+        .interactiveSpring(response: 0.5, dampingFraction: 0.82, blendDuration: 0.25)
+    }
+
+    private func headerCard(for recent: BabyAction) -> some View {
+        let isRunning = recent.endDate == nil
+        let trailingTransition = AnyTransition.move(edge: .trailing)
+            .combined(with: .opacity)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: headerCardAlignment(for: recent), spacing: 12) {
+                AnimatedActionIcon(
+                    systemName: recent.icon,
+                    color: recent.category.accentColor
+                )
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(recent.detailDescription)
+                            .font(.headline)
+
+                        Spacer(minLength: 8)
+
+                        headerCompletionElapsedView(for: recent)
+                            .transition(trailingTransition)
+                    }
+                }
+
+                Spacer(minLength: 12)
+
+                if isRunning {
+                    Button(L10n.Common.stop) {
+                        stopAction(for: recent.category)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(recent.category.accentColor)
+                    .transition(trailingTransition)
+                }
+            }
+            .animation(.easeInOut(duration: 0.28), value: isRunning)
+
+            headerActiveDurationView(for: recent)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .animation(.easeInOut(duration: 0.28), value: isRunning)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            editingAction = recent
+        }
+        .accessibilityAddTraits(.isButton)
     }
 
     @ViewBuilder
@@ -312,6 +334,21 @@ private struct ActionCard: View {
 
     private var isActive: Bool { activeAction != nil }
 
+    private var cardAnimation: Animation {
+        .interactiveSpring(response: 0.45, dampingFraction: 0.86, blendDuration: 0.2)
+    }
+
+    private var cardContentTransition: AnyTransition {
+        .asymmetric(
+            insertion: .move(edge: .top).combined(with: .opacity),
+            removal: .move(edge: .bottom).combined(with: .opacity)
+        )
+    }
+
+    private var iconTransitionID: String {
+        activeAction?.icon ?? lastCompleted?.icon ?? category.icon
+    }
+
     var body: some View {
         Button {
             if isActive {
@@ -330,7 +367,11 @@ private struct ActionCard: View {
                     .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
 
                 VStack(spacing: 10) {
-                    iconView
+                    ZStack {
+                        iconView
+                    }
+                    .id(iconTransitionID)
+                    .transition(cardContentTransition)
 
                     Text(category.title)
                         .font(.headline)
@@ -341,20 +382,28 @@ private struct ActionCard: View {
 
                     Spacer(minLength: 0)
 
-                    Text(callToActionText)
-                        .font(.footnote)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(category.accentColor)
-                        .multilineTextAlignment(.center)
+                    ZStack {
+                        Text(callToActionText)
+                            .font(.footnote)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(category.accentColor)
+                            .multilineTextAlignment(.center)
+                    }
+                    .id(callToActionText)
+                    .transition(cardContentTransition)
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .animation(cardAnimation, value: iconTransitionID)
+                .animation(cardAnimation, value: callToActionText)
+                .animation(cardAnimation, value: activeAction?.id)
             }
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
         .aspectRatio(1, contentMode: .fit)
         .contentShape(Rectangle())
+        .animation(cardAnimation, value: isActive)
     }
 
     private var backgroundColor: Color {
@@ -384,27 +433,40 @@ private struct ActionCard: View {
 
     @ViewBuilder
     private var detailSection: some View {
-        if let activeAction {
-            VStack(spacing: 6) {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    Text(activeAction.durationDescription(asOf: context.date))
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                        .monospacedDigit()
-                        .foregroundStyle(category.accentColor)
-                        .frame(maxWidth: .infinity)
-                }
-
-                VStack(spacing: 2) {
-                    Text(L10n.Home.startedLabel)
-                    Text(activeAction.startTimeDescription())
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(L10n.Home.startedAt(activeAction.startTimeDescription()))
+        ZStack {
+            if let activeAction {
+                activeDetailView(for: activeAction)
+                    .id(activeAction.id)
+                    .transition(cardContentTransition)
+            } else {
+                Color.clear
+                    .frame(height: 0)
+                    .transition(.opacity)
             }
+        }
+        .animation(cardAnimation, value: activeAction?.id)
+    }
+
+    private func activeDetailView(for action: BabyAction) -> some View {
+        VStack(spacing: 6) {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                Text(action.durationDescription(asOf: context.date))
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+                    .foregroundStyle(category.accentColor)
+                    .frame(maxWidth: .infinity)
+            }
+
+            VStack(spacing: 2) {
+                Text(L10n.Home.startedLabel)
+                Text(action.startTimeDescription())
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(L10n.Home.startedAt(action.startTimeDescription()))
         }
     }
 }
