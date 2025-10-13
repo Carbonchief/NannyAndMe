@@ -633,6 +633,18 @@ struct ActionEditSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    HStack {
+                        Spacer()
+                        Image(systemName: currentIconName)
+                            .font(.title2)
+                            .foregroundStyle(action.category.accentColor)
+                        Spacer()
+                    }
+                    .padding(.vertical, 4)
+                }
+                .listRowBackground(Color.clear)
+
                 Section(header: Text(L10n.Home.editCategoryLabel)) {
                     Text(action.category.title)
                 }
@@ -748,16 +760,6 @@ struct ActionEditSheet: View {
             .navigationTitle(L10n.Home.editActionTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    VStack(spacing: 4) {
-                        Image(systemName: currentIconName)
-                            .font(.largeTitle)
-                            .foregroundStyle(action.category.accentColor)
-                        Text(L10n.Home.editActionTitle)
-                            .font(.headline)
-                    }
-                }
-
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L10n.Common.cancel) {
                         dismiss()
