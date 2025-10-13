@@ -150,7 +150,7 @@
 "logs.filter.summary.range" = "Showing %@ – %@";
 "logs.filter.summary.start" = "Showing from %@";
 "logs.filter.summary.end" = "Showing through %@";
-"logs.entry.title" = "%@, %@ %@";
+"logs.entry.title" = "%@. %@. %@";
 "logs.summary.sleep" = "sleep";
 "logs.summary.diaperWithType" = "diaper - %@";
 "logs.summary.diaper" = "diaper";

@@ -505,7 +505,7 @@ enum L10n {
         static let filterClear = String(localized: "logs.filter.clear", defaultValue: "Clear Filter")
 
         static func entryTitle(_ startTime: String, _ duration: String, _ summary: String) -> String {
-            let format = String(localized: "logs.entry.title", defaultValue: "%@, %@ %@")
+            let format = String(localized: "logs.entry.title", defaultValue: "%@. %@. %@")
             return String(format: format, locale: Locale.current, startTime, duration, summary)
         }
 
