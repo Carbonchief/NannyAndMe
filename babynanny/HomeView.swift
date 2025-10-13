@@ -571,7 +571,11 @@ private protocol ActionTypeOption: Identifiable, Hashable {
 }
 
 extension BabyAction.DiaperType: ActionTypeOption { }
-extension BabyAction.FeedingType: ActionTypeOption { }
+extension BabyAction.FeedingType: ActionTypeOption {
+    static var newActionOptions: [BabyAction.FeedingType] {
+        [.bottle, .meal, .leftBreast, .rightBreast]
+    }
+}
 
 private struct ActionTypeSelectionGrid<Option: ActionTypeOption>: View {
     let options: [Option]
@@ -978,7 +982,7 @@ private struct ActionDetailSheet: View {
                 case .feeding:
                     Section {
                         ActionTypeSelectionGrid(
-                            options: BabyAction.FeedingType.allCases,
+                            options: BabyAction.FeedingType.newActionOptions,
                             selection: $feedingSelection,
                             accentColor: category.accentColor,
                             onOptionActivated: { _ in
