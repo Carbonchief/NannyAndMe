@@ -354,6 +354,7 @@ private struct ActionCard: View {
                             .font(.caption)
                             .monospacedDigit()
                             .foregroundStyle(category.accentColor)
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
                 }
             }
