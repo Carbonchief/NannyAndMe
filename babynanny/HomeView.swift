@@ -386,13 +386,13 @@ private struct AnimatedActionIcon: View {
 
     @State private var isAnimating = false
 
-    private let animation = Animation.easeInOut(duration: 1.2).repeatForever(autoreverses: true)
+    private let animation = Animation.easeInOut(duration: 1.6).repeatForever(autoreverses: true)
 
     var body: some View {
         Image(systemName: systemName)
             .font(.system(size: 22, weight: .semibold))
             .foregroundStyle(color)
-            .scaleEffect(isAnimating ? 1.08 : 0.92)
+            .scaleEffect(isAnimating ? 1.03 : 0.97)
             .animation(animation, value: isAnimating)
             .onAppear {
                 isAnimating = true
