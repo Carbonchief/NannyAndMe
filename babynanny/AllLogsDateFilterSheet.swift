@@ -4,18 +4,20 @@ struct AllLogsDateFilterSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     private let calendar: Calendar
-    private let onApply: (Date?, Date?) -> Void
+    private let onApply: (Date?, Date?, BabyActionCategory?) -> Void
     private let onClear: () -> Void
 
     @State private var startDateSelection: Date
     @State private var endDateSelection: Date
     @State private var useStartDate: Bool
     @State private var useEndDate: Bool
+    @State private var selectedCategory: BabyActionCategory?
 
     init(calendar: Calendar,
          startDate: Date?,
          endDate: Date?,
-         onApply: @escaping (Date?, Date?) -> Void,
+         selectedCategory: BabyActionCategory?,
+         onApply: @escaping (Date?, Date?, BabyActionCategory?) -> Void,
          onClear: @escaping () -> Void) {
         self.calendar = calendar
         self.onApply = onApply
@@ -32,6 +34,7 @@ struct AllLogsDateFilterSheet: View {
         _endDateSelection = State(initialValue: initialEnd)
         _useStartDate = State(initialValue: normalizedStart != nil)
         _useEndDate = State(initialValue: normalizedEnd != nil)
+        _selectedCategory = State(initialValue: selectedCategory)
     }
 
     var body: some View {
@@ -60,7 +63,19 @@ struct AllLogsDateFilterSheet: View {
                     }
                 }
 
-                if useStartDate || useEndDate {
+                Section(L10n.Logs.filterCategorySection) {
+                    Picker(L10n.Logs.filterCategorySection, selection: $selectedCategory) {
+                        Text(L10n.Logs.filterCategoryAll)
+                            .tag(BabyActionCategory?.none)
+                        ForEach(BabyActionCategory.allCases) { category in
+                            Text(category.title)
+                                .tag(Optional(category))
+                        }
+                    }
+                    .pickerStyle(.inline)
+                }
+
+                if useStartDate || useEndDate || selectedCategory != nil {
                     Section {
                         Button(L10n.Logs.filterClear) {
                             clearSelection()
@@ -107,13 +122,14 @@ struct AllLogsDateFilterSheet: View {
     private func applySelection() {
         let start = useStartDate ? calendar.startOfDay(for: startDateSelection) : nil
         let end = useEndDate ? calendar.startOfDay(for: endDateSelection) : nil
-        onApply(start, end)
+        onApply(start, end, selectedCategory)
         dismiss()
     }
 
     private func clearSelection() {
         useStartDate = false
         useEndDate = false
+        selectedCategory = nil
         onClear()
         dismiss()
     }

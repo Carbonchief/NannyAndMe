@@ -35,7 +35,7 @@ extension AllLogsView {
         }
     }
 
-    func applyFilter(startDate: Date?, endDate: Date?) {
+    func applyFilter(startDate: Date?, endDate: Date?, category: BabyActionCategory?) {
         let normalizedStart = startDate.map { calendar.startOfDay(for: $0) }
         var normalizedEnd = endDate.map { calendar.startOfDay(for: $0) }
 
@@ -45,22 +45,42 @@ extension AllLogsView {
 
         filterStartDate = normalizedStart
         filterEndDate = normalizedEnd
+        filterCategory = category
     }
 
     func clearFilter() {
         filterStartDate = nil
         filterEndDate = nil
+        filterCategory = nil
     }
 
     func activeFilterDescription() -> String? {
+        let dateDescription: String?
         switch (filterStartDate, filterEndDate) {
         case let (start?, end?):
-            return L10n.Logs.filterSummaryRange(dateFormatter.string(from: start), dateFormatter.string(from: end))
+            dateDescription = L10n.Logs.filterSummaryRange(
+                dateFormatter.string(from: start),
+                dateFormatter.string(from: end)
+            )
         case let (start?, nil):
-            return L10n.Logs.filterSummaryStart(dateFormatter.string(from: start))
+            dateDescription = L10n.Logs.filterSummaryStart(dateFormatter.string(from: start))
         case let (nil, end?):
-            return L10n.Logs.filterSummaryEnd(dateFormatter.string(from: end))
+            dateDescription = L10n.Logs.filterSummaryEnd(dateFormatter.string(from: end))
         default:
+            dateDescription = nil
+        }
+
+        let categoryDetail = filterCategory.map { category in
+            L10n.Logs.filterSummaryCategoryDetail(category.title)
+        }
+
+        if let dateDescription, let categoryDetail {
+            return L10n.Logs.filterSummaryCombined(dateDescription, categoryDetail)
+        } else if let dateDescription {
+            return dateDescription
+        } else if let category = filterCategory {
+            return L10n.Logs.filterSummaryCategoryOnly(category.title)
+        } else {
             return nil
         }
     }
@@ -96,6 +116,9 @@ extension AllLogsView {
             } else if action.startDate > endBoundary {
                 return false
             }
+        }
+        if let category = filterCategory, action.category != category {
+            return false
         }
         return true
     }

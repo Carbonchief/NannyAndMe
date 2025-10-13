@@ -8,6 +8,7 @@ struct AllLogsView: View {
     @State private var isShowingFilter = false
     @State var filterStartDate: Date?
     @State var filterEndDate: Date?
+    @State var filterCategory: BabyActionCategory?
 
     let calendar = Calendar.current
     let dateFormatter: DateFormatter = {
@@ -56,9 +57,10 @@ struct AllLogsView: View {
             AllLogsDateFilterSheet(
                 calendar: calendar,
                 startDate: filterStartDate,
-                endDate: filterEndDate
-            ) { start, end in
-                applyFilter(startDate: start, endDate: end)
+                endDate: filterEndDate,
+                selectedCategory: filterCategory
+            ) { start, end, category in
+                applyFilter(startDate: start, endDate: end, category: category)
             } onClear: {
                 clearFilter()
             }
