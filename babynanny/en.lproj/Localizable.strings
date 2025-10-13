@@ -13,6 +13,7 @@
 "onboarding.profilePrompt.continue" = "Continue";
 "home.recentActivity" = "Recent Activity";
 "home.recentActivity.showAll" = "Show All";
+"home.recentActivity.sendTestEvent" = "Send Test Event";
 "home.header.title" = "Last Action";
 "home.header.edit" = "Edit";
 "home.header.placeholder" = "Start an action below to begin tracking your baby's day.";

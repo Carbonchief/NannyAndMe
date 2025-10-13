@@ -13,6 +13,7 @@
 "onboarding.profilePrompt.continue" = "Weiter";
 "home.recentActivity" = "Letzte Aktivitäten";
 "home.recentActivity.showAll" = "Alle anzeigen";
+"home.recentActivity.sendTestEvent" = "Testereignis senden";
 "home.header.title" = "Letzte Aktion";
 "home.header.edit" = "Bearbeiten";
 "home.header.placeholder" = "Starte unten eine Aktion, um den Tag deines Babys zu verfolgen.";

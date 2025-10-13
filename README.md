@@ -61,6 +61,17 @@ NannyAndMe/
    - Choose an iOS Simulator device (e.g., iPhone 15 Pro).
    - Press <kbd>Cmd</kbd>+<kbd>R</kbd> to build and run.
 
+## Analytics
+
+The application is instrumented with [PostHog](https://posthog.com/) for product analytics.
+
+- `babynannyApp` configures the SDK during launch using the provided demo project credentials
+  (`phc_LnHkvLd42Z0HUUa1DWyq7fGkrDXoXzKO2AuORKfqqwP` and `https://eu.i.posthog.com`).
+- Update these values in `babynannyApp.swift` before releasing the app to production or pointing to your own PostHog
+  instance.
+- A **Send Test Event** button appears underneath the Recent Activity list on the Home tab. Tap it to emit a sample `Test
+  Event` capture call and verify your analytics pipeline end-to-end.
+
 ## Testing
 
 Run the unit or UI test suites from Xcode with <kbd>Cmd</kbd>+<kbd>U</kbd>, or from the command line:

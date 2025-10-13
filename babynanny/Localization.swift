@@ -41,6 +41,10 @@ enum L10n {
     enum Home {
         static let recentActivity = String(localized: "home.recentActivity", defaultValue: "Recent Activity")
         static let recentActivityShowAll = String(localized: "home.recentActivity.showAll", defaultValue: "Show All")
+        static let sendTestEvent = String(
+            localized: "home.recentActivity.sendTestEvent",
+            defaultValue: "Send Test Event"
+        )
         static let headerTitle = String(localized: "home.header.title", defaultValue: "Last Action")
         static let placeholder = String(localized: "home.header.placeholder", defaultValue: "Start an action below to begin tracking your baby's day.")
         static let noEntries = String(localized: "home.noEntries", defaultValue: "No entries yet")

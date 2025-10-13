@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import PostHog
 import SwiftUI
 
 struct HomeView: View {
@@ -62,6 +63,13 @@ struct HomeView: View {
                             ForEach(recentHistory) { action in
                                 HistoryRow(action: action)
                             }
+
+                            Button(L10n.Home.sendTestEvent) {
+                                PostHogSDK.shared.capture("Test Event")
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.accentColor)
+                            .frame(maxWidth: .infinity, alignment: .center)
                         }
                     }
                 }
