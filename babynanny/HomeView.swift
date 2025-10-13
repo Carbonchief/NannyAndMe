@@ -334,6 +334,10 @@ private struct ActionCard: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
+
+                        if activeAction == nil, let lastCompleted {
+                            lastRunInfo(for: lastCompleted)
+                        }
                     }
                     .layoutPriority(1)
                 }
@@ -374,13 +378,37 @@ private struct ActionCard: View {
 
 private extension ActionCard {
     func detailText(for action: BabyAction) -> Text {
-        if action.category.isInstant {
-            return Text(action.detailDescription)
-        }
+        Text(action.detailDescription)
+    }
 
-        return Text(action.detailDescription)
-            + Text(" • ")
-            + Text(action.durationDescription()).monospacedDigit()
+    @ViewBuilder
+    func lastRunInfo(for action: BabyAction) -> some View {
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            let referenceDate = context.date
+            let agoValue = action.timeSinceCompletionDescription(asOf: referenceDate) ?? L10n.Formatter.justNow
+            let accessibilityAgo = action.timeSinceCompletionAccessibilityDescription(asOf: referenceDate) ?? agoValue
+            let durationValue = action.category.isInstant ? nil : action.durationDescription()
+
+            let displayText: String
+            let accessibilityLabel: String
+
+            if let durationValue {
+                displayText = L10n.Home.lastRunCompact(agoValue, durationValue)
+                accessibilityLabel = [
+                    L10n.Home.lastFinished(accessibilityAgo),
+                    L10n.Home.historyDuration(durationValue)
+                ].joined(separator: ", ")
+            } else {
+                displayText = L10n.Home.lastRunAgoOnly(agoValue)
+                accessibilityLabel = L10n.Home.lastFinished(accessibilityAgo)
+            }
+
+            Text(displayText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .accessibilityLabel(accessibilityLabel)
+        }
     }
 }
 

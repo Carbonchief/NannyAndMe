@@ -42,6 +42,8 @@
 "home.card.lastRun" = "Last run %@";
 "home.card.loggedAt" = "%@";
 "home.card.lastRunWithDuration" = "Last run %@ • %@";
+"home.card.lastRun.compact" = "%@ · %@";
+"home.card.lastRun.agoOnly" = "%@";
 "home.sheet.newActionTitle" = "New %@ Action";
 "home.bottle.presetLabel" = "%lld ml";
 "home.history.started" = "Started %@";
