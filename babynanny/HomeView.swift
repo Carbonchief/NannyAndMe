@@ -113,7 +113,7 @@ struct HomeView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
 
             if let recent = state.mostRecentAction {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: headerCardAlignment(for: recent), spacing: 12) {
                         AnimatedActionIcon(
                             systemName: recent.icon,
@@ -129,8 +129,6 @@ struct HomeView: View {
 
                                 headerCompletionElapsedView(for: recent)
                             }
-
-                            headerActiveDurationView(for: recent)
                         }
 
                         Spacer(minLength: 12)
@@ -143,6 +141,9 @@ struct HomeView: View {
                             .tint(recent.category.accentColor)
                         }
                     }
+
+                    headerActiveDurationView(for: recent)
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
