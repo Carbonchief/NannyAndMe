@@ -147,9 +147,14 @@
 "logs.filter.endToggle" = "Filter to date";
 "logs.filter.endLabel" = "End date";
 "logs.filter.clear" = "Clear Filter";
+"logs.filter.category.section" = "Action type";
+"logs.filter.category.all" = "All actions";
 "logs.filter.summary.range" = "Showing %@ – %@";
 "logs.filter.summary.start" = "Showing from %@";
 "logs.filter.summary.end" = "Showing through %@";
+"logs.filter.summary.categoryOnly" = "Showing %@ logs";
+"logs.filter.summary.categoryDetail" = "%@ logs";
+"logs.filter.summary.combined" = "%@ · %@";
 "logs.entry.title" = "%@. %@. %@";
 "logs.summary.sleep" = "sleep";
 "logs.summary.diaperWithType" = "diaper - %@";

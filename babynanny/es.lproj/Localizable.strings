@@ -147,9 +147,14 @@
 "logs.filter.endToggle" = "Filtrar hasta fecha";
 "logs.filter.endLabel" = "Fecha de fin";
 "logs.filter.clear" = "Borrar filtro";
+"logs.filter.category.section" = "Tipo de acción";
+"logs.filter.category.all" = "Todas las acciones";
 "logs.filter.summary.range" = "Mostrando %@ – %@";
 "logs.filter.summary.start" = "Mostrando desde %@";
 "logs.filter.summary.end" = "Mostrando hasta %@";
+"logs.filter.summary.categoryOnly" = "Mostrando registros de %@";
+"logs.filter.summary.categoryDetail" = "Registros de %@";
+"logs.filter.summary.combined" = "%@ · %@";
 "logs.entry.title" = "%@. %@. %@";
 "logs.summary.sleep" = "sueño";
 "logs.summary.diaperWithType" = "pañal – %@";

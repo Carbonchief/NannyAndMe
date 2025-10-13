@@ -503,6 +503,14 @@ enum L10n {
         static let filterEndToggle = String(localized: "logs.filter.endToggle", defaultValue: "Filter to date")
         static let filterEndLabel = String(localized: "logs.filter.endLabel", defaultValue: "End date")
         static let filterClear = String(localized: "logs.filter.clear", defaultValue: "Clear Filter")
+        static let filterCategorySection = String(
+            localized: "logs.filter.category.section",
+            defaultValue: "Action type"
+        )
+        static let filterCategoryAll = String(
+            localized: "logs.filter.category.all",
+            defaultValue: "All actions"
+        )
 
         static func entryTitle(_ startTime: String, _ duration: String, _ summary: String) -> String {
             let format = String(localized: "logs.entry.title", defaultValue: "%@. %@. %@")
@@ -522,6 +530,21 @@ enum L10n {
         static func filterSummaryEnd(_ end: String) -> String {
             let format = String(localized: "logs.filter.summary.end", defaultValue: "Showing through %@")
             return String(format: format, locale: Locale.current, end)
+        }
+
+        static func filterSummaryCategoryOnly(_ category: String) -> String {
+            let format = String(localized: "logs.filter.summary.categoryOnly", defaultValue: "Showing %@ logs")
+            return String(format: format, locale: Locale.current, category)
+        }
+
+        static func filterSummaryCategoryDetail(_ category: String) -> String {
+            let format = String(localized: "logs.filter.summary.categoryDetail", defaultValue: "%@ logs")
+            return String(format: format, locale: Locale.current, category)
+        }
+
+        static func filterSummaryCombined(_ first: String, _ second: String) -> String {
+            let format = String(localized: "logs.filter.summary.combined", defaultValue: "%@ · %@")
+            return String(format: format, locale: Locale.current, first, second)
         }
 
         static func summarySleep() -> String {
