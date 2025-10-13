@@ -29,7 +29,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 24) {
                 headerSection(for: state)
 
-                VStack(spacing: 16) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
                     ForEach(BabyActionCategory.allCases) { category in
                         ActionCard(
                             category: category,
@@ -301,74 +301,110 @@ private struct ActionCard: View {
     let onStart: () -> Void
     let onStop: () -> Void
 
+    private var isActive: Bool { activeAction != nil }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 16) {
-                HStack(alignment: .center, spacing: 16) {
-                    ZStack {
-                        Circle()
-                            .fill(category.accentColor.opacity(0.15))
-                            .frame(width: 48, height: 48)
-
-                        Image(systemName: activeAction?.icon ?? lastCompleted?.icon ?? category.icon)
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundStyle(category.accentColor)
-                    }
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(category.title)
-                            .font(.headline)
-
-                        if category != .sleep {
-                            if let activeAction {
-                                Text(activeAction.detailDescription)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            } else if let lastCompleted {
-                                detailText(for: lastCompleted)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                Text(L10n.Home.noEntries)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .layoutPriority(1)
-                }
-                .layoutPriority(1)
-
-                Spacer(minLength: 12)
-
-                actionButton
-                    .controlSize(.large)
-                    .font(.headline)
+        Button {
+            if isActive {
+                onStop()
+            } else {
+                onStart()
             }
+        } label: {
+            ZStack {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(backgroundColor)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(borderColor, lineWidth: 1)
+                    )
+                    .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
 
-            if let activeAction {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(L10n.Home.startedAt(activeAction.startTimeDescription()))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                VStack(spacing: 10) {
+                    iconView
 
-                    TimelineView(.periodic(from: .now, by: 1)) { context in
-                        Text(L10n.Home.elapsed(activeAction.durationDescription(asOf: context.date)))
-                            .font(.caption)
-                            .monospacedDigit()
-                            .foregroundStyle(category.accentColor)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                    }
+                    Text(category.title)
+                        .font(.headline)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.primary)
+
+                    detailSection
+
+                    Spacer(minLength: 0)
+
+                    Text(callToActionText)
+                        .font(.footnote)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(category.accentColor)
+                        .multilineTextAlignment(.center)
                 }
+                .padding(16)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.systemBackground))
-                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
-        )
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .aspectRatio(1, contentMode: .fit)
+        .contentShape(Rectangle())
+    }
+
+    private var backgroundColor: Color {
+        isActive ? category.accentColor.opacity(0.15) : Color(.systemBackground)
+    }
+
+    private var borderColor: Color {
+        isActive ? category.accentColor.opacity(0.35) : Color.black.opacity(0.05)
+    }
+
+    private var callToActionText: String {
+        isActive ? L10n.Common.stop : category.startActionButtonTitle
+    }
+
+    @ViewBuilder
+    private var iconView: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(category.accentColor.opacity(isActive ? 0.25 : 0.15))
+                .frame(width: 56, height: 56)
+
+            Image(systemName: activeAction?.icon ?? lastCompleted?.icon ?? category.icon)
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(category.accentColor)
+        }
+    }
+
+    @ViewBuilder
+    private var detailSection: some View {
+        if let activeAction {
+            VStack(spacing: 6) {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    Text(activeAction.durationDescription(asOf: context.date))
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .monospacedDigit()
+                        .foregroundStyle(category.accentColor)
+                        .frame(maxWidth: .infinity)
+                }
+
+                Text(L10n.Home.startedAt(activeAction.startTimeDescription()))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        } else if category != .sleep {
+            if let lastCompleted {
+                detailText(for: lastCompleted)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            } else {
+                Text(L10n.Home.noEntries)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
     }
 }
 
@@ -410,29 +446,6 @@ private struct AnimatedActionIcon: View {
                     isAnimating = true
                 }
             }
-    }
-}
-
-private extension ActionCard {
-    static let buttonMinWidth: CGFloat = 112
-
-    @ViewBuilder
-    var actionButton: some View {
-        if activeAction != nil {
-            Button(L10n.Common.stop) {
-                onStop()
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(category.accentColor)
-            .frame(minWidth: Self.buttonMinWidth)
-        } else {
-            Button(category.startActionButtonTitle) {
-                onStart()
-            }
-            .buttonStyle(.bordered)
-            .tint(category.accentColor)
-            .frame(minWidth: Self.buttonMinWidth)
-        }
     }
 }
 
