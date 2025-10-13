@@ -391,32 +391,7 @@ private struct ActionCard: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
-        } else if category != .sleep {
-            if let lastCompleted {
-                detailText(for: lastCompleted)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-            } else {
-                Text(L10n.Home.noEntries)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
         }
-    }
-}
-
-private extension ActionCard {
-    func detailText(for action: BabyAction) -> Text {
-        if action.category.isInstant {
-            return Text(action.detailDescription)
-        }
-
-        return Text(action.detailDescription)
-            + Text(" • ")
-            + Text(action.durationDescription()).monospacedDigit()
     }
 }
 
