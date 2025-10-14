@@ -542,10 +542,6 @@ private struct HistoryRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text(L10n.Home.historyStarted(action.startDateTimeDescription()))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-
                 if !action.category.isInstant {
                     Text(L10n.Home.historyDuration(action.durationDescription()))
                         .font(.caption2)
@@ -553,6 +549,18 @@ private struct HistoryRow: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(L10n.Home.historyStarted(action.startDateTimeDescription()))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                if let stoppedDescription = action.endDateTimeDescription() {
+                    Text(L10n.Home.historyStopped(stoppedDescription))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .padding(12)
         .background(
@@ -560,6 +568,15 @@ private struct HistoryRow: View {
                 .fill(Color(.tertiarySystemBackground))
         )
         .contentShape(Rectangle())
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            Button {
+                onEdit(action)
+            } label: {
+                Label(L10n.Logs.editAction, systemImage: "square.and.pencil")
+            }
+            .tint(.accentColor)
+            .postHogLabel("home.historyRow.edit.leading.\(action.category.rawValue)")
+        }
         .swipeActions(edge: .trailing) {
             Button {
                 onEdit(action)
@@ -567,6 +584,7 @@ private struct HistoryRow: View {
                 Label(L10n.Logs.editAction, systemImage: "square.and.pencil")
             }
             .tint(.accentColor)
+            .postHogLabel("home.historyRow.edit.trailing.\(action.category.rawValue)")
         }
     }
 }

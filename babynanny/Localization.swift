@@ -125,6 +125,11 @@ enum L10n {
             return String(format: format, locale: Locale.current, value)
         }
 
+        static func historyStopped(_ value: String) -> String {
+            let format = String(localized: "home.history.stopped", defaultValue: "Stopped %@")
+            return String(format: format, locale: Locale.current, value)
+        }
+
         static func historyDuration(_ value: String) -> String {
             let format = String(localized: "home.history.duration", defaultValue: "Duration %@")
             return String(format: format, locale: Locale.current, value)
