@@ -61,7 +61,9 @@ struct HomeView: View {
 
                         VStack(spacing: 12) {
                             ForEach(recentHistory) { action in
-                                HistoryRow(action: action)
+                                HistoryRow(action: action) { actionToEdit in
+                                    editingAction = actionToEdit
+                                }
                             }
                         }
                     }
@@ -510,6 +512,7 @@ private struct AnimatedActionIcon: View {
 
 private struct HistoryRow: View {
     let action: BabyAction
+    let onEdit: (BabyAction) -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -549,6 +552,15 @@ private struct HistoryRow: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color(.tertiarySystemBackground))
         )
+        .contentShape(Rectangle())
+        .swipeActions(edge: .trailing) {
+            Button {
+                onEdit(action)
+            } label: {
+                Label(L10n.Logs.editAction, systemImage: "square.and.pencil")
+            }
+            .tint(.accentColor)
+        }
     }
 }
 
