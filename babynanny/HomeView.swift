@@ -540,17 +540,13 @@ private struct HistoryRow: View {
                             .font(.subheadline)
                             .fontWeight(.semibold)
 
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(L10n.Home.historyStarted(action.startDateTimeDescription()))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.85)
-                                .multilineTextAlignment(.leading)
-                                .monospacedDigit()
+                        Grid(alignment: .leading, horizontalSpacing: 6, verticalSpacing: 2) {
+                            GridRow(alignment: .firstTextBaseline) {
+                                Text("\(L10n.Home.historyStartedLabel):")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
 
-                            if let stoppedDescription = action.endDateTimeDescription() {
-                                Text(L10n.Home.historyStopped(stoppedDescription))
+                                Text(action.startDateTimeDescription())
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
@@ -558,20 +554,38 @@ private struct HistoryRow: View {
                                     .multilineTextAlignment(.leading)
                                     .monospacedDigit()
                             }
+
+                            if let stoppedDescription = action.endDateTimeDescription() {
+                                GridRow(alignment: .firstTextBaseline) {
+                                    Text("\(L10n.Home.historyStoppedLabel):")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+
+                                    Text(stoppedDescription)
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.85)
+                                        .multilineTextAlignment(.leading)
+                                        .monospacedDigit()
+                                }
+                            }
                         }
                     }
 
                     Spacer(minLength: 12)
 
                     VStack(alignment: .trailing, spacing: 4) {
-                        Text(action.detailDescription)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.trailing)
+                        if let detail = detailDescription(for: action) {
+                            Text(detail)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.trailing)
+                        }
 
                         if !action.category.isInstant {
                             Text(L10n.Home.historyDuration(action.durationDescription()))
-                                .font(.caption)
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.trailing)
                         }
@@ -608,6 +622,16 @@ private struct HistoryRow: View {
             .tint(.accentColor)
             .postHogLabel("home.historyRow.edit.trailing.\(action.category.rawValue)")
         }
+    }
+}
+
+private extension HistoryRow {
+    func detailDescription(for action: BabyAction) -> String? {
+        if action.category == .sleep {
+            return nil
+        }
+
+        return action.detailDescription
     }
 }
 
