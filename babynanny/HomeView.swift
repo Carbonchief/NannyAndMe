@@ -534,7 +534,7 @@ private struct HistoryRow: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .top) {
+                HStack(alignment: .center) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(action.title)
                             .font(.subheadline)
@@ -590,6 +590,7 @@ private struct HistoryRow: View {
                                 .multilineTextAlignment(.trailing)
                         }
                     }
+                    .frame(maxHeight: .infinity, alignment: .center)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
