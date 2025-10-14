@@ -576,11 +576,19 @@ private struct HistoryRow: View {
                 Text(L10n.Home.historyStarted(action.startDateTimeDescription()))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .multilineTextAlignment(.trailing)
+                    .monospacedDigit()
 
                 if let stoppedDescription = action.endDateTimeDescription() {
                     Text(L10n.Home.historyStopped(stoppedDescription))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                        .multilineTextAlignment(.trailing)
+                        .monospacedDigit()
                 }
             }
         }

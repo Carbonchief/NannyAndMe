@@ -45,8 +45,8 @@
 "home.card.lastRunWithDuration" = "Zuletzt ausgeführt %@ • %@";
 "home.sheet.newActionTitle" = "Neue %@-Aktion";
 "home.bottle.presetLabel" = "%lld ml";
-"home.history.started" = "Gestartet %@";
-"home.history.stopped" = "Beendet %@";
+"home.history.started" = "Gestartet: %@";
+"home.history.stopped" = "Beendet: %@";
 "home.history.duration" = "Dauer %@";
 "home.interruptionAlert.title" = "Aktuelle Aktion stoppen?";
 "home.interruptionAlert.message" = "Wenn du eine neue %@-Aktion startest, wird %@ beendet, das gerade läuft.";

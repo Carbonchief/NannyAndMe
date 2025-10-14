@@ -121,12 +121,12 @@ enum L10n {
         }
 
         static func historyStarted(_ value: String) -> String {
-            let format = String(localized: "home.history.started", defaultValue: "Started %@")
+            let format = String(localized: "home.history.started", defaultValue: "Started: %@")
             return String(format: format, locale: Locale.current, value)
         }
 
         static func historyStopped(_ value: String) -> String {
-            let format = String(localized: "home.history.stopped", defaultValue: "Stopped %@")
+            let format = String(localized: "home.history.stopped", defaultValue: "Stopped: %@")
             return String(format: format, locale: Locale.current, value)
         }
 
