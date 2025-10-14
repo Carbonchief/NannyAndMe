@@ -259,12 +259,17 @@ final class ProfileStore: ObservableObject {
         state = Self.sanitized(state: newState)
     }
 
-    func addProfile() {
+    func addProfile(name: String) {
         var newState = state
-        let profile = ChildProfile(name: "", birthDate: Date())
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let profile = ChildProfile(name: trimmedName, birthDate: Date())
         newState.profiles.append(profile)
         newState.activeProfileID = profile.id
         state = Self.sanitized(state: newState)
+    }
+
+    func addProfile() {
+        addProfile(name: "")
     }
 
     func setShowRecentActivityOnHome(_ newValue: Bool) {

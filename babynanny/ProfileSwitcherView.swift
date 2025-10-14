@@ -3,6 +3,7 @@ import SwiftUI
 struct ProfileSwitcherView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @Environment(\.dismiss) private var dismiss
+    @State private var isAddProfilePromptPresented = false
 
     var body: some View {
         NavigationStack {
@@ -50,7 +51,7 @@ struct ProfileSwitcherView: View {
                                 "profile_count": "\(profileStore.profiles.count)"
                             ]
                         )
-                        profileStore.addProfile()
+                        isAddProfilePromptPresented = true
                     } label: {
                         Label(L10n.Profiles.addProfile, systemImage: "plus")
                     }
@@ -70,6 +71,20 @@ struct ProfileSwitcherView: View {
             }
         }
         .phScreen("profileSwitcher_sheet_profileSwitcherView")
+        .sheet(isPresented: $isAddProfilePromptPresented) {
+            AddProfilePromptView(analyticsSource: "profileSwitcher_addProfilePrompt") { name in
+                Analytics.capture(
+                    "profileSwitcher_add_profile_confirm",
+                    properties: [
+                        "profile_count": "\(profileStore.profiles.count)",
+                        "name_length": "\(name.count)"
+                    ]
+                )
+                profileStore.addProfile(name: name)
+            } onCancel: {
+                Analytics.capture("profileSwitcher_add_profile_cancel")
+            }
+        }
         .presentationDetents([.medium, .large])
     }
 }

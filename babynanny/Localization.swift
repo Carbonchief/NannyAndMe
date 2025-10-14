@@ -156,6 +156,26 @@ enum L10n {
     enum Profiles {
         static let activeSection = String(localized: "profiles.activeSection", defaultValue: "Active Profiles")
         static let addProfile = String(localized: "profiles.add", defaultValue: "Add Profile")
+        static let addPromptTitle = String(
+            localized: "profiles.addPrompt.title",
+            defaultValue: "Add a New Profile"
+        )
+        static let addPromptSubtitle = String(
+            localized: "profiles.addPrompt.subtitle",
+            defaultValue: "Enter a name to create a profile."
+        )
+        static let addPromptNameLabel = String(
+            localized: "profiles.addPrompt.nameLabel",
+            defaultValue: "Profile name"
+        )
+        static let addPromptNamePlaceholder = String(
+            localized: "profiles.addPrompt.namePlaceholder",
+            defaultValue: "Enter a name"
+        )
+        static let addPromptCreate = String(
+            localized: "profiles.addPrompt.create",
+            defaultValue: "Create Profile"
+        )
         static let title = String(localized: "profiles.title", defaultValue: "Profiles")
         static let activeProfileSection = String(localized: "profiles.activeProfile.section", defaultValue: "Active Profile")
         static let childName = String(localized: "profiles.childName", defaultValue: "Child name")
