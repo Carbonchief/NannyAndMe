@@ -6,7 +6,7 @@ enum Analytics {
     static func setup() {
         var config = PostHogConfig(
             apiKey: "phc_LnHkvLd42Z0HUUa1DWyq7fGkrDXoXzKO2AuORKfqqwP",
-            host: "https://us.i.posthog.com"
+            host: "https://eu.i.posthog.com"
         )
 
         // SwiftUI-friendly config:
