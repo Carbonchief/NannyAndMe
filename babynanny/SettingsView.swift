@@ -104,15 +104,17 @@ struct SettingsView: View {
             }
 
             Button {
+                Analytics.capture(
+                    "settings_add_profile_button",
+                    properties: [
+                        "profile_count": "\(profileStore.profiles.count)"
+                    ]
+                )
                 profileStore.addProfile()
             } label: {
                 Label(L10n.Profiles.addProfile, systemImage: "plus")
             }
             .postHogLabel("settings.profiles.add")
-            .phCaptureTap(
-                event: "settings_add_profile_button",
-                properties: ["profile_count": "\(profileStore.profiles.count)"]
-            )
         }
     }
 

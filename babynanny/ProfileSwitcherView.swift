@@ -44,15 +44,17 @@ struct ProfileSwitcherView: View {
 
                 Section {
                     Button {
+                        Analytics.capture(
+                            "profileSwitcher_add_profile_button",
+                            properties: [
+                                "profile_count": "\(profileStore.profiles.count)"
+                            ]
+                        )
                         profileStore.addProfile()
                     } label: {
                         Label(L10n.Profiles.addProfile, systemImage: "plus")
                     }
                     .postHogLabel("profile.add")
-                    .phCaptureTap(
-                        event: "profileSwitcher_add_profile_button",
-                        properties: ["profile_count": "\(profileStore.profiles.count)"]
-                    )
                 }
             }
             .listStyle(.insetGrouped)
