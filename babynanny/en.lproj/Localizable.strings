@@ -46,7 +46,9 @@
 "home.bottle.presetLabel" = "%lld ml";
 "home.history.started" = "Started: %@";
 "home.history.stopped" = "Stopped: %@";
-"home.history.duration" = "Duration %@";
+"home.history.startedLabel" = "Started";
+"home.history.stoppedLabel" = "Stopped";
+"home.history.duration" = "For: %@";
 "home.interruptionAlert.title" = "Stop current action?";
 "home.interruptionAlert.message" = "Starting a new %@ action will stop %@ that's currently running.";
 "home.interruptionAlert.confirm" = "Continue";
