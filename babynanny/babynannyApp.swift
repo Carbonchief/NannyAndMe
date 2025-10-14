@@ -42,7 +42,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         let POSTHOG_API_KEY = "phc_LnHkvLd42Z0HUUa1DWyq7fGkrDXoXzKO2AuORKfqqwP"
         let POSTHOG_HOST = "https://eu.i.posthog.com"
 
-        let config = PostHogConfig(apiKey: POSTHOG_API_KEY, host: POSTHOG_HOST)
+        var config = PostHogConfig(apiKey: POSTHOG_API_KEY, host: POSTHOG_HOST)
+        config.captureScreenViews = true
+        config.captureApplicationLifecycleEvents = true
+        config.captureElementInteractions = true
 
         PostHogSDK.shared.setup(config)
 
