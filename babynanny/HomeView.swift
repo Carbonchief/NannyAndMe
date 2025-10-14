@@ -49,13 +49,14 @@ struct HomeView: View {
 
                             Spacer()
 
-                            Button(action: onShowAllLogs) {
-                                Text(L10n.Home.recentActivityShowAll)
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
+                            Button.phTap(
+                                L10n.Home.recentActivityShowAll,
+                                event: "home_showAllLogs_button_homeView",
+                                properties: ["source": "recent_activity"]
+                            ) {
+                                onShowAllLogs()
                             }
                             .postHogLabel("home.recentActivity.showAll")
-                            .buttonStyle(.plain)
                             .tint(.accentColor)
                         }
 
@@ -74,6 +75,7 @@ struct HomeView: View {
             .padding(.bottom, 24)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .phScreen("home_screen_homeView", properties: ["tab": "home"])
         .sheet(item: $presentedCategory, onDismiss: {
             categoryClearedForSheet = nil
         }) { category in

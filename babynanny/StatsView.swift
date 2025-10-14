@@ -31,6 +31,7 @@ struct StatsView: View {
             .padding(24)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .phScreen("stats_screen_statsView", properties: ["tab": "stats"])
         .onChange(of: profileStore.activeProfile.id) {
             selectedCategory = nil
         }

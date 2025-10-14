@@ -33,28 +33,32 @@ struct ContentView: View {
 
                     HStack(spacing: 0) {
                         ForEach(Tab.allCases, id: \.self) { tab in
-                            Button {
+                            VStack(spacing: 4) {
+                                Image(systemName: tab.icon)
+                                    .font(.system(size: 18, weight: .semibold))
+
+                                Text(tab.title)
+                                    .font(.footnote)
+                            }
+                            .padding(.vertical, 10)
+                            .foregroundStyle(selectedTab == tab ? Color.accentColor : Color.secondary)
+                            .frame(maxWidth: .infinity)
+                            .contentShape(Rectangle())
+                            .phOnTapCapture(
+                                event: "navigation_select_tab_tabBar",
+                                properties: [
+                                    "target_tab": tab.analyticsIdentifier,
+                                    "previous_tab": selectedTab.analyticsIdentifier
+                                ]
+                            ) {
                                 guard tab != selectedTab else { return }
                                 let oldValue = selectedTab
                                 previousTab = oldValue
                                 withAnimation(.easeInOut(duration: 0.3)) {
                                     selectedTab = tab
                                 }
-                            } label: {
-                                VStack(spacing: 4) {
-                                    Image(systemName: tab.icon)
-                                        .font(.system(size: 18, weight: .semibold))
-
-                                    Text(tab.title)
-                                        .font(.footnote)
-                                }
-                                .padding(.vertical, 10)
-                                .foregroundStyle(selectedTab == tab ? Color.accentColor : Color.secondary)
-                                .frame(maxWidth: .infinity)
-                                .contentShape(Rectangle())
                             }
                             .postHogLabel(tab.postHogLabel)
-                            .buttonStyle(.plain)
                             .frame(maxWidth: .infinity)
                         }
                     }
@@ -69,6 +73,10 @@ struct ContentView: View {
 
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
+                            Analytics.capture(
+                                "navigation_toggle_menu_toolbar",
+                                properties: ["is_open": isMenuVisible ? "true" : "false"]
+                            )
                             withAnimation(.easeInOut) {
                                 isMenuVisible.toggle()
                             }
@@ -79,11 +87,15 @@ struct ContentView: View {
                     }
 
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            isProfileSwitcherPresented = true
-                        } label: {
-                            ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 36)
-                        }
+                        ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 36)
+                            .phOnTapCapture(
+                                event: "profile_open_switcher_toolbar",
+                                properties: [
+                                    "profile_id": profileStore.activeProfile.id.uuidString
+                                ]
+                            ) {
+                                isProfileSwitcherPresented = true
+                            }
                         .postHogLabel("toolbar.profileSwitcher")
                     }
                 }
@@ -248,6 +260,15 @@ private enum Tab: Hashable, CaseIterable {
             return "tab.home"
         case .stats:
             return "tab.stats"
+        }
+    }
+
+    var analyticsIdentifier: String {
+        switch self {
+        case .home:
+            return "home"
+        case .stats:
+            return "stats"
         }
     }
 }
