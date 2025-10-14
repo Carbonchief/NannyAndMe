@@ -16,9 +16,13 @@ These guidelines apply to the entire `NannyAndMe` repository.
 - Document any new public types or view models with Swift documentation comments (`///`).
 
 ## Testing
-- When feasible, run the test suite with `xcodebuild test -project babynanny.xcodeproj -scheme babynanny -destination 'platform=iOS Simulator,name=iPhone 15 Pro'`.
 - Add unit or UI tests for new functionality when practical. Prefer lightweight view model tests over UI tests when logic can be isolated.
 
 ## Assets & previews
 - Keep asset catalog names descriptive and organized by feature area.
 - Maintain SwiftUI previews for new views to aid quick iteration. Use mock data objects where necessary.
+
+## Analytics instrumentation
+- Every **interactable UI element** (e.g., buttons, toggles, pickers, gestures, navigation links) **must include a PostHog label**.
+- Use consistent and descriptive labels following the pattern:  
+  `featureName_action_context` (e.g., `sleep_start_button_homeView`).
