@@ -13,7 +13,6 @@
 "onboarding.profilePrompt.continue" = "Continuar";
 "home.recentActivity" = "Actividad reciente";
 "home.recentActivity.showAll" = "Ver todo";
-"home.recentActivity.sendTestEvent" = "Enviar evento de prueba";
 "home.header.title" = "Última acción";
 "home.header.edit" = "Editar";
 "home.header.placeholder" = "Inicia una acción abajo para comenzar a registrar el día de tu bebé.";
