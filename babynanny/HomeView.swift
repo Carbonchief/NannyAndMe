@@ -49,13 +49,14 @@ struct HomeView: View {
 
                             Spacer()
 
-                            Button(action: onShowAllLogs) {
-                                Text(L10n.Home.recentActivityShowAll)
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
+                            Button.phTap(
+                                L10n.Home.recentActivityShowAll,
+                                event: "home_showAllLogs_button_homeView",
+                                properties: ["source": "recent_activity"]
+                            ) {
+                                onShowAllLogs()
                             }
                             .postHogLabel("home.recentActivity.showAll")
-                            .buttonStyle(.plain)
                             .tint(.accentColor)
                         }
 
@@ -74,6 +75,7 @@ struct HomeView: View {
             .padding(.bottom, 24)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .phScreen("home_screen_homeView", properties: ["tab": "home"])
         .sheet(item: $presentedCategory, onDismiss: {
             categoryClearedForSheet = nil
         }) { category in
@@ -98,10 +100,18 @@ struct HomeView: View {
                 title: Text(L10n.Home.interruptionAlertTitle),
                 message: Text(L10n.Home.interruptionAlertMessage(pending.category.title, runningList)),
                 primaryButton: .destructive(Text(L10n.Home.interruptionAlertConfirm)) {
+                    Analytics.capture(
+                        "home_confirm_interruption_alert",
+                        properties: ["category": pending.category.rawValue]
+                    )
                     completePendingStartAction(pending)
                     pendingStartAction = nil
                 },
                 secondaryButton: .cancel {
+                    Analytics.capture(
+                        "home_cancel_interruption_alert",
+                        properties: ["category": pending.category.rawValue]
+                    )
                     pendingStartAction = nil
                 }
             )
@@ -172,7 +182,11 @@ struct HomeView: View {
                 Spacer(minLength: 12)
 
                 if isRunning {
-                    Button(L10n.Common.stop) {
+                    Button.phTap(
+                        L10n.Common.stop,
+                        event: "home_stop_action_header",
+                        properties: ["category": recent.category.rawValue]
+                    ) {
                         stopAction(for: recent.category)
                     }
                     .postHogLabel("home.header.stop.\(recent.category.rawValue)")
@@ -363,6 +377,14 @@ private struct ActionCard: View {
 
     var body: some View {
         Button {
+            let event = isActive ? "home_stop_action_card" : "home_start_action_card"
+            Analytics.capture(
+                event,
+                properties: [
+                    "category": category.rawValue,
+                    "is_active": isActive ? "true" : "false"
+                ]
+            )
             if isActive {
                 onStop()
             } else {
@@ -579,6 +601,10 @@ private struct HistoryRow: View {
         }
         .swipeActions(edge: .trailing) {
             Button {
+                Analytics.capture(
+                    "home_edit_recentAction_swipe",
+                    properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
+                )
                 onEdit(action)
             } label: {
                 Label(L10n.Logs.editAction, systemImage: "square.and.pencil")
@@ -635,6 +661,14 @@ private struct ActionTypeSelectionGrid<Option: ActionTypeOption>: View {
         LazyVGrid(columns: columns, spacing: 16) {
             ForEach(options) { option in
                 Button {
+                    Analytics.capture(
+                        "home_select_action_option_sheet",
+                        properties: [
+                            "category": postHogLabelPrefix,
+                            "option_id": String(describing: option.id),
+                            "previous_selection": String(describing: selection.id)
+                        ]
+                    )
                     selection = option
                     onOptionActivated?(option)
                 } label: {
@@ -864,6 +898,10 @@ struct ActionEditSheet: View {
                             Label(L10n.Logs.continueAction, systemImage: "play.circle.fill")
                         }
                         .postHogLabel("home.edit.continue")
+                        .phCaptureTap(
+                            event: "home_edit_continue_action_button",
+                            properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
+                        )
                     } footer: {
                         Text(L10n.Logs.continueActionInfo)
                             .font(.footnote)
@@ -878,6 +916,10 @@ struct ActionEditSheet: View {
                         Label(L10n.Logs.deleteAction, systemImage: "trash")
                     }
                     .postHogLabel("home.edit.delete")
+                    .phCaptureTap(
+                        event: "home_edit_prepare_delete_button",
+                        properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
+                    )
                     .tint(.red)
                 }
             }
@@ -889,6 +931,10 @@ struct ActionEditSheet: View {
                         dismiss()
                     }
                     .postHogLabel("home.edit.cancel")
+                    .phCaptureTap(
+                        event: "home_edit_cancel_toolbar",
+                        properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
+                    )
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
@@ -896,20 +942,37 @@ struct ActionEditSheet: View {
                         save()
                     }
                     .postHogLabel("home.edit.save")
+                    .phCaptureTap(
+                        event: "home_edit_save_toolbar",
+                        properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
+                    )
                     .disabled(isSaveDisabled)
                 }
             }
         }
+        .phScreen(
+            "home_edit_sheet_actionEditSheet",
+            properties: ["category": action.category.rawValue]
+        )
         .alert(Text(L10n.Logs.deleteConfirmationTitle), isPresented: $showDeleteConfirmation) {
             Button(L10n.Logs.deleteAction, role: .destructive) {
+                Analytics.capture(
+                    "home_edit_confirm_delete_alert",
+                    properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
+                )
                 onDelete(action)
                 dismiss()
             }
-            Button(L10n.Common.cancel, role: .cancel) { }
+            Button(L10n.Common.cancel, role: .cancel) {
+                Analytics.capture(
+                    "home_edit_cancel_delete_alert",
+                    properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
+                )
+            }
         } message: {
             Text(L10n.Logs.deleteConfirmationMessage)
         }
-        .onChange(of: startDate) { _, newValue in
+        .onChange(of: startDate) { newValue in
             guard let currentEndDate = endDate else { return }
             if currentEndDate < newValue {
                 endDate = newValue
@@ -1100,6 +1163,10 @@ private struct ActionDetailSheet: View {
                         dismiss()
                     }
                     .postHogLabel("home.detail.cancel")
+                    .phCaptureTap(
+                        event: "home_detail_cancel_toolbar",
+                        properties: ["category": category.rawValue]
+                    )
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
@@ -1107,10 +1174,18 @@ private struct ActionDetailSheet: View {
                         startIfReady()
                     }
                     .postHogLabel("home.detail.start")
+                    .phCaptureTap(
+                        event: "home_detail_start_toolbar",
+                        properties: ["category": category.rawValue]
+                    )
                     .disabled(isStartDisabled)
                 }
             }
         }
+        .phScreen(
+            "home_detail_sheet_actionDetailSheet",
+            properties: ["category": category.rawValue]
+        )
     }
 
     private var configuration: ActionConfiguration {

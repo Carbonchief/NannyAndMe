@@ -53,6 +53,10 @@ struct InitialProfileNamePromptView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .postHogLabel("onboarding.continue")
+                .phCaptureTap(
+                    event: "onboarding_profile_continue_button",
+                    properties: ["is_name_empty": trimmedName.isEmpty ? "true" : "false"]
+                )
                 .buttonStyle(.borderedProminent)
                 .disabled(trimmedName.isEmpty)
             }
@@ -66,11 +70,16 @@ struct InitialProfileNamePromptView: View {
         .interactiveDismissDisabled(!allowsDismissal)
         .presentationDetents([.medium])
         .presentationDragIndicator(.hidden)
+        .phScreen("onboarding_profile_prompt_initialProfileNamePromptView")
     }
 
     private func handleContinue() {
         let value = trimmedName
         guard value.isEmpty == false else { return }
+        Analytics.capture(
+            "onboarding_profile_submit_name",
+            properties: ["name_length": "\(value.count)"]
+        )
         onContinue(value)
     }
 }
