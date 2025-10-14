@@ -119,12 +119,7 @@ struct HomeView: View {
     }
 
     private func headerSection(for state: ProfileActionState) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.Home.headerTitle)
-                .font(.headline)
-                .fontWeight(.semibold)
-                .frame(maxWidth: .infinity, alignment: .center)
-
+        VStack(spacing: 12) {
             ZStack {
                 if let recent = state.mostRecentAction {
                     headerCard(for: recent)
