@@ -1,17 +1,31 @@
 import SwiftUI
+import PhotosUI
+import UIKit
 
 /// A sheet prompting the user to name the initial child profile on first launch.
 struct InitialProfileNamePromptView: View {
-    let onContinue: (String) -> Void
+    let onContinue: (String, Data?) -> Void
     let allowsDismissal: Bool
 
     @State private var name: String
+    @State private var imageData: Data?
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var pendingCrop: PendingCropImage?
+    @State private var isProcessingPhoto = false
+    @State private var photoLoadingTask: Task<Void, Never>?
+    @State private var activePhotoRequestID: UUID?
     @FocusState private var isNameFieldFocused: Bool
 
-    init(initialName: String, allowsDismissal: Bool, onContinue: @escaping (String) -> Void) {
+    init(
+        initialName: String,
+        initialImageData: Data? = nil,
+        allowsDismissal: Bool,
+        onContinue: @escaping (String, Data?) -> Void
+    ) {
         self.onContinue = onContinue
         self.allowsDismissal = allowsDismissal
         _name = State(initialValue: initialName)
+        _imageData = State(initialValue: initialImageData)
     }
 
     private var trimmedName: String {
@@ -46,6 +60,16 @@ struct InitialProfileNamePromptView: View {
                     .onSubmit(handleContinue)
                 }
 
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(L10n.Profiles.choosePhoto)
+                        .font(.footnote)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+
+                    profilePhotoSelector
+                    processingPhotoIndicator
+                }
+
                 Spacer()
 
                 Button(action: handleContinue) {
@@ -66,11 +90,29 @@ struct InitialProfileNamePromptView: View {
             .onAppear {
                 isNameFieldFocused = true
             }
+            .onDisappear {
+                photoLoadingTask?.cancel()
+                photoLoadingTask = nil
+                activePhotoRequestID = nil
+                selectedPhoto = nil
+                isProcessingPhoto = false
+            }
         }
         .interactiveDismissDisabled(!allowsDismissal)
         .presentationDetents([.medium])
         .presentationDragIndicator(.hidden)
         .phScreen("onboarding_profile_prompt_initialProfileNamePromptView")
+        .fullScreenCover(item: $pendingCrop) { crop in
+            ImageCropperView(image: crop.image) {
+                pendingCrop = nil
+            } onCrop: { croppedImage in
+                if let data = croppedImage.compressedData() {
+                    imageData = data
+                }
+                pendingCrop = nil
+            }
+            .preferredColorScheme(.dark)
+        }
     }
 
     private func handleContinue() {
@@ -78,12 +120,116 @@ struct InitialProfileNamePromptView: View {
         guard value.isEmpty == false else { return }
         Analytics.capture(
             "onboarding_profile_submit_name",
-            properties: ["name_length": "\(value.count)"]
+            properties: [
+                "name_length": "\(value.count)",
+                "has_photo": imageData == nil ? "false" : "true"
+            ]
         )
-        onContinue(value)
+        onContinue(value, imageData)
+    }
+
+    private var profilePhotoSelector: some View {
+        ZStack(alignment: .bottomTrailing) {
+            PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
+                ProfileAvatarView(imageData: imageData, size: 72)
+                    .overlay(alignment: .bottomTrailing) {
+                        if imageData == nil {
+                            Image(systemName: "plus.circle.fill")
+                                .symbolRenderingMode(.multicolor)
+                                .font(.system(size: 20))
+                                .shadow(radius: 1)
+                                .accessibilityHidden(true)
+                        }
+                    }
+            }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .postHogLabel("onboarding.profilePhotoPicker")
+            .accessibilityLabel(L10n.Profiles.choosePhoto)
+            .onChange(of: selectedPhoto) { newValue in
+                handlePhotoSelectionChange(newValue)
+            }
+
+            if imageData != nil {
+                Button {
+                    Analytics.capture("onboarding_remove_profile_photo_button")
+                    imageData = nil
+                } label: {
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(6)
+                        .background(Color.red)
+                        .clipShape(Circle())
+                        .shadow(radius: 2)
+                }
+                .buttonStyle(.plain)
+                .postHogLabel("onboarding.profilePhotoRemove")
+                .phCaptureTap(event: "onboarding_remove_profile_photo_button")
+                .accessibilityLabel(L10n.Profiles.removePhoto)
+                .padding(4)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var processingPhotoIndicator: some View {
+        if isProcessingPhoto {
+            HStack(spacing: 8) {
+                ProgressView()
+                Text(L10n.Profiles.photoProcessing)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func handlePhotoSelectionChange(_ newValue: PhotosPickerItem?) {
+        photoLoadingTask?.cancel()
+        guard let newValue else { return }
+
+        Analytics.capture("onboarding_select_profile_photo_picker")
+
+        isProcessingPhoto = true
+        let requestID = UUID()
+        activePhotoRequestID = requestID
+        photoLoadingTask = Task {
+            var loadedImage: UIImage?
+
+            do {
+                if let data = try await newValue.loadTransferable(type: Data.self),
+                   let image = UIImage(data: data) {
+                    loadedImage = image
+                }
+            } catch {
+                // Ignore errors for now
+            }
+
+            if Task.isCancelled == false, let image = loadedImage {
+                await MainActor.run {
+                    guard activePhotoRequestID == requestID else { return }
+                    pendingCrop = PendingCropImage(image: image)
+                }
+            }
+
+            await MainActor.run {
+                guard activePhotoRequestID == requestID else { return }
+                selectedPhoto = nil
+                isProcessingPhoto = false
+                activePhotoRequestID = nil
+                photoLoadingTask = nil
+            }
+        }
     }
 }
 
 #Preview {
-    InitialProfileNamePromptView(initialName: "", allowsDismissal: true) { _ in }
+    InitialProfileNamePromptView(initialName: "", allowsDismissal: true) { _, _ in }
+}
+
+private extension InitialProfileNamePromptView {
+    struct PendingCropImage: Identifiable {
+        let id = UUID()
+        let image: UIImage
+    }
 }
