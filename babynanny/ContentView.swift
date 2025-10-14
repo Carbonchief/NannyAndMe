@@ -53,6 +53,7 @@ struct ContentView: View {
                                 .frame(maxWidth: .infinity)
                                 .contentShape(Rectangle())
                             }
+                            .postHogLabel(tab.postHogLabel)
                             .buttonStyle(.plain)
                             .frame(maxWidth: .infinity)
                         }
@@ -74,6 +75,7 @@ struct ContentView: View {
                         } label: {
                             Image(systemName: "line.3.horizontal")
                         }
+                        .postHogLabel("toolbar.menu")
                     }
 
                     ToolbarItem(placement: .topBarTrailing) {
@@ -82,6 +84,7 @@ struct ContentView: View {
                         } label: {
                             ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 36)
                         }
+                        .postHogLabel("toolbar.profileSwitcher")
                     }
                 }
                 .navigationBarTitleDisplayMode(.inline)
@@ -103,6 +106,7 @@ struct ContentView: View {
             if isMenuVisible {
                 Color.black.opacity(0.25)
                     .ignoresSafeArea()
+                    .postHogLabel("sideMenu.dismissOverlay")
                     .onTapGesture {
                         withAnimation(.easeInOut) {
                             isMenuVisible = false
@@ -235,6 +239,15 @@ private enum Tab: Hashable, CaseIterable {
             return 0
         case .stats:
             return 1
+        }
+    }
+
+    var postHogLabel: String {
+        switch self {
+        case .home:
+            return "tab.home"
+        case .stats:
+            return "tab.stats"
         }
     }
 }

@@ -99,6 +99,7 @@ struct SettingsView: View {
             } label: {
                 Label(L10n.Profiles.addProfile, systemImage: "plus")
             }
+            .postHogLabel("settings.profiles.add")
         }
     }
 
@@ -125,6 +126,7 @@ struct SettingsView: View {
             }
         }
         .contentShape(Rectangle())
+        .postHogLabel("settings.profiles.select.\(profile.id.uuidString)")
         .onTapGesture {
             profileStore.setActiveProfile(profile)
         }
@@ -134,6 +136,7 @@ struct SettingsView: View {
             } label: {
                 Label(L10n.Profiles.deleteAction, systemImage: "trash")
             }
+            .postHogLabel("settings.profiles.delete.\(profile.id.uuidString)")
         }
     }
 
@@ -157,6 +160,7 @@ struct SettingsView: View {
                 ))
                 .textInputAutocapitalization(.words)
                 .disableAutocorrection(true)
+                .postHogLabel("settings.profile.name")
 
                 DatePicker(
                     selection: Binding(
@@ -170,6 +174,7 @@ struct SettingsView: View {
                 ) {
                     Text(L10n.Profiles.birthDate)
                 }
+                .postHogLabel("settings.profile.birthDate")
             }
         }
     }
@@ -204,6 +209,7 @@ struct SettingsView: View {
                         }
                     }
             }
+            .postHogLabel("settings.profile.photoPicker")
             .buttonStyle(.plain)
             .contentShape(Rectangle())
             .accessibilityLabel(L10n.Profiles.choosePhoto)
@@ -223,6 +229,7 @@ struct SettingsView: View {
                         .clipShape(Circle())
                         .shadow(radius: 2)
                 }
+                .postHogLabel("settings.profile.removePhoto")
                 .buttonStyle(.plain)
                 .accessibilityLabel(L10n.Profiles.removePhoto)
                 .padding(4)
@@ -257,6 +264,7 @@ struct SettingsView: View {
             ) {
                 Text(L10n.Settings.showRecentActivity)
             }
+            .postHogLabel("settings.home.showRecentActivity")
         }
     }
 
@@ -271,6 +279,7 @@ struct SettingsView: View {
         ) {
             Text(L10n.Settings.enableReminders)
         }
+        .postHogLabel("settings.reminders.enable")
         .disabled(isUpdatingReminders)
     }
 
@@ -468,6 +477,7 @@ private extension SettingsView {
             Toggle(isOn: enabledBinding) {
                 Label(L10n.Settings.actionReminderTitle(category.title), systemImage: category.icon)
             }
+            .postHogLabel("settings.reminders.category.\(category.rawValue).toggle")
             .disabled(remindersEnabled == false)
             .tint(category.accentColor)
 
@@ -476,6 +486,7 @@ private extension SettingsView {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+            .postHogLabel("settings.reminders.category.\(category.rawValue).frequency")
             .disabled(remindersEnabled == false || isCategoryEnabled == false)
 
             actionReminderStatus(for: category, isEnabled: remindersEnabled && isCategoryEnabled)

@@ -113,6 +113,7 @@ struct ImageCropperView: View {
                         Button(L10n.Common.cancel) {
                             onCancel()
                         }
+                        .postHogLabel("imageCropper.cancel")
                         .tint(.white)
                     }
                     ToolbarItem(placement: .principal) {
@@ -124,6 +125,7 @@ struct ImageCropperView: View {
                         Button(L10n.Common.done) {
                             cropImage(cropSize: cropSize)
                         }
+                        .postHogLabel("imageCropper.confirm")
                         .tint(.white)
                         .fontWeight(.semibold)
                     }

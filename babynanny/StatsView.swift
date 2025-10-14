@@ -282,6 +282,7 @@ struct StatsView: View {
             .clipShape(Capsule())
         }
         .pickerStyle(.menu)
+        .postHogLabel("stats.categoryPicker")
         .accessibilityLabel(L10n.Stats.actionPickerLabel)
     }
 

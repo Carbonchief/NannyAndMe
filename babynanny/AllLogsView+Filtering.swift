@@ -97,6 +97,7 @@ extension AllLogsView {
                 Text(L10n.Logs.filterClear)
                     .font(.subheadline.weight(.semibold))
             }
+            .postHogLabel("logs.filter.summaryClear")
             .buttonStyle(.borderless)
         }
         .padding(.horizontal, 16)
