@@ -24,6 +24,12 @@ public extension View {
         }, label: { self })
         .buttonStyle(.plain)
     }
+
+    /// Attach PostHog capture to an existing tappable control without rewriting the action
+    func phCaptureTap(event: String,
+                      properties: [String: Any] = [:]) -> some View {
+        modifier(PostHogTapModifier(event: event, properties: properties))
+    }
 }
 
 private extension Dictionary where Key == String, Value == Any {
@@ -37,5 +43,18 @@ private extension Dictionary where Key == String, Value == Any {
             }
         }
         return result
+    }
+}
+
+private struct PostHogTapModifier: ViewModifier {
+    let event: String
+    let properties: [String: Any]
+
+    func body(content: Content) -> some View {
+        content.simultaneousGesture(
+            TapGesture().onEnded {
+                Analytics.capture(event, properties: properties)
+            }
+        )
     }
 }

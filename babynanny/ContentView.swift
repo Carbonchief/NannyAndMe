@@ -120,6 +120,10 @@ struct ContentView: View {
                     .ignoresSafeArea()
                     .postHogLabel("sideMenu.dismissOverlay")
                     .onTapGesture {
+                        Analytics.capture(
+                            "navigation_close_menu_overlay",
+                            properties: ["was_open": isMenuVisible ? "true" : "false"]
+                        )
                         withAnimation(.easeInOut) {
                             isMenuVisible = false
                         }
@@ -128,18 +132,21 @@ struct ContentView: View {
 
                 SideMenu(
                     onSelectAllLogs: {
+                        Analytics.capture("navigation_open_allLogs_menu", properties: ["source": "side_menu"])
                         withAnimation(.easeInOut) {
                             isMenuVisible = false
                             showAllLogs = true
                         }
                     },
                     onSelectSettings: {
+                        Analytics.capture("navigation_open_settings_menu", properties: ["source": "side_menu"])
                         withAnimation(.easeInOut) {
                             isMenuVisible = false
                             showSettings = true
                         }
                     },
                     onSelectShareData: {
+                        Analytics.capture("navigation_open_shareData_menu", properties: ["source": "side_menu"])
                         withAnimation(.easeInOut) {
                             isMenuVisible = false
                             showShareData = true

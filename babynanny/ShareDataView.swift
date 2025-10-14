@@ -30,6 +30,10 @@ struct ShareDataView: View {
                     startExport()
                 }
                 .postHogLabel("shareData.export")
+                .phCaptureTap(
+                    event: "shareData_export_button",
+                    properties: ["profile_id": profileStore.activeProfile.id.uuidString]
+                )
             } header: {
                 Text(L10n.ShareData.exportSectionTitle)
             } footer: {
@@ -43,6 +47,10 @@ struct ShareDataView: View {
                     isImporting = true
                 }
                 .postHogLabel("shareData.import")
+                .phCaptureTap(
+                    event: "shareData_import_button",
+                    properties: ["profile_id": profileStore.activeProfile.id.uuidString]
+                )
             } header: {
                 Text(L10n.ShareData.importSectionTitle)
             } footer: {
@@ -54,6 +62,13 @@ struct ShareDataView: View {
                     startNearbyShare()
                 }
                 .postHogLabel("shareData.nearbyShare")
+                .phCaptureTap(
+                    event: "shareData_nearby_share_button",
+                    properties: [
+                        "profile_id": profileStore.activeProfile.id.uuidString,
+                        "is_busy": nearbyShareController.isBusy ? "true" : "false"
+                    ]
+                )
                 .disabled(nearbyShareController.isBusy)
             } header: {
                 Text(L10n.ShareData.Nearby.sectionTitle)
@@ -62,6 +77,7 @@ struct ShareDataView: View {
             }
         }
         .navigationTitle(L10n.ShareData.title)
+        .phScreen("shareData_screen_shareDataView")
         .fileExporter(
             isPresented: $isExporting,
             document: exportDocument,

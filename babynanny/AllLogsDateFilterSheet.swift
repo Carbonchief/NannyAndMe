@@ -86,6 +86,10 @@ struct AllLogsDateFilterSheet: View {
                             clearSelection()
                         }
                         .postHogLabel("logs.filter.clear")
+                        .phCaptureTap(
+                            event: "logs_filter_clear_selection_button",
+                            properties: ["has_selection": (useStartDate || useEndDate || selectedCategory != nil) ? "true" : "false"]
+                        )
                     }
                 }
             }
@@ -96,30 +100,58 @@ struct AllLogsDateFilterSheet: View {
                         dismiss()
                     }
                     .postHogLabel("logs.filter.cancel")
+                    .phCaptureTap(event: "logs_filter_cancel_toolbar")
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.Common.done) {
                         applySelection()
                     }
                     .postHogLabel("logs.filter.apply")
+                    .phCaptureTap(
+                        event: "logs_filter_apply_toolbar",
+                        properties: [
+                            "has_start": useStartDate ? "true" : "false",
+                            "has_end": useEndDate ? "true" : "false",
+                            "has_category": selectedCategory == nil ? "false" : "true"
+                        ]
+                    )
                 }
             }
-            .onChange(of: startDateSelection) { _, newValue in
+            .onChange(of: startDateSelection) { newValue in
                 if useEndDate, endDateSelection < newValue {
                     endDateSelection = newValue
                 }
+                Analytics.capture(
+                    "logs_filter_update_start_date",
+                    properties: ["use_start": useStartDate ? "true" : "false"]
+                )
             }
-            .onChange(of: useStartDate) { _, newValue in
+            .onChange(of: useStartDate) { newValue in
+                Analytics.capture(
+                    "logs_filter_toggle_start_date",
+                    properties: ["is_on": newValue ? "true" : "false"]
+                )
                 if newValue, useEndDate, endDateSelection < startDateSelection {
                     endDateSelection = startDateSelection
                 }
             }
-            .onChange(of: useEndDate) { _, newValue in
+            .onChange(of: useEndDate) { newValue in
+                Analytics.capture(
+                    "logs_filter_toggle_end_date",
+                    properties: ["is_on": newValue ? "true" : "false"]
+                )
                 if newValue, endDateSelection < startDateSelection {
                     endDateSelection = startDateSelection
                 }
             }
+            .onChange(of: selectedCategory) { newValue in
+                Analytics.capture(
+                    "logs_filter_select_category",
+                    properties: ["category": newValue?.rawValue ?? "all"]
+                )
+            }
         }
+        .phScreen("logs_filter_sheet_allLogsDateFilterSheet")
     }
 
     private var endDateRange: ClosedRange<Date> {

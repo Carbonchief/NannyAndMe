@@ -259,6 +259,10 @@ struct StatsView: View {
         let binding = Binding<BabyActionCategory>(
             get: { resolvedCategory(for: state) },
             set: { newValue in
+                Analytics.capture(
+                    "stats_select_category_picker",
+                    properties: ["category": newValue.rawValue]
+                )
                 selectedCategory = newValue
             }
         )

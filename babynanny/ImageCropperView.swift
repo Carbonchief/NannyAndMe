@@ -114,6 +114,7 @@ struct ImageCropperView: View {
                             onCancel()
                         }
                         .postHogLabel("imageCropper.cancel")
+                        .phCaptureTap(event: "imageCropper_cancel_toolbar")
                         .tint(.white)
                     }
                     ToolbarItem(placement: .principal) {
@@ -126,6 +127,7 @@ struct ImageCropperView: View {
                             cropImage(cropSize: cropSize)
                         }
                         .postHogLabel("imageCropper.confirm")
+                        .phCaptureTap(event: "imageCropper_confirm_toolbar")
                         .tint(.white)
                         .fontWeight(.semibold)
                     }
@@ -133,6 +135,7 @@ struct ImageCropperView: View {
             }
             .background(Color.black.ignoresSafeArea())
         }
+        .phScreen("imageCropper_sheet_imageCropperView")
     }
 }
 

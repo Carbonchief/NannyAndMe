@@ -35,6 +35,10 @@ struct ProfileSwitcherView: View {
                         }
                         .buttonStyle(.plain)
                         .postHogLabel("profile.select.\(profile.id.uuidString)")
+                        .phCaptureTap(
+                            event: "profileSwitcher_select_profile_row",
+                            properties: ["profile_id": profile.id.uuidString]
+                        )
                     }
                 }
 
@@ -45,6 +49,10 @@ struct ProfileSwitcherView: View {
                         Label(L10n.Profiles.addProfile, systemImage: "plus")
                     }
                     .postHogLabel("profile.add")
+                    .phCaptureTap(
+                        event: "profileSwitcher_add_profile_button",
+                        properties: ["profile_count": "\(profileStore.profiles.count)"]
+                    )
                 }
             }
             .listStyle(.insetGrouped)
@@ -55,9 +63,11 @@ struct ProfileSwitcherView: View {
                         dismiss()
                     }
                     .postHogLabel("profileSwitcher.done")
+                    .phCaptureTap(event: "profileSwitcher_done_toolbar")
                 }
             }
         }
+        .phScreen("profileSwitcher_sheet_profileSwitcherView")
         .presentationDetents([.medium, .large])
     }
 }
