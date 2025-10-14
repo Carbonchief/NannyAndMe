@@ -148,6 +148,8 @@ struct HomeView: View {
         let trailingTransition = AnyTransition.move(edge: .trailing)
             .combined(with: .opacity)
 
+        let cardShape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: headerCardAlignment(for: recent), spacing: 12) {
                 AnimatedActionIcon(
@@ -188,9 +190,10 @@ struct HomeView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            cardShape
                 .fill(Color(.secondarySystemGroupedBackground))
         )
+        .clipShape(cardShape)
         .contentShape(Rectangle())
         .postHogLabel("home.header.editAction")
         .onTapGesture {
