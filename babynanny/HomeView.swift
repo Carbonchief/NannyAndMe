@@ -538,42 +538,52 @@ private struct HistoryRow: View {
                     .foregroundStyle(action.category.accentColor)
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(action.title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(action.title)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
 
-                Text(action.detailDescription)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(L10n.Home.historyStarted(action.startDateTimeDescription()))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                                .multilineTextAlignment(.leading)
+                                .monospacedDigit()
 
-                if !action.category.isInstant {
-                    Text(L10n.Home.historyDuration(action.durationDescription()))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                            if let stoppedDescription = action.endDateTimeDescription() {
+                                Text(L10n.Home.historyStopped(stoppedDescription))
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.85)
+                                    .multilineTextAlignment(.leading)
+                                    .monospacedDigit()
+                            }
+                        }
+                    }
+
+                    Spacer(minLength: 12)
+
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(action.detailDescription)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.trailing)
+
+                        if !action.category.isInstant {
+                            Text(L10n.Home.historyDuration(action.durationDescription()))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.trailing)
+                        }
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(L10n.Home.historyStarted(action.startDateTimeDescription()))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                    .multilineTextAlignment(.trailing)
-                    .monospacedDigit()
-
-                if let stoppedDescription = action.endDateTimeDescription() {
-                    Text(L10n.Home.historyStopped(stoppedDescription))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                        .multilineTextAlignment(.trailing)
-                        .monospacedDigit()
-                }
-            }
         }
         .padding(12)
         .background(
