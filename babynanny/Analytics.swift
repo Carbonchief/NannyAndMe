@@ -13,19 +13,44 @@ enum Analytics {
         config.captureApplicationLifecycleEvents = true
         config.captureElementInteractions = true       // limited in SwiftUI; harmless to leave on
         config.captureScreenViews = false              // we will do manual screen events
-        config.sessionReplay = .disabled               // enable later if you want
+        config.sessionReplay = false                   // enable later if you want
         config.flushAt = 10
-        config.flushInterval = 10
 
         PostHogSDK.shared.setup(config)
     }
 
     static func identify(userId: String?, properties: [String: Any] = [:]) {
-        if let userId = userId, !userId.isEmpty {
-            PostHogSDK.shared.identify(userId, properties: properties)
-        } else {
-            PostHogSDK.shared.identify(properties: properties)
+        let trimmed = userId?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let distinctId = (trimmed?.isEmpty == false) ? trimmed : nil
+        let nsProperties = properties.isEmpty ? nil : properties as NSDictionary
+
+        guard let sdkObject = PostHogSDK.shared as? NSObject else {
+            sendIdentifyFallback(distinctId: distinctId, properties: properties)
+            return
         }
+
+        if let distinctId = distinctId {
+            if let nsProperties, sdkObject.performIfAvailable(selector: "identify:properties:", with: distinctId, and: nsProperties) {
+                return
+            }
+
+            if sdkObject.performIfAvailable(selector: "identify:", with: distinctId) {
+                if let nsProperties {
+                    applyPersonProperties(nsProperties, on: sdkObject)
+                }
+                return
+            }
+        } else if let nsProperties {
+            if sdkObject.performIfAvailable(selector: "identifyWithProperties:", with: nsProperties) {
+                return
+            }
+
+            if sdkObject.performIfAvailable(selector: "identify:properties:", with: nil, and: nsProperties) {
+                return
+            }
+        }
+
+        sendIdentifyFallback(distinctId: distinctId, properties: properties)
     }
 
     static func capture(_ event: String, properties: [String: Any] = [:]) {
@@ -37,5 +62,43 @@ enum Analytics {
         var props = properties
         props["$screen_name"] = name
         PostHogSDK.shared.capture("$screen", properties: props)
+    }
+}
+
+private extension Analytics {
+    static func applyPersonProperties(_ properties: NSDictionary, on sdkObject: NSObject) {
+        guard properties.count > 0 else { return }
+        if sdkObject.performIfAvailable(selector: "setPersonProperties:", with: properties) {
+            return
+        }
+
+        let payload = ["$set": properties as? [String: Any] ?? [:]]
+        PostHogSDK.shared.capture("$identify", properties: payload)
+    }
+
+    static func sendIdentifyFallback(distinctId: String?, properties: [String: Any]) {
+        guard !properties.isEmpty else {
+            if let distinctId, let sdkObject = PostHogSDK.shared as? NSObject {
+                _ = sdkObject.performIfAvailable(selector: "identify:", with: distinctId)
+            }
+            return
+        }
+
+        var payload: [String: Any] = ["$set": properties]
+        if let distinctId {
+            payload["$distinct_id"] = distinctId
+        }
+
+        PostHogSDK.shared.capture("$identify", properties: payload)
+    }
+}
+
+private extension NSObject {
+    @discardableResult
+    func performIfAvailable(selector: String, with firstArgument: Any?, and secondArgument: Any? = nil) -> Bool {
+        let selector = NSSelectorFromString(selector)
+        guard responds(to: selector) else { return false }
+        _ = perform(selector, with: firstArgument, with: secondArgument)
+        return true
     }
 }
