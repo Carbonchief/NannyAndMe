@@ -52,6 +52,11 @@
 "home.interruptionAlert.confirm" = "Continuar";
 "profiles.activeSection" = "Perfiles activos";
 "profiles.add" = "Agregar perfil";
+"profiles.addPrompt.title" = "Agregar un nuevo perfil";
+"profiles.addPrompt.subtitle" = "Introduce un nombre para crear un perfil.";
+"profiles.addPrompt.nameLabel" = "Nombre del perfil";
+"profiles.addPrompt.namePlaceholder" = "Introduce un nombre";
+"profiles.addPrompt.create" = "Crear perfil";
 "profiles.title" = "Perfiles";
 "profiles.activeProfile.section" = "Perfil activo";
 "profiles.childName" = "Nombre del niño";

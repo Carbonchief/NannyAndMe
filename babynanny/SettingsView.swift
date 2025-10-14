@@ -24,6 +24,7 @@ struct SettingsView: View {
     @State private var reminderLoadTask: Task<Void, Never>?
     @State private var activeAlert: ActiveAlert?
     @State private var profilePendingDeletion: ChildProfile?
+    @State private var isAddProfilePromptPresented = false
 
     var body: some View {
         Form {
@@ -84,6 +85,20 @@ struct SettingsView: View {
             selectedPhoto = nil
             isProcessingPhoto = false
         }
+        .sheet(isPresented: $isAddProfilePromptPresented) {
+            AddProfilePromptView(analyticsSource: "settings_addProfilePrompt") { name in
+                Analytics.capture(
+                    "settings_add_profile_confirm",
+                    properties: [
+                        "profile_count": "\(profileStore.profiles.count)",
+                        "name_length": "\(name.count)"
+                    ]
+                )
+                profileStore.addProfile(name: name)
+            } onCancel: {
+                Analytics.capture("settings_add_profile_cancel")
+            }
+        }
         .fullScreenCover(item: $pendingCrop) { crop in
             ImageCropperView(image: crop.image) {
                 pendingCrop = nil
@@ -110,7 +125,7 @@ struct SettingsView: View {
                         "profile_count": "\(profileStore.profiles.count)"
                     ]
                 )
-                profileStore.addProfile()
+                isAddProfilePromptPresented = true
             } label: {
                 Label(L10n.Profiles.addProfile, systemImage: "plus")
             }
