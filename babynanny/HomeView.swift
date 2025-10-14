@@ -510,9 +510,6 @@ private struct AnimatedActionIcon: View {
     let systemName: String
     let color: Color
 
-    @State private var isAnimating = false
-
-    private let animation = Animation.easeInOut(duration: 1.6).repeatForever(autoreverses: true)
     private let iconDimension: CGFloat = 44
 
     var body: some View {
@@ -520,22 +517,8 @@ private struct AnimatedActionIcon: View {
             Image(systemName: systemName)
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(color)
-                .scaleEffect(isAnimating ? 1.03 : 0.97)
         }
         .frame(width: iconDimension, height: iconDimension)
-        .animation(animation, value: isAnimating)
-        .onAppear {
-            isAnimating = true
-        }
-        .onDisappear {
-            isAnimating = false
-        }
-        .onChange(of: systemName) { _, _ in
-            isAnimating = false
-            Task { @MainActor in
-                isAnimating = true
-            }
-        }
     }
 }
 
