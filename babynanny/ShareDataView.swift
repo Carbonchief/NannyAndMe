@@ -26,9 +26,12 @@ struct ShareDataView: View {
             }
 
             Section {
-                Button(L10n.ShareData.exportButton) {
-                    startExport()
-                }
+                ShareDataActionButton(
+                    title: L10n.ShareData.exportButton,
+                    systemImage: "square.and.arrow.up",
+                    tint: .accentColor,
+                    action: startExport
+                )
                 .postHogLabel("shareData.export")
                 .phCaptureTap(
                     event: "shareData_export_button",
@@ -43,9 +46,12 @@ struct ShareDataView: View {
             }
 
             Section {
-                Button(L10n.ShareData.importButton) {
-                    isImporting = true
-                }
+                ShareDataActionButton(
+                    title: L10n.ShareData.importButton,
+                    systemImage: "square.and.arrow.down",
+                    tint: .mint,
+                    action: { isImporting = true }
+                )
                 .postHogLabel("shareData.import")
                 .phCaptureTap(
                     event: "shareData_import_button",
@@ -58,9 +64,12 @@ struct ShareDataView: View {
             }
 
             Section {
-                Button(L10n.ShareData.Nearby.shareButton) {
-                    startNearbyShare()
-                }
+                ShareDataActionButton(
+                    title: L10n.ShareData.Nearby.shareButton,
+                    systemImage: "antenna.radiowaves.left.and.right",
+                    tint: .indigo,
+                    action: startNearbyShare
+                )
                 .postHogLabel("shareData.nearbyShare")
                 .phCaptureTap(
                     event: "shareData_nearby_share_button",
@@ -76,6 +85,7 @@ struct ShareDataView: View {
                 nearbyFooter
             }
         }
+        .shareDataFormStyling()
         .navigationTitle(L10n.ShareData.title)
         .phScreen("shareData_screen_shareDataView")
         .fileExporter(
@@ -320,6 +330,40 @@ struct ShareDataView: View {
             return L10n.ShareData.Nearby.statusWaiting
         case let .sending(peer):
             return L10n.ShareData.Nearby.statusSending(peer)
+        }
+    }
+}
+
+private struct ShareDataActionButton: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(tint)
+        .controlSize(.large)
+        .labelStyle(.titleAndIcon)
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func shareDataFormStyling() -> some View {
+        if #available(iOS 16.0, *) {
+            self
+                .formStyle(.grouped)
+                .scrollContentBackground(.hidden)
+                .background(Color(.systemGroupedBackground))
+        } else {
+            self
+                .background(Color(.systemGroupedBackground))
         }
     }
 }
