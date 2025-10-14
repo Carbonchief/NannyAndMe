@@ -193,6 +193,10 @@ struct HomeView: View {
             cardShape
                 .fill(Color(.secondarySystemGroupedBackground))
         )
+        .overlay(
+            cardShape
+                .stroke(recent.category.accentColor, lineWidth: 2)
+        )
         .clipShape(cardShape)
         .contentShape(Rectangle())
         .postHogLabel("home.header.editAction")
