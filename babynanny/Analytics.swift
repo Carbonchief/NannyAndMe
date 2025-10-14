@@ -11,7 +11,7 @@ enum Analytics {
 
         // SwiftUI-friendly config:
         config.captureApplicationLifecycleEvents = true
-        config.captureElementInteractions = true       // limited in SwiftUI; harmless to leave on
+        config.captureElementInteractions = false      // manual instrumentation only
         config.captureScreenViews = false              // we will do manual screen events
         config.sessionReplay = false                   // enable later if you want
         config.flushAt = 10
