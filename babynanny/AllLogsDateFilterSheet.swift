@@ -42,17 +42,20 @@ struct AllLogsDateFilterSheet: View {
             Form {
                 Section {
                     Toggle(L10n.Logs.filterStartToggle, isOn: $useStartDate.animation())
+                        .postHogLabel("logs.filter.useStart")
                     if useStartDate {
                         DatePicker(
                             L10n.Logs.filterStartLabel,
                             selection: $startDateSelection,
                             displayedComponents: .date
                         )
+                        .postHogLabel("logs.filter.startDate")
                     }
                 }
 
                 Section {
                     Toggle(L10n.Logs.filterEndToggle, isOn: $useEndDate.animation())
+                        .postHogLabel("logs.filter.useEnd")
                     if useEndDate {
                         DatePicker(
                             L10n.Logs.filterEndLabel,
@@ -60,6 +63,7 @@ struct AllLogsDateFilterSheet: View {
                             in: endDateRange,
                             displayedComponents: .date
                         )
+                        .postHogLabel("logs.filter.endDate")
                     }
                 }
 
@@ -72,6 +76,7 @@ struct AllLogsDateFilterSheet: View {
                                 .tag(Optional(category))
                         }
                     }
+                    .postHogLabel("logs.filter.category")
                     .pickerStyle(.inline)
                 }
 
@@ -80,6 +85,7 @@ struct AllLogsDateFilterSheet: View {
                         Button(L10n.Logs.filterClear) {
                             clearSelection()
                         }
+                        .postHogLabel("logs.filter.clear")
                     }
                 }
             }
@@ -89,11 +95,13 @@ struct AllLogsDateFilterSheet: View {
                     Button(L10n.Common.cancel) {
                         dismiss()
                     }
+                    .postHogLabel("logs.filter.cancel")
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.Common.done) {
                         applySelection()
                     }
+                    .postHogLabel("logs.filter.apply")
                 }
             }
             .onChange(of: startDateSelection) { _, newValue in

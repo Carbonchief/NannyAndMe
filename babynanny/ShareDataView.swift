@@ -29,6 +29,7 @@ struct ShareDataView: View {
                 Button(L10n.ShareData.exportButton) {
                     startExport()
                 }
+                .postHogLabel("shareData.export")
             } header: {
                 Text(L10n.ShareData.exportSectionTitle)
             } footer: {
@@ -41,6 +42,7 @@ struct ShareDataView: View {
                 Button(L10n.ShareData.importButton) {
                     isImporting = true
                 }
+                .postHogLabel("shareData.import")
             } header: {
                 Text(L10n.ShareData.importSectionTitle)
             } footer: {
@@ -51,6 +53,7 @@ struct ShareDataView: View {
                 Button(L10n.ShareData.Nearby.shareButton) {
                     startNearbyShare()
                 }
+                .postHogLabel("shareData.nearbyShare")
                 .disabled(nearbyShareController.isBusy)
             } header: {
                 Text(L10n.ShareData.Nearby.sectionTitle)

@@ -28,16 +28,19 @@ struct SideMenu: View {
                 Label(L10n.Menu.allLogs, systemImage: "list.bullet.rectangle")
                     .font(.headline)
             }
+            .postHogLabel("menu.allLogs")
 
             Button(action: onSelectShareData) {
                 Label(L10n.Menu.shareData, systemImage: "arrow.up.arrow.down.circle.fill")
                     .font(.headline)
             }
+            .postHogLabel("menu.shareData")
 
             Button(action: onSelectSettings) {
                 Label(L10n.Menu.settings, systemImage: "gearshape.fill")
                     .font(.headline)
             }
+            .postHogLabel("menu.settings")
 
             Spacer()
         }

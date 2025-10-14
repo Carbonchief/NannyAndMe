@@ -38,6 +38,7 @@ struct AllLogsView: View {
                 } label: {
                     Label(L10n.Logs.filterButton, systemImage: "line.3.horizontal.decrease.circle")
                 }
+                .postHogLabel("logs.filter.open")
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {

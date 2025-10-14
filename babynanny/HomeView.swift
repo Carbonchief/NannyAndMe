@@ -54,6 +54,7 @@ struct HomeView: View {
                                     .font(.subheadline)
                                     .fontWeight(.semibold)
                             }
+                            .postHogLabel("home.recentActivity.showAll")
                             .buttonStyle(.plain)
                             .tint(.accentColor)
                         }
@@ -170,6 +171,7 @@ struct HomeView: View {
                     Button(L10n.Common.stop) {
                         stopAction(for: recent.category)
                     }
+                    .postHogLabel("home.header.stop.\(recent.category.rawValue)")
                     .buttonStyle(.borderedProminent)
                     .tint(recent.category.accentColor)
                     .transition(trailingTransition)
@@ -188,6 +190,7 @@ struct HomeView: View {
                 .fill(Color(.secondarySystemGroupedBackground))
         )
         .contentShape(Rectangle())
+        .postHogLabel("home.header.editAction")
         .onTapGesture {
             editingAction = recent
         }
@@ -399,6 +402,7 @@ private struct ActionCard: View {
                 .animation(cardAnimation, value: activeAction?.id)
             }
         }
+        .postHogLabel("home.actionCard.\(category.rawValue)")
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
         .aspectRatio(1, contentMode: .fit)
@@ -586,6 +590,7 @@ private struct ActionTypeSelectionGrid<Option: ActionTypeOption>: View {
     @Binding var selection: Option
     let accentColor: Color
     var onOptionActivated: ((Option) -> Void)? = nil
+    let postHogLabelPrefix: String
 
     private let columns: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
 
@@ -624,6 +629,7 @@ private struct ActionTypeSelectionGrid<Option: ActionTypeOption>: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .postHogLabel("\(postHogLabelPrefix).\(String(describing: option.id))")
                 .accessibilityElement(children: .combine)
                 .accessibilityAddTraits(selection == option ? .isSelected : [])
             }
@@ -728,6 +734,7 @@ struct ActionEditSheet: View {
                         in: startDateRange,
                         displayedComponents: [.date, .hourAndMinute]
                     )
+                    .postHogLabel("home.edit.startDate")
                 }
 
                 if action.category == .diaper {
@@ -739,6 +746,7 @@ struct ActionEditSheet: View {
                         } label: {
                             Text(L10n.Home.diaperTypePickerLabel)
                         }
+                        .postHogLabel("home.edit.diaperType")
                         .pickerStyle(.segmented)
                     }
                 }
@@ -752,6 +760,7 @@ struct ActionEditSheet: View {
                         } label: {
                             Text(L10n.Home.feedingTypePickerLabel)
                         }
+                        .postHogLabel("home.edit.feedingType")
                         .pickerStyle(.segmented)
                     }
 
@@ -764,6 +773,7 @@ struct ActionEditSheet: View {
                             } label: {
                                 Text(L10n.Home.bottleTypePickerLabel)
                             }
+                            .postHogLabel("home.edit.bottleType")
                             .pickerStyle(.segmented)
                         }
                     }
@@ -777,11 +787,13 @@ struct ActionEditSheet: View {
                             } label: {
                                 Text(L10n.Home.bottleVolumePickerLabel)
                             }
+                            .postHogLabel("home.edit.bottleVolume")
                             .pickerStyle(.segmented)
 
                             if bottleSelection == .custom {
                                 TextField(L10n.Home.customVolumeFieldPlaceholder, text: $customBottleVolume)
                                     .keyboardType(.numberPad)
+                                    .postHogLabel("home.edit.customBottleVolume")
                             }
                         }
                     }
@@ -796,6 +808,7 @@ struct ActionEditSheet: View {
                                 in: endDateRange,
                                 displayedComponents: [.date, .hourAndMinute]
                             )
+                            .postHogLabel("home.edit.endDate")
                         }
                     } else {
                         Section(header: Text(L10n.Home.editEndSectionTitle)) {
@@ -813,6 +826,7 @@ struct ActionEditSheet: View {
                         } label: {
                             Label(L10n.Logs.continueAction, systemImage: "play.circle.fill")
                         }
+                        .postHogLabel("home.edit.continue")
                     } footer: {
                         Text(L10n.Logs.continueActionInfo)
                             .font(.footnote)
@@ -826,6 +840,7 @@ struct ActionEditSheet: View {
                     } label: {
                         Label(L10n.Logs.deleteAction, systemImage: "trash")
                     }
+                    .postHogLabel("home.edit.delete")
                     .tint(.red)
                 }
             }
@@ -836,12 +851,14 @@ struct ActionEditSheet: View {
                     Button(L10n.Common.cancel) {
                         dismiss()
                     }
+                    .postHogLabel("home.edit.cancel")
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.Common.done) {
                         save()
                     }
+                    .postHogLabel("home.edit.save")
                     .disabled(isSaveDisabled)
                 }
             }
@@ -977,7 +994,8 @@ private struct ActionDetailSheet: View {
                             accentColor: category.accentColor,
                             onOptionActivated: { _ in
                                 startIfReady()
-                            }
+                            },
+                            postHogLabelPrefix: "home.detail.diaperType"
                         )
                     } header: {
                         Text(L10n.Home.diaperTypeSectionTitle)
@@ -991,7 +1009,8 @@ private struct ActionDetailSheet: View {
                             accentColor: category.accentColor,
                             onOptionActivated: { _ in
                                 startIfReady()
-                            }
+                            },
+                            postHogLabelPrefix: "home.detail.feedingType"
                         )
                     } header: {
                         Text(L10n.Home.feedingTypeSectionTitle)
@@ -1006,6 +1025,7 @@ private struct ActionDetailSheet: View {
                             } label: {
                                 Text(L10n.Home.bottleTypePickerLabel)
                             }
+                            .postHogLabel("home.detail.bottleType")
                             .pickerStyle(.segmented)
                         } header: {
                             Text(L10n.Home.bottleTypeSectionTitle)
@@ -1021,11 +1041,13 @@ private struct ActionDetailSheet: View {
                             } label: {
                                 Text(L10n.Home.bottleVolumePickerLabel)
                             }
+                            .postHogLabel("home.detail.bottleVolume")
                             .pickerStyle(.segmented)
 
                             if bottleSelection == .custom {
                                 TextField(L10n.Home.customVolumeFieldPlaceholder, text: $customBottleVolume)
                                     .keyboardType(.numberPad)
+                                    .postHogLabel("home.detail.customBottleVolume")
                             }
                         } header: {
                             Text(L10n.Home.bottleVolumeSectionTitle)
@@ -1040,12 +1062,14 @@ private struct ActionDetailSheet: View {
                     Button(L10n.Common.cancel) {
                         dismiss()
                     }
+                    .postHogLabel("home.detail.cancel")
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button(category.startActionButtonTitle) {
                         startIfReady()
                     }
+                    .postHogLabel("home.detail.start")
                     .disabled(isStartDisabled)
                 }
             }

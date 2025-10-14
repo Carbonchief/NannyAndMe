@@ -42,6 +42,7 @@ struct InitialProfileNamePromptView: View {
                     .textFieldStyle(.roundedBorder)
                     .focused($isNameFieldFocused)
                     .submitLabel(.done)
+                    .postHogLabel("onboarding.profileName")
                     .onSubmit(handleContinue)
                 }
 
@@ -51,6 +52,7 @@ struct InitialProfileNamePromptView: View {
                     Text(L10n.Onboarding.profilePromptContinue)
                         .frame(maxWidth: .infinity)
                 }
+                .postHogLabel("onboarding.continue")
                 .buttonStyle(.borderedProminent)
                 .disabled(trimmedName.isEmpty)
             }

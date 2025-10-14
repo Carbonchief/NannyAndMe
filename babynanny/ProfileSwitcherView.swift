@@ -34,6 +34,7 @@ struct ProfileSwitcherView: View {
                             }
                         }
                         .buttonStyle(.plain)
+                        .postHogLabel("profile.select.\(profile.id.uuidString)")
                     }
                 }
 
@@ -43,6 +44,7 @@ struct ProfileSwitcherView: View {
                     } label: {
                         Label(L10n.Profiles.addProfile, systemImage: "plus")
                     }
+                    .postHogLabel("profile.add")
                 }
             }
             .listStyle(.insetGrouped)
@@ -52,6 +54,7 @@ struct ProfileSwitcherView: View {
                     Button(L10n.Common.done) {
                         dismiss()
                     }
+                    .postHogLabel("profileSwitcher.done")
                 }
             }
         }
