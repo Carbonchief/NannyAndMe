@@ -72,15 +72,16 @@ struct ProfileSwitcherView: View {
         }
         .phScreen("profileSwitcher_sheet_profileSwitcherView")
         .sheet(isPresented: $isAddProfilePromptPresented) {
-            AddProfilePromptView(analyticsSource: "profileSwitcher_addProfilePrompt") { name in
+            AddProfilePromptView(analyticsSource: "profileSwitcher_addProfilePrompt") { name, imageData in
                 Analytics.capture(
                     "profileSwitcher_add_profile_confirm",
                     properties: [
                         "profile_count": "\(profileStore.profiles.count)",
-                        "name_length": "\(name.count)"
+                        "name_length": "\(name.count)",
+                        "has_photo": imageData == nil ? "false" : "true"
                     ]
                 )
-                profileStore.addProfile(name: name)
+                profileStore.addProfile(name: name, imageData: imageData)
             } onCancel: {
                 Analytics.capture("profileSwitcher_add_profile_cancel")
             }

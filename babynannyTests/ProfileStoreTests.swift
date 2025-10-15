@@ -41,6 +41,23 @@ struct ProfileStoreTests {
     }
 
     @Test
+    func addProfileStoresProvidedImage() async throws {
+        let scheduler = MockReminderScheduler(authorizationResult: true)
+        let store = await ProfileStore(
+            initialProfiles: [],
+            reminderScheduler: scheduler
+        )
+
+        let sampleData = Data([0xDE, 0xAD, 0xBE, 0xEF])
+
+        await store.addProfile(name: "Nova", imageData: sampleData)
+
+        let profiles = await store.profiles
+        #expect(profiles.count == 1)
+        #expect(profiles.first?.imageData == sampleData)
+    }
+
+    @Test
     func disablingRemindersReturnsDisabled() async throws {
         let scheduler = MockReminderScheduler(authorizationResult: true)
         let profile = ChildProfile(name: "Avery", birthDate: Date(), remindersEnabled: true)

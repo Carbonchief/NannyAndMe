@@ -86,15 +86,16 @@ struct SettingsView: View {
             isProcessingPhoto = false
         }
         .sheet(isPresented: $isAddProfilePromptPresented) {
-            AddProfilePromptView(analyticsSource: "settings_addProfilePrompt") { name in
+            AddProfilePromptView(analyticsSource: "settings_addProfilePrompt") { name, imageData in
                 Analytics.capture(
                     "settings_add_profile_confirm",
                     properties: [
                         "profile_count": "\(profileStore.profiles.count)",
-                        "name_length": "\(name.count)"
+                        "name_length": "\(name.count)",
+                        "has_photo": imageData == nil ? "false" : "true"
                     ]
                 )
-                profileStore.addProfile(name: name)
+                profileStore.addProfile(name: name, imageData: imageData)
             } onCancel: {
                 Analytics.capture("settings_add_profile_cancel")
             }

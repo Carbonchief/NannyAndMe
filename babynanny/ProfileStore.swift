@@ -259,10 +259,10 @@ final class ProfileStore: ObservableObject {
         state = Self.sanitized(state: newState)
     }
 
-    func addProfile(name: String) {
+    func addProfile(name: String, imageData: Data? = nil) {
         var newState = state
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let profile = ChildProfile(name: trimmedName, birthDate: Date())
+        let profile = ChildProfile(name: trimmedName, birthDate: Date(), imageData: imageData)
         newState.profiles.append(profile)
         newState.activeProfileID = profile.id
         state = Self.sanitized(state: newState)
