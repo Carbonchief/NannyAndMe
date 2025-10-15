@@ -944,7 +944,14 @@ struct ActionEditSheet: View {
                         Button {
                             continueAction()
                         } label: {
-                            Label(L10n.Logs.continueAction, systemImage: "play.circle.fill")
+                            HStack(spacing: 12) {
+                                Label(L10n.Logs.continueAction, systemImage: "play.circle.fill")
+                                    .labelStyle(.titleAndIcon)
+
+                                Spacer(minLength: 0)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
                         .postHogLabel("home.edit.continue")
                         .phCaptureTap(
