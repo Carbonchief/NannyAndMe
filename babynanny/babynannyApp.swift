@@ -55,8 +55,7 @@ struct babynannyApp: App {
 private extension babynannyApp {
     static func makeModelConfiguration() -> ModelConfiguration {
         ModelConfiguration(
-            groupContainer: .identifier("group.com.prioritybit.babynanny"),
-            cloudKitDatabase: .none
+            cloudKitDatabase: .private("iCloud.com.prioritybit.babynanny")
         )
     }
 
