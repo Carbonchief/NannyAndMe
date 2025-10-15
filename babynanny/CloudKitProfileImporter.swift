@@ -30,26 +30,58 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
         let query = CKQuery(recordType: recordType, predicate: predicate)
         query.sortDescriptors = [NSSortDescriptor(key: "modificationDate", ascending: false)]
 
-        let (matchResults, _) = try await database.records(
-            matching: query,
-            desiredKeys: [dataField],
-            resultsLimit: 1
-        )
+        do {
+            let (matchResults, _) = try await database.records(
+                matching: query,
+                desiredKeys: [dataField],
+                resultsLimit: 1
+            )
 
-        guard let (_, result) = matchResults.first else {
-            return nil
-        }
-
-        switch result {
-        case let .success(record):
-            guard let data = cloudPayload(from: record) else {
+            guard let (_, result) = matchResults.first else {
                 return nil
             }
-            return try decodeSnapshot(from: data)
-        case let .failure(error):
+
+            switch result {
+            case let .success(record):
+                guard let data = cloudPayload(from: record) else {
+                    return nil
+                }
+                return try decodeSnapshot(from: data)
+            case let .failure(error):
+                if Self.isRecoverable(error) {
+                    return nil
+                }
+                throw error
+            }
+        } catch {
+            if Self.isRecoverable(error) {
+                return nil
+            }
             throw error
         }
     }
+
+    static func isRecoverable(_ error: Error) -> Bool {
+        guard let ckError = error as? CKError else { return false }
+
+        if recoverableErrorCodes.contains(ckError.code) {
+            return true
+        }
+
+        if ckError.code == .partialFailure {
+            let partialErrors = ckError.partialErrorsByItemID ?? [:]
+            return partialErrors.values.allSatisfy { isRecoverable($0) }
+        }
+
+        return false
+    }
+
+    private static let recoverableErrorCodes: Set<CKError.Code> = [
+        .unknownItem,
+        .zoneNotFound,
+        .userDeletedZone,
+        .recordZoneNotFound
+    ]
 
     private func cloudPayload(from record: CKRecord) -> Data? {
         if let data = record[dataField] as? Data {
