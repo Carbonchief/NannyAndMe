@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 struct ShareDataView: View {
@@ -14,6 +15,7 @@ struct ShareDataView: View {
     @StateObject private var nearbyShareController = NearbyShareController()
     @State private var isPresentingNearbyBrowser = false
     @State private var pendingNearbyAlert: ShareDataAlert?
+    @State private var airDropShareItem: AirDropShareItem?
 
     var body: some View {
         Form {
@@ -41,6 +43,29 @@ struct ShareDataView: View {
                 Text(L10n.ShareData.exportSectionTitle)
             } footer: {
                 Text(L10n.ShareData.exportFooter)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                ShareDataActionButton(
+                    title: L10n.ShareData.AirDrop.shareButton,
+                    systemImage: "airplane.circle",
+                    tint: .blue,
+                    action: startAirDropShare
+                )
+                .postHogLabel("shareData.airDrop")
+                .phCaptureTap(
+                    event: "shareData_airdrop_button",
+                    properties: [
+                        "profile_id": profileStore.activeProfile.id.uuidString
+                    ]
+                )
+                .disabled(nearbyShareController.isBusy)
+            } header: {
+                Text(L10n.ShareData.AirDrop.sectionTitle)
+            } footer: {
+                Text(L10n.ShareData.AirDrop.footer)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -118,6 +143,20 @@ struct ShareDataView: View {
             }
         }) {
             NearbyShareBrowserView(controller: nearbyShareController)
+        }
+        .sheet(item: $airDropShareItem) { item in
+            AirDropShareSheet(item: item) { outcome in
+                let shareItem = item
+                airDropShareItem = nil
+                shareItem.cleanup()
+
+                if case let .failed(error) = outcome {
+                    alert = ShareDataAlert(
+                        title: L10n.ShareData.Alert.airDropFailureTitle,
+                        message: L10n.ShareData.Alert.airDropFailureMessage(error.localizedDescription)
+                    )
+                }
+            }
         }
         .onReceive(nearbyShareController.resultPublisher) { result in
             let wasPresentingBrowser = isPresentingNearbyBrowser
@@ -202,6 +241,29 @@ struct ShareDataView: View {
         let payload = SharedProfileData(profile: profile, actions: state)
         exportDocument = ShareDataDocument(payload: payload)
         isExporting = true
+    }
+
+    private func startAirDropShare() {
+        do {
+            airDropShareItem?.cleanup()
+            airDropShareItem = nil
+
+            let data = try makeExportData()
+            let filename = "\(defaultExportFilename).json"
+            let destinationURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                try FileManager.default.removeItem(at: destinationURL)
+            }
+
+            try data.write(to: destinationURL, options: .atomic)
+            airDropShareItem = AirDropShareItem(url: destinationURL)
+        } catch {
+            alert = ShareDataAlert(
+                title: L10n.ShareData.Alert.airDropFailureTitle,
+                message: L10n.ShareData.Alert.airDropFailureMessage(error.localizedDescription)
+            )
+        }
     }
 
     private func startNearbyShare() {
@@ -330,6 +392,91 @@ struct ShareDataView: View {
             return L10n.ShareData.Nearby.statusWaiting
         case let .sending(peer):
             return L10n.ShareData.Nearby.statusSending(peer)
+        }
+    }
+}
+
+private struct AirDropShareItem: Identifiable {
+    let id = UUID()
+    let url: URL
+
+    func cleanup() {
+        try? FileManager.default.removeItem(at: url)
+    }
+}
+
+private enum AirDropShareOutcome {
+    case completed
+    case cancelled
+    case failed(Error)
+}
+
+private struct AirDropShareSheet: UIViewControllerRepresentable {
+    let item: AirDropShareItem
+    let completion: (AirDropShareOutcome) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(completion: completion)
+    }
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: [item.url], applicationActivities: nil)
+        controller.excludedActivityTypes = Self.nonAirDropActivities
+        controller.completionWithItemsHandler = { _, completed, _, error in
+            DispatchQueue.main.async {
+                if let error {
+                    context.coordinator.completion(.failed(error))
+                } else if completed {
+                    context.coordinator.completion(.completed)
+                } else {
+                    context.coordinator.completion(.cancelled)
+                }
+            }
+        }
+        if let popover = controller.popoverPresentationController {
+            popover.sourceView = UIApplication.shared.connectedScenes
+                .compactMap { ($0 as? UIWindowScene)?.windows.first { $0.isKeyWindow } }
+                .first
+            if let sourceView = popover.sourceView {
+                popover.sourceRect = CGRect(
+                    x: sourceView.bounds.midX,
+                    y: sourceView.bounds.midY,
+                    width: 0,
+                    height: 0
+                )
+                popover.permittedArrowDirections = []
+            }
+        }
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+
+    static var nonAirDropActivities: [UIActivity.ActivityType] {
+        [
+            .postToFacebook,
+            .postToTwitter,
+            .postToWeibo,
+            .message,
+            .mail,
+            .print,
+            .copyToPasteboard,
+            .assignToContact,
+            .saveToCameraRoll,
+            .addToReadingList,
+            .postToFlickr,
+            .postToVimeo,
+            .postToTencentWeibo,
+            .openInIBooks,
+            .markupAsPDF
+        ]
+    }
+
+    final class Coordinator {
+        let completion: (AirDropShareOutcome) -> Void
+
+        init(completion: @escaping (AirDropShareOutcome) -> Void) {
+            self.completion = completion
         }
     }
 }

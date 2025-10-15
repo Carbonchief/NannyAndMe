@@ -443,6 +443,21 @@ enum L10n {
             )
         }
 
+        enum AirDrop {
+            static let sectionTitle = String(
+                localized: "shareData.airdrop.title",
+                defaultValue: "AirDrop"
+            )
+            static let shareButton = String(
+                localized: "shareData.airdrop.button",
+                defaultValue: "Share with AirDrop"
+            )
+            static let footer = String(
+                localized: "shareData.airdrop.footer",
+                defaultValue: "Send the exported file to another device over AirDrop."
+            )
+        }
+
         enum Alert {
             static let exportSuccessTitle = String(
                 localized: "shareData.alert.exportSuccess.title",
@@ -498,6 +513,25 @@ enum L10n {
                 let format = String(
                     localized: "shareData.alert.nearbyFailure.messageWithReason",
                     defaultValue: "We couldn't send your data. (%@)"
+                )
+                return String(format: format, locale: Locale.current, trimmed)
+            }
+            static let airDropFailureTitle = String(
+                localized: "shareData.alert.airdropFailure.title",
+                defaultValue: "AirDrop failed"
+            )
+            private static let airDropFailureDefault = String(
+                localized: "shareData.alert.airdropFailure.message",
+                defaultValue: "AirDrop could not share the export."
+            )
+            static func airDropFailureMessage(_ reason: String) -> String {
+                let trimmed = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else {
+                    return airDropFailureDefault
+                }
+                let format = String(
+                    localized: "shareData.alert.airdropFailure.messageWithReason",
+                    defaultValue: "AirDrop could not share the export. (%@)"
                 )
                 return String(format: format, locale: Locale.current, trimmed)
             }
