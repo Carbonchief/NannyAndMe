@@ -9,12 +9,12 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var profileStore: ProfileStore
+    @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
     @State private var selectedTab: Tab = .home
     @State private var previousTab: Tab = .home
     @State private var isMenuVisible = false
     @State private var showSettings = false
     @State private var showAllLogs = false
-    @State private var showShareData = false
     @State private var isProfileSwitcherPresented = false
     @State private var isInitialProfilePromptPresented = false
 
@@ -146,7 +146,12 @@ struct ContentView: View {
                 .navigationDestination(isPresented: $showAllLogs) {
                     AllLogsView()
                 }
-                .navigationDestination(isPresented: $showShareData) {
+                .navigationDestination(
+                    isPresented: Binding(
+                        get: { shareDataCoordinator.isShowingShareData },
+                        set: { shareDataCoordinator.isShowingShareData = $0 }
+                    )
+                ) {
                     ShareDataView()
                 }
             }
@@ -218,7 +223,7 @@ struct ContentView: View {
                         Analytics.capture("navigation_open_shareData_menu", properties: ["source": "side_menu"])
                         withAnimation(.easeInOut) {
                             isMenuVisible = false
-                            showShareData = true
+                            shareDataCoordinator.presentShareData()
                         }
                     }
                 )
@@ -379,4 +384,5 @@ private enum Tab: Hashable, CaseIterable {
     return ContentView()
         .environmentObject(profileStore)
         .environmentObject(actionStore)
+        .environmentObject(ShareDataCoordinator())
 }
