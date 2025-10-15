@@ -996,7 +996,7 @@ struct ActionEditSheet: View {
         } message: {
             Text(L10n.Logs.deleteConfirmationMessage)
         }
-        .onChange(of: startDate) { newValue in
+        .onChange(of: startDate) { _, newValue in
             guard let currentEndDate = endDate else { return }
             if currentEndDate < newValue {
                 endDate = newValue

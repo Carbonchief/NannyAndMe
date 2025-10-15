@@ -32,7 +32,7 @@ struct StatsView: View {
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .phScreen("stats_screen_statsView", properties: ["tab": "stats"])
-        .onChange(of: profileStore.activeProfile.id) {
+        .onChange(of: profileStore.activeProfile.id) { _, _ in
             selectedCategory = nil
         }
     }
