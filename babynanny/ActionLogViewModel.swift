@@ -37,7 +37,7 @@ final class ActionLogStore: ObservableObject {
 
         var seenIDs = Set<UUID>()
 
-        for actionModel in model.actions ?? [] {
+        for actionModel in model.actions {
             let action = actionModel.asBabyAction().withValidatedDates()
             guard seenIDs.contains(action.id) == false else { continue }
             seenIDs.insert(action.id)
@@ -306,7 +306,7 @@ private extension ActionLogStore {
 
     func persist(profileState: ProfileActionState, for profileID: UUID) {
         let model = profileModel(for: profileID)
-        let existingModels = Dictionary(uniqueKeysWithValues: (model.actions ?? []).map { ($0.id, $0) })
+        let existingModels = Dictionary(uniqueKeysWithValues: model.actions.map { ($0.id, $0) })
         let desiredActions = Array(profileState.activeActions.values) + profileState.history
         var seenIDs = Set<UUID>()
 

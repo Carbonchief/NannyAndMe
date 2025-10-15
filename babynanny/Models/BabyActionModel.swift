@@ -349,14 +349,14 @@ struct ProfileActionState: Codable {
 final class ProfileActionStateModel {
     var profileID: UUID?
     @Relationship(deleteRule: .cascade, inverse: \BabyActionModel.profile)
-    var actions: [BabyActionModel]?
+    fileprivate var actionsStorage: [BabyActionModel]?
 
     init(profileID: UUID = UUID(), actions: [BabyActionModel] = []) {
         self.profileID = profileID
         if actions.isEmpty {
-            self.actions = nil
+            actionsStorage = nil
         } else {
-            self.actions = actions
+            actionsStorage = actions
             ensureActionOwnership()
         }
     }
@@ -375,9 +375,21 @@ final class ProfileActionStateModel {
         }
     }
 
+    var actions: [BabyActionModel] {
+        get { actionsStorage ?? [] }
+        set {
+            if newValue.isEmpty {
+                actionsStorage = nil
+            } else {
+                actionsStorage = newValue
+                ensureActionOwnership()
+            }
+        }
+    }
+
     func ensureActionOwnership() {
-        guard let actions else { return }
-        for action in actions where action.profile == nil {
+        guard let actionsStorage else { return }
+        for action in actionsStorage where action.profile == nil {
             action.profile = self
         }
     }
@@ -393,7 +405,7 @@ final class BabyActionModel {
     var feedingTypeRawValue: String?
     var bottleTypeRawValue: String?
     var bottleVolume: Int?
-    @Relationship(inverse: \ProfileActionStateModel.actions)
+    @Relationship(inverse: \ProfileActionStateModel.actionsStorage)
     var profile: ProfileActionStateModel?
 
     init(id: UUID = UUID(),
