@@ -15,6 +15,7 @@ struct babynannyApp: App {
     private let actionStore: ActionLogStore
     private let modelContainer: ModelContainer
     @StateObject private var shareDataCoordinator = ShareDataCoordinator()
+    @State private var showingLaunch = true
 
     init() {
         Analytics.setup()
@@ -39,15 +40,36 @@ struct babynannyApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(profileStore)
-                .environmentObject(actionStore)
-                .environmentObject(shareDataCoordinator)
-                .onOpenURL { url in
-                    guard shouldHandle(url: url) else { return }
-                    shareDataCoordinator.handleIncomingFile(url: url)
+            ZStack {
+                if showingLaunch {
+                    LaunchScreenView()
+                        .transition(.opacity)
+                        .task {
+                            do {
+                                try await Task.sleep(for: .milliseconds(1_500))
+                            } catch {
+                                return
+                            }
+
+                            await MainActor.run {
+                                withAnimation(.easeInOut(duration: 0.35)) {
+                                    showingLaunch = false
+                                }
+                            }
+                        }
+                } else {
+                    ContentView()
+                        .transition(.opacity)
+                        .onOpenURL { url in
+                            guard shouldHandle(url: url) else { return }
+                            shareDataCoordinator.handleIncomingFile(url: url)
+                        }
                 }
+            }
         }
+        .environmentObject(profileStore)
+        .environmentObject(actionStore)
+        .environmentObject(shareDataCoordinator)
         .modelContainer(modelContainer)
     }
 }
