@@ -638,7 +638,7 @@ private extension HistoryRow {
         }
 
         let displayFormatter = RelativeDateTimeFormatter()
-        displayFormatter.unitsStyle = .named
+        displayFormatter.unitsStyle = .full
         displayFormatter.dateTimeStyle = .named
         let display = displayFormatter.localizedString(for: eventDate, relativeTo: referenceDate)
 
