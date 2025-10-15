@@ -328,12 +328,27 @@ enum L10n {
             return String(format: format, locale: Locale.current, category)
         }
 
-        static func actionReminderMessage(_ interval: String, _ name: String, _ category: String) -> String {
-            let format = String(
-                localized: "notifications.actionReminder.message",
-                defaultValue: "It's been %@ since %@'s last %@ log."
-            )
-            return String(format: format, locale: Locale.current, interval, name, category)
+        static func actionReminderMessage(for category: BabyActionCategory, name: String) -> String {
+            switch category {
+            case .diaper:
+                let format = String(
+                    localized: "notifications.actionReminder.message.diaper",
+                    defaultValue: "It's time to change %@'s diaper."
+                )
+                return String(format: format, locale: Locale.current, name)
+            case .feeding:
+                let format = String(
+                    localized: "notifications.actionReminder.message.feeding",
+                    defaultValue: "It's time to feed %@."
+                )
+                return String(format: format, locale: Locale.current, name)
+            case .sleep:
+                let format = String(
+                    localized: "notifications.actionReminder.message.sleep",
+                    defaultValue: "It's time for %@ to sleep."
+                )
+                return String(format: format, locale: Locale.current, name)
+            }
         }
 
         static func actionReminderInterval(_ hours: Int) -> String {

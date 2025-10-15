@@ -97,7 +97,9 @@
 "notifications.ageReminder.oneMonth" = "%@ cumple 1 mes hoy.";
 "notifications.ageReminder.months" = "%@ cumple %lld meses hoy.";
 "notifications.actionReminder.title" = "Registrar %@";
-"notifications.actionReminder.message" = "Han pasado %@ desde el último registro de %@ de %@.";
+"notifications.actionReminder.message.diaper" = "Es hora de cambiar el pañal de %@.";
+"notifications.actionReminder.message.feeding" = "Es hora de alimentar a %@.";
+"notifications.actionReminder.message.sleep" = "Es hora de que %@ duerma.";
 "notifications.actionReminder.interval.one" = "1 hora";
 "notifications.actionReminder.interval.other" = "%lld horas";
 "notifications.actionReminder.overviewTitle" = "Recordatorio de %@";
