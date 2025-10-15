@@ -536,55 +536,51 @@ private struct HistoryRow: View {
                     .foregroundStyle(action.category.accentColor)
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .center) {
-                    VStack(alignment: .leading, spacing: 6) {
+            TimelineView(.periodic(from: .now, by: 60)) { context in
+                let timeInformation = timeAgoDescription(asOf: context.date)
+                let durationText = durationDescription(asOf: context.date)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(action.title)
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .lineLimit(1)
 
-                        TimelineView(.periodic(from: .now, by: 60)) { context in
-                            let timeInformation = timeAgoDescription(asOf: context.date)
-                            let durationText = durationDescription(asOf: context.date)
+                        Spacer(minLength: 8)
 
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text(timeInformation.display)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                                    .monospacedDigit()
-
-                                if let durationText {
-                                    Text(durationText)
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                        .monospacedDigit()
-                                }
-                            }
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel(accessibilityLabel(timeInformation: timeInformation,
-                                                                   durationText: durationText))
-                        }
+                        Text(timeInformation.display)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .monospacedDigit()
                     }
 
-                    Spacer(minLength: 12)
+                    if let detail = detailDescription(for: action) {
+                        Text(detail)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
 
-                    VStack(alignment: .trailing, spacing: 4) {
-                        if let detail = detailDescription(for: action) {
-                            Text(detail)
-                                .font(.footnote)
+                    if let durationText {
+                        HStack {
+                            Spacer()
+
+                            Text(durationText)
+                                .font(.caption2)
                                 .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.trailing)
                                 .lineLimit(1)
-                                .truncationMode(.tail)
+                                .monospacedDigit()
                         }
                     }
-                    .frame(maxHeight: .infinity, alignment: .center)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(accessibilityLabel(timeInformation: timeInformation,
+                                                       durationText: durationText))
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(12)
         .background(
