@@ -23,7 +23,7 @@ struct babynannyApp: App {
         let configuration = Self.makeModelConfiguration()
         do {
             self.modelContainer = try ModelContainer(
-                for: [ProfileActionStateModel.self, BabyActionModel.self],
+                for: ProfileActionStateModel.self, BabyActionModel.self,
                 configurations: configuration
             )
         } catch {
