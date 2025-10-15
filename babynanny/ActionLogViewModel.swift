@@ -28,8 +28,15 @@ final class ActionLogStore: ObservableObject {
         observeModelContextChanges()
     }
 
-    @MainActor deinit {
-        stopObservingModelContextChanges()
+    deinit {
+        let observers = contextObservers
+        let center = notificationCenter
+        guard observers.isEmpty == false else { return }
+        Task { @MainActor in
+            for token in observers {
+                center.removeObserver(token)
+            }
+        }
     }
 
     private func notifyChange() {
@@ -457,14 +464,6 @@ private extension ActionLogStore {
             }
             contextObservers.append(token)
         }
-    }
-
-    private func stopObservingModelContextChanges() {
-        guard contextObservers.isEmpty == false else { return }
-        for token in contextObservers {
-            notificationCenter.removeObserver(token)
-        }
-        contextObservers.removeAll()
     }
 
     private func handleModelContextChange() {
