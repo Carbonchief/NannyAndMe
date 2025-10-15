@@ -1016,7 +1016,7 @@ struct ActionEditSheet: View {
     private var continueSection: some View {
         if canContinueAction {
             Section(
-                footer: Text(L10n.Logs.continueInfo)
+                footer: Text(L10n.Logs.continueActionInfo)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             ) {
