@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct ShareDataView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
+    @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
 
     @State private var isExporting = false
     @State private var exportDocument: ShareDataDocument?
@@ -17,6 +18,7 @@ struct ShareDataView: View {
     @State private var pendingNearbyAlert: ShareDataAlert?
     @State private var airDropShareItem: AirDropShareItem?
     @State private var isPreparingAirDropShare = false
+    @State private var processedExternalImportID: ShareDataCoordinator.ExternalImportRequest.ID?
 
     var body: some View {
         Form {
@@ -198,6 +200,15 @@ struct ShareDataView: View {
             }
 
             nearbyShareController.clearLatestResult()
+        }
+        .onAppear {
+            processPendingExternalImportIfNeeded()
+        }
+        .onChange(of: shareDataCoordinator.externalImportRequest) { _, _ in
+            processPendingExternalImportIfNeeded()
+        }
+        .onDisappear {
+            shareDataCoordinator.dismissShareData()
         }
     }
 
@@ -386,6 +397,14 @@ struct ShareDataView: View {
                 message: L10n.ShareData.Error.readFailed
             )
         }
+    }
+
+    private func processPendingExternalImportIfNeeded() {
+        guard let request = shareDataCoordinator.externalImportRequest else { return }
+        guard processedExternalImportID != request.id else { return }
+        processedExternalImportID = request.id
+        importData(from: request.url)
+        shareDataCoordinator.clearExternalImportRequest(request)
     }
 
     private func sanitizeFilename(_ name: String) -> String {
@@ -614,5 +633,6 @@ struct ShareDataDocument: FileDocument {
         ShareDataView()
             .environmentObject(profileStore)
             .environmentObject(actionStore)
+            .environmentObject(ShareDataCoordinator())
     }
 }
