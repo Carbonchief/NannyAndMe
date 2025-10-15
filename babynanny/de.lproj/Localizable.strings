@@ -64,6 +64,8 @@
 "profiles.childName" = "Name des Kindes";
 "profiles.birthDate" = "Geburtsdatum";
 "profiles.choosePhoto" = "Profilfoto auswählen";
+"profiles.choosePhoto.detailAdd" = "Füge ein Bild hinzu, um dieses Profil zu personalisieren.";
+"profiles.choosePhoto.detailChange" = "Tippe, um das Foto zu ändern oder zu entfernen.";
 "profiles.removePhoto" = "Profilfoto entfernen";
 "profiles.crop.title" = "Foto zuschneiden";
 "profiles.crop.instruction" = "Bewegen und zoomen, um anzupassen.";

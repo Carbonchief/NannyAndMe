@@ -191,6 +191,14 @@ enum L10n {
         static let childName = String(localized: "profiles.childName", defaultValue: "Child name")
         static let birthDate = String(localized: "profiles.birthDate", defaultValue: "Birth date")
         static let choosePhoto = String(localized: "profiles.choosePhoto", defaultValue: "Choose profile photo")
+        static let choosePhotoDetailAdd = String(
+            localized: "profiles.choosePhoto.detailAdd",
+            defaultValue: "Add a picture to personalize this profile."
+        )
+        static let choosePhotoDetailChange = String(
+            localized: "profiles.choosePhoto.detailChange",
+            defaultValue: "Tap to change or remove the photo."
+        )
         static let removePhoto = String(localized: "profiles.removePhoto", defaultValue: "Remove profile photo")
         static let cropPhotoTitle = String(localized: "profiles.crop.title", defaultValue: "Crop Photo")
         static let cropPhotoInstruction = String(
