@@ -150,7 +150,7 @@ struct ProfileStoreTests {
     }
 
     @Test
-    func doesNotOverrideExistingProfilesWithCloudImport() async throws {
+    func mergesCloudProfilesWithExistingProfiles() async throws {
         let scheduler = MockReminderScheduler(authorizationResult: true)
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -186,8 +186,98 @@ struct ProfileStoreTests {
         try await Task.sleep(nanoseconds: 100_000_000)
 
         let profiles = await store.profiles
-        #expect(profiles == [localProfile])
-        #expect(await importer.fetchCount == 0)
+        #expect(profiles.contains(localProfile))
+        #expect(profiles.contains(cloudProfile))
+        #expect(await importer.fetchCount == 1)
+    }
+
+    @Test
+    func updatesLocalProfilesWithCloudChanges() async throws {
+        let scheduler = MockReminderScheduler(authorizationResult: true)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        var localProfile = ChildProfile(name: "Local", birthDate: Date())
+        let profileID = localProfile.id
+        let localState = TestProfileState(
+            profiles: [localProfile],
+            activeProfileID: localProfile.id,
+            showRecentActivityOnHome: true
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let data = try encoder.encode(localState)
+        try data.write(to: directory.appendingPathComponent("profiles.json"))
+
+        var updatedProfile = localProfile
+        updatedProfile.name = "Updated"
+        updatedProfile.remindersEnabled = true
+        let snapshot = CloudProfileSnapshot(
+            profiles: [updatedProfile],
+            activeProfileID: updatedProfile.id,
+            showRecentActivityOnHome: false
+        )
+        let importer = MockCloudImporter(result: .success(snapshot))
+
+        let store = await ProfileStore(
+            fileManager: .default,
+            directory: directory,
+            filename: "profiles.json",
+            reminderScheduler: scheduler,
+            cloudImporter: importer
+        )
+
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        let profiles = await store.profiles
+        let fetchedProfile = try #require(profiles.first(where: { $0.id == profileID }))
+        #expect(fetchedProfile.name == "Updated")
+        #expect(fetchedProfile.remindersEnabled)
+        #expect(await store.showRecentActivityOnHome == false)
+        #expect(await importer.fetchCount == 1)
+    }
+
+    @Test
+    func downloadsMissingCloudProfilesWhenAbsentLocally() async throws {
+        let scheduler = MockReminderScheduler(authorizationResult: true)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let localProfile = ChildProfile(name: "Local", birthDate: Date())
+        let localState = TestProfileState(
+            profiles: [localProfile],
+            activeProfileID: localProfile.id,
+            showRecentActivityOnHome: true
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let data = try encoder.encode(localState)
+        try data.write(to: directory.appendingPathComponent("profiles.json"))
+
+        let newProfile = ChildProfile(name: "Cloud", birthDate: Date().addingTimeInterval(-50_000))
+        let snapshot = CloudProfileSnapshot(
+            profiles: [newProfile],
+            activeProfileID: newProfile.id,
+            showRecentActivityOnHome: true
+        )
+        let importer = MockCloudImporter(result: .success(snapshot))
+
+        let store = await ProfileStore(
+            fileManager: .default,
+            directory: directory,
+            filename: "profiles.json",
+            reminderScheduler: scheduler,
+            cloudImporter: importer
+        )
+
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        let profiles = await store.profiles
+        #expect(profiles.contains(localProfile))
+        #expect(profiles.contains(newProfile))
+        #expect(await importer.fetchCount == 1)
     }
 
     @Test
