@@ -118,6 +118,9 @@
 "shareData.import.footer" = "Wähle eine zuvor exportierte Datei, um Aktualisierungen in dieses Profil zu übernehmen.";
 "shareData.import.summary" = "%lld neue Einträge hinzugefügt • %lld aktualisiert";
 "shareData.import.profileUpdated" = "Profileinstellungen wurden durch den Import aktualisiert.";
+"shareData.airdrop.title" = "AirDrop";
+"shareData.airdrop.button" = "Mit AirDrop teilen";
+"shareData.airdrop.footer" = "Sende die exportierte Datei per AirDrop an ein anderes Gerät.";
 "shareData.nearby.title" = "In der Nähe teilen";
 "shareData.nearby.button" = "Mit Gerät in der Nähe teilen";
 "shareData.nearby.footer" = "Sende einen JSON-Export direkt an ein anderes Gerät in der Nähe, auf dem Nanny & Me läuft.";
@@ -136,6 +139,9 @@
 "shareData.alert.nearbyFailure.title" = "Teilen fehlgeschlagen";
 "shareData.alert.nearbyFailure.message" = "Deine Daten konnten nicht gesendet werden. Bitte versuche es erneut.";
 "shareData.alert.nearbyFailure.messageWithReason" = "Deine Daten konnten nicht gesendet werden. (%@)";
+"shareData.alert.airdropFailure.title" = "AirDrop fehlgeschlagen";
+"shareData.alert.airdropFailure.message" = "AirDrop konnte den Export nicht teilen.";
+"shareData.alert.airdropFailure.messageWithReason" = "AirDrop konnte den Export nicht teilen. (%@)";
 "shareData.error.mismatchedProfile" = "Diese Datei gehört zu einem anderen Profil. Wechsle zu diesem Profil und versuche es erneut.";
 "shareData.error.readFailed" = "Die Datei konnte nicht gelesen werden. Bitte wähle einen Nanny & Me-Export.";
 "logs.title" = "Alle Protokolle";
