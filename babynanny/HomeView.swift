@@ -89,9 +89,6 @@ struct HomeView: View {
             ActionEditSheet(action: action) { updatedAction in
                 actionStore.updateAction(for: activeProfileID, action: updatedAction)
                 editingAction = nil
-            } onDelete: { actionToDelete in
-                actionStore.deleteAction(for: activeProfileID, actionID: actionToDelete.id)
-                editingAction = nil
             }
         }
         .alert(item: $pendingStartAction) { pending in
@@ -783,7 +780,6 @@ private enum BottleVolumeOption: Hashable, Identifiable {
 struct ActionEditSheet: View {
     let action: BabyAction
     let onSave: (BabyAction) -> Void
-    let onDelete: (BabyAction) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var profileStore: ProfileStore
@@ -796,12 +792,10 @@ struct ActionEditSheet: View {
     @State private var bottleSelection: BottleVolumeOption
     @State private var customBottleVolume: String
     @State private var endDate: Date?
-    @State private var showDeleteConfirmation = false
 
-    init(action: BabyAction, onSave: @escaping (BabyAction) -> Void, onDelete: @escaping (BabyAction) -> Void) {
+    init(action: BabyAction, onSave: @escaping (BabyAction) -> Void) {
         self.action = action
         self.onSave = onSave
-        self.onDelete = onDelete
 
         _startDate = State(initialValue: action.startDate)
         _diaperSelection = State(initialValue: action.diaperType ?? .pee)
@@ -935,46 +929,6 @@ struct ActionEditSheet: View {
                     }
                 }
 
-                if canContinueAction {
-                    Section {
-                        Button {
-                            continueAction()
-                        } label: {
-                            FormActionRowLabel(
-                                title: L10n.Logs.continueAction,
-                                systemImage: "play.circle.fill",
-                                role: nil
-                            )
-                        }
-                        .postHogLabel("home.edit.continue")
-                        .phCaptureTap(
-                            event: "home_edit_continue_action_button",
-                            properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
-                        )
-                    } footer: {
-                        Text(L10n.Logs.continueActionInfo)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Section {
-                    Button(role: .destructive) {
-                        showDeleteConfirmation = true
-                    } label: {
-                        FormActionRowLabel(
-                            title: L10n.Logs.deleteAction,
-                            systemImage: "trash",
-                            role: .destructive
-                        )
-                    }
-                    .postHogLabel("home.edit.delete")
-                    .phCaptureTap(
-                        event: "home_edit_prepare_delete_button",
-                        properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
-                    )
-                    .tint(.red)
-                }
             }
             .navigationTitle(L10n.Home.editActionTitle)
             .navigationBarTitleDisplayMode(.inline)
@@ -1007,24 +961,6 @@ struct ActionEditSheet: View {
             "home_edit_sheet_actionEditSheet",
             properties: ["category": action.category.rawValue]
         )
-        .alert(Text(L10n.Logs.deleteConfirmationTitle), isPresented: $showDeleteConfirmation) {
-            Button(L10n.Logs.deleteAction, role: .destructive) {
-                Analytics.capture(
-                    "home_edit_confirm_delete_alert",
-                    properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
-                )
-                onDelete(action)
-                dismiss()
-            }
-            Button(L10n.Common.cancel, role: .cancel) {
-                Analytics.capture(
-                    "home_edit_cancel_delete_alert",
-                    properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
-                )
-            }
-        } message: {
-            Text(L10n.Logs.deleteConfirmationMessage)
-        }
         .onChange(of: startDate) { _, newValue in
             guard let currentEndDate = endDate else { return }
             if currentEndDate < newValue {
@@ -1079,14 +1015,6 @@ struct ActionEditSheet: View {
         return false
     }
 
-    private var canContinueAction: Bool {
-        guard action.category.isInstant == false else { return false }
-        guard (endDate ?? action.endDate) != nil else { return false }
-        guard let profileID = profileStore.activeProfileID else { return false }
-        let state = actionStore.state(for: profileID)
-        return state.history.first?.id == action.id
-    }
-
     private func save() {
         var updated = action
         updated.startDate = startDate
@@ -1107,44 +1035,7 @@ struct ActionEditSheet: View {
         onSave(updated.withValidatedDates())
         dismiss()
     }
-
-    private func continueAction() {
-        guard let profileID = profileStore.activeProfileID else { return }
-        actionStore.continueAction(for: profileID, actionID: action.id)
-        dismiss()
-    }
 }
-
-private struct FormActionRowLabel: View {
-    let title: String
-    let systemImage: String
-    let role: ButtonRole?
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .imageScale(.medium)
-                .font(.body)
-
-            Text(title)
-                .font(.body)
-
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 10)
-        .foregroundStyle(foregroundStyle)
-        .contentShape(Rectangle())
-    }
-
-    private var foregroundStyle: some ShapeStyle {
-        if role == .destructive {
-            return Color.red
-        }
-        return Color.accentColor
-    }
-}
-
 private struct ActionDetailSheet: View {
     let category: BabyActionCategory
     let onStart: (ActionConfiguration) -> Bool

@@ -55,8 +55,6 @@ struct AllLogsView: View {
             ActionEditSheet(action: action) { updatedAction in
                 actionStore.updateAction(for: profileStore.activeProfile.id, action: updatedAction)
                 editingAction = nil
-            } onDelete: { actionToDelete in
-                deleteAction(actionToDelete)
             }
         }
         .sheet(isPresented: $isShowingFilter) {
