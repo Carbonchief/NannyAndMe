@@ -243,7 +243,8 @@ final class ActionLogStore: ObservableObject {
         let descriptor = FetchDescriptor<ProfileActionStateModel>()
         let models = (try? modelContext.fetch(descriptor)) ?? []
         return models.reduce(into: [UUID: ProfileActionState]()) { partialResult, model in
-            partialResult[model.profileID] = state(for: model.profileID)
+            let identifier = model.resolvedProfileID
+            partialResult[identifier] = state(for: identifier)
         }
     }
 
@@ -280,7 +281,16 @@ private extension ActionLogStore {
             model.profileID == profileID
         }
         let descriptor = FetchDescriptor(predicate: predicate)
-        return try? modelContext.fetch(descriptor).first
+        guard let model = try? modelContext.fetch(descriptor).first else {
+            return nil
+        }
+
+        if model.profileID == nil {
+            model.profileID = profileID
+            try? modelContext.save()
+        }
+
+        return model
     }
 
     func profileModel(for profileID: UUID) -> ProfileActionStateModel {

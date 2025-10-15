@@ -346,10 +346,47 @@ struct ProfileActionState: Codable {
 }
 
 @Model
+final class ProfileActionStateModel {
+    var profileID: UUID?
+    @Relationship(deleteRule: .cascade, inverse: \BabyActionModel.profile)
+    var actions: [BabyActionModel]? {
+        didSet {
+            linkActionsToSelf()
+        }
+    }
+
+    init(profileID: UUID = UUID(), actions: [BabyActionModel] = []) {
+        self.profileID = profileID
+        self.actions = actions.isEmpty ? nil : actions
+        linkActionsToSelf()
+    }
+
+    var resolvedProfileID: UUID {
+        get {
+            if let identifier = profileID {
+                return identifier
+            }
+            let generated = UUID()
+            profileID = generated
+            return generated
+        }
+        set {
+            profileID = newValue
+        }
+    }
+
+    private func linkActionsToSelf() {
+        for action in actions ?? [] {
+            action.profile = self
+        }
+    }
+}
+
+@Model
 final class BabyActionModel {
-    var id: UUID = UUID()
-    var categoryRawValue: String = BabyActionCategory.sleep.rawValue
-    var startDate: Date = Date()
+    var idRawValue: UUID?
+    var categoryRawValue: String?
+    var startDateRawValue: Date?
     var endDate: Date?
     var diaperTypeRawValue: String?
     var feedingTypeRawValue: String?
@@ -359,47 +396,70 @@ final class BabyActionModel {
     var profile: ProfileActionStateModel?
 
     init(id: UUID = UUID(),
-         category: BabyActionCategory,
+         category: BabyActionCategory = .sleep,
          startDate: Date = Date(),
          endDate: Date? = nil,
-         diaperType: BabyAction.DiaperType?,
-         feedingType: BabyAction.FeedingType?,
-         bottleType: BabyAction.BottleType?,
-         bottleVolume: Int?,
-         profile: ProfileActionStateModel) {
+         diaperType: BabyAction.DiaperType? = nil,
+         feedingType: BabyAction.FeedingType? = nil,
+         bottleType: BabyAction.BottleType? = nil,
+         bottleVolume: Int? = nil,
+         profile: ProfileActionStateModel? = nil) {
         self.id = id
-        self.categoryRawValue = category.rawValue
+        self.category = category
         self.startDate = startDate
         self.endDate = endDate
-        self.diaperTypeRawValue = diaperType?.rawValue
-        self.feedingTypeRawValue = feedingType?.rawValue
-        self.bottleTypeRawValue = bottleType?.rawValue
+        self.diaperType = diaperType
+        self.feedingType = feedingType
+        self.bottleType = bottleType
         self.bottleVolume = bottleVolume
         self.profile = profile
     }
-}
 
-@Model
-final class ProfileActionStateModel {
-    var profileID: UUID = UUID()
-    @Relationship(deleteRule: .cascade)
-    var actions: [BabyActionModel]?
+    var id: UUID {
+        get {
+            if let existing = idRawValue {
+                return existing
+            }
+            let generated = UUID()
+            idRawValue = generated
+            return generated
+        }
+        set {
+            idRawValue = newValue
+        }
+    }
 
-    init(profileID: UUID = UUID(), actions: [BabyActionModel] = []) {
-        self.profileID = profileID
-        self.actions = actions.isEmpty ? nil : actions
-        for action in self.actions ?? [] {
-            action.profile = self
+    var category: BabyActionCategory {
+        get {
+            if let rawValue = categoryRawValue,
+               let category = BabyActionCategory(rawValue: rawValue) {
+                return category
+            }
+            let fallback = BabyActionCategory.sleep
+            categoryRawValue = fallback.rawValue
+            return fallback
+        }
+        set {
+            categoryRawValue = newValue.rawValue
+        }
+    }
+
+    var startDate: Date {
+        get {
+            if let stored = startDateRawValue {
+                return stored
+            }
+            let now = Date()
+            startDateRawValue = now
+            return now
+        }
+        set {
+            startDateRawValue = newValue
         }
     }
 }
 
 extension BabyActionModel {
-    var category: BabyActionCategory {
-        get { BabyActionCategory(rawValue: categoryRawValue) ?? .sleep }
-        set { categoryRawValue = newValue.rawValue }
-    }
-
     var diaperType: BabyAction.DiaperType? {
         get {
             guard let rawValue = diaperTypeRawValue else { return nil }
