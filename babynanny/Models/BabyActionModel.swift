@@ -405,7 +405,7 @@ final class BabyActionModel {
     var feedingTypeRawValue: String?
     var bottleTypeRawValue: String?
     var bottleVolume: Int?
-    @Relationship(inverse: \ProfileActionStateModel.actionsStorage)
+    @Relationship
     var profile: ProfileActionStateModel?
 
     init(id: UUID = UUID(),
