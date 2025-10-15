@@ -347,9 +347,9 @@ struct ProfileActionState: Codable {
 
 @Model
 final class BabyActionModel {
-    @Attribute(.unique) var id: UUID
-    var categoryRawValue: String
-    var startDate: Date
+    var id: UUID = UUID()
+    var categoryRawValue: String = BabyActionCategory.sleep.rawValue
+    var startDate: Date = Date()
     var endDate: Date?
     var diaperTypeRawValue: String?
     var feedingTypeRawValue: String?
@@ -360,8 +360,8 @@ final class BabyActionModel {
 
     init(id: UUID = UUID(),
          category: BabyActionCategory,
-         startDate: Date,
-         endDate: Date?,
+         startDate: Date = Date(),
+         endDate: Date? = nil,
          diaperType: BabyAction.DiaperType?,
          feedingType: BabyAction.FeedingType?,
          bottleType: BabyAction.BottleType?,
@@ -381,14 +381,14 @@ final class BabyActionModel {
 
 @Model
 final class ProfileActionStateModel {
-    @Attribute(.unique) var profileID: UUID
+    var profileID: UUID = UUID()
     @Relationship(deleteRule: .cascade)
-    var actions: [BabyActionModel] = []
+    var actions: [BabyActionModel]?
 
-    init(profileID: UUID, actions: [BabyActionModel] = []) {
+    init(profileID: UUID = UUID(), actions: [BabyActionModel] = []) {
         self.profileID = profileID
-        self.actions = actions
-        for action in self.actions {
+        self.actions = actions.isEmpty ? nil : actions
+        for action in self.actions ?? [] {
             action.profile = self
         }
     }
