@@ -1,373 +1,12 @@
+import Foundation
+import SwiftData
 import SwiftUI
-
-struct BabyAction: Identifiable, Codable {
-    enum DiaperType: String, CaseIterable, Identifiable, Codable {
-        case pee
-        case poo
-        case both
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .pee:
-                return L10n.DiaperType.pee
-            case .poo:
-                return L10n.DiaperType.poo
-            case .both:
-                return L10n.DiaperType.both
-            }
-        }
-
-        var icon: String {
-            switch self {
-            case .pee:
-                return "drop.fill"
-            case .poo:
-                return "leaf.fill"
-            case .both:
-                return "drop.circle.fill"
-            }
-        }
-    }
-
-    enum FeedingType: String, CaseIterable, Identifiable, Codable {
-        case bottle
-        case leftBreast
-        case rightBreast
-        case meal
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .bottle:
-                return L10n.FeedingType.bottle
-            case .leftBreast:
-                return L10n.FeedingType.leftBreast
-            case .rightBreast:
-                return L10n.FeedingType.rightBreast
-            case .meal:
-                return L10n.FeedingType.meal
-            }
-        }
-
-        var icon: String {
-            switch self {
-            case .bottle:
-                return "waterbottle.fill"
-            case .leftBreast:
-                return "heart.fill"
-            case .rightBreast:
-                return "heart.circle.fill"
-            case .meal:
-                return "fork.knife.circle.fill"
-            }
-        }
-
-        var requiresVolume: Bool {
-            self == .bottle
-        }
-    }
-
-    enum BottleType: String, CaseIterable, Identifiable, Codable {
-        case formula
-        case breastMilk
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .formula:
-                return L10n.BottleType.formula
-            case .breastMilk:
-                return L10n.BottleType.breastMilk
-            }
-        }
-    }
-
-    var id: UUID
-    let category: BabyActionCategory
-    var startDate: Date
-    var endDate: Date?
-    var diaperType: DiaperType?
-    var feedingType: FeedingType?
-    var bottleType: BottleType?
-    var bottleVolume: Int?
-
-    init(id: UUID = UUID(),
-         category: BabyActionCategory,
-         startDate: Date = Date(),
-         endDate: Date? = nil,
-         diaperType: DiaperType? = nil,
-         feedingType: FeedingType? = nil,
-         bottleType: BottleType? = nil,
-         bottleVolume: Int? = nil) {
-        self.id = id
-        self.category = category
-        self.startDate = startDate
-        self.endDate = endDate
-        self.diaperType = diaperType
-        self.feedingType = feedingType
-        self.bottleType = bottleType
-        self.bottleVolume = bottleVolume
-    }
-
-    var title: String {
-        category.title
-    }
-
-    var icon: String {
-        if let diaperType {
-            return diaperType.icon
-        }
-        if let feedingType {
-            return feedingType.icon
-        }
-        return category.icon
-    }
-
-    var detailDescription: String {
-        switch category {
-        case .sleep:
-            return L10n.Actions.sleep
-        case .diaper:
-            if let diaperType {
-                return L10n.Actions.diaperWithType(diaperType.title)
-            }
-            return L10n.Actions.diaperChange
-        case .feeding:
-            if let feedingType {
-                if feedingType == .bottle {
-                    if let bottleType, let bottleVolume {
-                        return L10n.Actions.feedingBottleWithType(bottleType.title, bottleVolume)
-                    }
-                    if let bottleType {
-                        return L10n.Actions.feedingBottleWithTypeOnly(bottleType.title)
-                    }
-                    if let bottleVolume {
-                        return L10n.Actions.feedingBottle(bottleVolume)
-                    }
-                }
-                return L10n.Actions.feedingWithType(feedingType.title)
-            }
-            return L10n.Actions.feeding
-        }
-    }
-
-    var subtypeWord: String? {
-        switch category {
-        case .sleep:
-            return nil
-        case .diaper:
-            return diaperType?.title
-        case .feeding:
-            if let feedingType {
-                if feedingType == .bottle, let bottleType {
-                    return bottleType.title
-                }
-                return feedingType.title
-            }
-            return nil
-        }
-    }
-
-    func durationDescription(asOf referenceDate: Date = Date()) -> String {
-        let endReference = endDate ?? referenceDate
-        let duration = endReference.timeIntervalSince(startDate)
-        return BabyActionFormatter.shared.format(duration: duration)
-    }
-
-    func startTimeDescription() -> String {
-        BabyActionFormatter.shared.format(time: startDate)
-    }
-
-    func startDateTimeDescription() -> String {
-        BabyActionFormatter.shared.format(dateTime: startDate)
-    }
-
-    func endDateTimeDescription() -> String? {
-        guard let endDate else { return nil }
-        return BabyActionFormatter.shared.format(dateTime: endDate)
-    }
-
-    func loggedTimestampDescription(relativeTo referenceDate: Date = Date()) -> String {
-        let logDate = endDate ?? startDate
-        let calendar = Calendar.current
-
-        if calendar.isDate(logDate, inSameDayAs: referenceDate) {
-            return BabyActionFormatter.shared.format(time: logDate)
-        }
-
-        return BabyActionFormatter.shared.format(dateTime: logDate)
-    }
-
-    func timeSinceCompletionDescription(asOf referenceDate: Date = Date()) -> String? {
-        guard let endDate else { return nil }
-        let interval = referenceDate.timeIntervalSince(endDate)
-        guard interval > 1 else { return L10n.Formatter.justNow }
-        return BabyActionFormatter.shared.format(timeSince: interval)
-    }
-
-    func timeSinceCompletionAccessibilityDescription(asOf referenceDate: Date = Date()) -> String? {
-        guard let endDate else { return nil }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        formatter.dateTimeStyle = .named
-        return formatter.localizedString(for: endDate, relativeTo: referenceDate)
-    }
-
-    func withValidatedDates() -> BabyAction {
-        var copy = self
-        if category.isInstant {
-            copy.endDate = copy.startDate
-        } else if let endDate = copy.endDate, endDate < copy.startDate {
-            copy.endDate = copy.startDate
-        }
-        return copy
-    }
-}
-
-extension BabyAction: Equatable {
-    static func == (lhs: BabyAction, rhs: BabyAction) -> Bool {
-        lhs.id == rhs.id
-            && lhs.category == rhs.category
-            && lhs.startDate == rhs.startDate
-            && lhs.endDate == rhs.endDate
-            && lhs.diaperType == rhs.diaperType
-            && lhs.feedingType == rhs.feedingType
-            && lhs.bottleType == rhs.bottleType
-            && lhs.bottleVolume == rhs.bottleVolume
-    }
-}
-
-enum BabyActionCategory: String, CaseIterable, Identifiable, Codable {
-    case sleep
-    case diaper
-    case feeding
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .sleep:
-            return L10n.Actions.sleep
-        case .diaper:
-            return L10n.Actions.diaper
-        case .feeding:
-            return L10n.Actions.feeding
-        }
-    }
-
-    var icon: String {
-        switch self {
-        case .sleep:
-            return "moon.zzz.fill"
-        case .diaper:
-            return "sparkles"
-        case .feeding:
-            return "fork.knife"
-        }
-    }
-
-    var accentColor: Color {
-        switch self {
-        case .sleep:
-            return Color.indigo
-        case .diaper:
-            return Color.green
-        case .feeding:
-            return Color.orange
-        }
-    }
-
-    var isInstant: Bool {
-        switch self {
-        case .diaper:
-            return true
-        case .sleep, .feeding:
-            return false
-        }
-    }
-
-    var startActionButtonTitle: String {
-        isInstant ? L10n.Common.log : L10n.Common.start
-    }
-}
-
-struct ProfileActionState: Codable {
-    var activeActions: [BabyActionCategory: BabyAction]
-    var history: [BabyAction]
-
-    init(activeActions: [BabyActionCategory: BabyAction] = [:], history: [BabyAction] = []) {
-        self.activeActions = activeActions
-        self.history = history
-    }
-
-    func latestHistoryEntriesPerCategory() -> [BabyAction] {
-        var seenCategories = Set<BabyActionCategory>()
-        var uniqueEntries: [BabyAction] = []
-
-        for action in history {
-            guard !seenCategories.contains(action.category) else { continue }
-            seenCategories.insert(action.category)
-            uniqueEntries.append(action)
-        }
-
-        return uniqueEntries
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let rawActive = try container.decode([String: BabyAction].self, forKey: .activeActions)
-        self.activeActions = rawActive.reduce(into: [:]) { partialResult, element in
-            let (key, value) = element
-            guard let category = BabyActionCategory(rawValue: key) else { return }
-            partialResult[category] = value
-        }
-        self.history = try container.decode([BabyAction].self, forKey: .history)
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        let rawActive = Dictionary(uniqueKeysWithValues: activeActions.map { ($0.key.rawValue, $0.value) })
-        try container.encode(rawActive, forKey: .activeActions)
-        try container.encode(history, forKey: .history)
-    }
-
-    func activeAction(for category: BabyActionCategory) -> BabyAction? {
-        activeActions[category]
-    }
-
-    func lastCompletedAction(for category: BabyActionCategory) -> BabyAction? {
-        history.first(where: { $0.category == category })
-    }
-
-    var mostRecentAction: BabyAction? {
-        if let running = activeActions.values.sorted(by: { $0.startDate > $1.startDate }).first {
-            return running
-        }
-        return history.first
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case activeActions
-        case history
-    }
-}
 
 @MainActor
 final class ActionLogStore: ObservableObject {
-    private let saveURL: URL
+    private let modelContext: ModelContext
     private let reminderScheduler: ReminderScheduling?
     private weak var profileStore: ProfileStore?
-
-    @Published private var storage: ActionStoreState {
-        didSet {
-            persist()
-            scheduleReminders()
-        }
-    }
 
     struct MergeSummary: Equatable {
         var added: Int
@@ -376,94 +15,14 @@ final class ActionLogStore: ObservableObject {
         static let empty = MergeSummary(added: 0, updated: 0)
     }
 
-    func mergeProfileState(_ importedState: ProfileActionState, for profileID: UUID) -> MergeSummary {
-        var summary = MergeSummary.empty
-
-        updateState(for: profileID) { profileState in
-            var existingHistory = Dictionary(uniqueKeysWithValues: profileState.history.map { ($0.id, $0) })
-
-            for action in importedState.history {
-                let sanitized = action.withValidatedDates()
-                if let existing = existingHistory[sanitized.id] {
-                    if existing != sanitized {
-                        existingHistory[sanitized.id] = sanitized
-                        summary.updated += 1
-                    }
-                } else {
-                    existingHistory[sanitized.id] = sanitized
-                    summary.added += 1
-                }
-            }
-
-            profileState.history = Array(existingHistory.values)
-
-            for (category, action) in importedState.activeActions {
-                let sanitized = action.withValidatedDates()
-
-                if let existing = profileState.activeActions[category] {
-                    if existing.id == sanitized.id {
-                        if existing != sanitized {
-                            profileState.activeActions[category] = sanitized
-                            summary.updated += 1
-                        }
-                    } else if sanitized.startDate >= existing.startDate {
-                        profileState.activeActions[category] = sanitized
-                        summary.added += 1
-                    }
-                } else {
-                    profileState.activeActions[category] = sanitized
-                    summary.added += 1
-                }
-            }
-        }
-
-        refreshDurationActivity(for: profileID)
-
-        return summary
-    }
-
-    init(
-        fileManager: FileManager = .default,
-        directory: URL? = nil,
-        filename: String = "babyActions.json",
-        reminderScheduler: ReminderScheduling? = nil
-    ) {
-        self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
+    init(modelContext: ModelContext, reminderScheduler: ReminderScheduling? = nil) {
+        self.modelContext = modelContext
         self.reminderScheduler = reminderScheduler
-
-        if let data = try? Data(contentsOf: saveURL) {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-
-            if let decoded = try? decoder.decode(ActionStoreState.self, from: data) {
-                self.storage = Self.sanitized(state: decoded)
-            } else {
-                self.storage = Self.defaultState()
-            }
-        } else {
-            self.storage = Self.defaultState()
-        }
-
-        persist()
         scheduleReminders()
     }
 
-    fileprivate init(
-        initialState: ActionStoreState,
-        fileManager: FileManager = .default,
-        directory: URL? = nil,
-        filename: String = "babyActions.json",
-        reminderScheduler: ReminderScheduling? = nil
-    ) {
-        self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
-        self.storage = Self.sanitized(state: initialState)
-        self.reminderScheduler = reminderScheduler
-        persist()
-        scheduleReminders()
-    }
-
-    func state(for profileID: UUID) -> ProfileActionState {
-        storage.profiles[profileID] ?? ProfileActionState()
+    private func notifyChange() {
+        objectWillChange.send()
     }
 
     func registerProfileStore(_ store: ProfileStore) {
@@ -472,8 +31,38 @@ final class ActionLogStore: ObservableObject {
         refreshDurationActivityOnLaunch()
     }
 
-    var actionStatesSnapshot: [UUID: ProfileActionState] {
-        storage.profiles
+    func state(for profileID: UUID) -> ProfileActionState {
+        guard let model = existingProfileModel(for: profileID) else {
+            return ProfileActionState()
+        }
+
+        var activeActions: [BabyActionCategory: BabyAction] = [:]
+        var history: [BabyAction] = []
+
+        var seenIDs = Set<UUID>()
+
+        for actionModel in model.actions {
+            let action = actionModel.asBabyAction().withValidatedDates()
+            guard seenIDs.contains(action.id) == false else { continue }
+            seenIDs.insert(action.id)
+            if action.endDate == nil {
+                if action.category.isInstant {
+                    var instant = action
+                    instant.endDate = instant.startDate
+                    history.append(instant)
+                } else {
+                    if let existing = activeActions[action.category], existing.startDate > action.startDate {
+                        continue
+                    }
+                    activeActions[action.category] = action
+                }
+            } else {
+                history.append(action)
+            }
+        }
+
+        history.sort { $0.startDate > $1.startDate }
+        return ProfileActionState(activeActions: activeActions, history: history)
     }
 
     func startAction(for profileID: UUID,
@@ -482,37 +71,11 @@ final class ActionLogStore: ObservableObject {
                      feedingType: BabyAction.FeedingType? = nil,
                      bottleType: BabyAction.BottleType? = nil,
                      bottleVolume: Int? = nil) {
-        updateState(for: profileID) { profileState in
-            let now = Date()
+        notifyChange()
+        var profileState = state(for: profileID)
+        let now = Date()
 
-            if category.isInstant {
-                if var existing = profileState.activeActions.removeValue(forKey: category) {
-                    existing.endDate = now
-                    profileState.history.insert(existing, at: 0)
-                }
-
-                let action = BabyAction(category: category,
-                                        startDate: now,
-                                        endDate: now,
-                                        diaperType: diaperType,
-                                        feedingType: feedingType,
-                                        bottleType: bottleType,
-                                        bottleVolume: bottleVolume)
-                profileState.history.insert(action, at: 0)
-                return
-            }
-
-            let conflictingCategories = profileState.activeActions.keys.filter { key in
-                key != category && !key.isInstant
-            }
-
-            for conflict in conflictingCategories {
-                if var running = profileState.activeActions.removeValue(forKey: conflict) {
-                    running.endDate = now
-                    profileState.history.insert(running, at: 0)
-                }
-            }
-
+        if category.isInstant {
             if var existing = profileState.activeActions.removeValue(forKey: category) {
                 existing.endDate = now
                 profileState.history.insert(existing, at: 0)
@@ -520,183 +83,303 @@ final class ActionLogStore: ObservableObject {
 
             let action = BabyAction(category: category,
                                     startDate: now,
+                                    endDate: now,
                                     diaperType: diaperType,
                                     feedingType: feedingType,
                                     bottleType: bottleType,
                                     bottleVolume: bottleVolume)
-            profileState.activeActions[category] = action
+            profileState.history.insert(action, at: 0)
+            persist(profileState: profileState, for: profileID)
+            refreshDurationActivity(for: profileID)
+            return
         }
 
+        let conflictingCategories = profileState.activeActions.keys.filter { key in
+            key != category && !key.isInstant
+        }
+
+        for conflict in conflictingCategories {
+            if var running = profileState.activeActions.removeValue(forKey: conflict) {
+                running.endDate = now
+                profileState.history.insert(running, at: 0)
+            }
+        }
+
+        if var existing = profileState.activeActions.removeValue(forKey: category) {
+            existing.endDate = now
+            profileState.history.insert(existing, at: 0)
+        }
+
+        var action = BabyAction(category: category,
+                                startDate: now,
+                                endDate: nil,
+                                diaperType: diaperType,
+                                feedingType: feedingType,
+                                bottleType: bottleType,
+                                bottleVolume: bottleVolume)
+        action = Self.clamp(action, avoiding: profileState.history)
+        profileState.activeActions[category] = action
+
+        persist(profileState: profileState, for: profileID)
         refreshDurationActivity(for: profileID)
     }
 
     func stopAction(for profileID: UUID, category: BabyActionCategory) {
-        updateState(for: profileID) { profileState in
-            guard var action = profileState.activeActions.removeValue(forKey: category) else { return }
-            action.endDate = Date()
-            profileState.history.insert(action, at: 0)
-        }
-
+        notifyChange()
+        var profileState = state(for: profileID)
+        guard var running = profileState.activeActions.removeValue(forKey: category) else { return }
+        running.endDate = Date()
+        profileState.history.insert(running, at: 0)
+        persist(profileState: profileState, for: profileID)
         refreshDurationActivity(for: profileID)
     }
 
     func updateAction(for profileID: UUID, action updatedAction: BabyAction) {
-        updateState(for: profileID) { profileState in
-            var normalizedAction = updatedAction.withValidatedDates()
+        notifyChange()
+        var profileState = state(for: profileID)
+        let sanitized = updatedAction.withValidatedDates()
 
-            let relatedHistory = profileState.history.filter {
-                $0.category == normalizedAction.category && $0.id != normalizedAction.id
-            }
-            let relatedActive = profileState.activeActions.values.filter {
-                $0.category == normalizedAction.category && $0.id != normalizedAction.id
-            }
-            let conflictingActions = relatedHistory + relatedActive
-
-            if !conflictingActions.isEmpty {
-                normalizedAction = Self.clamp(normalizedAction, avoiding: conflictingActions)
-            }
-
-            if let index = profileState.history.firstIndex(where: { $0.id == updatedAction.id }) {
-                profileState.history[index] = normalizedAction
-            }
-
-            for (category, action) in profileState.activeActions {
-                guard action.id == updatedAction.id else { continue }
-                profileState.activeActions[category] = normalizedAction
-                break
-            }
+        if let active = profileState.activeActions[sanitized.category], active.id == sanitized.id {
+            profileState.activeActions[sanitized.category] = sanitized
+        } else if let historyIndex = profileState.history.firstIndex(where: { $0.id == sanitized.id }) {
+            profileState.history[historyIndex] = sanitized
         }
 
+        profileState.history.sort { $0.startDate > $1.startDate }
+        persist(profileState: profileState, for: profileID)
         refreshDurationActivity(for: profileID)
     }
 
     func continueAction(for profileID: UUID, actionID: UUID) {
-        updateState(for: profileID) { profileState in
-            guard let index = profileState.history.firstIndex(where: { $0.id == actionID }) else { return }
+        guard canContinueAction(for: profileID, actionID: actionID) else { return }
+        notifyChange()
+        var profileState = state(for: profileID)
+        let now = Date()
 
-            let action = profileState.history[index]
-            guard action.category.isInstant == false else { return }
-            guard profileState.activeActions[action.category] == nil else { return }
-            guard profileState.lastCompletedAction(for: action.category)?.id == actionID else { return }
-
-            profileState.history.remove(at: index)
-
-            var resumedAction = action
-            resumedAction.endDate = nil
-            profileState.activeActions[action.category] = resumedAction
+        if let index = profileState.history.firstIndex(where: { $0.id == actionID }) {
+            let action = profileState.history.remove(at: index)
+            var restarted = BabyAction(category: action.category,
+                                       startDate: now,
+                                       endDate: nil,
+                                       diaperType: action.diaperType,
+                                       feedingType: action.feedingType,
+                                       bottleType: action.bottleType,
+                                       bottleVolume: action.bottleVolume)
+            restarted = Self.clamp(restarted, avoiding: profileState.history)
+            profileState.activeActions[restarted.category] = restarted
+            persist(profileState: profileState, for: profileID)
+            refreshDurationActivity(for: profileID)
         }
-
-        refreshDurationActivity(for: profileID)
     }
 
     func canContinueAction(for profileID: UUID, actionID: UUID) -> Bool {
-        let state = state(for: profileID)
-        guard let action = state.history.first(where: { $0.id == actionID }) else { return false }
-        guard action.category.isInstant == false else { return false }
-        guard action.endDate != nil else { return false }
-        guard state.activeActions[action.category] == nil else { return false }
-        return state.lastCompletedAction(for: action.category)?.id == actionID
+        let profileState = state(for: profileID)
+        guard let action = profileState.history.first(where: { $0.id == actionID }) else { return false }
+        return !profileState.activeActions.keys.contains(action.category)
     }
 
     func deleteAction(for profileID: UUID, actionID: UUID) {
-        updateState(for: profileID) { profileState in
-            profileState.history.removeAll { $0.id == actionID }
-
-            let categoriesToRemove = profileState.activeActions.compactMap { element -> BabyActionCategory? in
-                let (category, action) = element
-                return action.id == actionID ? category : nil
-            }
-
-            for category in categoriesToRemove {
-                profileState.activeActions.removeValue(forKey: category)
-            }
+        notifyChange()
+        var profileState = state(for: profileID)
+        if let category = profileState.activeActions.first(where: { $0.value.id == actionID })?.key {
+            profileState.activeActions.removeValue(forKey: category)
         }
-
+        profileState.history.removeAll(where: { $0.id == actionID })
+        persist(profileState: profileState, for: profileID)
         refreshDurationActivity(for: profileID)
-    }
-
-    private static func clamp(_ action: BabyAction, avoiding conflicts: [BabyAction]) -> BabyAction {
-        guard !conflicts.isEmpty else { return action.withValidatedDates() }
-
-        func effectiveEndDate(for other: BabyAction) -> Date {
-            if let endDate = other.endDate {
-                return endDate
-            }
-
-            if other.category.isInstant {
-                return other.startDate
-            }
-
-            return .distantFuture
-        }
-
-        var adjustedStart = action.startDate
-
-        while true {
-            let lowerBound = conflicts
-                .filter { $0.startDate <= adjustedStart }
-                .map { effectiveEndDate(for: $0) }
-                .max()
-
-            guard let lowerBound, adjustedStart < lowerBound else { break }
-            adjustedStart = lowerBound
-        }
-
-        var adjustedAction = action
-        adjustedAction.startDate = adjustedStart
-
-        if let upperBound = conflicts
-            .filter({ $0.startDate >= adjustedStart })
-            .map({ $0.startDate })
-            .min()
-        {
-            if let currentEnd = adjustedAction.endDate {
-                if currentEnd > upperBound {
-                    adjustedAction.endDate = max(adjustedStart, upperBound)
-                }
-            } else if !adjustedAction.category.isInstant {
-                adjustedAction.endDate = max(adjustedStart, upperBound)
-            }
-        }
-
-        return adjustedAction.withValidatedDates()
     }
 
     func removeProfileData(for profileID: UUID) {
-        var profiles = storage.profiles
-        guard profiles.removeValue(forKey: profileID) != nil else { return }
-        storage = Self.sanitized(state: ActionStoreState(profiles: profiles))
+        notifyChange()
+        guard let model = existingProfileModel(for: profileID) else { return }
+        modelContext.delete(model)
+
+        do {
+            try modelContext.save()
+        } catch {
+            #if DEBUG
+            print("Failed to delete action log: \(error.localizedDescription)")
+            #endif
+        }
 
         refreshDurationActivity(for: profileID)
+        scheduleReminders()
     }
 
-    private func updateState(for profileID: UUID, _ updates: (inout ProfileActionState) -> Void) {
-        var profiles = storage.profiles
-        var profileState = profiles[profileID] ?? ProfileActionState()
-        updates(&profileState)
-        profileState.history.sort { $0.startDate > $1.startDate }
-        var seenIDs = Set<UUID>()
-        profileState.history = profileState.history.filter { action in
-            if seenIDs.contains(action.id) {
-                return false
+    func mergeProfileState(_ importedState: ProfileActionState, for profileID: UUID) -> MergeSummary {
+        notifyChange()
+        var summary = MergeSummary.empty
+        var profileState = state(for: profileID)
+        var existingHistory = Dictionary(uniqueKeysWithValues: profileState.history.map { ($0.id, $0) })
+
+        for action in importedState.history {
+            let sanitized = action.withValidatedDates()
+            if let existing = existingHistory[sanitized.id] {
+                if existing != sanitized {
+                    existingHistory[sanitized.id] = sanitized
+                    summary.updated += 1
+                }
+            } else {
+                existingHistory[sanitized.id] = sanitized
+                summary.added += 1
             }
-            seenIDs.insert(action.id)
-            return true
         }
-        profiles[profileID] = profileState
-        storage = ActionStoreState(profiles: profiles)
+
+        profileState.history = Array(existingHistory.values)
+
+        for (category, action) in importedState.activeActions {
+            let sanitized = action.withValidatedDates()
+            if let existing = profileState.activeActions[category] {
+                if existing.id == sanitized.id {
+                    if existing != sanitized {
+                        profileState.activeActions[category] = sanitized
+                        summary.updated += 1
+                    }
+                } else if sanitized.startDate >= existing.startDate {
+                    profileState.activeActions[category] = sanitized
+                    summary.added += 1
+                }
+            } else {
+                profileState.activeActions[category] = sanitized
+                summary.added += 1
+            }
+        }
+
+        persist(profileState: profileState, for: profileID)
+        refreshDurationActivity(for: profileID)
+        return summary
     }
 
-    private func refreshDurationActivity(for profileID: UUID) {
+    var actionStatesSnapshot: [UUID: ProfileActionState] {
+        let descriptor = FetchDescriptor<ProfileActionStateModel>()
+        let models = (try? modelContext.fetch(descriptor)) ?? []
+        return models.reduce(into: [UUID: ProfileActionState]()) { partialResult, model in
+            let identifier = model.resolvedProfileID
+            partialResult[identifier] = state(for: identifier)
+        }
+    }
+
+    static func previewStore(profiles: [UUID: ProfileActionState]) -> ActionLogStore {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try! ModelContainer(for: ProfileActionStateModel.self, BabyActionModel.self, configurations: configuration)
+        let context = container.mainContext
+
+        for (profileID, state) in profiles {
+            let model = ProfileActionStateModel(profileID: profileID)
+            context.insert(model)
+            let actions = state.activeActions.values + state.history
+            for action in actions {
+                let modelAction = BabyActionModel(id: action.id,
+                                                  category: action.category,
+                                                  startDate: action.startDate,
+                                                  endDate: action.endDate,
+                                                  diaperType: action.diaperType,
+                                                  feedingType: action.feedingType,
+                                                  bottleType: action.bottleType,
+                                                  bottleVolume: action.bottleVolume,
+                                                  profile: model)
+                context.insert(modelAction)
+            }
+        }
+
+        return ActionLogStore(modelContext: context)
+    }
+}
+
+private extension ActionLogStore {
+    func existingProfileModel(for profileID: UUID) -> ProfileActionStateModel? {
+        let predicate = #Predicate<ProfileActionStateModel> { model in
+            model.profileID == profileID
+        }
+        let descriptor = FetchDescriptor(predicate: predicate)
+        guard let model = try? modelContext.fetch(descriptor).first else {
+            return nil
+        }
+
+        if model.profileID == nil {
+            model.profileID = profileID
+            try? modelContext.save()
+        }
+
+        model.ensureActionOwnership()
+
+        return model
+    }
+
+    func profileModel(for profileID: UUID) -> ProfileActionStateModel {
+        if let existing = existingProfileModel(for: profileID) {
+            return existing
+        }
+        let model = ProfileActionStateModel(profileID: profileID)
+        modelContext.insert(model)
+        return model
+    }
+
+    func persist(profileState: ProfileActionState, for profileID: UUID) {
+        let model = profileModel(for: profileID)
+        let existingModels = Dictionary(uniqueKeysWithValues: model.actions.map { ($0.id, $0) })
+        let desiredActions = Array(profileState.activeActions.values) + profileState.history
+        var seenIDs = Set<UUID>()
+
+        for action in desiredActions.map({ $0.withValidatedDates() }) {
+            let modelAction: BabyActionModel
+            if let existing = existingModels[action.id] {
+                modelAction = existing
+            } else {
+                modelAction = BabyActionModel(id: action.id,
+                                              category: action.category,
+                                              startDate: action.startDate,
+                                              endDate: action.endDate,
+                                              diaperType: action.diaperType,
+                                              feedingType: action.feedingType,
+                                              bottleType: action.bottleType,
+                                              bottleVolume: action.bottleVolume,
+                                              profile: model)
+                modelContext.insert(modelAction)
+            }
+
+            modelAction.update(from: action)
+            modelAction.profile = model
+            seenIDs.insert(modelAction.id)
+        }
+
+        for (identifier, modelAction) in existingModels where seenIDs.contains(identifier) == false {
+            modelContext.delete(modelAction)
+        }
+
+        do {
+            try modelContext.save()
+        } catch {
+            #if DEBUG
+            print("Failed to save action log: \(error.localizedDescription)")
+            #endif
+        }
+
+        scheduleReminders()
+    }
+
+    static func clamp(_ action: BabyAction, avoiding conflicts: [BabyAction]) -> BabyAction {
+        var action = action
+        let overlapping = conflicts.filter { other in
+            guard other.category == action.category else { return false }
+            guard let endDate = other.endDate else { return false }
+            return endDate > action.startDate && other.startDate <= action.startDate
+        }
+
+        if let earliestConflict = overlapping.min(by: { $0.startDate < $1.startDate }) {
+            action.startDate = earliestConflict.endDate ?? action.startDate
+        }
+
+        return action
+    }
+
+    func refreshDurationActivity(for profileID: UUID) {
 #if canImport(ActivityKit)
         guard #available(iOS 17.0, *) else { return }
 
         let profile = profileStore?.profiles.first(where: { $0.id == profileID })
         let profileName = profile?.displayName
-        let activeActions = Array(
-            storage.profiles[profileID]?.activeActions.values
-                ?? Dictionary<BabyActionCategory, BabyAction>().values
-        )
+        let activeActions = state(for: profileID).activeActions.values.map { $0 }
         DurationActivityController.shared.update(
             for: profileName,
             actions: activeActions
@@ -704,167 +387,31 @@ final class ActionLogStore: ObservableObject {
 #endif
     }
 
-    private func refreshDurationActivityOnLaunch() {
+    func refreshDurationActivityOnLaunch() {
 #if canImport(ActivityKit)
         guard #available(iOS 17.0, *) else { return }
 
-        if let runningProfileID = storage.profiles.first(where: { _, state in
+        let snapshot = actionStatesSnapshot
+        if let runningProfileID = snapshot.first(where: { _, state in
             state.activeActions.values.contains(where: { $0.endDate == nil && $0.category.isInstant == false })
         })?.key {
             refreshDurationActivity(for: runningProfileID)
             return
         }
 
-        if let fallbackProfileID = profileStore?.activeProfileID ?? storage.profiles.keys.first {
+        if let fallbackProfileID = profileStore?.activeProfileID ?? snapshot.keys.first {
             refreshDurationActivity(for: fallbackProfileID)
         }
 #endif
     }
 
-    private func persist() {
-        let snapshot = storage
-        let url = saveURL
-
-        Task.detached(priority: .background) {
-            do {
-                let encoder = JSONEncoder()
-                encoder.dateEncodingStrategy = .iso8601
-                let data = try encoder.encode(snapshot)
-                try data.write(to: url, options: .atomic)
-            } catch {
-                #if DEBUG
-                print("Failed to persist baby actions: \(error.localizedDescription)")
-                #endif
-            }
-        }
-    }
-
-    private func scheduleReminders() {
+    func scheduleReminders() {
         guard let reminderScheduler else { return }
         let profiles = profileStore?.profiles ?? []
-        let actionStates = storage.profiles
+        let actionStates = actionStatesSnapshot
 
         Task { [profiles, actionStates] in
             await reminderScheduler.refreshReminders(for: profiles, actionStates: actionStates)
         }
-    }
-
-    private static func sanitized(state: ActionStoreState?) -> ActionStoreState {
-        var state = state ?? ActionStoreState(profiles: [:])
-        for (key, var value) in state.profiles {
-            var normalizedActive: [BabyActionCategory: BabyAction] = [:]
-            var endedActions: [BabyAction] = []
-
-            for (category, action) in value.activeActions {
-                let normalized = action.withValidatedDates()
-                if normalized.endDate != nil {
-                    endedActions.append(normalized)
-                } else {
-                    normalizedActive[category] = normalized
-                }
-            }
-
-            value.activeActions = normalizedActive
-            value.history = value.history.map { $0.withValidatedDates() }
-            value.history.append(contentsOf: endedActions)
-            value.history.sort { $0.startDate > $1.startDate }
-
-            var seenIDs = Set<UUID>()
-            value.history = value.history.filter { action in
-                if seenIDs.contains(action.id) {
-                    return false
-                }
-                seenIDs.insert(action.id)
-                return true
-            }
-
-            state.profiles[key] = value
-        }
-        return state
-    }
-
-    private static func defaultState() -> ActionStoreState {
-        ActionStoreState(profiles: [:])
-    }
-
-    private static let appGroupIdentifier = "group.com.prioritybit.babynanny"
-
-    private static func resolveSaveURL(fileManager: FileManager, directory: URL?, filename: String) -> URL {
-        if let directory {
-            return directory.appendingPathComponent(filename)
-        }
-
-        if let containerURL = fileManager.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) {
-            return containerURL.appendingPathComponent(filename)
-        }
-
-        if let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
-            return documentsURL.appendingPathComponent(filename)
-        }
-
-        return fileManager.temporaryDirectory.appendingPathComponent(filename)
-    }
-}
-
-private struct ActionStoreState: Codable {
-    var profiles: [UUID: ProfileActionState]
-}
-
-extension ActionLogStore {
-    static func previewStore(profiles: [UUID: ProfileActionState]) -> ActionLogStore {
-        ActionLogStore(
-            initialState: ActionStoreState(profiles: profiles),
-            directory: FileManager.default.temporaryDirectory,
-            filename: "previewBabyActions-\(UUID().uuidString).json"
-        )
-    }
-}
-
-private final class BabyActionFormatter {
-    static let shared = BabyActionFormatter()
-
-    private let timeFormatter: DateFormatter
-    private let dateTimeFormatter: DateFormatter
-    private let durationFormatter: DateComponentsFormatter
-    private let timeSinceFormatter: DateComponentsFormatter
-
-    private init() {
-        timeFormatter = DateFormatter()
-        timeFormatter.timeStyle = .short
-        timeFormatter.dateStyle = .none
-
-        dateTimeFormatter = DateFormatter()
-        dateTimeFormatter.timeStyle = .short
-        dateTimeFormatter.dateStyle = .short
-
-        durationFormatter = DateComponentsFormatter()
-        durationFormatter.allowedUnits = [.hour, .minute, .second]
-        durationFormatter.unitsStyle = .abbreviated
-        durationFormatter.zeroFormattingBehavior = [.dropLeading, .dropTrailing]
-
-        timeSinceFormatter = DateComponentsFormatter()
-        timeSinceFormatter.allowedUnits = [.day, .hour, .minute]
-        timeSinceFormatter.unitsStyle = .abbreviated
-        timeSinceFormatter.maximumUnitCount = 1
-        timeSinceFormatter.zeroFormattingBehavior = [.dropLeading, .dropTrailing]
-    }
-
-    func format(time: Date) -> String {
-        timeFormatter.string(from: time)
-    }
-
-    func format(dateTime: Date) -> String {
-        dateTimeFormatter.string(from: dateTime)
-    }
-
-    func format(duration: TimeInterval) -> String {
-        durationFormatter.string(from: duration) ?? L10n.Formatter.justNow
-    }
-
-    func format(timeSince interval: TimeInterval) -> String {
-        guard let value = timeSinceFormatter.string(from: interval), !value.isEmpty else {
-            return L10n.Formatter.justNow
-        }
-        return L10n.Formatter.ago(value)
     }
 }
