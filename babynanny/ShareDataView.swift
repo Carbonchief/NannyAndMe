@@ -147,9 +147,6 @@ struct ShareDataView: View {
             NearbyShareBrowserView(controller: nearbyShareController)
         }
         .sheet(item: $airDropShareItem) { item in
-            withAnimation {
-                isPreparingAirDropShare = false
-            }
             AirDropShareSheet(item: item) { outcome in
                 let shareItem = item
                 airDropShareItem = nil
@@ -164,6 +161,11 @@ struct ShareDataView: View {
                         title: L10n.ShareData.Alert.airDropFailureTitle,
                         message: L10n.ShareData.Alert.airDropFailureMessage(error.localizedDescription)
                     )
+                }
+            }
+            .onAppear {
+                withAnimation {
+                    isPreparingAirDropShare = false
                 }
             }
         }
