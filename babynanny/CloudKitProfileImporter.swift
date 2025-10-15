@@ -79,8 +79,7 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
     private static let recoverableErrorCodes: Set<CKError.Code> = [
         .unknownItem,
         .zoneNotFound,
-        .userDeletedZone,
-        .recordZoneNotFound
+        .userDeletedZone
     ]
 
     private func cloudPayload(from record: CKRecord) -> Data? {
