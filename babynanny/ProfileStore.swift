@@ -200,6 +200,12 @@ final class ProfileStore: ObservableObject {
         let fireDate: Date
         let message: String
     }
+
+    struct ProfileMetadataUpdate: Equatable, Sendable {
+        let id: UUID
+        let name: String
+        let imageData: Data?
+    }
     @Published private var state: ProfileState {
         didSet {
             persistState()
@@ -317,6 +323,35 @@ final class ProfileStore: ObservableObject {
         var newState = state
         updates(&newState.profiles[index])
         state = Self.sanitized(state: newState)
+    }
+
+    func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
+        guard updates.isEmpty == false else { return }
+
+        var newState = state
+        var didChange = false
+
+        for update in updates {
+            guard let index = newState.profiles.firstIndex(where: { $0.id == update.id }) else { continue }
+            var profile = newState.profiles[index]
+            let trimmedName = update.name.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if profile.name != trimmedName {
+                profile.name = trimmedName
+                didChange = true
+            }
+
+            if profile.imageData != update.imageData {
+                profile.imageData = update.imageData
+                didChange = true
+            }
+
+            newState.profiles[index] = profile
+        }
+
+        if didChange {
+            state = Self.sanitized(state: newState)
+        }
     }
 
     enum ShareDataError: LocalizedError {

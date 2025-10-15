@@ -1,3 +1,4 @@
+import CoreData
 import Foundation
 import SwiftData
 import SwiftUI
@@ -7,6 +8,8 @@ final class ActionLogStore: ObservableObject {
     private let modelContext: ModelContext
     private let reminderScheduler: ReminderScheduling?
     private weak var profileStore: ProfileStore?
+    private let notificationCenter: NotificationCenter
+    private var contextObservers: [NSObjectProtocol] = []
 
     struct MergeSummary: Equatable {
         var added: Int
@@ -15,10 +18,18 @@ final class ActionLogStore: ObservableObject {
         static let empty = MergeSummary(added: 0, updated: 0)
     }
 
-    init(modelContext: ModelContext, reminderScheduler: ReminderScheduling? = nil) {
+    init(modelContext: ModelContext,
+         reminderScheduler: ReminderScheduling? = nil,
+         notificationCenter: NotificationCenter = .default) {
         self.modelContext = modelContext
         self.reminderScheduler = reminderScheduler
+        self.notificationCenter = notificationCenter
         scheduleReminders()
+        observeModelContextChanges()
+    }
+
+    deinit {
+        stopObservingModelContextChanges()
     }
 
     private func notifyChange() {
@@ -29,6 +40,7 @@ final class ActionLogStore: ObservableObject {
         profileStore = store
         scheduleReminders()
         refreshDurationActivityOnLaunch()
+        synchronizeMetadataFromModelContext()
     }
 
     func synchronizeProfileMetadata(_ profiles: [ChildProfile]) {
@@ -424,6 +436,65 @@ private extension ActionLogStore {
 
         if let fallbackProfileID = profileStore?.activeProfileID ?? snapshot.keys.first {
             refreshDurationActivity(for: fallbackProfileID)
+        }
+#endif
+    }
+
+    private func observeModelContextChanges() {
+        let notifications: [NSNotification.Name] = [
+            .NSManagedObjectContextDidSave,
+            .NSManagedObjectContextObjectsDidChange
+        ]
+
+        for name in notifications {
+            let token = notificationCenter.addObserver(forName: name,
+                                                       object: modelContext,
+                                                       queue: nil) { [weak self] _ in
+                guard let self else { return }
+                Task { @MainActor in
+                    self.handleModelContextChange()
+                }
+            }
+            contextObservers.append(token)
+        }
+    }
+
+    private func stopObservingModelContextChanges() {
+        guard contextObservers.isEmpty == false else { return }
+        for token in contextObservers {
+            notificationCenter.removeObserver(token)
+        }
+        contextObservers.removeAll()
+    }
+
+    private func handleModelContextChange() {
+        objectWillChange.send()
+        synchronizeMetadataFromModelContext()
+        refreshDurationActivityForAllProfiles()
+        scheduleReminders()
+    }
+
+    private func synchronizeMetadataFromModelContext() {
+        guard let profileStore else { return }
+        let descriptor = FetchDescriptor<ProfileActionStateModel>()
+        guard let models = try? modelContext.fetch(descriptor) else { return }
+        let updates = models.map { model in
+            ProfileStore.ProfileMetadataUpdate(
+                id: model.resolvedProfileID,
+                name: model.name ?? "",
+                imageData: model.imageData
+            )
+        }
+        profileStore.applyMetadataUpdates(updates)
+    }
+
+    private func refreshDurationActivityForAllProfiles() {
+#if canImport(ActivityKit)
+        guard #available(iOS 17.0, *) else { return }
+        guard let profileStore else { return }
+        let profileIDs = profileStore.profiles.map { $0.id }
+        for identifier in profileIDs {
+            refreshDurationActivity(for: identifier)
         }
 #endif
     }
