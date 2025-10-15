@@ -196,6 +196,7 @@ final class ProfileStore: ObservableObject {
     private let cloudImporter: ProfileCloudImporting?
     private var initialCloudImportTask: Task<Void, Never>?
     private weak var actionStore: ActionLogStore?
+    private let didLoadProfilesFromDisk: Bool
     struct ActionReminderSummary: Equatable, Sendable {
         let fireDate: Date
         let message: String
@@ -225,8 +226,7 @@ final class ProfileStore: ObservableObject {
         self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
         self.reminderScheduler = reminderScheduler
         self.cloudImporter = cloudImporter
-
-        let hasExistingProfileFile = fileManager.fileExists(atPath: saveURL.path)
+        self.didLoadProfilesFromDisk = fileManager.fileExists(atPath: saveURL.path)
 
         if let data = try? Data(contentsOf: saveURL) {
             let decoder = JSONDecoder()
@@ -244,9 +244,7 @@ final class ProfileStore: ObservableObject {
         persistState()
         scheduleReminders()
 
-        if hasExistingProfileFile == false {
-            scheduleInitialCloudImport()
-        }
+        scheduleInitialCloudImport()
     }
 
     init(
@@ -261,6 +259,7 @@ final class ProfileStore: ObservableObject {
         self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
         self.reminderScheduler = reminderScheduler
         self.cloudImporter = cloudImporter
+        self.didLoadProfilesFromDisk = true
         let state = ProfileState(profiles: initialProfiles, activeProfileID: activeProfileID)
         self.state = Self.sanitized(state: state)
         persistState()
@@ -522,22 +521,76 @@ final class ProfileStore: ObservableObject {
         do {
             guard let snapshot = try await importer.fetchProfileSnapshot() else { return }
 
-            var importedState = ProfileState(
+            let currentState = Self.sanitized(state: state)
+            let importedState = Self.sanitized(state: ProfileState(
                 profiles: snapshot.profiles,
                 activeProfileID: snapshot.activeProfileID,
                 showRecentActivityOnHome: snapshot.showRecentActivityOnHome
-            )
-
-            importedState = Self.sanitized(state: importedState)
+            ))
 
             guard importedState.profiles.isEmpty == false else { return }
 
-            state = importedState
+            let mergedState = merged(localState: currentState, remoteState: importedState)
+
+            guard mergedState != currentState else { return }
+
+            state = mergedState
         } catch {
             #if DEBUG
             print("Failed to import CloudKit profiles: \(error.localizedDescription)")
             #endif
         }
+    }
+
+    private func merged(localState: ProfileState, remoteState: ProfileState) -> ProfileState {
+        if didLoadProfilesFromDisk == false && isBootstrapState(localState) {
+            return Self.sanitized(state: remoteState)
+        }
+
+        let remoteProfilesByID = Dictionary(uniqueKeysWithValues: remoteState.profiles.map { ($0.id, $0) })
+        let localIDs = Set(localState.profiles.map { $0.id })
+
+        var combinedProfiles: [ChildProfile] = localState.profiles.map { profile in
+            if let remoteProfile = remoteProfilesByID[profile.id] {
+                return remoteProfile
+            }
+            return profile
+        }
+
+        for profile in remoteState.profiles where localIDs.contains(profile.id) == false {
+            combinedProfiles.append(profile)
+        }
+
+        var mergedState = ProfileState(
+            profiles: combinedProfiles,
+            activeProfileID: remoteState.activeProfileID ?? localState.activeProfileID,
+            showRecentActivityOnHome: remoteState.showRecentActivityOnHome
+        )
+
+        if let activeID = mergedState.activeProfileID,
+           combinedProfiles.contains(where: { $0.id == activeID }) == false {
+            if let localActiveID = localState.activeProfileID,
+               combinedProfiles.contains(where: { $0.id == localActiveID }) {
+                mergedState.activeProfileID = localActiveID
+            } else {
+                mergedState.activeProfileID = combinedProfiles.first?.id
+            }
+        }
+
+        return Self.sanitized(state: mergedState)
+    }
+
+    private func isBootstrapState(_ state: ProfileState) -> Bool {
+        guard state.profiles.count == 1 else { return false }
+        guard let profile = state.profiles.first else { return false }
+
+        if profile.name.isEmpty == false { return false }
+        if profile.imageData != nil { return false }
+        if profile.remindersEnabled { return false }
+        if profile.actionReminderIntervals != ChildProfile.defaultActionReminderIntervals() { return false }
+        if profile.actionRemindersEnabled != ChildProfile.defaultActionRemindersEnabled() { return false }
+
+        return true
     }
 
     private static func sanitized(state: ProfileState?) -> ProfileState {
