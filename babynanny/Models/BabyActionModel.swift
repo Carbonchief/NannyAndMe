@@ -349,14 +349,20 @@ struct ProfileActionState: Codable {
 final class ProfileActionStateModel {
     var profileID: UUID?
     var name: String?
+    var birthDate: Date?
     @Attribute(.externalStorage)
     var imageData: Data?
     @Relationship(deleteRule: .cascade, inverse: \BabyActionModel.profile)
     fileprivate var actionsStorage: [BabyActionModel]?
 
-    init(profileID: UUID = UUID(), name: String? = nil, imageData: Data? = nil, actions: [BabyActionModel] = []) {
+    init(profileID: UUID = UUID(),
+         name: String? = nil,
+         birthDate: Date? = nil,
+         imageData: Data? = nil,
+         actions: [BabyActionModel] = []) {
         self.profileID = profileID
         self.name = name
+        self.birthDate = birthDate
         self.imageData = imageData
         if actions.isEmpty {
             actionsStorage = nil

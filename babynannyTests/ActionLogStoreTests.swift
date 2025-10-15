@@ -30,12 +30,15 @@ struct ActionLogStoreTests {
         metadataModel.name = "Remote Update"
         let imageData = Data([0xCA, 0xFE])
         metadataModel.imageData = imageData
+        let updatedBirthDate = Date().addingTimeInterval(-2_400)
+        metadataModel.birthDate = updatedBirthDate
         try container.mainContext.save()
 
         try await Task.sleep(nanoseconds: 100_000_000)
 
         let updatedProfile = await profileStore.activeProfile
         #expect(updatedProfile.name == "Remote Update")
+        #expect(updatedProfile.birthDate == updatedBirthDate)
         #expect(updatedProfile.imageData == imageData)
     }
 }
