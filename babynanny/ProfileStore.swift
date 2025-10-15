@@ -204,6 +204,7 @@ final class ProfileStore: ObservableObject {
         didSet {
             persistState()
             scheduleReminders()
+            synchronizeProfileMetadata()
         }
     }
 
@@ -262,6 +263,7 @@ final class ProfileStore: ObservableObject {
     func registerActionStore(_ store: ActionLogStore) {
         actionStore = store
         scheduleReminders()
+        store.synchronizeProfileMetadata(state.profiles)
     }
 
     func setActiveProfile(_ profile: ChildProfile) {
@@ -458,6 +460,10 @@ final class ProfileStore: ObservableObject {
         Task {
             await reminderScheduler.refreshReminders(for: profiles, actionStates: actionStates)
         }
+    }
+
+    private func synchronizeProfileMetadata() {
+        actionStore?.synchronizeProfileMetadata(state.profiles)
     }
 
     private func scheduleInitialCloudImport() {

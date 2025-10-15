@@ -31,6 +31,29 @@ final class ActionLogStore: ObservableObject {
         refreshDurationActivityOnLaunch()
     }
 
+    func synchronizeProfileMetadata(_ profiles: [ChildProfile]) {
+        for profile in profiles {
+            let model = profileModel(for: profile.id)
+            let trimmedName = profile.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            if model.name != trimmedName {
+                model.name = trimmedName
+            }
+            if model.imageData != profile.imageData {
+                model.imageData = profile.imageData
+            }
+        }
+
+        if modelContext.hasChanges {
+            do {
+                try modelContext.save()
+            } catch {
+                #if DEBUG
+                print("Failed to synchronize profile metadata: \(error.localizedDescription)")
+                #endif
+            }
+        }
+    }
+
     func state(for profileID: UUID) -> ProfileActionState {
         guard let model = existingProfileModel(for: profileID) else {
             return ProfileActionState()

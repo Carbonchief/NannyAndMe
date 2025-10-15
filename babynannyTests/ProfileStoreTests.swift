@@ -189,6 +189,50 @@ struct ProfileStoreTests {
         #expect(profiles == [localProfile])
         #expect(await importer.fetchCount == 0)
     }
+
+    @Test
+    func synchronizesProfileMetadataToSwiftData() async throws {
+        let scheduler = MockReminderScheduler(authorizationResult: true)
+        let initialProfile = ChildProfile(name: "Initial", birthDate: Date())
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: [ProfileActionStateModel.self, BabyActionModel.self],
+            configurations: configuration
+        )
+        let actionStore = await ActionLogStore(modelContext: container.mainContext)
+        let store = await ProfileStore(
+            initialProfiles: [initialProfile],
+            activeProfileID: initialProfile.id,
+            reminderScheduler: scheduler
+        )
+
+        await store.registerActionStore(actionStore)
+
+        let imageData = Data([0xBA, 0x0B, 0x00])
+        await store.addProfile(name: "Sky", imageData: imageData)
+
+        let profiles = await store.profiles
+        let addedProfile = try #require(profiles.first(where: { $0.name == "Sky" }))
+
+        let descriptor = FetchDescriptor<ProfileActionStateModel>()
+        let models = try container.mainContext.fetch(descriptor)
+        let metadataModel = try #require(models.first(where: { $0.resolvedProfileID == addedProfile.id }))
+
+        #expect(metadataModel.name == "Sky")
+        #expect(metadataModel.imageData == imageData)
+
+        await store.setActiveProfile(addedProfile)
+        await store.updateActiveProfile { profile in
+            profile.name = "Skylar"
+            profile.imageData = nil
+        }
+
+        let updatedModels = try container.mainContext.fetch(descriptor)
+        let updatedMetadata = try #require(updatedModels.first(where: { $0.resolvedProfileID == addedProfile.id }))
+
+        #expect(updatedMetadata.name == "Skylar")
+        #expect(updatedMetadata.imageData == nil)
+    }
 }
 
 private actor MockReminderScheduler: ReminderScheduling {
