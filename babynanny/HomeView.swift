@@ -929,6 +929,37 @@ struct ActionEditSheet: View {
                     }
                 }
 
+                if canContinueAction {
+                    Section(
+                        footer: Text(L10n.Logs.continueInfo)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    ) {
+                        Button {
+                            continueAction()
+                        } label: {
+                            Label(L10n.Logs.continueAction, systemImage: "play.fill")
+                        }
+                        .postHogLabel("home.edit.continue")
+                        .phCaptureTap(
+                            event: "home_edit_continue_button",
+                            properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
+                        )
+                    }
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        deleteAction()
+                    } label: {
+                        Label(L10n.Logs.deleteAction, systemImage: "trash")
+                    }
+                    .postHogLabel("home.edit.delete")
+                    .phCaptureTap(
+                        event: "home_edit_delete_button",
+                        properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
+                    )
+                }
             }
             .navigationTitle(L10n.Home.editActionTitle)
             .navigationBarTitleDisplayMode(.inline)
@@ -1015,7 +1046,29 @@ struct ActionEditSheet: View {
         return false
     }
 
+    private var canContinueAction: Bool {
+        actionStore.canContinueAction(for: profileStore.activeProfile.id, actionID: action.id)
+    }
+
     private func save() {
+        let updated = makeUpdatedAction(removingEndDate: false)
+        onSave(updated)
+        dismiss()
+    }
+
+    private func continueAction() {
+        let updated = makeUpdatedAction(removingEndDate: true)
+        onSave(updated)
+        actionStore.continueAction(for: profileStore.activeProfile.id, actionID: updated.id)
+        dismiss()
+    }
+
+    private func deleteAction() {
+        actionStore.deleteAction(for: profileStore.activeProfile.id, actionID: action.id)
+        dismiss()
+    }
+
+    private func makeUpdatedAction(removingEndDate: Bool) -> BabyAction {
         var updated = action
         updated.startDate = startDate
 
@@ -1030,10 +1083,13 @@ struct ActionEditSheet: View {
             updated.bottleVolume = feedingSelection.requiresVolume ? resolvedBottleVolume : nil
         }
 
-        updated.endDate = endDate ?? action.endDate
+        if removingEndDate {
+            updated.endDate = nil
+        } else {
+            updated.endDate = endDate ?? action.endDate
+        }
 
-        onSave(updated.withValidatedDates())
-        dismiss()
+        return updated.withValidatedDates()
     }
 }
 private struct ActionDetailSheet: View {

@@ -573,10 +573,11 @@ final class ActionLogStore: ObservableObject {
     func continueAction(for profileID: UUID, actionID: UUID) {
         updateState(for: profileID) { profileState in
             guard let index = profileState.history.firstIndex(where: { $0.id == actionID }) else { return }
-            guard index == 0 else { return }
 
             let action = profileState.history[index]
             guard action.category.isInstant == false else { return }
+            guard profileState.activeActions[action.category] == nil else { return }
+            guard profileState.lastCompletedAction(for: action.category)?.id == actionID else { return }
 
             profileState.history.remove(at: index)
 
@@ -586,6 +587,15 @@ final class ActionLogStore: ObservableObject {
         }
 
         refreshDurationActivity(for: profileID)
+    }
+
+    func canContinueAction(for profileID: UUID, actionID: UUID) -> Bool {
+        let state = state(for: profileID)
+        guard let action = state.history.first(where: { $0.id == actionID }) else { return false }
+        guard action.category.isInstant == false else { return false }
+        guard action.endDate != nil else { return false }
+        guard state.activeActions[action.category] == nil else { return false }
+        return state.lastCompletedAction(for: action.category)?.id == actionID
     }
 
     func deleteAction(for profileID: UUID, actionID: UUID) {
