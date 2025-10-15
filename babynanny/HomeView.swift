@@ -821,145 +821,14 @@ struct ActionEditSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    HStack {
-                        Spacer()
-                        Image(systemName: currentIconName)
-                            .font(.title2)
-                            .foregroundStyle(action.category.accentColor)
-                        Spacer()
-                    }
-                    .padding(.vertical, 4)
-                }
-                .listRowBackground(Color.clear)
-
-                Section(header: Text(L10n.Home.editCategoryLabel)) {
-                    Text(action.category.title)
-                }
-
-                Section(header: Text(L10n.Home.editStartSectionTitle)) {
-                    DatePicker(
-                        L10n.Home.editStartPickerLabel,
-                        selection: $startDate,
-                        in: startDateRange,
-                        displayedComponents: [.date, .hourAndMinute]
-                    )
-                    .postHogLabel("home.edit.startDate")
-                }
-
-                if action.category == .diaper {
-                    Section(header: Text(L10n.Home.diaperTypeSectionTitle)) {
-                        Picker(selection: $diaperSelection) {
-                            ForEach(BabyAction.DiaperType.allCases) { option in
-                                Text(option.title).tag(option)
-                            }
-                        } label: {
-                            Text(L10n.Home.diaperTypePickerLabel)
-                        }
-                        .postHogLabel("home.edit.diaperType")
-                        .pickerStyle(.segmented)
-                    }
-                }
-
-                if action.category == .feeding {
-                    Section(header: Text(L10n.Home.feedingTypeSectionTitle)) {
-                        Picker(selection: $feedingSelection) {
-                            ForEach(BabyAction.FeedingType.allCases) { option in
-                                Text(option.title).tag(option)
-                            }
-                        } label: {
-                            Text(L10n.Home.feedingTypePickerLabel)
-                        }
-                        .postHogLabel("home.edit.feedingType")
-                        .pickerStyle(.segmented)
-                    }
-
-                    if feedingSelection == .bottle {
-                        Section(header: Text(L10n.Home.bottleTypeSectionTitle)) {
-                            Picker(selection: $bottleTypeSelection) {
-                                ForEach(BabyAction.BottleType.allCases) { option in
-                                    Text(option.title).tag(option)
-                                }
-                            } label: {
-                                Text(L10n.Home.bottleTypePickerLabel)
-                            }
-                            .postHogLabel("home.edit.bottleType")
-                            .pickerStyle(.segmented)
-                        }
-                    }
-
-                    if feedingSelection.requiresVolume {
-                        Section(header: Text(L10n.Home.bottleVolumeSectionTitle)) {
-                            Picker(selection: $bottleSelection) {
-                                ForEach(BottleVolumeOption.allOptions) { option in
-                                    Text(option.label).tag(option)
-                                }
-                            } label: {
-                                Text(L10n.Home.bottleVolumePickerLabel)
-                            }
-                            .postHogLabel("home.edit.bottleVolume")
-                            .pickerStyle(.segmented)
-
-                            if bottleSelection == .custom {
-                                TextField(L10n.Home.customVolumeFieldPlaceholder, text: $customBottleVolume)
-                                    .keyboardType(.numberPad)
-                                    .postHogLabel("home.edit.customBottleVolume")
-                            }
-                        }
-                    }
-                }
-
-                if !action.category.isInstant {
-                    if (endDate ?? action.endDate) != nil {
-                        Section(header: Text(L10n.Home.editEndSectionTitle)) {
-                            DatePicker(
-                                L10n.Home.editEndPickerLabel,
-                                selection: endDateBinding,
-                                in: endDateRange,
-                                displayedComponents: [.date, .hourAndMinute]
-                            )
-                            .postHogLabel("home.edit.endDate")
-                        }
-                    } else {
-                        Section(header: Text(L10n.Home.editEndSectionTitle)) {
-                            Text(L10n.Home.editEndNote)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                if canContinueAction {
-                    Section(
-                        footer: Text(L10n.Logs.continueInfo)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    ) {
-                        Button {
-                            continueAction()
-                        } label: {
-                            Label(L10n.Logs.continueAction, systemImage: "play.fill")
-                        }
-                        .postHogLabel("home.edit.continue")
-                        .phCaptureTap(
-                            event: "home_edit_continue_button",
-                            properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
-                        )
-                    }
-                }
-
-                Section {
-                    Button(role: .destructive) {
-                        deleteAction()
-                    } label: {
-                        Label(L10n.Logs.deleteAction, systemImage: "trash")
-                    }
-                    .postHogLabel("home.edit.delete")
-                    .phCaptureTap(
-                        event: "home_edit_delete_button",
-                        properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
-                    )
-                }
+                headerSection
+                categorySection
+                startSection
+                diaperSection
+                feedingSection
+                endSection
+                continueSection
+                deleteSection
             }
             .navigationTitle(L10n.Home.editActionTitle)
             .navigationBarTitleDisplayMode(.inline)
@@ -971,7 +840,7 @@ struct ActionEditSheet: View {
                     .postHogLabel("home.edit.cancel")
                     .phCaptureTap(
                         event: "home_edit_cancel_toolbar",
-                        properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
+                        properties: actionAnalyticsProperties
                     )
                 }
 
@@ -982,7 +851,7 @@ struct ActionEditSheet: View {
                     .postHogLabel("home.edit.save")
                     .phCaptureTap(
                         event: "home_edit_save_toolbar",
-                        properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
+                        properties: actionAnalyticsProperties
                     )
                     .disabled(isSaveDisabled)
                 }
@@ -990,13 +859,189 @@ struct ActionEditSheet: View {
         }
         .phScreen(
             "home_edit_sheet_actionEditSheet",
-            properties: ["category": action.category.rawValue]
+            properties: screenAnalyticsProperties
         )
         .onChange(of: startDate) { _, newValue in
             guard let currentEndDate = endDate else { return }
             if currentEndDate < newValue {
                 endDate = newValue
             }
+        }
+    }
+
+    private var actionAnalyticsProperties: [String: String] {
+        [
+            "action_id": action.id.uuidString,
+            "category": action.category.rawValue
+        ]
+    }
+
+    private var screenAnalyticsProperties: [String: String] {
+        [
+            "category": action.category.rawValue
+        ]
+    }
+
+    @ViewBuilder
+    private var headerSection: some View {
+        Section {
+            HStack {
+                Spacer()
+                Image(systemName: currentIconName)
+                    .font(.title2)
+                    .foregroundStyle(action.category.accentColor)
+                Spacer()
+            }
+            .padding(.vertical, 4)
+        }
+        .listRowBackground(Color.clear)
+    }
+
+    private var categorySection: some View {
+        Section(header: Text(L10n.Home.editCategoryLabel)) {
+            Text(action.category.title)
+        }
+    }
+
+    private var startSection: some View {
+        Section(header: Text(L10n.Home.editStartSectionTitle)) {
+            DatePicker(
+                L10n.Home.editStartPickerLabel,
+                selection: $startDate,
+                in: startDateRange,
+                displayedComponents: [.date, .hourAndMinute]
+            )
+            .postHogLabel("home.edit.startDate")
+        }
+    }
+
+    @ViewBuilder
+    private var diaperSection: some View {
+        if action.category == .diaper {
+            Section(header: Text(L10n.Home.diaperTypeSectionTitle)) {
+                Picker(selection: $diaperSelection) {
+                    ForEach(BabyAction.DiaperType.allCases) { option in
+                        Text(option.title).tag(option)
+                    }
+                } label: {
+                    Text(L10n.Home.diaperTypePickerLabel)
+                }
+                .postHogLabel("home.edit.diaperType")
+                .pickerStyle(.segmented)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var feedingSection: some View {
+        if action.category == .feeding {
+            Section(header: Text(L10n.Home.feedingTypeSectionTitle)) {
+                Picker(selection: $feedingSelection) {
+                    ForEach(BabyAction.FeedingType.allCases) { option in
+                        Text(option.title).tag(option)
+                    }
+                } label: {
+                    Text(L10n.Home.feedingTypePickerLabel)
+                }
+                .postHogLabel("home.edit.feedingType")
+                .pickerStyle(.segmented)
+            }
+
+            if feedingSelection == .bottle {
+                bottleTypeSection
+                bottleVolumeSection
+            }
+        }
+    }
+
+    private var bottleTypeSection: some View {
+        Section(header: Text(L10n.Home.bottleTypeSectionTitle)) {
+            Picker(selection: $bottleTypeSelection) {
+                ForEach(BabyAction.BottleType.allCases) { option in
+                    Text(option.title).tag(option)
+                }
+            } label: {
+                Text(L10n.Home.bottleTypePickerLabel)
+            }
+            .postHogLabel("home.edit.bottleType")
+            .pickerStyle(.segmented)
+        }
+    }
+
+    private var bottleVolumeSection: some View {
+        Section(header: Text(L10n.Home.bottleVolumeSectionTitle)) {
+            Picker(selection: $bottleSelection) {
+                ForEach(BottleVolumeOption.presets) { option in
+                    Text(option.label).tag(option)
+                }
+                Text(BottleVolumeOption.custom.label).tag(BottleVolumeOption.custom)
+            } label: {
+                Text(L10n.Home.bottleVolumePickerLabel)
+            }
+            .postHogLabel("home.edit.bottleVolume")
+            .pickerStyle(.segmented)
+
+            if bottleSelection == .custom {
+                TextField(L10n.Home.customVolumeFieldPlaceholder, text: $customBottleVolume)
+                    .keyboardType(.numberPad)
+                    .postHogLabel("home.edit.customBottleVolume")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var endSection: some View {
+        if !action.category.isInstant {
+            if (endDate ?? action.endDate) != nil {
+                Section(header: Text(L10n.Home.editEndSectionTitle)) {
+                    DatePicker(
+                        L10n.Home.editEndPickerLabel,
+                        selection: endDateBinding,
+                        in: endDateRange,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                    .postHogLabel("home.edit.endDate")
+                }
+            } else {
+                Section(header: Text(L10n.Home.editEndSectionTitle)) {
+                    Text(L10n.Home.editEndNote)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var continueSection: some View {
+        if canContinueAction {
+            Section(
+                footer: Text(L10n.Logs.continueInfo)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            ) {
+                Button(action: continueAction) {
+                    Label(L10n.Logs.continueAction, systemImage: "play.fill")
+                }
+                .postHogLabel("home.edit.continue")
+                .phCaptureTap(
+                    event: "home_edit_continue_button",
+                    properties: actionAnalyticsProperties
+                )
+            }
+        }
+    }
+
+    private var deleteSection: some View {
+        Section {
+            Button(role: .destructive, action: deleteAction) {
+                Label(L10n.Logs.deleteAction, systemImage: "trash")
+            }
+            .postHogLabel("home.edit.delete")
+            .phCaptureTap(
+                event: "home_edit_delete_button",
+                properties: actionAnalyticsProperties
+            )
         }
     }
 
