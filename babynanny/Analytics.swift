@@ -4,7 +4,7 @@ import PostHog
 /// Lightweight PostHog helper for manual analytics instrumentation.
 enum Analytics {
     static func setup() {
-        var config = PostHogConfig(
+        let config = PostHogConfig(
             apiKey: "phc_LnHkvLd42Z0HUUa1DWyq7fGkrDXoXzKO2AuORKfqqwP",
             host: "https://eu.i.posthog.com"
         )
@@ -24,10 +24,7 @@ enum Analytics {
         let distinctId = (trimmed?.isEmpty == false) ? trimmed : nil
         let nsProperties = properties.isEmpty ? nil : properties as NSDictionary
 
-        guard let sdkObject = PostHogSDK.shared as? NSObject else {
-            sendIdentifyFallback(distinctId: distinctId, properties: properties)
-            return
-        }
+        let sdkObject: NSObject = PostHogSDK.shared
 
         if let distinctId = distinctId {
             if let nsProperties, sdkObject.performIfAvailable(selector: "identify:properties:", with: distinctId, and: nsProperties) {
@@ -78,7 +75,8 @@ private extension Analytics {
 
     static func sendIdentifyFallback(distinctId: String?, properties: [String: Any]) {
         guard !properties.isEmpty else {
-            if let distinctId, let sdkObject = PostHogSDK.shared as? NSObject {
+            if let distinctId {
+                let sdkObject: NSObject = PostHogSDK.shared
                 _ = sdkObject.performIfAvailable(selector: "identify:", with: distinctId)
             }
             return
