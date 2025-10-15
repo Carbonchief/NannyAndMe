@@ -36,7 +36,7 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
             resultsLimit: 1
         )
 
-        guard let result = matchResults.values.first else {
+        guard let (_, result) = matchResults.first else {
             return nil
         }
 
