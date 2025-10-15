@@ -446,7 +446,7 @@ enum L10n {
         enum AirDrop {
             static let sectionTitle = String(
                 localized: "shareData.airdrop.title",
-                defaultValue: "AirDrop"
+                defaultValue: "Share"
             )
             static let shareButton = String(
                 localized: "shareData.airdrop.button",

@@ -16,6 +16,7 @@ struct ShareDataView: View {
     @State private var isPresentingNearbyBrowser = false
     @State private var pendingNearbyAlert: ShareDataAlert?
     @State private var airDropShareItem: AirDropShareItem?
+    @State private var isPreparingAirDropShare = false
 
     var body: some View {
         Form {
@@ -32,7 +33,8 @@ struct ShareDataView: View {
                     title: L10n.ShareData.AirDrop.shareButton,
                     systemImage: "airplane.circle",
                     tint: .blue,
-                    action: startAirDropShare
+                    action: startAirDropShare,
+                    isLoading: isPreparingAirDropShare
                 )
                 .postHogLabel("shareData.airDrop")
                 .phCaptureTap(
@@ -41,7 +43,7 @@ struct ShareDataView: View {
                         "profile_id": profileStore.activeProfile.id.uuidString
                     ]
                 )
-                .disabled(nearbyShareController.isBusy)
+                .disabled(nearbyShareController.isBusy || isPreparingAirDropShare)
             } header: {
                 Text(L10n.ShareData.AirDrop.sectionTitle)
             } footer: {
@@ -150,11 +152,20 @@ struct ShareDataView: View {
                 airDropShareItem = nil
                 shareItem.cleanup()
 
+                withAnimation {
+                    isPreparingAirDropShare = false
+                }
+
                 if case let .failed(error) = outcome {
                     alert = ShareDataAlert(
                         title: L10n.ShareData.Alert.airDropFailureTitle,
                         message: L10n.ShareData.Alert.airDropFailureMessage(error.localizedDescription)
                     )
+                }
+            }
+            .onAppear {
+                withAnimation {
+                    isPreparingAirDropShare = false
                 }
             }
         }
@@ -244,6 +255,12 @@ struct ShareDataView: View {
     }
 
     private func startAirDropShare() {
+        guard !isPreparingAirDropShare else { return }
+
+        withAnimation {
+            isPreparingAirDropShare = true
+        }
+
         do {
             airDropShareItem?.cleanup()
             airDropShareItem = nil
@@ -259,6 +276,9 @@ struct ShareDataView: View {
             try data.write(to: destinationURL, options: .atomic)
             airDropShareItem = AirDropShareItem(url: destinationURL)
         } catch {
+            withAnimation {
+                isPreparingAirDropShare = false
+            }
             alert = ShareDataAlert(
                 title: L10n.ShareData.Alert.airDropFailureTitle,
                 message: L10n.ShareData.Alert.airDropFailureMessage(error.localizedDescription)
@@ -486,17 +506,28 @@ private struct ShareDataActionButton: View {
     let systemImage: String
     let tint: Color
     let action: () -> Void
+    var isLoading: Bool = false
 
     var body: some View {
         Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 12) {
+                Label(title, systemImage: systemImage)
+                    .font(.headline)
+
+                if isLoading {
+                    Spacer()
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .tint(.white)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.borderedProminent)
         .tint(tint)
         .controlSize(.large)
         .labelStyle(.titleAndIcon)
+        .animation(.default, value: isLoading)
     }
 }
 
