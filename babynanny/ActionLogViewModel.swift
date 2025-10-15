@@ -21,6 +21,10 @@ final class ActionLogStore: ObservableObject {
         scheduleReminders()
     }
 
+    private func notifyChange() {
+        objectWillChange.send()
+    }
+
     func registerProfileStore(_ store: ProfileStore) {
         profileStore = store
         scheduleReminders()
@@ -67,6 +71,7 @@ final class ActionLogStore: ObservableObject {
                      feedingType: BabyAction.FeedingType? = nil,
                      bottleType: BabyAction.BottleType? = nil,
                      bottleVolume: Int? = nil) {
+        notifyChange()
         var profileState = state(for: profileID)
         let now = Date()
 
@@ -120,6 +125,7 @@ final class ActionLogStore: ObservableObject {
     }
 
     func stopAction(for profileID: UUID, category: BabyActionCategory) {
+        notifyChange()
         var profileState = state(for: profileID)
         guard var running = profileState.activeActions.removeValue(forKey: category) else { return }
         running.endDate = Date()
@@ -129,6 +135,7 @@ final class ActionLogStore: ObservableObject {
     }
 
     func updateAction(for profileID: UUID, action updatedAction: BabyAction) {
+        notifyChange()
         var profileState = state(for: profileID)
         let sanitized = updatedAction.withValidatedDates()
 
@@ -145,6 +152,7 @@ final class ActionLogStore: ObservableObject {
 
     func continueAction(for profileID: UUID, actionID: UUID) {
         guard canContinueAction(for: profileID, actionID: actionID) else { return }
+        notifyChange()
         var profileState = state(for: profileID)
         let now = Date()
 
@@ -171,6 +179,7 @@ final class ActionLogStore: ObservableObject {
     }
 
     func deleteAction(for profileID: UUID, actionID: UUID) {
+        notifyChange()
         var profileState = state(for: profileID)
         if let category = profileState.activeActions.first(where: { $0.value.id == actionID })?.key {
             profileState.activeActions.removeValue(forKey: category)
@@ -181,6 +190,7 @@ final class ActionLogStore: ObservableObject {
     }
 
     func removeProfileData(for profileID: UUID) {
+        notifyChange()
         guard let model = existingProfileModel(for: profileID) else { return }
         modelContext.delete(model)
 
@@ -197,6 +207,7 @@ final class ActionLogStore: ObservableObject {
     }
 
     func mergeProfileState(_ importedState: ProfileActionState, for profileID: UUID) -> MergeSummary {
+        notifyChange()
         var summary = MergeSummary.empty
         var profileState = state(for: profileID)
         var existingHistory = Dictionary(uniqueKeysWithValues: profileState.history.map { ($0.id, $0) })
