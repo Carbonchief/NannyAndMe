@@ -944,14 +944,11 @@ struct ActionEditSheet: View {
                         Button {
                             continueAction()
                         } label: {
-                            HStack(spacing: 12) {
-                                Label(L10n.Logs.continueAction, systemImage: "play.circle.fill")
-                                    .labelStyle(.titleAndIcon)
-
-                                Spacer(minLength: 0)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
+                            FormActionRowLabel(
+                                title: L10n.Logs.continueAction,
+                                systemImage: "play.circle.fill",
+                                role: nil
+                            )
                         }
                         .postHogLabel("home.edit.continue")
                         .phCaptureTap(
@@ -969,7 +966,11 @@ struct ActionEditSheet: View {
                     Button(role: .destructive) {
                         showDeleteConfirmation = true
                     } label: {
-                        Label(L10n.Logs.deleteAction, systemImage: "trash")
+                        FormActionRowLabel(
+                            title: L10n.Logs.deleteAction,
+                            systemImage: "trash",
+                            role: .destructive
+                        )
                     }
                     .postHogLabel("home.edit.delete")
                     .phCaptureTap(
@@ -1115,6 +1116,36 @@ struct ActionEditSheet: View {
         guard let profileID = profileStore.activeProfileID else { return }
         actionStore.continueAction(for: profileID, actionID: action.id)
         dismiss()
+    }
+}
+
+private struct FormActionRowLabel: View {
+    let title: String
+    let systemImage: String
+    let role: ButtonRole?
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .imageScale(.medium)
+                .font(.body)
+
+            Text(title)
+                .font(.body)
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 10)
+        .foregroundStyle(foregroundStyle)
+        .contentShape(Rectangle())
+    }
+
+    private var foregroundStyle: some ShapeStyle {
+        if role == .destructive {
+            return Color.red
+        }
+        return Color.accentColor
     }
 }
 
