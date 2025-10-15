@@ -539,37 +539,30 @@ private struct HistoryRow: View {
                         Text(action.title)
                             .font(.subheadline)
                             .fontWeight(.semibold)
+                            .lineLimit(1)
 
-                        Grid(alignment: .leading, horizontalSpacing: 6, verticalSpacing: 2) {
-                            GridRow(alignment: .firstTextBaseline) {
-                                Text("\(L10n.Home.historyStartedLabel):")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                        TimelineView(.periodic(from: .now, by: 60)) { context in
+                            let timeInformation = timeAgoDescription(asOf: context.date)
+                            let durationText = durationDescription(asOf: context.date)
 
-                                Text(action.startDateTimeDescription())
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(timeInformation.display)
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
-                                    .minimumScaleFactor(0.85)
-                                    .multilineTextAlignment(.leading)
                                     .monospacedDigit()
-                            }
 
-                            if let stoppedDescription = action.endDateTimeDescription() {
-                                GridRow(alignment: .firstTextBaseline) {
-                                    Text("\(L10n.Home.historyStoppedLabel):")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-
-                                    Text(stoppedDescription)
+                                if let durationText {
+                                    Text(durationText)
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                         .lineLimit(1)
-                                        .minimumScaleFactor(0.85)
-                                        .multilineTextAlignment(.leading)
                                         .monospacedDigit()
                                 }
                             }
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(accessibilityLabel(timeInformation: timeInformation,
+                                                                   durationText: durationText))
                         }
                     }
 
@@ -581,13 +574,8 @@ private struct HistoryRow: View {
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.trailing)
-                        }
-
-                        if !action.category.isInstant {
-                            Text(L10n.Home.historyDuration(action.durationDescription()))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.trailing)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
                         }
                     }
                     .frame(maxHeight: .infinity, alignment: .center)
@@ -627,12 +615,49 @@ private struct HistoryRow: View {
 }
 
 private extension HistoryRow {
+    struct TimeInformation {
+        let display: String
+        let accessibility: String
+    }
+
     func detailDescription(for action: BabyAction) -> String? {
         if action.category == .sleep {
             return nil
         }
 
         return action.detailDescription
+    }
+
+    func timeAgoDescription(asOf referenceDate: Date) -> TimeInformation {
+        let eventDate = action.endDate ?? action.startDate
+        let interval = referenceDate.timeIntervalSince(eventDate)
+
+        if abs(interval) < 1 {
+            let value = L10n.Formatter.justNow
+            return TimeInformation(display: value, accessibility: value)
+        }
+
+        let displayFormatter = RelativeDateTimeFormatter()
+        displayFormatter.unitsStyle = .named
+        displayFormatter.dateTimeStyle = .named
+        let display = displayFormatter.localizedString(for: eventDate, relativeTo: referenceDate)
+
+        let accessibilityFormatter = RelativeDateTimeFormatter()
+        accessibilityFormatter.unitsStyle = .full
+        accessibilityFormatter.dateTimeStyle = .named
+        let accessibility = accessibilityFormatter.localizedString(for: eventDate, relativeTo: referenceDate)
+
+        return TimeInformation(display: display, accessibility: accessibility)
+    }
+
+    func durationDescription(asOf referenceDate: Date) -> String? {
+        guard !action.category.isInstant else { return nil }
+        return L10n.Home.historyDuration(action.durationDescription(asOf: referenceDate))
+    }
+
+    func accessibilityLabel(timeInformation: TimeInformation, durationText: String?) -> String {
+        guard let durationText else { return timeInformation.accessibility }
+        return "\(timeInformation.accessibility), \(durationText)"
     }
 }
 
