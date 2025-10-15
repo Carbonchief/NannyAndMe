@@ -169,7 +169,7 @@ struct AddProfilePromptView: View {
             .contentShape(Rectangle())
             .postHogLabel("\(analyticsSource).profilePhotoPicker")
             .accessibilityLabel(L10n.Profiles.choosePhoto)
-            .onChange(of: selectedPhoto) { newValue in
+            .onChange(of: selectedPhoto) { _, newValue in
                 handlePhotoSelectionChange(newValue)
             }
 

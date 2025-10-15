@@ -63,16 +63,16 @@ struct SettingsView: View {
         .onAppear {
             refreshActionReminderSummaries()
         }
-        .onChange(of: profileStore.activeProfileID) {
+        .onChange(of: profileStore.activeProfileID) { _, _ in
             refreshActionReminderSummaries()
         }
-        .onChange(of: profileStore.activeProfile.remindersEnabled) {
+        .onChange(of: profileStore.activeProfile.remindersEnabled) { _, _ in
             refreshActionReminderSummaries()
         }
-        .onChange(of: profileStore.activeProfile.birthDate) {
+        .onChange(of: profileStore.activeProfile.birthDate) { _, _ in
             refreshActionReminderSummaries()
         }
-        .onChange(of: profileStore.activeProfile.name) {
+        .onChange(of: profileStore.activeProfile.name) { _, _ in
             refreshActionReminderSummaries()
         }
         .onDisappear {
@@ -252,7 +252,7 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .contentShape(Rectangle())
             .accessibilityLabel(L10n.Profiles.choosePhoto)
-            .onChange(of: selectedPhoto) { newValue in
+            .onChange(of: selectedPhoto) { _, newValue in
                 handlePhotoSelectionChange(newValue)
             }
 
@@ -308,7 +308,7 @@ struct SettingsView: View {
                 Text(L10n.Settings.showRecentActivity)
             }
             .postHogLabel("settings.home.showRecentActivity")
-            .onChange(of: profileStore.showRecentActivityOnHome) { newValue in
+            .onChange(of: profileStore.showRecentActivityOnHome) { _, newValue in
                 Analytics.capture(
                     "settings_toggle_recent_activity_home",
                     properties: ["is_on": newValue ? "true" : "false"]
@@ -330,7 +330,7 @@ struct SettingsView: View {
         }
         .postHogLabel("settings.reminders.enable")
         .disabled(isUpdatingReminders)
-        .onChange(of: profileStore.activeProfile.remindersEnabled) { newValue in
+        .onChange(of: profileStore.activeProfile.remindersEnabled) { _, newValue in
             Analytics.capture(
                 "settings_toggle_global_reminders",
                 properties: [

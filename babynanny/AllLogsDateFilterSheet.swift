@@ -117,7 +117,7 @@ struct AllLogsDateFilterSheet: View {
                     )
                 }
             }
-            .onChange(of: startDateSelection) { newValue in
+            .onChange(of: startDateSelection) { _, newValue in
                 if useEndDate, endDateSelection < newValue {
                     endDateSelection = newValue
                 }
@@ -126,7 +126,7 @@ struct AllLogsDateFilterSheet: View {
                     properties: ["use_start": useStartDate ? "true" : "false"]
                 )
             }
-            .onChange(of: useStartDate) { newValue in
+            .onChange(of: useStartDate) { _, newValue in
                 Analytics.capture(
                     "logs_filter_toggle_start_date",
                     properties: ["is_on": newValue ? "true" : "false"]
@@ -135,7 +135,7 @@ struct AllLogsDateFilterSheet: View {
                     endDateSelection = startDateSelection
                 }
             }
-            .onChange(of: useEndDate) { newValue in
+            .onChange(of: useEndDate) { _, newValue in
                 Analytics.capture(
                     "logs_filter_toggle_end_date",
                     properties: ["is_on": newValue ? "true" : "false"]
@@ -144,7 +144,7 @@ struct AllLogsDateFilterSheet: View {
                     endDateSelection = startDateSelection
                 }
             }
-            .onChange(of: selectedCategory) { newValue in
+            .onChange(of: selectedCategory) { _, newValue in
                 Analytics.capture(
                     "logs_filter_select_category",
                     properties: ["category": newValue?.rawValue ?? "all"]
