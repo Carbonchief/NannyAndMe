@@ -132,7 +132,7 @@ final class ActionLogStore: ObservableObject {
         var profileState = state(for: profileID)
         let sanitized = updatedAction.withValidatedDates()
 
-        if var active = profileState.activeActions[sanitized.category], active.id == sanitized.id {
+        if let active = profileState.activeActions[sanitized.category], active.id == sanitized.id {
             profileState.activeActions[sanitized.category] = sanitized
         } else if let historyIndex = profileState.history.firstIndex(where: { $0.id == sanitized.id }) {
             profileState.history[historyIndex] = sanitized
@@ -178,6 +178,22 @@ final class ActionLogStore: ObservableObject {
         profileState.history.removeAll(where: { $0.id == actionID })
         persist(profileState: profileState, for: profileID)
         refreshDurationActivity(for: profileID)
+    }
+
+    func removeProfileData(for profileID: UUID) {
+        guard let model = existingProfileModel(for: profileID) else { return }
+        modelContext.delete(model)
+
+        do {
+            try modelContext.save()
+        } catch {
+            #if DEBUG
+            print("Failed to delete action log: \(error.localizedDescription)")
+            #endif
+        }
+
+        refreshDurationActivity(for: profileID)
+        scheduleReminders()
     }
 
     func mergeProfileState(_ importedState: ProfileActionState, for profileID: UUID) -> MergeSummary {
@@ -278,7 +294,7 @@ private extension ActionLogStore {
 
     func persist(profileState: ProfileActionState, for profileID: UUID) {
         let model = profileModel(for: profileID)
-        var existingModels = Dictionary(uniqueKeysWithValues: model.actions.map { ($0.id, $0) })
+        let existingModels = Dictionary(uniqueKeysWithValues: model.actions.map { ($0.id, $0) })
         let desiredActions = Array(profileState.activeActions.values) + profileState.history
         var seenIDs = Set<UUID>()
 
