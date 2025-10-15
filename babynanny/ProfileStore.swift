@@ -193,6 +193,8 @@ final class ProfileStore: ObservableObject {
 
     private let saveURL: URL
     private let reminderScheduler: ReminderScheduling
+    private let cloudImporter: ProfileCloudImporting?
+    private var initialCloudImportTask: Task<Void, Never>?
     private weak var actionStore: ActionLogStore?
     struct ActionReminderSummary: Equatable, Sendable {
         let fireDate: Date
@@ -209,10 +211,14 @@ final class ProfileStore: ObservableObject {
         fileManager: FileManager = .default,
         directory: URL? = nil,
         filename: String = "childProfiles.json",
-        reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler()
+        reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler(),
+        cloudImporter: ProfileCloudImporting? = CloudKitProfileImporter()
     ) {
         self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
         self.reminderScheduler = reminderScheduler
+        self.cloudImporter = cloudImporter
+
+        let hasExistingProfileFile = fileManager.fileExists(atPath: saveURL.path)
 
         if let data = try? Data(contentsOf: saveURL) {
             let decoder = JSONDecoder()
@@ -229,6 +235,10 @@ final class ProfileStore: ObservableObject {
 
         persistState()
         scheduleReminders()
+
+        if hasExistingProfileFile == false {
+            scheduleInitialCloudImport()
+        }
     }
 
     init(
@@ -237,10 +247,12 @@ final class ProfileStore: ObservableObject {
         fileManager: FileManager = .default,
         directory: URL? = nil,
         filename: String = "childProfiles.json",
-        reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler()
+        reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler(),
+        cloudImporter: ProfileCloudImporting? = nil
     ) {
         self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
         self.reminderScheduler = reminderScheduler
+        self.cloudImporter = cloudImporter
         let state = ProfileState(profiles: initialProfiles, activeProfileID: activeProfileID)
         self.state = Self.sanitized(state: state)
         persistState()
@@ -445,6 +457,39 @@ final class ProfileStore: ObservableObject {
         let actionStates = actionStore?.actionStatesSnapshot ?? [:]
         Task {
             await reminderScheduler.refreshReminders(for: profiles, actionStates: actionStates)
+        }
+    }
+
+    private func scheduleInitialCloudImport() {
+        guard initialCloudImportTask == nil else { return }
+        guard let cloudImporter else { return }
+
+        initialCloudImportTask = Task { [weak self] in
+            guard let self else { return }
+            await self.performInitialCloudImport(using: cloudImporter)
+        }
+    }
+
+    private func performInitialCloudImport(using importer: ProfileCloudImporting) async {
+        defer { initialCloudImportTask = nil }
+        do {
+            guard let snapshot = try await importer.fetchProfileSnapshot() else { return }
+
+            var importedState = ProfileState(
+                profiles: snapshot.profiles,
+                activeProfileID: snapshot.activeProfileID,
+                showRecentActivityOnHome: snapshot.showRecentActivityOnHome
+            )
+
+            importedState = Self.sanitized(state: importedState)
+
+            guard importedState.profiles.isEmpty == false else { return }
+
+            state = importedState
+        } catch {
+            #if DEBUG
+            print("Failed to import CloudKit profiles: \(error.localizedDescription)")
+            #endif
         }
     }
 
