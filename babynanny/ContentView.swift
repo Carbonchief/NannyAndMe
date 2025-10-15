@@ -28,6 +28,46 @@ struct ContentView: View {
                         onShowAllLogs: { showAllLogs = true }
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .postHogLabel("tab.swipeContent")
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 30, coordinateSpace: .local)
+                            .onEnded { value in
+                                let horizontal = value.translation.width
+                                let vertical = value.translation.height
+
+                                guard abs(horizontal) > abs(vertical), abs(horizontal) > 40 else { return }
+
+                                if horizontal < 0, let nextTab = selectedTab.next {
+                                    Analytics.capture(
+                                        "navigation_swipe_tab_content",
+                                        properties: [
+                                            "direction": "left",
+                                            "target_tab": nextTab.analyticsIdentifier,
+                                            "previous_tab": selectedTab.analyticsIdentifier
+                                        ]
+                                    )
+                                    let oldValue = selectedTab
+                                    previousTab = oldValue
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        selectedTab = nextTab
+                                    }
+                                } else if horizontal > 0, let previous = selectedTab.previous {
+                                    Analytics.capture(
+                                        "navigation_swipe_tab_content",
+                                        properties: [
+                                            "direction": "right",
+                                            "target_tab": previous.analyticsIdentifier,
+                                            "previous_tab": selectedTab.analyticsIdentifier
+                                        ]
+                                    )
+                                    let oldValue = selectedTab
+                                    previousTab = oldValue
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        selectedTab = previous
+                                    }
+                                }
+                            }
+                    )
 
                     Divider()
 
@@ -279,6 +319,20 @@ private enum Tab: Hashable, CaseIterable {
         case .stats:
             return "stats"
         }
+    }
+
+    var next: Tab? {
+        guard let index = Self.allCases.firstIndex(of: self), index < Self.allCases.count - 1 else {
+            return nil
+        }
+        return Self.allCases[index + 1]
+    }
+
+    var previous: Tab? {
+        guard let index = Self.allCases.firstIndex(of: self), index > 0 else {
+            return nil
+        }
+        return Self.allCases[index - 1]
     }
 }
 
