@@ -54,14 +54,10 @@ struct babynannyApp: App {
 
 private extension babynannyApp {
     static func makeModelConfiguration() -> ModelConfiguration {
-        if let configuration = ModelConfiguration(
+        ModelConfiguration(
             groupContainer: .identifier("group.com.prioritybit.babynanny"),
             cloudKitDatabase: .none
-        ) {
-            return configuration
-        }
-
-        return ModelConfiguration()
+        )
     }
 
     func shouldHandle(url: URL) -> Bool {
