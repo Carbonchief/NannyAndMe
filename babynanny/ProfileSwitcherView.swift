@@ -33,6 +33,8 @@ struct ProfileSwitcherView: View {
                                         .foregroundStyle(Color.accentColor)
                                 }
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .postHogLabel("profile.select.\(profile.id.uuidString)")
