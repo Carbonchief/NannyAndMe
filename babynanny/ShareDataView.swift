@@ -29,26 +29,6 @@ struct ShareDataView: View {
 
             Section {
                 ShareDataActionButton(
-                    title: L10n.ShareData.exportButton,
-                    systemImage: "square.and.arrow.up",
-                    tint: .accentColor,
-                    action: startExport
-                )
-                .postHogLabel("shareData.export")
-                .phCaptureTap(
-                    event: "shareData_export_button",
-                    properties: ["profile_id": profileStore.activeProfile.id.uuidString]
-                )
-            } header: {
-                Text(L10n.ShareData.exportSectionTitle)
-            } footer: {
-                Text(L10n.ShareData.exportFooter)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section {
-                ShareDataActionButton(
                     title: L10n.ShareData.AirDrop.shareButton,
                     systemImage: "airplane.circle",
                     tint: .blue,
@@ -66,6 +46,26 @@ struct ShareDataView: View {
                 Text(L10n.ShareData.AirDrop.sectionTitle)
             } footer: {
                 Text(L10n.ShareData.AirDrop.footer)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                ShareDataActionButton(
+                    title: L10n.ShareData.exportButton,
+                    systemImage: "square.and.arrow.up",
+                    tint: .accentColor,
+                    action: startExport
+                )
+                .postHogLabel("shareData.export")
+                .phCaptureTap(
+                    event: "shareData_export_button",
+                    properties: ["profile_id": profileStore.activeProfile.id.uuidString]
+                )
+            } header: {
+                Text(L10n.ShareData.exportSectionTitle)
+            } footer: {
+                Text(L10n.ShareData.exportFooter)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

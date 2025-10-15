@@ -119,7 +119,7 @@
 "shareData.import.summary" = "%lld new entries added • %lld updated";
 "shareData.import.profileUpdated" = "Profile settings were updated from the import.";
 "shareData.airdrop.title" = "AirDrop";
-"shareData.airdrop.button" = "Share with AirDrop";
+"shareData.airdrop.button" = "Share Data";
 "shareData.airdrop.footer" = "Send the exported file to another device over AirDrop.";
 "shareData.nearby.title" = "Nearby Share";
 "shareData.nearby.button" = "Share to Nearby Device";
