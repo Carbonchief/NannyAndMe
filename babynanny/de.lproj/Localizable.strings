@@ -118,7 +118,7 @@
 "shareData.import.footer" = "Wähle eine zuvor exportierte Datei, um Aktualisierungen in dieses Profil zu übernehmen.";
 "shareData.import.summary" = "%lld neue Einträge hinzugefügt • %lld aktualisiert";
 "shareData.import.profileUpdated" = "Profileinstellungen wurden durch den Import aktualisiert.";
-"shareData.airdrop.title" = "AirDrop";
+"shareData.airdrop.title" = "Teilen";
 "shareData.airdrop.button" = "Daten teilen";
 "shareData.airdrop.footer" = "Sende die exportierte Datei per AirDrop an ein anderes Gerät.";
 "shareData.nearby.title" = "In der Nähe teilen";
