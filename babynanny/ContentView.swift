@@ -155,6 +155,35 @@ struct ContentView: View {
                     .environmentObject(profileStore)
             }
 
+            if isMenuVisible == false {
+                Color.clear
+                    .frame(width: 24)
+                    .contentShape(Rectangle())
+                    .ignoresSafeArea(edges: .vertical)
+                    .postHogLabel("sideMenu.edgeSwipe")
+                    .highPriorityGesture(
+                        DragGesture(minimumDistance: 20, coordinateSpace: .local)
+                            .onEnded { value in
+                                let horizontal = value.translation.width
+                                let vertical = value.translation.height
+
+                                guard horizontal > 40, abs(horizontal) > abs(vertical) else { return }
+
+                                Analytics.capture(
+                                    "navigation_open_menu_edgeSwipe",
+                                    properties: [
+                                        "source": "edge_swipe"
+                                    ]
+                                )
+
+                                withAnimation(.easeInOut) {
+                                    isMenuVisible = true
+                                }
+                            }
+                    )
+                    .zIndex(3)
+            }
+
             if isMenuVisible {
                 Color.black.opacity(0.25)
                     .ignoresSafeArea()
