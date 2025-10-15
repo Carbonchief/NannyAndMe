@@ -57,6 +57,9 @@ final class ActionLogStore: ObservableObject {
             if model.name != trimmedName {
                 model.name = trimmedName
             }
+            if model.birthDate != profile.birthDate {
+                model.birthDate = profile.birthDate
+            }
             if model.imageData != profile.imageData {
                 model.imageData = profile.imageData
             }
@@ -481,6 +484,7 @@ private extension ActionLogStore {
             ProfileStore.ProfileMetadataUpdate(
                 id: model.resolvedProfileID,
                 name: model.name ?? "",
+                birthDate: model.birthDate,
                 imageData: model.imageData
             )
         }

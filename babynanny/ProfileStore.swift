@@ -204,6 +204,7 @@ final class ProfileStore: ObservableObject {
     struct ProfileMetadataUpdate: Equatable, Sendable {
         let id: UUID
         let name: String
+        let birthDate: Date?
         let imageData: Data?
     }
     @Published private var state: ProfileState {
@@ -343,6 +344,11 @@ final class ProfileStore: ObservableObject {
 
             if profile.imageData != update.imageData {
                 profile.imageData = update.imageData
+                didChange = true
+            }
+
+            if let birthDate = update.birthDate, profile.birthDate != birthDate {
+                profile.birthDate = birthDate
                 didChange = true
             }
 

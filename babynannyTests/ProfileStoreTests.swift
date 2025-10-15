@@ -219,6 +219,7 @@ struct ProfileStoreTests {
         let metadataModel = try #require(models.first(where: { $0.resolvedProfileID == addedProfile.id }))
 
         #expect(metadataModel.name == "Sky")
+        #expect(metadataModel.birthDate == addedProfile.birthDate)
         #expect(metadataModel.imageData == imageData)
 
         await store.setActiveProfile(addedProfile)
@@ -231,6 +232,7 @@ struct ProfileStoreTests {
         let updatedMetadata = try #require(updatedModels.first(where: { $0.resolvedProfileID == addedProfile.id }))
 
         #expect(updatedMetadata.name == "Skylar")
+        #expect(updatedMetadata.birthDate == addedProfile.birthDate)
         #expect(updatedMetadata.imageData == nil)
     }
 }
