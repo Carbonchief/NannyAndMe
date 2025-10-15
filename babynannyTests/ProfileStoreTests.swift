@@ -116,6 +116,123 @@ struct ProfileStoreTests {
         #expect(removedState.history.isEmpty)
         #expect(removedState.activeActions.isEmpty)
     }
+
+    @Test
+    func importsProfilesFromCloudOnFirstLaunch() async throws {
+        let scheduler = MockReminderScheduler(authorizationResult: true)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let profile = ChildProfile(name: "Cloud", birthDate: Date().addingTimeInterval(-10_000))
+        let snapshot = CloudProfileSnapshot(
+            profiles: [profile],
+            activeProfileID: profile.id,
+            showRecentActivityOnHome: false
+        )
+        let importer = MockCloudImporter(result: .success(snapshot))
+
+        let store = await ProfileStore(
+            fileManager: .default,
+            directory: directory,
+            filename: "profiles.json",
+            reminderScheduler: scheduler,
+            cloudImporter: importer
+        )
+
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        let importedProfiles = await store.profiles
+        #expect(importedProfiles == [profile])
+        #expect(await store.activeProfileID == profile.id)
+        #expect(await store.showRecentActivityOnHome == false)
+        #expect(await importer.fetchCount == 1)
+    }
+
+    @Test
+    func doesNotOverrideExistingProfilesWithCloudImport() async throws {
+        let scheduler = MockReminderScheduler(authorizationResult: true)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let localProfile = ChildProfile(name: "Local", birthDate: Date())
+        let localState = TestProfileState(
+            profiles: [localProfile],
+            activeProfileID: localProfile.id,
+            showRecentActivityOnHome: true
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let data = try encoder.encode(localState)
+        try data.write(to: directory.appendingPathComponent("profiles.json"))
+
+        let cloudProfile = ChildProfile(name: "Cloud", birthDate: Date().addingTimeInterval(-50_000))
+        let snapshot = CloudProfileSnapshot(
+            profiles: [cloudProfile],
+            activeProfileID: cloudProfile.id,
+            showRecentActivityOnHome: false
+        )
+        let importer = MockCloudImporter(result: .success(snapshot))
+
+        let store = await ProfileStore(
+            fileManager: .default,
+            directory: directory,
+            filename: "profiles.json",
+            reminderScheduler: scheduler,
+            cloudImporter: importer
+        )
+
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        let profiles = await store.profiles
+        #expect(profiles == [localProfile])
+        #expect(await importer.fetchCount == 0)
+    }
+
+    @Test
+    func synchronizesProfileMetadataToSwiftData() async throws {
+        let scheduler = MockReminderScheduler(authorizationResult: true)
+        let initialProfile = ChildProfile(name: "Initial", birthDate: Date())
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: [ProfileActionStateModel.self, BabyActionModel.self],
+            configurations: configuration
+        )
+        let actionStore = await ActionLogStore(modelContext: container.mainContext)
+        let store = await ProfileStore(
+            initialProfiles: [initialProfile],
+            activeProfileID: initialProfile.id,
+            reminderScheduler: scheduler
+        )
+
+        await store.registerActionStore(actionStore)
+
+        let imageData = Data([0xBA, 0x0B, 0x00])
+        await store.addProfile(name: "Sky", imageData: imageData)
+
+        let profiles = await store.profiles
+        let addedProfile = try #require(profiles.first(where: { $0.name == "Sky" }))
+
+        let descriptor = FetchDescriptor<ProfileActionStateModel>()
+        let models = try container.mainContext.fetch(descriptor)
+        let metadataModel = try #require(models.first(where: { $0.resolvedProfileID == addedProfile.id }))
+
+        #expect(metadataModel.name == "Sky")
+        #expect(metadataModel.imageData == imageData)
+
+        await store.setActiveProfile(addedProfile)
+        await store.updateActiveProfile { profile in
+            profile.name = "Skylar"
+            profile.imageData = nil
+        }
+
+        let updatedModels = try container.mainContext.fetch(descriptor)
+        let updatedMetadata = try #require(updatedModels.first(where: { $0.resolvedProfileID == addedProfile.id }))
+
+        #expect(updatedMetadata.name == "Skylar")
+        #expect(updatedMetadata.imageData == nil)
+    }
 }
 
 private actor MockReminderScheduler: ReminderScheduling {
@@ -141,5 +258,35 @@ private actor MockReminderScheduler: ReminderScheduling {
                                  category: BabyActionCategory,
                                  delay: TimeInterval) async -> Bool {
         false
+    }
+}
+
+private struct TestProfileState: Codable {
+    var profiles: [ChildProfile]
+    var activeProfileID: UUID?
+    var showRecentActivityOnHome: Bool
+}
+
+private actor MockCloudImporter: ProfileCloudImporting {
+    enum Result {
+        case success(CloudProfileSnapshot?)
+        case failure(Error)
+    }
+
+    private let result: Result
+    private(set) var fetchCount: Int = 0
+
+    init(result: Result) {
+        self.result = result
+    }
+
+    func fetchProfileSnapshot() async throws -> CloudProfileSnapshot? {
+        fetchCount += 1
+        switch result {
+        case let .success(snapshot):
+            return snapshot
+        case let .failure(error):
+            throw error
+        }
     }
 }
