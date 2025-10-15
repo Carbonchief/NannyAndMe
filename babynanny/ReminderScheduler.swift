@@ -137,12 +137,8 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
         guard authorized else { return false }
 
         let normalizedDelay = max(60, delay)
-        let interval = profile.reminderInterval(for: category)
-        let intervalHours = max(1, Int(round(interval / 3600)))
-        let intervalDescription = L10n.Notifications.actionReminderInterval(intervalHours)
         let title = L10n.Notifications.actionReminderTitle(category.title)
-
-        let body = L10n.Notifications.actionReminderMessage(intervalDescription, profile.displayName, category.title)
+        let body = L10n.Notifications.actionReminderMessage(for: category, name: profile.displayName)
 
         let content = UNMutableNotificationContent()
         content.title = title
@@ -252,9 +248,8 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
             let events = actionReminderEvents(for: profile, state: state, reference: now)
 
             for event in events {
-                let intervalDescription = L10n.Notifications.actionReminderInterval(event.intervalHours)
                 let title = L10n.Notifications.actionReminderTitle(event.category.title)
-                let body = L10n.Notifications.actionReminderMessage(intervalDescription, event.profileName, event.category.title)
+                let body = L10n.Notifications.actionReminderMessage(for: event.category, name: event.profileName)
                 let overview = ReminderOverview(
                     identifier: event.identifier,
                     category: .action(event.category),
@@ -318,15 +313,13 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
                 fireDate = now.addingTimeInterval(max(interval, 60))
             }
 
-            let hours = max(1, Int(round(interval / 3600)))
             events.append(
                 ActionReminderEvent(
                     identifier: actionIdentifier(for: profile.id, category: category),
                     profileID: profile.id,
                     profileName: profile.displayName,
                     category: category,
-                    fireDate: fireDate,
-                    intervalHours: hours
+                    fireDate: fireDate
                 )
             )
         }
@@ -425,7 +418,6 @@ private struct ActionReminderEvent {
     let profileName: String
     let category: BabyActionCategory
     let fireDate: Date
-    let intervalHours: Int
 }
 
 private struct ReminderPayload {
