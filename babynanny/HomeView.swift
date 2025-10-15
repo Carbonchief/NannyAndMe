@@ -484,6 +484,9 @@ private struct ActionCard: View {
                     .font(.title3)
                     .fontWeight(.semibold)
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .allowsTightening(true)
                     .foregroundStyle(category.accentColor)
                     .frame(maxWidth: .infinity)
             }
