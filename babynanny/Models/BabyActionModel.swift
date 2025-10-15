@@ -349,16 +349,16 @@ struct ProfileActionState: Codable {
 final class ProfileActionStateModel {
     var profileID: UUID?
     @Relationship(deleteRule: .cascade, inverse: \BabyActionModel.profile)
-    var actions: [BabyActionModel]? {
-        didSet {
-            linkActionsToSelf()
-        }
-    }
+    var actions: [BabyActionModel]?
 
     init(profileID: UUID = UUID(), actions: [BabyActionModel] = []) {
         self.profileID = profileID
-        self.actions = actions.isEmpty ? nil : actions
-        linkActionsToSelf()
+        if actions.isEmpty {
+            self.actions = nil
+        } else {
+            self.actions = actions
+            ensureActionOwnership()
+        }
     }
 
     var resolvedProfileID: UUID {
@@ -375,8 +375,9 @@ final class ProfileActionStateModel {
         }
     }
 
-    private func linkActionsToSelf() {
-        for action in actions ?? [] {
+    func ensureActionOwnership() {
+        guard let actions else { return }
+        for action in actions where action.profile == nil {
             action.profile = self
         }
     }

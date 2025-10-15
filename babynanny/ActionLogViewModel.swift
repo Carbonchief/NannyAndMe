@@ -290,6 +290,8 @@ private extension ActionLogStore {
             try? modelContext.save()
         }
 
+        model.ensureActionOwnership()
+
         return model
     }
 
