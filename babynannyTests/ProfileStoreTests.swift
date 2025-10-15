@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Testing
 @testable import babynanny
 
@@ -93,10 +94,12 @@ struct ProfileStoreTests {
             reminderScheduler: scheduler
         )
 
-        let actionStore = await ActionLogStore(
-            directory: directory,
-            filename: "actions.json"
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: [ProfileActionStateModel.self, BabyActionModel.self],
+            configurations: configuration
         )
+        let actionStore = await ActionLogStore(modelContext: container.mainContext)
         await store.registerActionStore(actionStore)
         await actionStore.registerProfileStore(store)
 
