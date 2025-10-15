@@ -28,7 +28,7 @@ final class ActionLogStore: ObservableObject {
         observeModelContextChanges()
     }
 
-    deinit {
+    @MainActor deinit {
         stopObservingModelContextChanges()
     }
 
