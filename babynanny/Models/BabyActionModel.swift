@@ -346,21 +346,6 @@ struct ProfileActionState: Codable {
 }
 
 @Model
-final class ProfileActionStateModel {
-    @Attribute(.unique) var profileID: UUID
-    @Relationship(deleteRule: .cascade, inverse: \BabyActionModel.profile)
-    var actions: [BabyActionModel]
-
-    init(profileID: UUID, actions: [BabyActionModel] = []) {
-        self.profileID = profileID
-        self.actions = actions
-        for action in self.actions where action.profile !== self {
-            action.profile = self
-        }
-    }
-}
-
-@Model
 final class BabyActionModel {
     @Attribute(.unique) var id: UUID
     var categoryRawValue: String
@@ -371,7 +356,7 @@ final class BabyActionModel {
     var bottleTypeRawValue: String?
     var bottleVolume: Int?
     @Relationship(inverse: \ProfileActionStateModel.actions)
-    var profile: ProfileActionStateModel
+    var profile: ProfileActionStateModel?
 
     init(id: UUID = UUID(),
          category: BabyActionCategory,
@@ -391,6 +376,21 @@ final class BabyActionModel {
         self.bottleTypeRawValue = bottleType?.rawValue
         self.bottleVolume = bottleVolume
         self.profile = profile
+    }
+}
+
+@Model
+final class ProfileActionStateModel {
+    @Attribute(.unique) var profileID: UUID
+    @Relationship(deleteRule: .cascade)
+    var actions: [BabyActionModel] = []
+
+    init(profileID: UUID, actions: [BabyActionModel] = []) {
+        self.profileID = profileID
+        self.actions = actions
+        for action in self.actions {
+            action.profile = self
+        }
     }
 }
 
