@@ -150,6 +150,7 @@ struct BabyAction: Identifiable, Codable, Equatable {
     var feedingType: FeedingType?
     var bottleType: BottleType?
     var bottleVolume: Int?
+    var updatedAt: Date
 
     init(id: UUID = UUID(),
          category: BabyActionCategory,
@@ -158,7 +159,8 @@ struct BabyAction: Identifiable, Codable, Equatable {
          diaperType: DiaperType? = nil,
          feedingType: FeedingType? = nil,
          bottleType: BottleType? = nil,
-         bottleVolume: Int? = nil) {
+         bottleVolume: Int? = nil,
+         updatedAt: Date = Date()) {
         self.id = id
         self.category = category
         self.startDateStorage = startDate.normalizedToUTC()
@@ -167,6 +169,7 @@ struct BabyAction: Identifiable, Codable, Equatable {
         self.feedingType = feedingType
         self.bottleType = bottleType
         self.bottleVolume = bottleVolume
+        self.updatedAt = updatedAt
     }
 
     var title: String {
@@ -304,6 +307,7 @@ extension BabyAction {
         case feedingType
         case bottleType
         case bottleVolume
+        case updatedAt
     }
 
     init(from decoder: Decoder) throws {
@@ -318,6 +322,7 @@ extension BabyAction {
         feedingType = try container.decodeIfPresent(FeedingType.self, forKey: .feedingType)
         bottleType = try container.decodeIfPresent(BottleType.self, forKey: .bottleType)
         bottleVolume = try container.decodeIfPresent(Int.self, forKey: .bottleVolume)
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -330,6 +335,7 @@ extension BabyAction {
         try container.encodeIfPresent(feedingType, forKey: .feedingType)
         try container.encodeIfPresent(bottleType, forKey: .bottleType)
         try container.encodeIfPresent(bottleVolume, forKey: .bottleVolume)
+        try container.encode(updatedAt, forKey: .updatedAt)
     }
 }
 
@@ -465,6 +471,7 @@ final class BabyActionModel {
     var feedingTypeRawValue: String?
     var bottleTypeRawValue: String?
     var bottleVolume: Int?
+    var updatedAtRawValue: Date?
     @Relationship
     var profile: ProfileActionStateModel?
 
@@ -476,6 +483,7 @@ final class BabyActionModel {
          feedingType: BabyAction.FeedingType? = nil,
          bottleType: BabyAction.BottleType? = nil,
          bottleVolume: Int? = nil,
+         updatedAt: Date? = nil,
          profile: ProfileActionStateModel? = nil) {
         self.id = id
         self.category = category
@@ -485,6 +493,7 @@ final class BabyActionModel {
         self.feedingType = feedingType
         self.bottleType = bottleType
         self.bottleVolume = bottleVolume
+        self.updatedAt = updatedAt ?? Date()
         self.profile = profile
     }
 
@@ -530,6 +539,20 @@ final class BabyActionModel {
             startDateRawValue = newValue.normalizedToUTC()
         }
     }
+
+    var updatedAt: Date {
+        get {
+            if let stored = updatedAtRawValue {
+                return stored
+            }
+            let now = Date()
+            updatedAtRawValue = now
+            return now
+        }
+        set {
+            updatedAtRawValue = newValue
+        }
+    }
 }
 
 extension BabyActionModel {
@@ -572,7 +595,8 @@ extension BabyActionModel {
             diaperType: diaperType,
             feedingType: feedingType,
             bottleType: bottleType,
-            bottleVolume: bottleVolume
+            bottleVolume: bottleVolume,
+            updatedAt: updatedAt
         )
     }
 
@@ -585,6 +609,7 @@ extension BabyActionModel {
         feedingType = action.feedingType
         bottleType = action.bottleType
         bottleVolume = action.bottleVolume
+        updatedAt = action.updatedAt
     }
 }
 

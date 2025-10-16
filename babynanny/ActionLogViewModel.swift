@@ -9,8 +9,10 @@ final class ActionLogStore: ObservableObject {
     private let reminderScheduler: ReminderScheduling?
     private weak var profileStore: ProfileStore?
     private let notificationCenter: NotificationCenter
+    private let dataStack: AppDataStack
     private let observedContainerIdentifier: ObjectIdentifier
     private var contextObservers: [NSObjectProtocol] = []
+    private let conflictResolver = ActionConflictResolver()
 
     struct MergeSummary: Equatable {
         var added: Int
@@ -21,10 +23,12 @@ final class ActionLogStore: ObservableObject {
 
     init(modelContext: ModelContext,
          reminderScheduler: ReminderScheduling? = nil,
-         notificationCenter: NotificationCenter = .default) {
+         notificationCenter: NotificationCenter = .default,
+         dataStack: AppDataStack = .shared) {
         self.modelContext = modelContext
         self.reminderScheduler = reminderScheduler
         self.notificationCenter = notificationCenter
+        self.dataStack = dataStack
         self.observedContainerIdentifier = ObjectIdentifier(modelContext.container)
         scheduleReminders()
         observeModelContextChanges()
@@ -69,13 +73,7 @@ final class ActionLogStore: ObservableObject {
         }
 
         if modelContext.hasChanges {
-            do {
-                try modelContext.save()
-            } catch {
-                #if DEBUG
-                print("Failed to synchronize profile metadata: \(error.localizedDescription)")
-                #endif
-            }
+            dataStack.saveIfNeeded(on: modelContext, reason: "profile-metadata-sync")
         }
     }
 
@@ -126,6 +124,7 @@ final class ActionLogStore: ObservableObject {
         if category.isInstant {
             if var existing = profileState.activeActions.removeValue(forKey: category) {
                 existing.endDate = now
+                existing.updatedAt = Date()
                 profileState.history.insert(existing, at: 0)
             }
 
@@ -149,12 +148,14 @@ final class ActionLogStore: ObservableObject {
         for conflict in conflictingCategories {
             if var running = profileState.activeActions.removeValue(forKey: conflict) {
                 running.endDate = now
+                running.updatedAt = Date()
                 profileState.history.insert(running, at: 0)
             }
         }
 
         if var existing = profileState.activeActions.removeValue(forKey: category) {
             existing.endDate = now
+            existing.updatedAt = Date()
             profileState.history.insert(existing, at: 0)
         }
 
@@ -177,22 +178,35 @@ final class ActionLogStore: ObservableObject {
         var profileState = state(for: profileID)
         guard var running = profileState.activeActions.removeValue(forKey: category) else { return }
         running.endDate = Date()
+        running.updatedAt = Date()
         profileState.history.insert(running, at: 0)
         persist(profileState: profileState, for: profileID)
         refreshDurationActivity(for: profileID)
     }
 
     func updateAction(for profileID: UUID, action updatedAction: BabyAction) {
-        notifyChange()
         var profileState = state(for: profileID)
         let sanitized = updatedAction.withValidatedDates()
+        var didChange = false
 
         if let active = profileState.activeActions[sanitized.category], active.id == sanitized.id {
-            profileState.activeActions[sanitized.category] = sanitized
+            guard active != sanitized else { return }
+            var updated = sanitized
+            updated.updatedAt = Date()
+            profileState.activeActions[sanitized.category] = updated
+            didChange = true
         } else if let historyIndex = profileState.history.firstIndex(where: { $0.id == sanitized.id }) {
-            profileState.history[historyIndex] = sanitized
+            let existing = profileState.history[historyIndex]
+            guard existing != sanitized else { return }
+            var updated = sanitized
+            updated.updatedAt = Date()
+            profileState.history[historyIndex] = updated
+            didChange = true
         }
 
+        guard didChange else { return }
+
+        notifyChange()
         profileState.history.sort { $0.startDate > $1.startDate }
         persist(profileState: profileState, for: profileID)
         refreshDurationActivity(for: profileID)
@@ -241,14 +255,7 @@ final class ActionLogStore: ObservableObject {
         notifyChange()
         guard let model = existingProfileModel(for: profileID) else { return }
         modelContext.delete(model)
-
-        do {
-            try modelContext.save()
-        } catch {
-            #if DEBUG
-            print("Failed to delete action log: \(error.localizedDescription)")
-            #endif
-        }
+        dataStack.saveIfNeeded(on: modelContext, reason: "remove-profile-data")
 
         refreshDurationActivity(for: profileID)
         scheduleReminders()
@@ -263,8 +270,9 @@ final class ActionLogStore: ObservableObject {
         for action in importedState.history {
             let sanitized = action.withValidatedDates()
             if let existing = existingHistory[sanitized.id] {
-                if existing != sanitized {
-                    existingHistory[sanitized.id] = sanitized
+                let resolved = conflictResolver.resolve(local: existing, remote: sanitized)
+                if resolved != existing {
+                    existingHistory[sanitized.id] = resolved
                     summary.updated += 1
                 }
             } else {
@@ -278,13 +286,14 @@ final class ActionLogStore: ObservableObject {
         for (category, action) in importedState.activeActions {
             let sanitized = action.withValidatedDates()
             if let existing = profileState.activeActions[category] {
-                if existing.id == sanitized.id {
-                    if existing != sanitized {
-                        profileState.activeActions[category] = sanitized
+                let resolved = conflictResolver.resolve(local: existing, remote: sanitized)
+                if resolved.id == existing.id {
+                    if resolved != existing {
+                        profileState.activeActions[category] = resolved
                         summary.updated += 1
                     }
-                } else if sanitized.startDate >= existing.startDate {
-                    profileState.activeActions[category] = sanitized
+                } else if resolved.updatedAt >= existing.updatedAt {
+                    profileState.activeActions[category] = resolved
                     summary.added += 1
                 }
             } else {
@@ -325,6 +334,7 @@ final class ActionLogStore: ObservableObject {
                                                   feedingType: action.feedingType,
                                                   bottleType: action.bottleType,
                                                   bottleVolume: action.bottleVolume,
+                                                  updatedAt: action.updatedAt,
                                                   profile: model)
                 context.insert(modelAction)
             }
@@ -346,7 +356,7 @@ private extension ActionLogStore {
 
         if model.profileID == nil {
             model.profileID = profileID
-            try? modelContext.save()
+            dataStack.scheduleSaveIfNeeded(on: modelContext, reason: "assign-profile-id")
         }
 
         model.ensureActionOwnership()
@@ -370,38 +380,41 @@ private extension ActionLogStore {
         var seenIDs = Set<UUID>()
 
         for action in desiredActions.map({ $0.withValidatedDates() }) {
-            let modelAction: BabyActionModel
             if let existing = existingModels[action.id] {
-                modelAction = existing
+                let existingAction = existing.asBabyAction()
+                let resolved = conflictResolver.resolve(local: existingAction, remote: action)
+                guard resolved != existingAction else {
+                    seenIDs.insert(existing.id)
+                    continue
+                }
+                guard resolved.updatedAt >= existingAction.updatedAt else {
+                    seenIDs.insert(existing.id)
+                    continue
+                }
+                existing.update(from: resolved)
+                existing.profile = model
+                seenIDs.insert(existing.id)
             } else {
-                modelAction = BabyActionModel(id: action.id,
-                                              category: action.category,
-                                              startDate: action.startDate,
-                                              endDate: action.endDate,
-                                              diaperType: action.diaperType,
-                                              feedingType: action.feedingType,
-                                              bottleType: action.bottleType,
-                                              bottleVolume: action.bottleVolume,
-                                              profile: model)
-                modelContext.insert(modelAction)
+                let newAction = BabyActionModel(id: action.id,
+                                                category: action.category,
+                                                startDate: action.startDate,
+                                                endDate: action.endDate,
+                                                diaperType: action.diaperType,
+                                                feedingType: action.feedingType,
+                                                bottleType: action.bottleType,
+                                                bottleVolume: action.bottleVolume,
+                                                updatedAt: action.updatedAt,
+                                                profile: model)
+                modelContext.insert(newAction)
+                seenIDs.insert(newAction.id)
             }
-
-            modelAction.update(from: action)
-            modelAction.profile = model
-            seenIDs.insert(modelAction.id)
         }
 
         for (identifier, modelAction) in existingModels where seenIDs.contains(identifier) == false {
             modelContext.delete(modelAction)
         }
 
-        do {
-            try modelContext.save()
-        } catch {
-            #if DEBUG
-            print("Failed to save action log: \(error.localizedDescription)")
-            #endif
-        }
+        dataStack.scheduleSaveIfNeeded(on: modelContext, reason: "persist-profile-state")
 
         scheduleReminders()
     }

@@ -63,6 +63,30 @@ NannyAndMe/
    - Choose an iOS Simulator device (e.g., iPhone 15 Pro).
    - Press <kbd>Cmd</kbd>+<kbd>R</kbd> to build and run.
 
+## iCloud & push configuration
+
+The application relies on SwiftData's CloudKit integration for syncing. Ensure the following capabilities are enabled in the `babynanny` target for every build configuration:
+
+1. **iCloud + CloudKit**
+   - In the **Signing & Capabilities** tab, add the iCloud capability.
+   - Select **CloudKit** and choose the default container `iCloud.com.prioritybit.babynanny`.
+   - Keep `Private Database` enabled only; public databases are not used.
+2. **Push Notifications**
+   - Add the **Push Notifications** capability so APNs tokens are issued on device builds.
+3. **Background Modes**
+   - Enable **Remote notifications** under Background Modes to allow silent pushes to wake the app.
+
+### Debug vs. Release profiles
+
+- **Debug / local development**: Use your personal developer team and allow Xcode to manage signing. Confirm that the provisioning profile contains the iCloud and push entitlements listed above. Silent pushes require a real device; the simulator can still process simulated CloudKit notifications.
+- **Release / TestFlight**: Create a distribution provisioning profile that includes the same entitlements. The CloudKit container must be shared with your App Store Connect group so TestFlight builds inherit access.
+
+### Tester checklist
+
+- Install the app on two devices logged into the same iCloud account.
+- After the first launch, accept the remote-notification prompt so silent pushes are delivered.
+- Verify in **Settings ▸ Developer ▸ Sync Diagnostics** (Debug builds) that the CloudKit subscription state reads *Active*.
+
 ## Analytics
 
 The application is instrumented with [PostHog](https://posthog.com/) for product analytics.
