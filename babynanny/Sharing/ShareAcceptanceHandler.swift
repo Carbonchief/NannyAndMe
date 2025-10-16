@@ -35,8 +35,8 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
         for metadata in metadatas {
             let zoneID = metadata.rootRecordID.zoneID
             let result = try await fetchAndIngestInitialContent(for: zoneID)
-            if let share = metadata.share,
-               let profileRecord = result.records.first(where: { $0.recordType == RecordType.profile }),
+            let share = metadata.share
+            if let profileRecord = result.records.first(where: { $0.recordType == RecordType.profile }),
                let profileIDString = profileRecord["profileID"] as? String,
                let profileID = UUID(uuidString: profileIDString) {
                 let stored = ShareMetadataStore.ShareMetadata(
@@ -151,11 +151,11 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
                 for record in records {
                     switch record.recordType {
                     case RecordType.profile:
-                        if try updateProfile(from: record, in: context) {
+                        if try Self.updateProfile(from: record, in: context) {
                             hasMutations = true
                         }
                     case RecordType.babyAction:
-                        if try updateAction(from: record, in: context) {
+                        if try Self.updateAction(from: record, in: context) {
                             hasMutations = true
                         }
                     default:
@@ -164,7 +164,7 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
                 }
 
                 for recordID in deletedRecordIDs {
-                    if try deleteRecord(with: recordID, in: context) {
+                    if try Self.deleteRecord(with: recordID, in: context) {
                         hasMutations = true
                     }
                 }
