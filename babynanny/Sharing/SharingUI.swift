@@ -13,7 +13,8 @@ struct SharingUI: UIViewControllerRepresentable {
     var onDidStopSharing: (() -> Void)?
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(container: container,
+        Coordinator(share: share,
+                    container: container,
                     onDidSaveShare: onDidSaveShare,
                     onDidStopSharing: onDidStopSharing)
     }
@@ -31,15 +32,19 @@ struct SharingUI: UIViewControllerRepresentable {
 
     // MARK: - Coordinator
 
+    @MainActor
     final class Coordinator: NSObject, UICloudSharingControllerDelegate {
         private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "share")
         private var observer: SystemSharingObserver?
+        private let share: CKShare
         private var onDidSaveShare: (() -> Void)?
         private var onDidStopSharing: (() -> Void)?
 
-        init(container: CKContainer,
+        init(share: CKShare,
+             container: CKContainer,
              onDidSaveShare: (() -> Void)?,
              onDidStopSharing: (() -> Void)?) {
+            self.share = share
             self.onDidSaveShare = onDidSaveShare
             self.onDidStopSharing = onDidStopSharing
             super.init()
@@ -50,6 +55,20 @@ struct SharingUI: UIViewControllerRepresentable {
 
         func attach(controller: UICloudSharingController) {
             observer?.start()
+        }
+
+        // MARK: UICloudSharingControllerDelegate
+
+        func itemTitle(for csc: UICloudSharingController) -> String? {
+            share[CKShare.SystemFieldKey.title] as? String
+        }
+
+        func itemThumbnailData(for csc: UICloudSharingController) -> Data? {
+            nil
+        }
+
+        func itemThumbnailDataIsPlaceholder(for csc: UICloudSharingController) -> Bool {
+            true
         }
 
         func cloudSharingController(_ csc: UICloudSharingController,
@@ -81,22 +100,21 @@ struct SharingUI: UIViewControllerRepresentable {
 
 @MainActor
 private final class SystemSharingObserver: NSObject {
-    private let observer: CKSystemSharingUIObserver
+    private var observer: CKSystemSharingUIObserver?
     private let onDidSaveShare: () -> Void
     private let onDidStopSharing: () -> Void
 
     init(container: CKContainer,
          onDidSaveShare: @escaping () -> Void,
          onDidStopSharing: @escaping () -> Void) {
-        self.observer = CKSystemSharingUIObserver(container: container)
         self.onDidSaveShare = onDidSaveShare
         self.onDidStopSharing = onDidStopSharing
         super.init()
-        observer.delegate = self
+        observer = CKSystemSharingUIObserver(container: container, delegate: self)
     }
 
     func start() {
-        observer.startObserving()
+        observer?.startObserving()
     }
 }
 
