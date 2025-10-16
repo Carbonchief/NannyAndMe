@@ -8,27 +8,112 @@ on:
 
 jobs:
   build:
-    name: Build and Test default scheme using any available iPhone simulator
+    name: Build & surface errors clearly
     runs-on: macos-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set Default Scheme
+
+      - name: Select Xcode (print version)
         run: |
-          scheme_list=$(xcodebuild -list -json | tr -d "\n")
-          default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
-          echo $default | cat >default
-          echo Using default scheme: $default
-      - name: Build
+          sudo xcode-select -s /Applications/Xcode_16.4.app || true
+          xcodebuild -version
+          xcrun --version
+
+      - name: Determine default scheme
+        id: scheme
+        shell: bash
+        run: |
+          set -euo pipefail
+          schemes_json=$(xcodebuild -list -json | tr -d '\n')
+          default_scheme=$(ruby -e "require 'json'; j=JSON.parse(ENV['JSON']); puts j.dig('project','targets',0) || j.dig('workspace','schemes',0)" JSON="$schemes_json")
+          echo "Default scheme: $default_scheme"
+          echo "scheme=$default_scheme" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve project/workspace
+        id: xcodefile
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ls -1 *.xcworkspace >/dev/null 2>&1; then
+            filetype_parameter="workspace"
+            file_to_build="$(ls -1 *.xcworkspace | head -1)"
+          else
+            filetype_parameter="project"
+            file_to_build="$(ls -1 *.xcodeproj | head -1)"
+          fi
+          echo "filetype_parameter=$filetype_parameter" >> "$GITHUB_OUTPUT"
+          echo "file_to_build=$file_to_build" >> "$GITHUB_OUTPUT"
+          echo "Using $filetype_parameter: $file_to_build"
+
+      - name: Build (Simulator) and capture errors nicely
+        id: build
         env:
-          scheme: ${{ 'default' }}
-          platform: ${{ 'iOS Simulator' }}
+          SCHEME: ${{ steps.scheme.outputs.scheme }}
+          FILETYPE: ${{ steps.xcodefile.outputs.filetype_parameter }}
+          XCODEFILE: ${{ steps.xcodefile.outputs.file_to_build }}
+        shell: bash
         run: |
-          # xcrun xctrace returns via stderr, not the expected stdout (see https://developer.apple.com/forums/thread/663959)
-          device=`xcrun xctrace list devices 2>&1 | grep -oE 'iPhone.*?[^\(]+' | head -1 | awk '{$1=$1;print}' | sed -e "s/ Simulator$//"`
-          if [ $scheme = default ]; then scheme=$(cat default); fi
-          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
-          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
-          xcodebuild build-for-testing -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "platform=$platform,name=$device"
-     
+          set -euo pipefail
+          DESTINATION="platform=iOS Simulator"
+          echo "Building scheme: $SCHEME on $DESTINATION with $FILETYPE: $XCODEFILE"
+
+          xcodebuild \
+            -scheme "$SCHEME" \
+            -"$FILETYPE" "$XCODEFILE" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "$DESTINATION" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=- \
+            -resultBundlePath build.xcresult \
+            clean build | tee xcodebuild.log
+
+      - name: Summarize errors if build failed
+        if: failure()
+        shell: bash
+        run: |
+          echo "::group::First error lines from xcodebuild.log"
+          grep -nE "error:|fatal error:|BUILD FAILED|❌" xcodebuild.log | head -50 || true
+          echo "::endgroup::"
+
+          echo "::group::XCResult error summary"
+          if [ -d build.xcresult ]; then
+            xcrun xcresulttool get --path build.xcresult --format json > xcresult.json
+            /usr/bin/python3 - <<'PY'
+          import json, sys, os
+          p = "xcresult.json"
+          if not os.path.exists(p):
+              sys.exit(0)
+          j = json.load(open(p))
+          def it(obj):
+              if isinstance(obj, dict):
+                  if obj.get('_type','').endswith('IssueSummary'):
+                      msg = obj.get('message','').strip()
+                      doc = obj.get('documentLocationInCreatingWorkspace',{}).get('url','')
+                      fn = doc.split('#')[0].replace('file://','')
+                      qs = dict(kv.split('=') for kv in doc.split('#')[1].split('&')) if '#' in doc else {}
+                      line = qs.get('StartingLineNumber','')
+                      col = qs.get('StartingColumnNumber','')
+                      loc = f"{fn}:{line}:{col}" if fn else ""
+                      if msg:
+                          print(f"{loc + ': ' if loc else ''}error: {msg}")
+                  for v in obj.values(): it(v)
+              elif isinstance(obj, list):
+                  for v in obj: it(v)
+          it(j)
+          PY
+                    else
+                      echo "No build.xcresult found."
+                    fi
+                    echo "::endgroup::"
+          
+                - name: Upload build artifacts
+                  if: always()
+                  uses: actions/upload-artifact@v4
+                  with:
+                    name: xcodebuild-artifacts
+                    path: |
+                      xcodebuild.log
+                      build.xcresult
+                      xcresult.json
