@@ -15,6 +15,10 @@ enum L10n {
         static let unspecified = String(localized: "common.unspecified", defaultValue: "Unspecified")
     }
 
+    enum Splash {
+        static let loading = String(localized: "splash.loading", defaultValue: "Loading")
+    }
+
     enum Onboarding {
         static let profilePromptTitle = String(
             localized: "onboarding.profilePrompt.title",

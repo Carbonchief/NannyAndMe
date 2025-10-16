@@ -6,6 +6,7 @@
 "common.cancel" = "Cancel";
 "common.done" = "Done";
 "common.unspecified" = "Unspecified";
+"splash.loading" = "Loading";
 "onboarding.profilePrompt.title" = "Welcome to Nanny & Me";
 "onboarding.profilePrompt.subtitle" = "Let's start by naming your first profile.";
 "onboarding.profilePrompt.nameLabel" = "Profile name";
