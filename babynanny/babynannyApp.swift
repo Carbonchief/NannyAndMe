@@ -17,6 +17,7 @@ struct babynannyApp: App {
     @StateObject private var profileStore: ProfileStore
     private let actionStore: ActionLogStore
     @StateObject private var shareDataCoordinator = ShareDataCoordinator()
+    @State private var isShowingSplashScreen = true
 
     init() {
         Analytics.setup()
@@ -37,21 +38,37 @@ struct babynannyApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(profileStore)
-                .environmentObject(actionStore)
-                .environmentObject(shareDataCoordinator)
-                .environmentObject(appDataStack.syncCoordinator)
-                .onOpenURL { url in
-                    guard shouldHandle(url: url) else { return }
-                    shareDataCoordinator.handleIncomingFile(url: url)
+            ZStack {
+                ContentView()
+                    .environmentObject(profileStore)
+                    .environmentObject(actionStore)
+                    .environmentObject(shareDataCoordinator)
+                    .environmentObject(appDataStack.syncCoordinator)
+                    .onOpenURL { url in
+                        guard shouldHandle(url: url) else { return }
+                        shareDataCoordinator.handleIncomingFile(url: url)
+                    }
+                    .task {
+                        appDataStack.prepareSubscriptionsIfNeeded()
+                    }
+                    .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                        appDataStack.requestSyncIfNeeded(reason: .foregroundRefresh)
+                    }
+
+                if isShowingSplashScreen {
+                    SplashScreenView()
+                        .transition(.opacity)
+                        .zIndex(1)
                 }
-                .task {
-                    appDataStack.prepareSubscriptionsIfNeeded()
+            }
+            .task {
+                try? await Task.sleep(for: .seconds(1.2))
+                await MainActor.run {
+                    withAnimation(.easeOut(duration: 0.35)) {
+                        isShowingSplashScreen = false
+                    }
                 }
-                .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                    appDataStack.requestSyncIfNeeded(reason: .foregroundRefresh)
-                }
+            }
         }
         .modelContainer(appDataStack.modelContainer)
     }
