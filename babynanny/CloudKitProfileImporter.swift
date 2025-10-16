@@ -11,6 +11,10 @@ protocol ProfileCloudImporting {
     func fetchProfileSnapshot() async throws -> CloudProfileSnapshot?
 }
 
+enum CloudProfileImportError: Error {
+    case recoverable(Error)
+}
+
 struct CloudKitProfileImporter: ProfileCloudImporting {
     private let container: CKContainer
     private let recordType: String
@@ -49,13 +53,13 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
                 return try decodeSnapshot(from: data)
             case let .failure(error):
                 if Self.isRecoverable(error) {
-                    return nil
+                    throw CloudProfileImportError.recoverable(error)
                 }
                 throw error
             }
         } catch {
             if Self.isRecoverable(error) {
-                return nil
+                throw CloudProfileImportError.recoverable(error)
             }
             throw error
         }
