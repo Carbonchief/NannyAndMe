@@ -12,6 +12,9 @@ import UIKit
 struct SettingsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
+#if DEBUG
+    @EnvironmentObject private var syncCoordinator: SyncCoordinator
+#endif
     @Environment(\.openURL) private var openURL
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var pendingCrop: PendingCropImage?
@@ -33,6 +36,9 @@ struct SettingsView: View {
             homeSection
             notificationsSection
             aboutSection
+#if DEBUG
+            debugSection
+#endif
         }
         .navigationTitle(L10n.Settings.title)
         .phScreen("settings_screen_settingsView")
@@ -351,6 +357,19 @@ struct SettingsView: View {
             }
         }
     }
+
+#if DEBUG
+    private var debugSection: some View {
+        Section(header: Text("Debug")) {
+            NavigationLink {
+                SyncDiagnosticsView(coordinator: syncCoordinator)
+            } label: {
+                Label("Sync Diagnostics", systemImage: "antenna.radiowaves.left.and.right")
+            }
+            .postHogLabel("settings.debug.syncDiagnostics")
+        }
+    }
+#endif
 
     private func handlePhotoSelectionChange(_ newValue: PhotosPickerItem?) {
         photoLoadingTask?.cancel()
