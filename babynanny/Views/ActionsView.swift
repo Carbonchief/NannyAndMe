@@ -33,7 +33,7 @@ struct ActionsView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(Text(L10n.Actions.activeActionsTitle))
+        .navigationTitle(Text(L10n.Stats.activeActionsTitle))
     }
 }
 
