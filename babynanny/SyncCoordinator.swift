@@ -69,7 +69,7 @@ final class SyncCoordinator: ObservableObject {
             return
         }
 
-        if let notificationID = notification.notificationID?.uuidString {
+        if let notificationID = notification.notificationID.map({ String(describing: $0) }) {
             cleanupExpiredNotificationIDs(before: Date().addingTimeInterval(-600))
             if processedNotificationIDs[notificationID] != nil {
                 cloudLogger.debug("Ignoring duplicate CloudKit notification \(notificationID, privacy: .public)")
@@ -102,7 +102,7 @@ final class SyncCoordinator: ObservableObject {
         defer { isPerformingSync = false }
 
         do {
-            try await sharedContext.fetchAndMergeChanges()
+            try await modelContainer.fetchAndMergeChanges()
             diagnostics.lastSyncFinishedAt = Date()
             diagnostics.lastSyncError = nil
             diagnostics.pendingChangeCount = sharedContext.hasChanges ? 1 : 0
@@ -137,7 +137,7 @@ final class SyncCoordinator: ObservableObject {
         subscription.notificationInfo = notificationInfo
 
         do {
-            _ = try await cloudDatabase.modifySubscriptions(save: [subscription], delete: [])
+            _ = try await cloudDatabase.modifySubscriptions(saving: [subscription], deleting: [])
             diagnostics.subscriptionState = .active
             cloudLogger.debug("Created CloudKit database subscription")
         } catch {
