@@ -144,8 +144,8 @@ struct BabyAction: Identifiable, Codable, Equatable {
 
     var id: UUID
     let category: BabyActionCategory
-    var startDate: Date
-    var endDate: Date?
+    private var startDateStorage: Date
+    private var endDateStorage: Date?
     var diaperType: DiaperType?
     var feedingType: FeedingType?
     var bottleType: BottleType?
@@ -161,8 +161,8 @@ struct BabyAction: Identifiable, Codable, Equatable {
          bottleVolume: Int? = nil) {
         self.id = id
         self.category = category
-        self.startDate = startDate
-        self.endDate = endDate
+        self.startDateStorage = startDate.normalizedToUTC()
+        self.endDateStorage = endDate?.normalizedToUTC()
         self.diaperType = diaperType
         self.feedingType = feedingType
         self.bottleType = bottleType
@@ -282,6 +282,55 @@ struct BabyAction: Identifiable, Codable, Equatable {
         }
         return copy
     }
+
+    var startDate: Date {
+        get { startDateStorage }
+        set { startDateStorage = newValue.normalizedToUTC() }
+    }
+
+    var endDate: Date? {
+        get { endDateStorage }
+        set { endDateStorage = newValue?.normalizedToUTC() }
+    }
+}
+
+extension BabyAction {
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case category
+        case startDateStorage = "startDate"
+        case endDateStorage = "endDate"
+        case diaperType
+        case feedingType
+        case bottleType
+        case bottleVolume
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        category = try container.decode(BabyActionCategory.self, forKey: .category)
+        let decodedStartDate = try container.decode(Date.self, forKey: .startDateStorage)
+        startDateStorage = decodedStartDate.normalizedToUTC()
+        let decodedEndDate = try container.decodeIfPresent(Date.self, forKey: .endDateStorage)
+        endDateStorage = decodedEndDate?.normalizedToUTC()
+        diaperType = try container.decodeIfPresent(DiaperType.self, forKey: .diaperType)
+        feedingType = try container.decodeIfPresent(FeedingType.self, forKey: .feedingType)
+        bottleType = try container.decodeIfPresent(BottleType.self, forKey: .bottleType)
+        bottleVolume = try container.decodeIfPresent(Int.self, forKey: .bottleVolume)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(category, forKey: .category)
+        try container.encode(startDateStorage, forKey: .startDateStorage)
+        try container.encodeIfPresent(endDateStorage, forKey: .endDateStorage)
+        try container.encodeIfPresent(diaperType, forKey: .diaperType)
+        try container.encodeIfPresent(feedingType, forKey: .feedingType)
+        try container.encodeIfPresent(bottleType, forKey: .bottleType)
+        try container.encodeIfPresent(bottleVolume, forKey: .bottleVolume)
+    }
 }
 
 struct ProfileActionState: Codable {
@@ -362,7 +411,7 @@ final class ProfileActionStateModel {
          actions: [BabyActionModel] = []) {
         self.profileID = profileID
         self.name = name
-        self.birthDate = birthDate
+        self.birthDate = birthDate?.normalizedToUTC()
         self.imageData = imageData
         if actions.isEmpty {
             actionsStorage = nil
@@ -473,12 +522,12 @@ final class BabyActionModel {
             if let stored = startDateRawValue {
                 return stored
             }
-            let now = Date()
+            let now = Date().normalizedToUTC()
             startDateRawValue = now
             return now
         }
         set {
-            startDateRawValue = newValue
+            startDateRawValue = newValue.normalizedToUTC()
         }
     }
 }
@@ -531,7 +580,7 @@ extension BabyActionModel {
         id = action.id
         category = action.category
         startDate = action.startDate
-        endDate = action.endDate
+        endDate = action.endDate?.normalizedToUTC()
         diaperType = action.diaperType
         feedingType = action.feedingType
         bottleType = action.bottleType
@@ -551,10 +600,12 @@ private final class BabyActionFormatter {
         timeFormatter = DateFormatter()
         timeFormatter.timeStyle = .short
         timeFormatter.dateStyle = .none
+        timeFormatter.timeZone = .current
 
         dateTimeFormatter = DateFormatter()
         dateTimeFormatter.timeStyle = .short
         dateTimeFormatter.dateStyle = .short
+        dateTimeFormatter.timeZone = .current
 
         durationFormatter = DateComponentsFormatter()
         durationFormatter.allowedUnits = [.hour, .minute, .second]

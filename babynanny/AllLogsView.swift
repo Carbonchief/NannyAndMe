@@ -15,12 +15,14 @@ struct AllLogsView: View {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
+        formatter.timeZone = .current
         return formatter
     }()
 
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
+        formatter.timeZone = .current
         return formatter
     }()
 
