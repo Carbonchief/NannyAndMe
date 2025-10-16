@@ -458,7 +458,7 @@ private extension ActionLogStore {
 
         for name in notifications {
             let token = notificationCenter.addObserver(forName: name,
-                                                       object: modelContext,
+                                                       object: nil,
                                                        queue: nil) { [weak self] _ in
                 guard let self else { return }
                 Task { @MainActor in
