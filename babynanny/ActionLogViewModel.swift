@@ -467,8 +467,8 @@ private extension ActionLogStore {
         let externalToken = notificationCenter.addObserver(forName: .NSManagedObjectContextDidSave,
                                                             object: nil,
                                                             queue: nil) { [weak self] notification in
-            guard let self, self.shouldHandleExternalContextChange(from: notification) else { return }
             Task { @MainActor in
+                guard let self, self.shouldHandleExternalContextChange(from: notification) else { return }
                 self.handleModelContextChange()
             }
         }
