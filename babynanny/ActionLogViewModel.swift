@@ -59,8 +59,9 @@ final class ActionLogStore: ObservableObject {
             if model.name != trimmedName {
                 model.name = trimmedName
             }
-            if model.birthDate != profile.birthDate {
-                model.birthDate = profile.birthDate
+            let normalizedBirthDate = profile.birthDate.normalizedToUTC()
+            if model.birthDate != normalizedBirthDate {
+                model.birthDate = normalizedBirthDate
             }
             if model.imageData != profile.imageData {
                 model.imageData = profile.imageData
