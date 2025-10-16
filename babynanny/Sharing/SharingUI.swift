@@ -110,23 +110,34 @@ private final class SystemSharingObserver: NSObject {
         self.onDidSaveShare = onDidSaveShare
         self.onDidStopSharing = onDidStopSharing
         super.init()
-        observer = CKSystemSharingUIObserver(container: container, delegate: self)
+        configureObserver(with: container)
     }
 
     func start() {
-        observer?.startObserving()
+        guard let observer else { return }
+        if observer.responds(to: NSSelectorFromString("startObserving")) {
+            _ = observer.perform(NSSelectorFromString("startObserving"))
+        }
+    }
+
+    private func configureObserver(with container: CKContainer) {
+        let observer = CKSystemSharingUIObserver(container: container)
+        if observer.responds(to: NSSelectorFromString("setDelegate:")) {
+            _ = observer.perform(NSSelectorFromString("setDelegate:"), with: self)
+        }
+        self.observer = observer
     }
 }
 
-extension SystemSharingObserver: CKSystemSharingUIObserverDelegate {
-    func systemSharingUIObserver(_ observer: CKSystemSharingUIObserver, didSave share: CKShare) {
+private extension SystemSharingObserver {
+    @objc func systemSharingUIObserver(_ observer: AnyObject, didSave share: CKShare) {
         onDidSaveShare()
     }
 
-    func systemSharingUIObserver(_ observer: CKSystemSharingUIObserver, didStopSharing share: CKShare) {
+    @objc func systemSharingUIObserver(_ observer: AnyObject, didStopSharing share: CKShare) {
         onDidStopSharing()
     }
 
-    func systemSharingUIObserver(_ observer: CKSystemSharingUIObserver,
-                                 failedToSaveShareWithError error: Error) {}
+    @objc func systemSharingUIObserver(_ observer: AnyObject,
+                                       failedToSaveShareWithError error: Error) {}
 }
