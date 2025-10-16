@@ -150,6 +150,42 @@ struct ProfileStoreTests {
     }
 
     @Test
+    func retriesCloudImportAfterRecoverableError() async throws {
+        let scheduler = MockReminderScheduler(authorizationResult: true)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let profile = ChildProfile(name: "Cloud", birthDate: Date().addingTimeInterval(-10_000))
+        let snapshot = CloudProfileSnapshot(
+            profiles: [profile],
+            activeProfileID: profile.id,
+            showRecentActivityOnHome: false
+        )
+
+        let importer = MockCloudImporter(results: [
+            .failure(CloudProfileImportError.recoverable(MockRecoverableError())),
+            .success(snapshot)
+        ])
+
+        let store = await ProfileStore(
+            fileManager: .default,
+            directory: directory,
+            filename: "profiles.json",
+            reminderScheduler: scheduler,
+            cloudImporter: importer
+        )
+
+        try await Task.sleep(nanoseconds: 1_000_000_000)
+
+        let importedProfiles = await store.profiles
+        #expect(importedProfiles == [profile])
+        #expect(await store.activeProfileID == profile.id)
+        #expect(await store.showRecentActivityOnHome == false)
+        #expect(await importer.fetchCount == 2)
+    }
+
+    @Test
     func mergesCloudProfilesWithExistingProfiles() async throws {
         let scheduler = MockReminderScheduler(authorizationResult: true)
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -359,22 +395,39 @@ private struct TestProfileState: Codable {
     var showRecentActivityOnHome: Bool
 }
 
+private struct MockRecoverableError: Error {}
+
 private actor MockCloudImporter: ProfileCloudImporting {
     enum Result {
         case success(CloudProfileSnapshot?)
         case failure(Error)
     }
 
-    private let result: Result
+    private var results: [Result]
+    private let fallbackResult: Result
     private(set) var fetchCount: Int = 0
 
     init(result: Result) {
-        self.result = result
+        self.results = [result]
+        self.fallbackResult = result
+    }
+
+    init(results: [Result]) {
+        precondition(results.isEmpty == false)
+        self.results = results
+        self.fallbackResult = results.last!
     }
 
     func fetchProfileSnapshot() async throws -> CloudProfileSnapshot? {
         fetchCount += 1
-        switch result {
+        let outcome: Result
+        if results.isEmpty {
+            outcome = fallbackResult
+        } else {
+            outcome = results.removeFirst()
+        }
+
+        switch outcome {
         case let .success(snapshot):
             return snapshot
         case let .failure(error):

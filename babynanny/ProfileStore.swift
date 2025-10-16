@@ -518,27 +518,67 @@ final class ProfileStore: ObservableObject {
 
     private func performInitialCloudImport(using importer: ProfileCloudImporting) async {
         defer { initialCloudImportTask = nil }
-        do {
-            guard let snapshot = try await importer.fetchProfileSnapshot() else { return }
 
-            let currentState = Self.sanitized(state: state)
-            let importedState = Self.sanitized(state: ProfileState(
-                profiles: snapshot.profiles,
-                activeProfileID: snapshot.activeProfileID,
-                showRecentActivityOnHome: snapshot.showRecentActivityOnHome
-            ))
+        let maxRetryAttempts = 5
+        var retryAttempt = 0
 
-            guard importedState.profiles.isEmpty == false else { return }
+        while true {
+            do {
+                guard let snapshot = try await importer.fetchProfileSnapshot() else {
+                    if shouldRetry() {
+                        await scheduleRetry()
+                        continue
+                    }
+                    return
+                }
 
-            let mergedState = merged(localState: currentState, remoteState: importedState)
+                let currentState = Self.sanitized(state: state)
+                let importedState = Self.sanitized(state: ProfileState(
+                    profiles: snapshot.profiles,
+                    activeProfileID: snapshot.activeProfileID,
+                    showRecentActivityOnHome: snapshot.showRecentActivityOnHome
+                ))
 
-            guard mergedState != currentState else { return }
+                guard importedState.profiles.isEmpty == false else { return }
 
-            state = mergedState
-        } catch {
-            #if DEBUG
-            print("Failed to import CloudKit profiles: \(error.localizedDescription)")
-            #endif
+                let mergedState = merged(localState: currentState, remoteState: importedState)
+
+                guard mergedState != currentState else { return }
+
+                state = mergedState
+                return
+            } catch let CloudProfileImportError.recoverable(error) {
+                if shouldRetry() {
+                    #if DEBUG
+                    print("Recoverable CloudKit import error: \(error.localizedDescription). Retrying...")
+                    #endif
+                    await scheduleRetry()
+                    continue
+                }
+                #if DEBUG
+                print("Failed to import CloudKit profiles: \(error.localizedDescription)")
+                #endif
+                return
+            } catch {
+                #if DEBUG
+                print("Failed to import CloudKit profiles: \(error.localizedDescription)")
+                #endif
+                return
+            }
+        }
+
+        func shouldRetry() -> Bool {
+            guard isBootstrapState(state) else { return false }
+            guard retryAttempt < maxRetryAttempts else { return false }
+            retryAttempt += 1
+            return true
+        }
+
+        func scheduleRetry() async {
+            let baseDelay: Double = 0.25
+            let exponentialDelay = min(1.0, baseDelay * pow(2.0, Double(max(retryAttempt - 1, 0))))
+            let nanoseconds = UInt64(exponentialDelay * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: nanoseconds)
         }
     }
 
