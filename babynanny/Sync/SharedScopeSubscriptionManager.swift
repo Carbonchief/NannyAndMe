@@ -59,7 +59,7 @@ final class SharedScopeSubscriptionManager {
         let desiredActionID = await subscriptionStore.actionSubscriptionID
 
         do {
-            let existing = try await database.allSubscriptions()
+            let existing = try await database.fetchAllSubscriptions()
             let existingIDs = Set(existing.map { $0.subscriptionID })
             var subscriptionsToSave: [CKSubscription] = []
 
@@ -89,7 +89,12 @@ final class SharedScopeSubscriptionManager {
 
             guard !subscriptionsToSave.isEmpty else { return }
 
-            _ = try await database.modifySubscriptions(saving: subscriptionsToSave, deleting: [])
+            let result = try await database.modifySubscriptions(saving: subscriptionsToSave, deleting: [])
+            for outcome in result.saveResults.values {
+                if case .failure(let error) = outcome {
+                    throw error
+                }
+            }
             logger.log("Ensured shared scope subscriptions")
         } catch {
             logger.error("Failed to ensure shared subscriptions: \(error.localizedDescription, privacy: .public)")
@@ -126,7 +131,7 @@ final class SharedScopeSubscriptionManager {
 
     private func fetchZoneChanges(zoneID: CKRecordZone.ID,
                                   previousToken: CKServerChangeToken?) async throws -> ZoneFetchResult {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ZoneFetchResult, Error>) in
             var changedRecords: [CKRecord] = []
             var deletedRecords: [CKRecord.ID] = []
             var newToken: CKServerChangeToken?
@@ -296,28 +301,3 @@ actor SharedZoneChangeTokenStore {
     }
 }
 
-private extension CKDatabase {
-    func allSubscriptions() async throws -> [CKSubscription] {
-        try await withCheckedThrowingContinuation { continuation in
-            fetchAllSubscriptions { subscriptions, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                continuation.resume(returning: subscriptions ?? [])
-            }
-        }
-    }
-
-    func modifySubscriptions(saving: [CKSubscription], deleting: [String]) async throws -> ([CKSubscription], [String]) {
-        try await withCheckedThrowingContinuation { continuation in
-            modifySubscriptions(saving: saving, deleting: deleting) { saved, deleted, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                continuation.resume(returning: (saved ?? [], deleted ?? []))
-            }
-        }
-    }
-}

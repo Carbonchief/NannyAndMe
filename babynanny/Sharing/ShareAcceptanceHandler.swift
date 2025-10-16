@@ -60,7 +60,7 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
     // MARK: - Acceptance pipeline
 
     private func acceptShares(_ metadatas: [CKShare.Metadata]) async throws {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             var firstError: Error?
             let operation = CKAcceptSharesOperation(shareMetadatas: metadatas)
             operation.perShareResultBlock = { _, result in
@@ -93,7 +93,7 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
 
     private func fetchZoneChanges(zoneID: CKRecordZone.ID,
                                   previousToken: CKServerChangeToken?) async throws -> ZoneFetchResult {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ZoneFetchResult, Error>) in
             var changedRecords: [CKRecord] = []
             var deletedRecords: [CKRecord.ID] = []
             var newToken: CKServerChangeToken?
