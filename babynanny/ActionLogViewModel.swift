@@ -24,11 +24,11 @@ final class ActionLogStore: ObservableObject {
     init(modelContext: ModelContext,
          reminderScheduler: ReminderScheduling? = nil,
          notificationCenter: NotificationCenter = .default,
-         dataStack: AppDataStack = .shared) {
+         dataStack: AppDataStack? = nil) {
         self.modelContext = modelContext
         self.reminderScheduler = reminderScheduler
         self.notificationCenter = notificationCenter
-        self.dataStack = dataStack
+        self.dataStack = dataStack ?? AppDataStack.shared
         self.observedContainerIdentifier = ObjectIdentifier(modelContext.container)
         scheduleReminders()
         observeModelContextChanges()
