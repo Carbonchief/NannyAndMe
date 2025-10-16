@@ -6,7 +6,7 @@ This document outlines how the NannyAndMe sync pipeline behaves and how to test 
 
 1. **SwiftData + CloudKit** – The app uses SwiftData's built-in CloudKit support with a private database. Every `ProfileActionStateModel` and `BabyActionModel` change is mirrored to the user's private zone.
 2. **Subscriptions** – On launch the `SyncCoordinator` verifies that a database-wide `CKDatabaseSubscription` exists. If not, it creates one configured for silent pushes.
-3. **Silent push handling** – When CloudKit delivers a push, `AppDelegate` forwards the payload to the `SyncCoordinator`. The coordinator deduplicates notification IDs, updates diagnostics, and schedules a debounced `fetchAndMergeChanges()` call on the shared `ModelContainer`.
+3. **Silent push handling** – When CloudKit delivers a push, `AppDelegate` forwards the payload to the `SyncCoordinator`. The coordinator deduplicates notification IDs, updates diagnostics, and schedules a debounced refresh that re-fetches the relevant SwiftData models so the latest CloudKit state is reflected locally.
 4. **UI propagation** – SwiftData merges remote records into the local store, which triggers `NSPersistentStoreRemoteChange`. `ActionLogStore` listens for these notifications, rehydrates `ProfileStore` metadata, and the SwiftUI views refresh automatically through their environment objects or `@Query` readers.
 
 ## Resetting the local store (without touching iCloud)

@@ -22,7 +22,7 @@ final class AppDataStack: ObservableObject {
         if let factory = syncCoordinatorFactory {
             self.syncCoordinator = factory(container, container.mainContext)
         } else {
-            self.syncCoordinator = SyncCoordinator(container: container, sharedContext: container.mainContext)
+            self.syncCoordinator = SyncCoordinator(sharedContext: container.mainContext)
         }
         configureContexts()
     }

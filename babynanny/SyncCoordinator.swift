@@ -29,7 +29,6 @@ final class SyncCoordinator: ObservableObject {
 
     @Published private(set) var diagnostics = Diagnostics()
 
-    private let modelContainer: ModelContainer
     private let sharedContext: ModelContext
     private let cloudDatabase: CKDatabase
     private let cloudContainerIdentifier: String
@@ -40,11 +39,9 @@ final class SyncCoordinator: ObservableObject {
     private var pendingSyncTask: Task<Void, Never>?
     private var isPerformingSync = false
 
-    init(container: ModelContainer,
-         sharedContext: ModelContext,
+    init(sharedContext: ModelContext,
          cloudContainerIdentifier: String = "iCloud.com.prioritybit.babynanny",
          database: CKDatabase? = nil) {
-        self.modelContainer = container
         self.sharedContext = sharedContext
         self.cloudContainerIdentifier = cloudContainerIdentifier
         let ckContainer = CKContainer(identifier: cloudContainerIdentifier)
@@ -102,7 +99,7 @@ final class SyncCoordinator: ObservableObject {
         defer { isPerformingSync = false }
 
         do {
-            try await modelContainer.fetchAndMergeChanges()
+            try fetchLatestChangesFromStore()
             diagnostics.lastSyncFinishedAt = Date()
             diagnostics.lastSyncError = nil
             diagnostics.pendingChangeCount = sharedContext.hasChanges ? 1 : 0
@@ -148,6 +145,14 @@ final class SyncCoordinator: ObservableObject {
 
     private func cleanupExpiredNotificationIDs(before date: Date) {
         processedNotificationIDs = processedNotificationIDs.filter { $0.value > date }
+    }
+
+    private func fetchLatestChangesFromStore() throws {
+        let profileDescriptor = FetchDescriptor<ProfileActionStateModel>()
+        _ = try sharedContext.fetch(profileDescriptor)
+
+        let actionsDescriptor = FetchDescriptor<BabyActionModel>()
+        _ = try sharedContext.fetch(actionsDescriptor)
     }
 }
 
