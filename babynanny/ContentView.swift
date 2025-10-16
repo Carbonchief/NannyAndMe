@@ -249,19 +249,29 @@ struct ContentView: View {
         .onAppear {
             isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(
                 for: profileStore.activeProfile,
-                profileCount: profileStore.profiles.count
+                profileCount: profileStore.profiles.count,
+                isAwaitingInitialImport: profileStore.isAwaitingInitialCloudImport
             )
         }
         .onChange(of: profileStore.activeProfile) { _, profile in
             isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(
                 for: profile,
-                profileCount: profileStore.profiles.count
+                profileCount: profileStore.profiles.count,
+                isAwaitingInitialImport: profileStore.isAwaitingInitialCloudImport
             )
         }
         .onChange(of: profileStore.profiles) { _, profiles in
             isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(
                 for: profileStore.activeProfile,
-                profileCount: profiles.count
+                profileCount: profiles.count,
+                isAwaitingInitialImport: profileStore.isAwaitingInitialCloudImport
+            )
+        }
+        .onChange(of: profileStore.isAwaitingInitialCloudImport) { _, isAwaiting in
+            isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(
+                for: profileStore.activeProfile,
+                profileCount: profileStore.profiles.count,
+                isAwaitingInitialImport: isAwaiting
             )
         }
     }
@@ -302,8 +312,11 @@ private struct AnimatedTabContent: View {
     }
 }
 
-private func shouldShowInitialProfilePrompt(for profile: ChildProfile, profileCount: Int) -> Bool {
-    profileCount <= 1 && profile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+private func shouldShowInitialProfilePrompt(for profile: ChildProfile,
+                                            profileCount: Int,
+                                            isAwaitingInitialImport: Bool) -> Bool {
+    guard isAwaitingInitialImport == false else { return false }
+    return profileCount <= 1 && profile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 }
 
 private enum Tab: Hashable, CaseIterable {

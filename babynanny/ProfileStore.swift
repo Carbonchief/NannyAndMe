@@ -208,6 +208,7 @@ final class ProfileStore: ObservableObject {
         let birthDate: Date?
         let imageData: Data?
     }
+    @Published private(set) var isAwaitingInitialCloudImport: Bool
     @Published private var state: ProfileState {
         didSet {
             persistState()
@@ -227,6 +228,7 @@ final class ProfileStore: ObservableObject {
         self.reminderScheduler = reminderScheduler
         self.cloudImporter = cloudImporter
         self.didLoadProfilesFromDisk = fileManager.fileExists(atPath: saveURL.path)
+        self.isAwaitingInitialCloudImport = false
 
         if let data = try? Data(contentsOf: saveURL) {
             let decoder = JSONDecoder()
@@ -260,6 +262,7 @@ final class ProfileStore: ObservableObject {
         self.reminderScheduler = reminderScheduler
         self.cloudImporter = cloudImporter
         self.didLoadProfilesFromDisk = true
+        self.isAwaitingInitialCloudImport = false
         let state = ProfileState(profiles: initialProfiles, activeProfileID: activeProfileID)
         self.state = Self.sanitized(state: state)
         persistState()
@@ -510,6 +513,10 @@ final class ProfileStore: ObservableObject {
         guard initialCloudImportTask == nil else { return }
         guard let cloudImporter else { return }
 
+        if didLoadProfilesFromDisk == false {
+            isAwaitingInitialCloudImport = true
+        }
+
         initialCloudImportTask = Task { [weak self] in
             guard let self else { return }
             await self.performInitialCloudImport(using: cloudImporter)
@@ -517,7 +524,10 @@ final class ProfileStore: ObservableObject {
     }
 
     private func performInitialCloudImport(using importer: ProfileCloudImporting) async {
-        defer { initialCloudImportTask = nil }
+        defer {
+            initialCloudImportTask = nil
+            isAwaitingInitialCloudImport = false
+        }
 
         let maxRetryAttempts = 5
         var retryAttempt = 0
