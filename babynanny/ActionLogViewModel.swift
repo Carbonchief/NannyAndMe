@@ -9,6 +9,7 @@ final class ActionLogStore: ObservableObject {
     private let reminderScheduler: ReminderScheduling?
     private weak var profileStore: ProfileStore?
     private let notificationCenter: NotificationCenter
+    private let observedContainerIdentifier: ObjectIdentifier
     private var contextObservers: [NSObjectProtocol] = []
 
     struct MergeSummary: Equatable {
@@ -24,6 +25,7 @@ final class ActionLogStore: ObservableObject {
         self.modelContext = modelContext
         self.reminderScheduler = reminderScheduler
         self.notificationCenter = notificationCenter
+        self.observedContainerIdentifier = ObjectIdentifier(modelContext.container)
         scheduleReminders()
         observeModelContextChanges()
     }
@@ -451,22 +453,36 @@ private extension ActionLogStore {
     }
 
     private func observeModelContextChanges() {
-        let notifications: [NSNotification.Name] = [
-            .NSManagedObjectContextDidSave,
-            .NSManagedObjectContextObjectsDidChange
-        ]
-
-        for name in notifications {
-            let token = notificationCenter.addObserver(forName: name,
-                                                       object: nil,
-                                                       queue: nil) { [weak self] _ in
-                guard let self else { return }
-                Task { @MainActor in
-                    self.handleModelContextChange()
-                }
+        let primaryToken = notificationCenter.addObserver(forName: .NSManagedObjectContextObjectsDidChange,
+                                                           object: modelContext,
+                                                           queue: nil) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                self.handleModelContextChange()
             }
-            contextObservers.append(token)
         }
+        contextObservers.append(primaryToken)
+
+        let externalToken = notificationCenter.addObserver(forName: .NSManagedObjectContextDidSave,
+                                                            object: nil,
+                                                            queue: nil) { [weak self] notification in
+            guard let self, self.shouldHandleExternalContextChange(from: notification) else { return }
+            Task { @MainActor in
+                self.handleModelContextChange()
+            }
+        }
+        contextObservers.append(externalToken)
+    }
+
+    private func shouldHandleExternalContextChange(from notification: Notification) -> Bool {
+        guard let context = notification.object else { return false }
+
+        if let modelContext = context as? ModelContext {
+            guard ObjectIdentifier(modelContext.container) == observedContainerIdentifier else { return false }
+            return modelContext !== self.modelContext
+        }
+
+        return false
     }
 
     private func handleModelContextChange() {
