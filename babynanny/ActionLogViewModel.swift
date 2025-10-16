@@ -472,6 +472,16 @@ private extension ActionLogStore {
             }
         }
         contextObservers.append(externalToken)
+
+        let remoteToken = notificationCenter.addObserver(forName: .NSPersistentStoreRemoteChange,
+                                                          object: nil,
+                                                          queue: nil) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                self.handleModelContextChange()
+            }
+        }
+        contextObservers.append(remoteToken)
     }
 
     private func shouldHandleExternalContextChange(from notification: Notification) -> Bool {
