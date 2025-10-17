@@ -15,6 +15,7 @@ struct ContentView: View {
     @State private var isMenuVisible = false
     @State private var showSettings = false
     @State private var showAllLogs = false
+    @State private var showShareProfile = false
     @State private var isProfileSwitcherPresented = false
     @State private var isInitialProfilePromptPresented = false
 
@@ -146,6 +147,9 @@ struct ContentView: View {
                 .navigationDestination(isPresented: $showAllLogs) {
                     AllLogsView()
                 }
+                .navigationDestination(isPresented: $showShareProfile) {
+                    ShareProfilePage(profileID: profileStore.activeProfile.id)
+                }
                 .navigationDestination(
                     isPresented: Binding(
                         get: { shareDataCoordinator.isShowingShareData },
@@ -210,6 +214,13 @@ struct ContentView: View {
                         withAnimation(.easeInOut) {
                             isMenuVisible = false
                             showAllLogs = true
+                        }
+                    },
+                    onSelectShareProfile: {
+                        Analytics.capture("navigation_open_shareProfile_menu", properties: ["source": "side_menu"])
+                        withAnimation(.easeInOut) {
+                            isMenuVisible = false
+                            showShareProfile = true
                         }
                     },
                     onSelectSettings: {

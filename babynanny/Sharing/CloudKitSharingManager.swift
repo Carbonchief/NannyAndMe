@@ -38,24 +38,21 @@ final class CloudKitSharingManager {
             return existing
         }
 
-        let zoneID = try await ensureZone(for: profileID)
+        var zoneID = try await ensureZone(for: profileID)
         let snapshot = try await loadSnapshot(for: profileID)
         guard let snapshot else { throw SharingError.profileNotFound }
 
-        let (records, share) = try buildRecordsForSharing(snapshot: snapshot, zoneID: zoneID)
-        let savedShare = try await saveShareTree(records: records, share: share)
-        TemporaryFileManager.shared.cleanup()
-
-        let metadata = ShareMetadataStore.ShareMetadata(
-            profileID: profileID,
-            zoneID: zoneID,
-            rootRecordID: snapshot.profileRecordID(in: zoneID),
-            shareRecordID: savedShare.recordID,
-            isShared: true
-        )
-        await metadataStore.upsert(metadata)
-        logger.log("Created CloudKit share for profile \(profileID.uuidString, privacy: .public)")
-        return savedShare
+        do {
+            return try await createShare(for: profileID, snapshot: snapshot, zoneID: zoneID)
+        } catch {
+            guard shouldResetZone(after: error) else { throw error }
+            logger.warning(
+                "Share creation failed due to stale zone for profile \(profileID.uuidString, privacy: .public); resetting zone"
+            )
+            await resetZone(for: profileID, zoneID: zoneID)
+            zoneID = try await ensureZone(for: profileID)
+            return try await createShare(for: profileID, snapshot: snapshot, zoneID: zoneID)
+        }
     }
 
     /// Fetches participants for the current share associated with the profile.
@@ -126,6 +123,26 @@ final class CloudKitSharingManager {
         }
     }
 
+    private func createShare(for profileID: UUID,
+                             snapshot: ProfileSnapshot,
+                             zoneID: CKRecordZone.ID) async throws -> CKShare {
+        defer { TemporaryFileManager.shared.cleanup() }
+
+        let (records, share) = try buildRecordsForSharing(snapshot: snapshot, zoneID: zoneID)
+        let savedShare = try await saveShareTree(records: records, share: share)
+
+        let metadata = ShareMetadataStore.ShareMetadata(
+            profileID: profileID,
+            zoneID: zoneID,
+            rootRecordID: snapshot.profileRecordID(in: zoneID),
+            shareRecordID: savedShare.recordID,
+            isShared: true
+        )
+        await metadataStore.upsert(metadata)
+        logger.log("Created CloudKit share for profile \(profileID.uuidString, privacy: .public)")
+        return savedShare
+    }
+
     private func resolveProfileID(for participant: CKShare.Participant) async throws -> UUID {
         let metadata = await metadataStore.allMetadata()
         for (profileID, _) in metadata {
@@ -154,6 +171,44 @@ final class CloudKitSharingManager {
             }
         }
         return zoneID
+    }
+
+    private func resetZone(for profileID: UUID, zoneID: CKRecordZone.ID) async {
+        let existingMetadata = await metadataStore.metadata(for: profileID)
+        await metadataStore.remove(profileID: profileID)
+        if let shareID = existingMetadata?.shareRecordID {
+            do {
+                try await privateDatabase.deleteRecordAsync(withID: shareID)
+            } catch {
+                logger.error(
+                    "Failed to delete stale share for profile \(profileID.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)"
+                )
+            }
+        }
+        do {
+            try await privateDatabase.deleteZoneAsync(withID: zoneID)
+        } catch {
+            logger.error(
+                "Failed to delete stale zone for profile \(profileID.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+
+    private func shouldResetZone(after error: Error) -> Bool {
+        guard let ckError = error as? CKError else { return false }
+        if ckError.code == .partialFailure,
+           let partialErrors = ckError.partialErrorsByItemID {
+            return partialErrors.values.contains(where: { element in
+                guard let partialError = element as? CKError else { return false }
+                return shouldResetZone(after: partialError)
+            })
+        }
+        switch ckError.code {
+        case .serverRecordChanged, .batchRequestFailed, .zoneBusy:
+            return true
+        default:
+            return false
+        }
     }
 
     private func loadSnapshot(for profileID: UUID) async throws -> ProfileSnapshot? {
@@ -185,7 +240,8 @@ final class CloudKitSharingManager {
         if let birthDate = snapshot.profile.birthDate {
             profileRecord["birthDate"] = birthDate as CKRecordValue
         }
-        if let imageData = snapshot.profile.imageData {
+        let profileImageData = snapshot.profile.imageData
+        if let imageData = profileImageData {
             let file = try TemporaryFileManager.shared.write(data: imageData)
             profileRecord["image"] = CKAsset(fileURL: file)
         }
@@ -194,6 +250,9 @@ final class CloudKitSharingManager {
         share.publicPermission = .readOnly
         if let name = snapshot.profile.name {
             share[CKShare.SystemFieldKey.title] = name as CKRecordValue
+        }
+        if let imageData = profileImageData {
+            share[CKShare.SystemFieldKey.thumbnailImageData] = imageData as CKRecordValue
         }
 
         let actionRecords: [CKRecord] = snapshot.actions.map { action in

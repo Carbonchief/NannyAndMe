@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SideMenu: View {
     let onSelectAllLogs: () -> Void
+    let onSelectShareProfile: () -> Void
     let onSelectSettings: () -> Void
     let onSelectShareData: () -> Void
 
@@ -32,6 +33,15 @@ struct SideMenu: View {
                     .font(.headline)
             }
             .postHogLabel("menu.allLogs")
+
+            Button(action: {
+                Analytics.capture("menu_select_shareProfile_drawer", properties: ["source": "side_menu"])
+                onSelectShareProfile()
+            }) {
+                Label(L10n.Menu.shareProfile, systemImage: "person.2.fill")
+                    .font(.headline)
+            }
+            .postHogLabel("menu.shareProfile")
 
             Button(action: {
                 Analytics.capture("menu_select_shareData_drawer", properties: ["source": "side_menu"])
@@ -63,5 +73,5 @@ struct SideMenu: View {
 }
 
 #Preview {
-    SideMenu(onSelectAllLogs: {}, onSelectSettings: {}, onSelectShareData: {})
+    SideMenu(onSelectAllLogs: {}, onSelectShareProfile: {}, onSelectSettings: {}, onSelectShareData: {})
 }
