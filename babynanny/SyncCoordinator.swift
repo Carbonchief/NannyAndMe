@@ -62,8 +62,7 @@ final class SyncCoordinator: ObservableObject {
         }
 
         if let subscriptionID = notification.subscriptionID, subscriptionID != self.subscriptionID {
-            cloudLogger.debug("Ignoring CloudKit notification for subscription \(subscriptionID, privacy: .public)")
-            return
+            cloudLogger.debug("Received CloudKit notification for subscription \(subscriptionID, privacy: .public)")
         }
 
         if let notificationID = notification.notificationID.map({ String(describing: $0) }) {
