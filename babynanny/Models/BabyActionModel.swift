@@ -403,14 +403,13 @@ struct ProfileActionState: Codable {
 @Model
 final class Profile {
     /// Stable identifier used for CloudKit mirroring and SwiftData uniqueness.
-    @Attribute(.unique)
-    var id: UUID
+    var id: UUID = UUID()
     var name: String?
     var birthDate: Date?
     @Attribute(.externalStorage)
     var imageData: Data?
     @Relationship(deleteRule: .cascade)
-    var actions: [BabyAction] = []
+    var persistedActions: [BabyAction]? = []
 
     init(profileID: UUID = UUID(),
          name: String? = nil,
@@ -421,7 +420,7 @@ final class Profile {
         self.name = name
         self.birthDate = birthDate?.normalizedToUTC()
         self.imageData = imageData
-        self.actions = actions
+        self.persistedActions = actions
         ensureActionOwnership()
     }
 
@@ -434,10 +433,20 @@ final class Profile {
         id
     }
 
-    func ensureActionOwnership() {
-        for action in actions where action.profile == nil {
-            action.profile = self
+    var actions: [BabyAction] {
+        get { persistedActions ?? [] }
+        set {
+            persistedActions = newValue
+            ensureActionOwnership()
         }
+    }
+
+    func ensureActionOwnership() {
+        var storedActions = persistedActions ?? []
+        for index in storedActions.indices where storedActions[index].profile == nil {
+            storedActions[index].profile = self
+        }
+        persistedActions = storedActions
     }
 }
 
@@ -446,17 +455,16 @@ typealias ProfileActionStateModel = Profile
 @Model
 final class BabyAction {
     /// Stable identifier synced with CloudKit to keep actions unique across devices.
-    @Attribute(.unique)
-    var id: UUID
-    private var categoryRawValue: String
-    var startDateRawValue: Date
+    var id: UUID = UUID()
+    private var categoryRawValue: String = BabyActionCategory.sleep.rawValue
+    var startDateRawValue: Date = Date().normalizedToUTC()
     private var endDateRawValue: Date?
     var diaperTypeRawValue: String?
     var feedingTypeRawValue: String?
     var bottleTypeRawValue: String?
     var bottleVolume: Int?
-    private var updatedAtRawValue: Date
-    @Relationship(deleteRule: .nullify, inverse: \Profile.actions)
+    private var updatedAtRawValue: Date = Date()
+    @Relationship(deleteRule: .nullify, inverse: \Profile.persistedActions)
     var profile: Profile?
 
     init(id: UUID = UUID(),

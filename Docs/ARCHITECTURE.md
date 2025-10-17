@@ -7,7 +7,7 @@ The app persists all user state with SwiftData models that mirror directly to Cl
 - `Profile` (`ProfileActionStateModel` alias) is the root entity. It owns profile metadata and an ordered collection of `BabyAction` objects.
 - `BabyAction` (`BabyActionModel` alias) represents an individual sleep/feeding/diaper event. Each action keeps a stable `UUID` identifier and timestamps normalized to UTC.
 
-Relationships use SwiftData's inverse tracking so that deleting a profile cascades to its actions while individual actions can safely be re-parented. Identifiers on both models are marked as `@Attribute(.unique)` which provides efficient fetches and ensures CloudKit mirroring never produces duplicates.
+Relationships use SwiftData's inverse tracking so that deleting a profile cascades to its actions while individual actions can safely be re-parented. Each model stores a defaulted `UUID` identifier so CloudKit mirroring can restore stable identities without relying on SwiftData's unique-constraint attribute, which CloudKit mirroring does not support.
 
 ## Model container configuration
 
