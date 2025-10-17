@@ -410,9 +410,7 @@ final class Profile {
     @Attribute(.externalStorage)
     var imageData: Data?
     @Relationship(deleteRule: .cascade, inverse: \BabyAction.profile)
-    var actions: [BabyAction] {
-        didSet { ensureActionOwnership() }
-    }
+    var actions: [BabyAction] = []
 
     init(profileID: UUID = UUID(),
          name: String? = nil,
@@ -459,7 +457,7 @@ final class BabyAction {
     var bottleTypeRawValue: String?
     var bottleVolume: Int?
     private var updatedAtRawValue: Date
-    @Relationship(inverse: \Profile.actions, deleteRule: .nullify)
+    @Relationship(deleteRule: .nullify, inverse: \Profile.actions)
     var profile: Profile?
 
     init(id: UUID = UUID(),
