@@ -347,18 +347,19 @@ private final class ShareProfilePageViewModel: ObservableObject {
         let task = Task<String?, Never> {
             do {
                 let recordID = try await container.userRecordID()
-                let identity = try await container.userIdentity(forUserRecordID: recordID)
-                if let components = identity.nameComponents {
-                    let formatted = nameFormatter.string(from: components)
-                    if formatted.isEmpty == false {
-                        return formatted
+                if let identity = try await container.userIdentity(forUserRecordID: recordID) {
+                    if let components = identity.nameComponents {
+                        let formatted = nameFormatter.string(from: components)
+                        if formatted.isEmpty == false {
+                            return formatted
+                        }
                     }
-                }
-                if let email = identity.lookupInfo?.emailAddress, email.isEmpty == false {
-                    return email
-                }
-                if let phone = identity.lookupInfo?.phoneNumber, phone.isEmpty == false {
-                    return phone
+                    if let email = identity.lookupInfo?.emailAddress, email.isEmpty == false {
+                        return email
+                    }
+                    if let phone = identity.lookupInfo?.phoneNumber, phone.isEmpty == false {
+                        return phone
+                    }
                 }
                 let deviceName = UIDevice.current.name
                 if deviceName.isEmpty == false {
