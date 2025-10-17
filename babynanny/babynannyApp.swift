@@ -26,12 +26,14 @@ struct babynannyApp: App {
         let profileStore = ProfileStore(reminderScheduler: scheduler)
         let actionStore = ActionLogStore(modelContext: stack.mainContext,
                                          reminderScheduler: scheduler,
-                                         dataStack: stack)
+                                         dataStack: stack,
+                                         shareMetadataStore: stack.shareMetadataStore)
         profileStore.registerActionStore(actionStore)
         actionStore.registerProfileStore(profileStore)
         _profileStore = StateObject(wrappedValue: profileStore)
         self.actionStore = actionStore
-        appDelegate.configure(with: stack.syncCoordinator)
+        appDelegate.configure(with: stack.syncCoordinator,
+                              sharedSubscriptionManager: stack.sharedSubscriptionManager)
         stack.prepareSubscriptionsIfNeeded()
         stack.requestSyncIfNeeded(reason: .appLaunch)
     }

@@ -1,3 +1,4 @@
+import CloudKit
 import SwiftUI
 import UIKit
 import os
@@ -5,9 +6,12 @@ import os
 final class AppDelegate: NSObject, UIApplicationDelegate {
     private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "sync")
     private weak var syncCoordinator: SyncCoordinator?
+    private var sharedSubscriptionManager: SharedScopeSubscriptionManager?
 
-    func configure(with coordinator: SyncCoordinator) {
+    func configure(with coordinator: SyncCoordinator,
+                   sharedSubscriptionManager: SharedScopeSubscriptionManager) {
         syncCoordinator = coordinator
+        self.sharedSubscriptionManager = sharedSubscriptionManager
     }
 
     func application(_ application: UIApplication,
@@ -34,7 +38,27 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             return
         }
 
-        coordinator.handleRemoteNotification(userInfo)
-        completionHandler(.newData)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            var handledSharedScope = false
+            if let notification = CKNotification(fromRemoteNotificationDictionary: userInfo) {
+                if let sharedManager = self.sharedSubscriptionManager {
+                    handledSharedScope = await sharedManager.handleRemoteNotification(notification)
+                    if handledSharedScope {
+                        NotificationCenter.default.post(name: .sharedScopeNotification, object: notification)
+                    }
+                }
+
+                if handledSharedScope == false {
+                    coordinator.handleRemoteNotification(userInfo)
+                }
+            } else {
+                logger.error("Received remote notification without CloudKit payload")
+                coordinator.handleRemoteNotification(userInfo)
+            }
+
+            completionHandler(.newData)
+        }
     }
 }

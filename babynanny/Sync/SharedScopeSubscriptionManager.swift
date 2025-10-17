@@ -42,7 +42,13 @@ final class SharedScopeSubscriptionManager {
         }
     }
 
-    func handleRemoteNotification(_ notification: CKNotification) {
+    @discardableResult
+    func handleRemoteNotification(_ notification: CKNotification) async -> Bool {
+        guard let subscriptionID = notification.subscriptionID else { return false }
+        let profileID = await subscriptionStore.profileSubscriptionID
+        let actionID = await subscriptionStore.actionSubscriptionID
+        guard subscriptionID == profileID || subscriptionID == actionID else { return false }
+
         pendingTask?.cancel()
         pendingTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
@@ -52,6 +58,8 @@ final class SharedScopeSubscriptionManager {
                 self.logger.error("Failed to process shared notification: \(error.localizedDescription, privacy: .public)")
             }
         }
+
+        return true
     }
 
     private func createSubscriptionsIfNeeded() async {
