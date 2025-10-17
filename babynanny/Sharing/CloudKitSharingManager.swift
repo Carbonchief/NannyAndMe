@@ -460,4 +460,4 @@ private extension CKError.Code {
     static let zoneAlreadyExistsRawValue: Int = 26
 }
 
-@preconcurrency extension UserDefaults: @unchecked Sendable {}
+extension UserDefaults: @unchecked Sendable {}
