@@ -631,7 +631,6 @@ private struct ShareProfileSheet: View {
     var body: some View {
         VStack(spacing: 24) {
             VStack(spacing: 12) {
-                ProfileAvatarView(imageData: payload.thumbnailData, size: 88)
                 Text(payload.displayName ?? ShareStrings.unnamedProfileTitle)
                     .font(.title3)
                     .fontWeight(.semibold)
