@@ -387,7 +387,7 @@ private final class TemporaryFileManager {
 
 private extension CKDatabase {
     func record(withID recordID: CKRecord.ID) async throws -> CKRecord {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKRecord, Error>) in
             fetch(withRecordID: recordID) { record, error in
                 if let error {
                     continuation.resume(throwing: error)
@@ -403,7 +403,7 @@ private extension CKDatabase {
     }
 
     func saveZoneAsync(_ zone: CKRecordZone) async throws {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             save(zone) { _, error in
                 if let error {
                     continuation.resume(throwing: error)
@@ -415,7 +415,7 @@ private extension CKDatabase {
     }
 
     func deleteRecordAsync(withID recordID: CKRecord.ID) async throws {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             delete(withRecordID: recordID) { _, error in
                 if let error {
                     continuation.resume(throwing: error)
@@ -427,7 +427,7 @@ private extension CKDatabase {
     }
 
     func deleteZoneAsync(withID zoneID: CKRecordZone.ID) async throws {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             delete(withRecordZoneID: zoneID) { _, error in
                 if let error {
                     continuation.resume(throwing: error)
