@@ -390,7 +390,7 @@ private final class ShareProfilePageViewModel: ObservableObject {
     private func fetchCurrentUserParticipant() async throws -> CKShare.Participant? {
         let recordID = try await container.userRecordID()
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKShare.Participant?, Error>) in
-            let lookup = CKUserIdentityLookupInfo(userRecordID: recordID)
+            let lookup = CKUserIdentity.LookupInfo(userRecordID: recordID)
             let operation = CKFetchShareParticipantsOperation(userIdentityLookupInfos: [lookup])
             operation.qualityOfService = .userInitiated
 
