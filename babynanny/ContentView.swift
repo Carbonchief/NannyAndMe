@@ -401,7 +401,7 @@ private enum Tab: Hashable, CaseIterable {
 
     var state = ProfileActionState()
     state.history = [
-        BabyAction(category: .feeding, startDate: Date().addingTimeInterval(-3600), endDate: Date().addingTimeInterval(-3300), feedingType: .bottle, bottleType: .formula, bottleVolume: 100)
+        BabyActionSnapshot(category: .feeding, startDate: Date().addingTimeInterval(-3600), endDate: Date().addingTimeInterval(-3300), feedingType: .bottle, bottleType: .formula, bottleVolume: 100)
     ]
 
     let actionStore = ActionLogStore.previewStore(profiles: [profile.id: state])

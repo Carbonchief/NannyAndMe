@@ -56,7 +56,7 @@ enum BabyActionCategory: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-struct BabyAction: Identifiable, Codable, Equatable {
+struct BabyActionSnapshot: Identifiable, Codable, Equatable {
     enum DiaperType: String, CaseIterable, Identifiable, Codable {
         case pee
         case poo
@@ -276,7 +276,7 @@ struct BabyAction: Identifiable, Codable, Equatable {
         return formatter.localizedString(for: endDate, relativeTo: referenceDate)
     }
 
-    func withValidatedDates() -> BabyAction {
+    func withValidatedDates() -> BabyActionSnapshot {
         var copy = self
         if category.isInstant {
             copy.endDate = copy.startDate
@@ -297,7 +297,7 @@ struct BabyAction: Identifiable, Codable, Equatable {
     }
 }
 
-extension BabyAction {
+extension BabyActionSnapshot {
     private enum CodingKeys: String, CodingKey {
         case id
         case category
@@ -340,17 +340,17 @@ extension BabyAction {
 }
 
 struct ProfileActionState: Codable {
-    var activeActions: [BabyActionCategory: BabyAction]
-    var history: [BabyAction]
+    var activeActions: [BabyActionCategory: BabyActionSnapshot]
+    var history: [BabyActionSnapshot]
 
-    init(activeActions: [BabyActionCategory: BabyAction] = [:], history: [BabyAction] = []) {
+    init(activeActions: [BabyActionCategory: BabyActionSnapshot] = [:], history: [BabyActionSnapshot] = []) {
         self.activeActions = activeActions
         self.history = history
     }
 
-    func latestHistoryEntriesPerCategory() -> [BabyAction] {
+    func latestHistoryEntriesPerCategory() -> [BabyActionSnapshot] {
         var seenCategories = Set<BabyActionCategory>()
-        var uniqueEntries: [BabyAction] = []
+        var uniqueEntries: [BabyActionSnapshot] = []
 
         for action in history {
             guard !seenCategories.contains(action.category) else { continue }
@@ -363,13 +363,13 @@ struct ProfileActionState: Codable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let rawActive = try container.decode([String: BabyAction].self, forKey: .activeActions)
+        let rawActive = try container.decode([String: BabyActionSnapshot].self, forKey: .activeActions)
         self.activeActions = rawActive.reduce(into: [:]) { partialResult, element in
             let (key, value) = element
             guard let category = BabyActionCategory(rawValue: key) else { return }
             partialResult[category] = value
         }
-        self.history = try container.decode([BabyAction].self, forKey: .history)
+        self.history = try container.decode([BabyActionSnapshot].self, forKey: .history)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -379,15 +379,15 @@ struct ProfileActionState: Codable {
         try container.encode(history, forKey: .history)
     }
 
-    func activeAction(for category: BabyActionCategory) -> BabyAction? {
+    func activeAction(for category: BabyActionCategory) -> BabyActionSnapshot? {
         activeActions[category]
     }
 
-    func lastCompletedAction(for category: BabyActionCategory) -> BabyAction? {
+    func lastCompletedAction(for category: BabyActionCategory) -> BabyActionSnapshot? {
         history.first(where: { $0.category == category })
     }
 
-    var mostRecentAction: BabyAction? {
+    var mostRecentAction: BabyActionSnapshot? {
         if let running = activeActions.values.sorted(by: { $0.startDate > $1.startDate }).first {
             return running
         }
@@ -401,20 +401,20 @@ struct ProfileActionState: Codable {
 }
 
 @Model
-final class ProfileActionStateModel {
+final class Profile {
     var profileID: UUID?
     var name: String?
     var birthDate: Date?
     @Attribute(.externalStorage)
     var imageData: Data?
-    @Relationship(deleteRule: .cascade, inverse: \BabyActionModel.profile)
-    fileprivate var actionsStorage: [BabyActionModel]?
+    @Relationship(deleteRule: .cascade, inverse: \BabyAction.profile)
+    fileprivate var actionsStorage: [BabyAction]?
 
     init(profileID: UUID = UUID(),
          name: String? = nil,
          birthDate: Date? = nil,
          imageData: Data? = nil,
-         actions: [BabyActionModel] = []) {
+         actions: [BabyAction] = []) {
         self.profileID = profileID
         self.name = name
         self.birthDate = birthDate?.normalizedToUTC()
@@ -441,7 +441,7 @@ final class ProfileActionStateModel {
         }
     }
 
-    var actions: [BabyActionModel] {
+    var actions: [BabyAction] {
         get { actionsStorage ?? [] }
         set {
             if newValue.isEmpty {
@@ -461,8 +461,10 @@ final class ProfileActionStateModel {
     }
 }
 
+typealias ProfileActionStateModel = Profile
+
 @Model
-final class BabyActionModel {
+final class BabyAction {
     var idRawValue: UUID?
     var categoryRawValue: String?
     var startDateRawValue: Date?
@@ -473,18 +475,18 @@ final class BabyActionModel {
     var bottleVolume: Int?
     var updatedAtRawValue: Date?
     @Relationship
-    var profile: ProfileActionStateModel?
+    var profile: Profile?
 
     init(id: UUID = UUID(),
          category: BabyActionCategory = .sleep,
          startDate: Date = Date(),
          endDate: Date? = nil,
-         diaperType: BabyAction.DiaperType? = nil,
-         feedingType: BabyAction.FeedingType? = nil,
-         bottleType: BabyAction.BottleType? = nil,
+         diaperType: BabyActionSnapshot.DiaperType? = nil,
+         feedingType: BabyActionSnapshot.FeedingType? = nil,
+         bottleType: BabyActionSnapshot.BottleType? = nil,
          bottleVolume: Int? = nil,
          updatedAt: Date? = nil,
-         profile: ProfileActionStateModel? = nil) {
+         profile: Profile? = nil) {
         self.id = id
         self.category = category
         self.startDate = startDate
@@ -555,39 +557,41 @@ final class BabyActionModel {
     }
 }
 
-extension BabyActionModel {
-    var diaperType: BabyAction.DiaperType? {
+typealias BabyActionModel = BabyAction
+
+extension BabyAction {
+    var diaperType: BabyActionSnapshot.DiaperType? {
         get {
             guard let rawValue = diaperTypeRawValue else { return nil }
-            return BabyAction.DiaperType(rawValue: rawValue)
+            return BabyActionSnapshot.DiaperType(rawValue: rawValue)
         }
         set {
             diaperTypeRawValue = newValue?.rawValue
         }
     }
 
-    var feedingType: BabyAction.FeedingType? {
+    var feedingType: BabyActionSnapshot.FeedingType? {
         get {
             guard let rawValue = feedingTypeRawValue else { return nil }
-            return BabyAction.FeedingType(rawValue: rawValue)
+            return BabyActionSnapshot.FeedingType(rawValue: rawValue)
         }
         set {
             feedingTypeRawValue = newValue?.rawValue
         }
     }
 
-    var bottleType: BabyAction.BottleType? {
+    var bottleType: BabyActionSnapshot.BottleType? {
         get {
             guard let rawValue = bottleTypeRawValue else { return nil }
-            return BabyAction.BottleType(rawValue: rawValue)
+            return BabyActionSnapshot.BottleType(rawValue: rawValue)
         }
         set {
             bottleTypeRawValue = newValue?.rawValue
         }
     }
 
-    func asBabyAction() -> BabyAction {
-        BabyAction(
+    func asSnapshot() -> BabyActionSnapshot {
+        BabyActionSnapshot(
             id: id,
             category: category,
             startDate: startDate,
@@ -600,7 +604,7 @@ extension BabyActionModel {
         )
     }
 
-    func update(from action: BabyAction) {
+    func update(from action: BabyActionSnapshot) {
         id = action.id
         category = action.category
         startDate = action.startDate

@@ -37,7 +37,7 @@ struct StatsView: View {
         }
     }
 
-    private func headerSection(for state: ProfileActionState, todayActions: [BabyAction]) -> some View {
+    private func headerSection(for state: ProfileActionState, todayActions: [BabyActionSnapshot]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L10n.Stats.dailySnapshotTitle)
                 .font(.title2)
@@ -49,7 +49,7 @@ struct StatsView: View {
         }
     }
 
-    private func statsGrid(for state: ProfileActionState, todayActions: [BabyAction]) -> some View {
+    private func statsGrid(for state: ProfileActionState, todayActions: [BabyActionSnapshot]) -> some View {
         VStack(spacing: 16) {
             HStack(spacing: 16) {
                 StatCard(title: L10n.Stats.activeActionsTitle,
@@ -295,19 +295,19 @@ struct StatsView: View {
         actionStore.state(for: profileStore.activeProfile.id)
     }
 
-    private func todayActions(for state: ProfileActionState) -> [BabyAction] {
+    private func todayActions(for state: ProfileActionState) -> [BabyActionSnapshot] {
         let calendar = Calendar.current
         return state.history.filter { calendar.isDate($0.startDate, inSameDayAs: Date()) }
     }
 
-    private func todayBottleVolume(for actions: [BabyAction]) -> Int {
+    private func todayBottleVolume(for actions: [BabyActionSnapshot]) -> Int {
         actions.compactMap { action in
             guard action.category == .feeding, action.feedingType == .bottle else { return nil }
             return action.bottleVolume
         }.reduce(0, +)
     }
 
-    private func todaySleepCount(for actions: [BabyAction]) -> Int {
+    private func todaySleepCount(for actions: [BabyActionSnapshot]) -> Int {
         actions.filter { $0.category == .sleep }.count
     }
 
@@ -367,7 +367,7 @@ struct StatsView: View {
         }
     }
 
-    private func subtypes(for action: BabyAction, focusCategory: BabyActionCategory) -> [ActionSubtype] {
+    private func subtypes(for action: BabyActionSnapshot, focusCategory: BabyActionCategory) -> [ActionSubtype] {
         switch focusCategory {
         case .sleep:
             return [.general(.sleep)]
@@ -575,8 +575,8 @@ private struct DailyActionMetric: Identifiable {
 
 private enum ActionSubtype: Hashable {
     case general(BabyActionCategory)
-    case diaper(BabyAction.DiaperType)
-    case feeding(BabyAction.FeedingType)
+    case diaper(BabyActionSnapshot.DiaperType)
+    case feeding(BabyActionSnapshot.FeedingType)
     case unspecified(BabyActionCategory)
 
     var id: String {
@@ -656,7 +656,7 @@ private struct ActionPatternSegment: Identifiable {
     let subtype: ActionSubtype
 }
 
-private extension BabyAction.DiaperType {
+private extension BabyActionSnapshot.DiaperType {
     var sortIndex: Int {
         switch self {
         case .pee:
@@ -669,7 +669,7 @@ private extension BabyAction.DiaperType {
     }
 }
 
-private extension BabyAction.FeedingType {
+private extension BabyActionSnapshot.FeedingType {
     var sortIndex: Int {
         switch self {
         case .bottle:
@@ -729,25 +729,25 @@ private struct StatCard: View {
     let profileStore = ProfileStore(initialProfiles: [profile], activeProfileID: profile.id, directory: FileManager.default.temporaryDirectory, filename: "previewStatsProfiles.json")
 
     var state = ProfileActionState()
-    state.activeActions[.sleep] = BabyAction(category: .sleep, startDate: Date().addingTimeInterval(-1800))
+    state.activeActions[.sleep] = BabyActionSnapshot(category: .sleep, startDate: Date().addingTimeInterval(-1800))
     let calendar = Calendar.current
     let yesterday = calendar.date(byAdding: .day, value: -1, to: Date()) ?? Date()
     let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: Date()) ?? Date()
 
     state.history = [
-        BabyAction(category: .sleep,
+        BabyActionSnapshot(category: .sleep,
                    startDate: calendar.date(byAdding: .hour, value: -1, to: yesterday) ?? yesterday,
                    endDate: calendar.date(byAdding: .minute, value: -30, to: yesterday)),
-        BabyAction(category: .sleep,
+        BabyActionSnapshot(category: .sleep,
                    startDate: calendar.date(byAdding: .hour, value: -2, to: twoDaysAgo) ?? twoDaysAgo,
                    endDate: calendar.date(byAdding: .hour, value: -1, to: twoDaysAgo)),
-        BabyAction(category: .feeding,
+        BabyActionSnapshot(category: .feeding,
                    startDate: Date().addingTimeInterval(-7200),
                    endDate: Date().addingTimeInterval(-6900),
                    feedingType: .bottle,
                    bottleType: .formula,
                    bottleVolume: 120),
-        BabyAction(category: .diaper,
+        BabyActionSnapshot(category: .diaper,
                    startDate: Date().addingTimeInterval(-5400),
                    endDate: Date().addingTimeInterval(-5300),
                    diaperType: .both)

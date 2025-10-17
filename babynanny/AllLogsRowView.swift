@@ -1,11 +1,11 @@
 import SwiftUI
 
 struct AllLogsRowView: View {
-    let action: BabyAction
+    let action: BabyActionSnapshot
     let referenceDate: Date
     let timeFormatter: DateFormatter
-    let onEdit: (BabyAction) -> Void
-    let onDelete: (BabyAction) -> Void
+    let onEdit: (BabyActionSnapshot) -> Void
+    let onDelete: (BabyActionSnapshot) -> Void
 
     var body: some View {
         Button {

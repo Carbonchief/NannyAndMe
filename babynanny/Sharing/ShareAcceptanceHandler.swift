@@ -265,7 +265,7 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
             mutated = true
         }
         if let diaper = record["diaperType"] as? String {
-            let diaperType = BabyAction.DiaperType(rawValue: diaper)
+            let diaperType = BabyActionSnapshot.DiaperType(rawValue: diaper)
             if model.diaperType != diaperType {
                 model.diaperType = diaperType
                 mutated = true
@@ -275,7 +275,7 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
             mutated = true
         }
         if let feeding = record["feedingType"] as? String {
-            let feedingType = BabyAction.FeedingType(rawValue: feeding)
+            let feedingType = BabyActionSnapshot.FeedingType(rawValue: feeding)
             if model.feedingType != feedingType {
                 model.feedingType = feedingType
                 mutated = true
@@ -285,7 +285,7 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
             mutated = true
         }
         if let bottleTypeRaw = record["bottleType"] as? String {
-            let bottleType = BabyAction.BottleType(rawValue: bottleTypeRaw)
+            let bottleType = BabyActionSnapshot.BottleType(rawValue: bottleTypeRaw)
             if model.bottleType != bottleType {
                 model.bottleType = bottleType
                 mutated = true

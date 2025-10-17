@@ -100,7 +100,7 @@ struct ActionLogStoreTests {
 
     @Test
     func conflictResolverFavorsNewestTimestamp() {
-        var local = BabyAction(category: .sleep, startDate: Date(timeIntervalSince1970: 0))
+        var local = BabyActionSnapshot(category: .sleep, startDate: Date(timeIntervalSince1970: 0))
         local.updatedAt = Date(timeIntervalSince1970: 1)
         var remote = local
         remote.updatedAt = Date(timeIntervalSince1970: 2)
@@ -114,7 +114,7 @@ struct ActionLogStoreTests {
     @Test
     func conflictResolverUsesEndDateAsDeterministicTieBreaker() {
         let baseline = Date()
-        var local = BabyAction(category: .sleep, startDate: baseline, endDate: baseline.addingTimeInterval(10))
+        var local = BabyActionSnapshot(category: .sleep, startDate: baseline, endDate: baseline.addingTimeInterval(10))
         local.updatedAt = Date(timeIntervalSince1970: 100)
         var remote = local
         remote.endDate = baseline.addingTimeInterval(20)

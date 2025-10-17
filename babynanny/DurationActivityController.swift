@@ -38,7 +38,7 @@ final class DurationActivityController {
 
     private init() {}
 
-    func update(for profileName: String?, actions: [BabyAction]) {
+    func update(for profileName: String?, actions: [BabyActionSnapshot]) {
         let authorization = ActivityAuthorizationInfo()
         guard authorization.areActivitiesEnabled else {
             endActivity()
@@ -104,7 +104,7 @@ final class DurationActivityController {
 
 @available(iOS 17.0, *)
 private extension DurationActivityAttributes.ContentState.RunningAction {
-    init(action: BabyAction) {
+    init(action: BabyActionSnapshot) {
         id = action.id
         category = DurationActivityCategory(rawValue: action.category.rawValue) ?? .sleep
         title = action.category.title

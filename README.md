@@ -110,7 +110,7 @@ xcodebuild test \
 ## Development tips
 
 - The `ActionLogViewModel` owns the state for active timers and the recent history list. Extend this type when adding new care categories or data persistence.
-- `BabyAction` models encapsulate formatting helpers (e.g., duration and timestamp descriptions). Keep new derived values inside this struct for consistency.
+- `BabyActionSnapshot` models encapsulate formatting helpers (e.g., duration and timestamp descriptions). Keep new derived values inside this struct for consistency.
 - UI components prefer dependency injection via `@EnvironmentObject` (`ProfileStore`) or `@StateObject` (`ActionLogViewModel`). Follow this pattern to maintain predictable SwiftUI state flows.
 - Preview your SwiftUI views regularly with the included `#Preview` providers to ensure layouts render correctly on different device sizes.
 

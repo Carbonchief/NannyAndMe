@@ -3,8 +3,8 @@ import SwiftUI
 struct AllLogsView: View {
     @EnvironmentObject var profileStore: ProfileStore
     @EnvironmentObject var actionStore: ActionLogStore
-    @State var editingAction: BabyAction?
-    @State var actionPendingDeletion: BabyAction?
+    @State var editingAction: BabyActionSnapshot?
+    @State var actionPendingDeletion: BabyActionSnapshot?
     @State private var isShowingFilter = false
     @State var filterStartDate: Date?
     @State var filterEndDate: Date?

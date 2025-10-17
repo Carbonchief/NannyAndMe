@@ -1,9 +1,9 @@
 import SwiftUI
 
 extension AllLogsView {
-    func groupedActions() -> [(date: Date, actions: [BabyAction])] {
+    func groupedActions() -> [(date: Date, actions: [BabyActionSnapshot])] {
         let actions = actionStore.state(for: profileStore.activeProfile.id).history
-        var grouped: [Date: [BabyAction]] = [:]
+        var grouped: [Date: [BabyActionSnapshot]] = [:]
         var orderedDates: [Date] = []
 
         let filteredActions = actions.filter(isActionIncluded)
@@ -25,7 +25,7 @@ extension AllLogsView {
         }
     }
 
-    func deleteAction(_ action: BabyAction) {
+    func deleteAction(_ action: BabyActionSnapshot) {
         actionStore.deleteAction(for: profileStore.activeProfile.id, actionID: action.id)
         if editingAction?.id == action.id {
             editingAction = nil
@@ -109,7 +109,7 @@ extension AllLogsView {
         .background(Color(.secondarySystemGroupedBackground))
     }
 
-    fileprivate func isActionIncluded(_ action: BabyAction) -> Bool {
+    fileprivate func isActionIncluded(_ action: BabyActionSnapshot) -> Bool {
         if let startBoundary = filterStartDate, action.startDate < startBoundary {
             return false
         }

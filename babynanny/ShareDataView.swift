@@ -625,7 +625,7 @@ struct ShareDataDocument: FileDocument {
 
     var state = ProfileActionState()
     state.history = [
-        BabyAction(category: .feeding, startDate: Date().addingTimeInterval(-7200), endDate: Date().addingTimeInterval(-6900))
+        BabyActionSnapshot(category: .feeding, startDate: Date().addingTimeInterval(-7200), endDate: Date().addingTimeInterval(-6900))
     ]
 
     let actionStore = ActionLogStore.previewStore(profiles: [profile.id: state])

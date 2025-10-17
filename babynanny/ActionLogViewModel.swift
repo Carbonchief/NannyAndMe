@@ -84,13 +84,13 @@ final class ActionLogStore: ObservableObject {
             return ProfileActionState()
         }
 
-        var activeActions: [BabyActionCategory: BabyAction] = [:]
-        var history: [BabyAction] = []
+        var activeActions: [BabyActionCategory: BabyActionSnapshot] = [:]
+        var history: [BabyActionSnapshot] = []
 
         var seenIDs = Set<UUID>()
 
         for actionModel in model.actions {
-            let action = actionModel.asBabyAction().withValidatedDates()
+            let action = actionModel.asSnapshot().withValidatedDates()
             guard seenIDs.contains(action.id) == false else { continue }
             seenIDs.insert(action.id)
             if action.endDate == nil {
@@ -115,9 +115,9 @@ final class ActionLogStore: ObservableObject {
 
     func startAction(for profileID: UUID,
                      category: BabyActionCategory,
-                     diaperType: BabyAction.DiaperType? = nil,
-                     feedingType: BabyAction.FeedingType? = nil,
-                     bottleType: BabyAction.BottleType? = nil,
+                     diaperType: BabyActionSnapshot.DiaperType? = nil,
+                     feedingType: BabyActionSnapshot.FeedingType? = nil,
+                     bottleType: BabyActionSnapshot.BottleType? = nil,
                      bottleVolume: Int? = nil) {
         notifyChange()
         var profileState = state(for: profileID)
@@ -130,13 +130,13 @@ final class ActionLogStore: ObservableObject {
                 profileState.history.insert(existing, at: 0)
             }
 
-            let action = BabyAction(category: category,
-                                    startDate: now,
-                                    endDate: now,
-                                    diaperType: diaperType,
-                                    feedingType: feedingType,
-                                    bottleType: bottleType,
-                                    bottleVolume: bottleVolume)
+            let action = BabyActionSnapshot(category: category,
+                                            startDate: now,
+                                            endDate: now,
+                                            diaperType: diaperType,
+                                            feedingType: feedingType,
+                                            bottleType: bottleType,
+                                            bottleVolume: bottleVolume)
             profileState.history.insert(action, at: 0)
             persist(profileState: profileState, for: profileID)
             refreshDurationActivity(for: profileID)
@@ -161,13 +161,13 @@ final class ActionLogStore: ObservableObject {
             profileState.history.insert(existing, at: 0)
         }
 
-        var action = BabyAction(category: category,
-                                startDate: now,
-                                endDate: nil,
-                                diaperType: diaperType,
-                                feedingType: feedingType,
-                                bottleType: bottleType,
-                                bottleVolume: bottleVolume)
+        var action = BabyActionSnapshot(category: category,
+                                        startDate: now,
+                                        endDate: nil,
+                                        diaperType: diaperType,
+                                        feedingType: feedingType,
+                                        bottleType: bottleType,
+                                        bottleVolume: bottleVolume)
         action = Self.clamp(action, avoiding: profileState.history)
         profileState.activeActions[category] = action
 
@@ -186,7 +186,7 @@ final class ActionLogStore: ObservableObject {
         refreshDurationActivity(for: profileID)
     }
 
-    func updateAction(for profileID: UUID, action updatedAction: BabyAction) {
+    func updateAction(for profileID: UUID, action updatedAction: BabyActionSnapshot) {
         var profileState = state(for: profileID)
         let sanitized = updatedAction.withValidatedDates()
         var didChange = false
@@ -222,13 +222,13 @@ final class ActionLogStore: ObservableObject {
 
         if let index = profileState.history.firstIndex(where: { $0.id == actionID }) {
             let action = profileState.history.remove(at: index)
-            var restarted = BabyAction(category: action.category,
-                                       startDate: now,
-                                       endDate: nil,
-                                       diaperType: action.diaperType,
-                                       feedingType: action.feedingType,
-                                       bottleType: action.bottleType,
-                                       bottleVolume: action.bottleVolume)
+            var restarted = BabyActionSnapshot(category: action.category,
+                                               startDate: now,
+                                               endDate: nil,
+                                               diaperType: action.diaperType,
+                                               feedingType: action.feedingType,
+                                               bottleType: action.bottleType,
+                                               bottleVolume: action.bottleVolume)
             restarted = Self.clamp(restarted, avoiding: profileState.history)
             profileState.activeActions[restarted.category] = restarted
             persist(profileState: profileState, for: profileID)
@@ -383,7 +383,7 @@ private extension ActionLogStore {
 
         for action in desiredActions.map({ $0.withValidatedDates() }) {
             if let existing = existingModels[action.id] {
-                let existingAction = existing.asBabyAction()
+                let existingAction = existing.asSnapshot()
                 let resolved = conflictResolver.resolve(local: existingAction, remote: action)
                 guard resolved != existingAction else {
                     seenIDs.insert(existing.id)
@@ -421,7 +421,7 @@ private extension ActionLogStore {
         scheduleReminders()
     }
 
-    static func clamp(_ action: BabyAction, avoiding conflicts: [BabyAction]) -> BabyAction {
+    static func clamp(_ action: BabyActionSnapshot, avoiding conflicts: [BabyActionSnapshot]) -> BabyActionSnapshot {
         var action = action
         let overlapping = conflicts.filter { other in
             guard other.category == action.category else { return false }
