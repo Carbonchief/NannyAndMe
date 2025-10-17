@@ -357,8 +357,8 @@ private extension ActionLogStore {
             return nil
         }
 
-        if model.profileID == nil {
-            model.profileID = profileID
+        if model.resolvedProfileID != profileID {
+            model.resolvedProfileID = profileID
             dataStack.scheduleSaveIfNeeded(on: modelContext, reason: "assign-profile-id")
         }
 

@@ -431,8 +431,7 @@ final class Profile {
     }
 
     var profileID: UUID {
-        get { id }
-        set { id = newValue }
+        id
     }
 
     func ensureActionOwnership() {
