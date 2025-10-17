@@ -241,9 +241,17 @@ actor SharedSubscriptionStateStore {
     private let key = "com.prioritybit.babynanny.shared.subscriptionState"
     private var state: State
 
-    init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-        if let data = defaults.data(forKey: key),
+    init(suiteName: String? = nil) {
+        let resolvedDefaults: UserDefaults
+        if let suiteName,
+           let suiteDefaults = UserDefaults(suiteName: suiteName) {
+            resolvedDefaults = suiteDefaults
+        } else {
+            resolvedDefaults = .standard
+        }
+
+        self.defaults = resolvedDefaults
+        if let data = resolvedDefaults.data(forKey: key),
            let decoded = try? JSONDecoder().decode(State.self, from: data) {
             state = decoded
         } else {
