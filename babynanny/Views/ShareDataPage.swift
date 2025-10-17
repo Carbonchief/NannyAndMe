@@ -120,7 +120,7 @@ struct ShareDataPage: View {
             Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text(L10n.Common.done)))
         }
         .confirmationDialog(
-            ShareStrings.removeParticipantTitle,
+            Text(ShareStrings.removeParticipantTitle),
             item: $participantPendingRemoval
         ) { item in
             Button(role: .destructive) {
@@ -146,7 +146,7 @@ struct ShareDataPage: View {
             Text(ShareStrings.removeParticipantMessage(item.displayName))
         }
         .confirmationDialog(
-            ShareStrings.stopSharingConfirmTitle,
+            Text(ShareStrings.stopSharingConfirmTitle),
             isPresented: $isConfirmingStopShare
         ) {
             Button(role: .destructive) {
@@ -238,9 +238,9 @@ private final class ShareDataPageViewModel: ObservableObject {
         defer { isLoadingParticipants = false }
 
         do {
-            let share = try await sharingManager.ensureShare(for: profileID)
+            let participants = try await sharingManager.fetchParticipants(for: profileID)
             shareExists = true
-            applyParticipants(from: share.participants)
+            applyParticipants(from: participants)
         } catch {
             alert = ShareAlert(message: error.localizedDescription)
         }
@@ -495,7 +495,7 @@ private struct PermissionBadge: View {
                 Capsule()
                     .fill(Color.accentColor.opacity(0.15))
             )
-            .foregroundStyle(.accentColor)
+            .foregroundStyle(Color.accentColor)
     }
 }
 
