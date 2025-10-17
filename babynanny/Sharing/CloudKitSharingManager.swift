@@ -200,10 +200,15 @@ final class CloudKitSharingManager {
            let partialErrors = ckError.partialErrorsByItemID {
             return partialErrors.values.contains(where: { element in
                 guard let partialError = element as? CKError else { return false }
-                return partialError.code == .serverRecordChanged || partialError.code == .serverRecordExists
+                return shouldResetZone(after: partialError)
             })
         }
-        return ckError.code == .serverRecordChanged || ckError.code == .serverRecordExists
+        switch ckError.code {
+        case .serverRecordChanged, .batchRequestFailed, .zoneBusy:
+            return true
+        default:
+            return false
+        }
     }
 
     private func loadSnapshot(for profileID: UUID) async throws -> ProfileSnapshot? {
