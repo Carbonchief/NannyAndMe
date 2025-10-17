@@ -59,7 +59,7 @@ final class SharedScopeSubscriptionManager {
         let desiredActionID = await subscriptionStore.actionSubscriptionID
 
         do {
-            let existing = try await database.fetchAllSubscriptions()
+            let existing = try await fetchAllSubscriptions()
             let existingIDs = Set(existing.map { $0.subscriptionID })
             var subscriptionsToSave: [CKSubscription] = []
 
@@ -89,12 +89,7 @@ final class SharedScopeSubscriptionManager {
 
             guard !subscriptionsToSave.isEmpty else { return }
 
-            let result = try await database.modifySubscriptions(saving: subscriptionsToSave, deleting: [])
-            for outcome in result.saveResults.values {
-                if case .failure(let error) = outcome {
-                    throw error
-                }
-            }
+            try await modifySubscriptions(saving: subscriptionsToSave, deleting: [])
             logger.log("Ensured shared scope subscriptions")
         } catch {
             logger.error("Failed to ensure shared subscriptions: \(error.localizedDescription, privacy: .public)")
@@ -198,6 +193,33 @@ private extension SharedScopeSubscriptionManager {
         notificationInfo.shouldSendContentAvailable = true
         subscription.notificationInfo = notificationInfo
         return subscription
+    }
+
+    func fetchAllSubscriptions() async throws -> [CKSubscription] {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[CKSubscription], Error>) in
+            database.fetchAllSubscriptions { subscriptions, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: subscriptions ?? [])
+                }
+            }
+        }
+    }
+
+    func modifySubscriptions(saving: [CKSubscription], deleting: [String]) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let operation = CKModifySubscriptionsOperation(subscriptionsToSave: saving, subscriptionIDsToDelete: deleting)
+            operation.modifySubscriptionsResultBlock = { result in
+                switch result {
+                case .success:
+                    continuation.resume(returning: ())
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+            database.add(operation)
+        }
     }
 }
 
