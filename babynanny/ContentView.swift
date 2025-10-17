@@ -148,7 +148,7 @@ struct ContentView: View {
                     AllLogsView()
                 }
                 .navigationDestination(isPresented: $showShareProfile) {
-                    ShareDataPage(profileID: profileStore.activeProfile.id)
+                    ShareProfilePage(profileID: profileStore.activeProfile.id)
                 }
                 .navigationDestination(
                     isPresented: Binding(

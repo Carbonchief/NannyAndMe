@@ -3,16 +3,16 @@ import Combine
 import SwiftData
 import SwiftUI
 
-struct ShareDataPage: View {
+struct ShareProfilePage: View {
     let profileID: UUID
 
-    @StateObject private var viewModel: ShareDataPageViewModel
+    @StateObject private var viewModel: ShareProfilePageViewModel
     @State private var participantPendingRemoval: ShareParticipantItem?
     @State private var isConfirmingStopShare = false
 
     init(profileID: UUID) {
         self.profileID = profileID
-        _viewModel = StateObject(wrappedValue: ShareDataPageViewModel(profileID: profileID))
+        _viewModel = StateObject(wrappedValue: ShareProfilePageViewModel(profileID: profileID))
     }
 
     var body: some View {
@@ -182,7 +182,7 @@ struct ShareDataPage: View {
 // MARK: - View model
 
 @MainActor
-private final class ShareDataPageViewModel: ObservableObject {
+private final class ShareProfilePageViewModel: ObservableObject {
     @Published var participants: [ShareParticipantItem] = []
     @Published var isLoadingParticipants = false
     @Published var isPreparingShareUI = false
@@ -652,7 +652,7 @@ private extension Notification.Name {
 
 #Preview {
     NavigationStack {
-        ShareDataPage(profileID: UUID())
+        ShareProfilePage(profileID: UUID())
     }
     .environmentObject(ProfileStore(initialProfiles: []))
 }
