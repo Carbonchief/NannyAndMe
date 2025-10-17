@@ -157,6 +157,7 @@
 "shareData.sharing.permissionReadWrite" = "Lectura y escritura";
 "shareData.sharing.permissionUnknown" = "Desconocido";
 "shareData.sharing.unknownParticipant" = "Participante desconocido";
+"shareData.sharing.unnamedProfileTitle" = "Perfil";
 "shareData.sharing.makeReadOnly" = "Cambiar a solo lectura";
 "shareData.sharing.makeReadWrite" = "Cambiar a lectura y escritura";
 "shareData.sharing.removeParticipantTitle" = "¿Quitar acceso?";

@@ -2,6 +2,7 @@ import CloudKit
 import Combine
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct ShareProfilePage: View {
     let profileID: UUID
@@ -29,11 +30,9 @@ struct ShareProfilePage: View {
             viewModel.onAppear()
         }
         .sheet(item: $viewModel.shareSheetPayload) { payload in
-            SharingUI(
-                share: payload.share,
+            ShareProfileSheet(
+                payload: payload,
                 container: viewModel.container,
-                itemTitle: payload.displayName,
-                thumbnailData: payload.thumbnailData,
                 onDidSaveShare: {
                     Task { await viewModel.refreshParticipants() }
                 },
@@ -41,6 +40,8 @@ struct ShareProfilePage: View {
                     Task { await viewModel.handleShareStoppedBySystem() }
                 }
             )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .alert(item: $viewModel.alert) { alert in
             Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text(L10n.Common.done)))
@@ -204,6 +205,13 @@ private final class ShareProfilePageViewModel: ObservableObject {
     private var cancellables: Set<AnyCancellable> = []
     private var hasLoaded = false
     private var cachedProfileSummary: ProfileSummary?
+    private var currentUserDisplayName: String?
+    private var currentUserNameTask: Task<String?, Never>?
+    private let nameFormatter: PersonNameComponentsFormatter = {
+        let formatter = PersonNameComponentsFormatter()
+        formatter.style = .default
+        return formatter
+    }()
 
     init(profileID: UUID,
          modelContainer: ModelContainer? = nil,
@@ -219,10 +227,15 @@ private final class ShareProfilePageViewModel: ObservableObject {
         configurePushHandling()
     }
 
+    deinit {
+        currentUserNameTask?.cancel()
+    }
+
     func onAppear() {
         guard hasLoaded == false else { return }
         hasLoaded = true
         subscriptionManager.ensureSubscriptions()
+        Task { _ = await resolveCurrentUserDisplayName() }
         Task { await refreshParticipants() }
     }
 
@@ -235,7 +248,7 @@ private final class ShareProfilePageViewModel: ObservableObject {
             let summary = await loadProfileSummary()
             let share = try await sharingManager.ensureShare(for: profileID)
             shareExists = true
-            applyParticipants(from: share.participants)
+            await applyParticipants(from: share.participants)
             let fallbackTitle = share[CKShare.SystemFieldKey.title] as? String
             let fallbackImageData = share[CKShare.SystemFieldKey.thumbnailImageData] as? Data
             shareSheetPayload = ShareSheetPayload(
@@ -261,7 +274,7 @@ private final class ShareProfilePageViewModel: ObservableObject {
         do {
             let participants = try await sharingManager.fetchParticipants(for: profileID)
             shareExists = true
-            applyParticipants(from: participants)
+            await applyParticipants(from: participants)
         } catch {
             alert = ShareAlert(message: error.localizedDescription)
         }
@@ -314,11 +327,53 @@ private final class ShareProfilePageViewModel: ObservableObject {
         await refreshParticipants()
     }
 
-    private func applyParticipants(from participants: [CKShare.Participant]) {
+    private func applyParticipants(from participants: [CKShare.Participant]) async {
+        let ownerName = await resolveCurrentUserDisplayName()
         let items = participants
-            .map { ShareParticipantItem(participant: $0) }
+            .map { ShareParticipantItem(participant: $0, ownerFallbackName: ownerName) }
             .sorted(by: ShareParticipantItem.sortComparator)
         self.participants = items
+    }
+
+    private func resolveCurrentUserDisplayName() async -> String? {
+        if let currentUserDisplayName {
+            return currentUserDisplayName
+        }
+
+        if let currentUserNameTask {
+            return await currentUserNameTask.value
+        }
+
+        let task = Task<String?, Never> {
+            do {
+                let recordID = try await container.userRecordID()
+                let identity = try await container.userIdentity(for: recordID)
+                if let components = identity.nameComponents {
+                    let formatted = nameFormatter.string(from: components)
+                    if formatted.isEmpty == false {
+                        return formatted
+                    }
+                }
+                if let email = identity.lookupInfo?.emailAddress, email.isEmpty == false {
+                    return email
+                }
+                if let phone = identity.lookupInfo?.phoneNumber, phone.isEmpty == false {
+                    return phone
+                }
+                let deviceName = UIDevice.current.name
+                if deviceName.isEmpty == false {
+                    return deviceName
+                }
+            } catch {
+                return nil
+            }
+            return nil
+        }
+        currentUserNameTask = task
+        let name = await task.value
+        currentUserDisplayName = name
+        currentUserNameTask = nil
+        return name
     }
 
     private func configurePushHandling() {
@@ -383,9 +438,11 @@ private struct ShareAlert: Identifiable {
 private struct ShareParticipantItem: Identifiable, Equatable {
     let id: String
     let participant: CKShare.Participant
+    private let ownerFallbackName: String?
 
-    init(participant: CKShare.Participant) {
+    init(participant: CKShare.Participant, ownerFallbackName: String?) {
         self.participant = participant
+        self.ownerFallbackName = ownerFallbackName
         if let recordName = participant.userIdentity.userRecordID?.recordName {
             self.id = recordName
         } else if let email = participant.userIdentity.lookupInfo?.emailAddress {
@@ -407,6 +464,11 @@ private struct ShareParticipantItem: Identifiable, Equatable {
             if formatted.isEmpty == false {
                 return formatted
             }
+        }
+        if participant.role == .owner,
+           let ownerFallbackName,
+           ownerFallbackName.isEmpty == false {
+            return ownerFallbackName
         }
         if let email = participant.userIdentity.lookupInfo?.emailAddress {
             return email
@@ -533,6 +595,43 @@ private struct ShareParticipantRow: View {
     }
 }
 
+private struct ShareProfileSheet: View {
+    let payload: ShareSheetPayload
+    let container: CKContainer
+    let onDidSaveShare: () -> Void
+    let onDidStopSharing: () -> Void
+
+    var body: some View {
+        VStack(spacing: 24) {
+            VStack(spacing: 12) {
+                ProfileAvatarView(imageData: payload.thumbnailData, size: 88)
+                Text(payload.displayName ?? ShareStrings.unnamedProfileTitle)
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 24)
+
+            Divider()
+
+            SharingUI(
+                share: payload.share,
+                container: container,
+                itemTitle: payload.displayName,
+                thumbnailData: payload.thumbnailData,
+                onDidSaveShare: onDidSaveShare,
+                onDidStopSharing: onDidStopSharing
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+    }
+}
+
 private struct ManageShareButtonLabel: View {
     let title: String
     let isLoading: Bool
@@ -629,6 +728,10 @@ private enum ShareStrings {
     static let unknownParticipant = String(
         localized: "shareData.sharing.unknownParticipant",
         defaultValue: "Unknown participant"
+    )
+    static let unnamedProfileTitle = String(
+        localized: "shareData.sharing.unnamedProfileTitle",
+        defaultValue: "Profile"
     )
     static let makeReadOnly = String(
         localized: "shareData.sharing.makeReadOnly",
