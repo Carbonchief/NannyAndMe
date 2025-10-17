@@ -18,54 +18,42 @@ enum CloudProfileImportError: Error {
 struct CloudKitProfileImporter: ProfileCloudImporting {
     private let container: CKContainer
     private let recordType: String
+    private let fallbackRecordType: String?
     private let dataField: String
 
     init(container: CKContainer = CKContainer(identifier: "iCloud.com.prioritybit.babynanny"),
-         recordType: String = "ProfileState",
+         recordType: String = "ProfileActionStateModel",
+         fallbackRecordType: String? = "ProfileState",
          dataField: String = "payload") {
         self.container = container
         self.recordType = recordType
+        self.fallbackRecordType = fallbackRecordType
         self.dataField = dataField
     }
 
     func fetchProfileSnapshot() async throws -> CloudProfileSnapshot? {
         let database = container.privateCloudDatabase
-        let predicate = NSPredicate(value: true)
-        let query = CKQuery(recordType: recordType, predicate: predicate)
-        query.sortDescriptors = [NSSortDescriptor(key: "modificationDate", ascending: false)]
+        let recordTypes = candidateRecordTypes()
 
-        do {
-            let (matchResults, _) = try await database.records(
-                matching: query,
-                desiredKeys: [dataField],
-                resultsLimit: 1
-            )
-
-            guard let (_, result) = matchResults.first else {
-                return nil
-            }
-
-            switch result {
-            case let .success(record):
-                guard let data = cloudPayload(from: record) else {
-                    return nil
+        for recordType in recordTypes {
+            do {
+                if let snapshot = try await fetchSnapshot(in: database, recordType: recordType) {
+                    return snapshot
                 }
-                return try decodeSnapshot(from: data)
-            case let .failure(error):
+            } catch let error as CloudProfileImportError {
+                throw error
+            } catch {
+                if Self.isMissingRecordType(error) {
+                    continue
+                }
                 if Self.isRecoverable(error) {
                     throw CloudProfileImportError.recoverable(error)
                 }
                 throw error
             }
-        } catch {
-            if Self.isMissingRecordType(error) {
-                return nil
-            }
-            if Self.isRecoverable(error) {
-                throw CloudProfileImportError.recoverable(error)
-            }
-            throw error
         }
+
+        return nil
     }
 
     static func isRecoverable(_ error: Error) -> Bool {
@@ -104,16 +92,86 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
         .userDeletedZone
     ]
 
-    private func cloudPayload(from record: CKRecord) -> Data? {
-        if let data = record[dataField] as? Data {
-            return data
+    private func fetchSnapshot(in database: CKDatabase, recordType: String) async throws -> CloudProfileSnapshot? {
+        let predicate = NSPredicate(value: true)
+        let query = CKQuery(recordType: recordType, predicate: predicate)
+        query.sortDescriptors = [NSSortDescriptor(key: "modificationDate", ascending: false)]
+
+        let (matchResults, _) = try await database.records(
+            matching: query,
+            desiredKeys: desiredRecordKeys(),
+            resultsLimit: 1
+        )
+
+        guard let (_, result) = matchResults.first else {
+            return nil
         }
 
-        if let stringValue = record[dataField] as? String {
-            return stringValue.data(using: .utf8)
+        switch result {
+        case let .success(record):
+            guard let data = cloudPayload(from: record) else {
+                return nil
+            }
+            return try decodeSnapshot(from: data)
+        case let .failure(error):
+            if Self.isRecoverable(error) {
+                throw CloudProfileImportError.recoverable(error)
+            }
+            throw error
+        }
+    }
+
+    private func cloudPayload(from record: CKRecord) -> Data? {
+        for key in dataFieldCandidates() {
+            if let data = record[key] as? Data {
+                return data
+            }
+
+            if let asset = record[key] as? CKAsset,
+               let fileURL = asset.fileURL,
+               let data = try? Data(contentsOf: fileURL) {
+                return data
+            }
+
+            if let stringValue = record[key] as? String,
+               let data = stringValue.data(using: .utf8) {
+                return data
+            }
         }
 
         return nil
+    }
+
+    private func desiredRecordKeys() -> [String]? {
+        let keys = dataFieldCandidates()
+        return keys.isEmpty ? nil : keys
+    }
+
+    private func dataFieldCandidates() -> [String] {
+        var candidates: [String] = []
+        let preferred = dataField.trimmingCharacters(in: .whitespacesAndNewlines)
+        if preferred.isEmpty == false {
+            candidates.append(preferred)
+        }
+
+        let fallbacks = ["payload", "data", "stateData", "profileState", "modelData"]
+        for fallback in fallbacks where fallback.caseInsensitiveCompare(preferred) != .orderedSame {
+            if candidates.contains(where: { $0.caseInsensitiveCompare(fallback) == .orderedSame }) == false {
+                candidates.append(fallback)
+            }
+        }
+
+        return candidates
+    }
+
+    private func candidateRecordTypes() -> [String] {
+        var types = [recordType]
+        if let fallbackRecordType,
+           fallbackRecordType.isEmpty == false,
+           fallbackRecordType != recordType {
+            types.append(fallbackRecordType)
+        }
+        return types
     }
 
     private func decodeSnapshot(from data: Data) throws -> CloudProfileSnapshot? {
