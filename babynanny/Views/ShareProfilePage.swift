@@ -395,8 +395,11 @@ private final class ShareProfilePageViewModel: ObservableObject {
             operation.qualityOfService = .userInitiated
 
             var fetchedParticipant: CKShare.Participant?
-            operation.shareParticipantFetchedBlock = { participant in
-                fetchedParticipant = participant
+            operation.perShareParticipantCompletionBlock = { participant, _, error in
+                guard error == nil else { return }
+                if fetchedParticipant == nil {
+                    fetchedParticipant = participant
+                }
             }
 
             operation.fetchShareParticipantsResultBlock = { result in
@@ -645,9 +648,9 @@ private struct ShareProfileSheet: View {
                 container: container,
                 itemTitle: payload.displayName,
                 thumbnailData: payload.thumbnailData,
-                showsItemPreview: false,
                 onDidSaveShare: onDidSaveShare,
-                onDidStopSharing: onDidStopSharing
+                onDidStopSharing: onDidStopSharing,
+                showsItemPreview: false
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
