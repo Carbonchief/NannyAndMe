@@ -18,16 +18,16 @@ enum CloudProfileImportError: Error {
 struct CloudKitProfileImporter: ProfileCloudImporting {
     private let container: CKContainer
     private let recordType: String
-    private let fallbackRecordType: String?
+    private let fallbackRecordTypes: [String]
     private let dataField: String
 
     init(container: CKContainer = CKContainer(identifier: "iCloud.com.prioritybit.babynanny"),
-         recordType: String = "ProfileActionStateModel",
-         fallbackRecordType: String? = "ProfileState",
+         recordType: String = "CD_ProfileActionStateModel",
+         fallbackRecordTypes: [String] = ["ProfileActionStateModel", "ProfileState"],
          dataField: String = "payload") {
         self.container = container
         self.recordType = recordType
-        self.fallbackRecordType = fallbackRecordType
+        self.fallbackRecordTypes = fallbackRecordTypes
         self.dataField = dataField
     }
 
@@ -165,12 +165,19 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
     }
 
     private func candidateRecordTypes() -> [String] {
-        var types = [recordType]
-        if let fallbackRecordType,
-           fallbackRecordType.isEmpty == false,
-           fallbackRecordType != recordType {
-            types.append(fallbackRecordType)
+        var types: [String] = []
+        let preferred = recordType.trimmingCharacters(in: .whitespacesAndNewlines)
+        if preferred.isEmpty == false {
+            types.append(preferred)
         }
+
+        for fallback in fallbackRecordTypes {
+            let sanitized = fallback.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard sanitized.isEmpty == false else { continue }
+            guard types.contains(where: { $0.caseInsensitiveCompare(sanitized) == .orderedSame }) == false else { continue }
+            types.append(sanitized)
+        }
+
         return types
     }
 
