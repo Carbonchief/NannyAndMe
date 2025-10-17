@@ -400,7 +400,7 @@ struct ProfileActionState: Codable {
     }
 }
 
-@Model
+@Model(name: "Profile")
 final class ProfileActionStateModel {
     var profileID: UUID?
     var name: String?
@@ -461,7 +461,7 @@ final class ProfileActionStateModel {
     }
 }
 
-@Model
+@Model(name: "BabyAction")
 final class BabyActionModel {
     var idRawValue: UUID?
     var categoryRawValue: String?
