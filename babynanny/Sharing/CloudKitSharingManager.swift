@@ -201,7 +201,10 @@ final class CloudKitSharingManager {
                     continuation.resume(throwing: error)
                     return
                 }
-                var zones = zonesByID?.map { $0.value } ?? []
+                let zonesFromFetch = zonesByID.map { dictionary in
+                    Array(dictionary.values)
+                } ?? []
+                var zones = zonesFromFetch
                 let defaultZone = CKRecordZone.default()
                 if zones.contains(where: { $0.zoneID == defaultZone.zoneID }) == false {
                     zones.append(defaultZone)
