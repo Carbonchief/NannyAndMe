@@ -158,6 +158,10 @@
 "shareData.sharing.permissionUnknown" = "Unknown";
 "shareData.sharing.unknownParticipant" = "Unknown participant";
 "shareData.sharing.unnamedProfileTitle" = "Profile";
+"sync.loadingInitialData" = "Syncing your data…";
+"sync.progressPercentage" = "%.0f%% complete";
+"sync.preparingUpdates" = "Preparing your latest updates…";
+"sync.initialSyncFailed" = "We couldn't finish downloading your data. We'll keep trying in the background.";
 "shareData.sharing.makeReadOnly" = "Make Read-Only";
 "shareData.sharing.makeReadWrite" = "Make Read-Write";
 "shareData.sharing.removeParticipantTitle" = "Remove access?";

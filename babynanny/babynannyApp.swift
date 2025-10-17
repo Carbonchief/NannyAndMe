@@ -17,6 +17,7 @@ struct babynannyApp: App {
     @StateObject private var profileStore: ProfileStore
     private let actionStore: ActionLogStore
     @StateObject private var shareDataCoordinator = ShareDataCoordinator()
+    @StateObject private var syncStatusViewModel: SyncStatusViewModel
     @State private var isShowingSplashScreen = true
 
     init() {
@@ -26,11 +27,11 @@ struct babynannyApp: App {
         let profileStore = ProfileStore(reminderScheduler: scheduler)
         let actionStore = ActionLogStore(modelContext: stack.mainContext,
                                          reminderScheduler: scheduler,
-                                         dataStack: stack,
-                                         shareMetadataStore: stack.shareMetadataStore)
+                                         dataStack: stack)
         profileStore.registerActionStore(actionStore)
         actionStore.registerProfileStore(profileStore)
         _profileStore = StateObject(wrappedValue: profileStore)
+        _syncStatusViewModel = StateObject(wrappedValue: stack.syncStatusViewModel)
         self.actionStore = actionStore
         appDelegate.configure(with: stack.syncCoordinator,
                               sharedSubscriptionManager: stack.sharedSubscriptionManager)
@@ -46,6 +47,7 @@ struct babynannyApp: App {
                     .environmentObject(actionStore)
                     .environmentObject(shareDataCoordinator)
                     .environmentObject(appDataStack.syncCoordinator)
+                    .environmentObject(syncStatusViewModel)
                     .onOpenURL { url in
                         guard shouldHandle(url: url) else { return }
                         shareDataCoordinator.handleIncomingFile(url: url)
@@ -61,6 +63,13 @@ struct babynannyApp: App {
                     SplashScreenView()
                         .transition(.opacity)
                         .zIndex(1)
+                }
+
+                if syncStatusViewModel.isInitialImportComplete == false {
+                    SyncStatusOverlayView(state: syncStatusViewModel.state,
+                                          lastError: syncStatusViewModel.lastError)
+                        .transition(.opacity)
+                        .zIndex(2)
                 }
             }
             .task {

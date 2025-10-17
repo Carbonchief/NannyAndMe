@@ -253,3 +253,7 @@
 "profile.new" = "Neues Profil";
 "formatter.justNow" = "Gerade eben";
 "formatter.ago" = "vor %@";
+"sync.loadingInitialData" = "Daten werden synchronisiert…";
+"sync.progressPercentage" = "%.0f%% abgeschlossen";
+"sync.preparingUpdates" = "Aktualisierungen werden vorbereitet…";
+"sync.initialSyncFailed" = "Deine Daten konnten nicht vollständig geladen werden. Wir versuchen es im Hintergrund weiter.";
