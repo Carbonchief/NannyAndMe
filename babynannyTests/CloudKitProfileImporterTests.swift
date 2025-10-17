@@ -30,7 +30,7 @@ struct CloudKitProfileImporterTests {
 
     @Test
     func decodesSwiftDataProfileRecord() {
-        let record = CKRecord(recordType: "CD_ProfileActionStateModel")
+        let record = CKRecord(recordType: "Profile")
         let identifier = UUID()
         let birthDate = Date(timeIntervalSince1970: 1_694_000_000)
         let imageData = Data([0xCA, 0xFE, 0xBA, 0xBE])
@@ -50,7 +50,7 @@ struct CloudKitProfileImporterTests {
 
     @Test
     func decodeSwiftDataProfileRequiresBirthDate() {
-        let record = CKRecord(recordType: "CD_ProfileActionStateModel")
+        let record = CKRecord(recordType: "Profile")
         record["CD_profileID"] = UUID().uuidString as CKRecordValue
         record["CD_name"] = "Rowan" as CKRecordValue
 
