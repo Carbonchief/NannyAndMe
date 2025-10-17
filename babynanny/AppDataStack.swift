@@ -10,9 +10,13 @@ final class AppDataStack: ObservableObject {
     let modelContainer: ModelContainer
     let mainContext: ModelContext
     let syncCoordinator: SyncCoordinator
+    let shareMetadataStore: ShareMetadataStore
+    let shareAcceptanceHandler: ShareAcceptanceHandler
+    let sharedSubscriptionManager: SharedScopeSubscriptionManager
 
     private let swiftDataLogger = Logger(subsystem: "com.prioritybit.babynanny", category: "swiftdata")
     private var coalescedSaveTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
+    private let sharedZoneChangeTokenStore: SharedZoneChangeTokenStore
 
     init(modelContainer: ModelContainer? = nil,
          syncCoordinatorFactory: ((ModelContainer, ModelContext) -> SyncCoordinator)? = nil) {
@@ -24,7 +28,20 @@ final class AppDataStack: ObservableObject {
         } else {
             self.syncCoordinator = SyncCoordinator(sharedContext: container.mainContext)
         }
+        let metadataStore = ShareMetadataStore()
+        self.shareMetadataStore = metadataStore
+        let zoneTokenStore = SharedZoneChangeTokenStore()
+        self.sharedZoneChangeTokenStore = zoneTokenStore
+        let acceptanceHandler = ShareAcceptanceHandler(modelContainer: container,
+                                                       metadataStore: metadataStore,
+                                                       tokenStore: zoneTokenStore)
+        self.shareAcceptanceHandler = acceptanceHandler
+        let subscriptionManager = SharedScopeSubscriptionManager(tokenStore: zoneTokenStore,
+                                                                 shareMetadataStore: metadataStore,
+                                                                 ingestor: acceptanceHandler)
+        self.sharedSubscriptionManager = subscriptionManager
         configureContexts()
+        subscriptionManager.ensureSubscriptions()
     }
 
     static func makeModelContainer(inMemory: Bool = false) -> ModelContainer {

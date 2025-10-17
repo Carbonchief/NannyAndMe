@@ -217,12 +217,13 @@ private final class ShareProfilePageViewModel: ObservableObject {
          modelContainer: ModelContainer? = nil,
          containerIdentifier: String = "iCloud.com.prioritybit.babynanny") {
         self.profileID = profileID
-        let resolvedModelContainer = modelContainer ?? AppDataStack.shared.modelContainer
-        let metadataStore = ShareMetadataStore()
+        let dataStack = AppDataStack.shared
+        let resolvedModelContainer = modelContainer ?? dataStack.modelContainer
+        let metadataStore = dataStack.shareMetadataStore
         self.metadataStore = metadataStore
         self.sharingManager = CloudKitSharingManager(modelContainer: resolvedModelContainer, metadataStore: metadataStore)
         self.container = CKContainer(identifier: containerIdentifier)
-        self.subscriptionManager = SharedScopeSubscriptionManager(shareMetadataStore: metadataStore, ingestor: nil)
+        self.subscriptionManager = dataStack.sharedSubscriptionManager
         self.modelContainer = resolvedModelContainer
         configurePushHandling()
     }
@@ -381,8 +382,10 @@ private final class ShareProfilePageViewModel: ObservableObject {
             .compactMap { $0.object as? CKNotification }
             .sink { [weak self] notification in
                 guard let self else { return }
-                subscriptionManager.handleRemoteNotification(notification)
-                Task { await self.refreshParticipants() }
+                Task {
+                    _ = await self.subscriptionManager.handleRemoteNotification(notification)
+                    await self.refreshParticipants()
+                }
             }
             .store(in: &cancellables)
     }
@@ -824,7 +827,7 @@ private enum ShareStrings {
 
 // MARK: - Notifications
 
-private extension Notification.Name {
+extension Notification.Name {
     static let sharedScopeNotification = Notification.Name("com.prioritybit.babynanny.sharedScopeNotification")
 }
 
