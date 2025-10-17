@@ -442,7 +442,7 @@ private extension ActionLogStore {
 
         let actionsForShare = model.actions
             .filter { changedActionIDs.contains($0.id) }
-            .map { $0.asBabyAction().withValidatedDates() }
+            .map { $0.asSnapshot().withValidatedDates() }
 
         if actionsForShare.isEmpty == false || deletedActionIDs.isEmpty == false {
             Task { [weak self] in
@@ -455,7 +455,7 @@ private extension ActionLogStore {
     }
 
     private func synchronizeSharedActionsIfNeeded(for profileID: UUID,
-                                                  actions: [BabyAction],
+                                                  actions: [BabyActionSnapshot],
                                                   deletedActionIDs: [UUID],
                                                   existingActionIDs: Set<UUID>) async {
         guard actions.isEmpty == false || deletedActionIDs.isEmpty == false else { return }
@@ -486,7 +486,7 @@ private extension ActionLogStore {
         }
     }
 
-    private func buildSharedActionRecords(for actions: [BabyAction],
+    private func buildSharedActionRecords(for actions: [BabyActionSnapshot],
                                           zoneID: CKRecordZone.ID,
                                           profileRecordID: CKRecord.ID,
                                           existingActionIDs: Set<UUID>) async throws -> [CKRecord] {
@@ -674,7 +674,7 @@ private extension ActionLogStore {
                 mutated = true
             }
             if let diaper = record["diaperType"] as? String {
-                let diaperType = BabyAction.DiaperType(rawValue: diaper)
+                let diaperType = BabyActionSnapshot.DiaperType(rawValue: diaper)
                 if model.diaperType != diaperType {
                     model.diaperType = diaperType
                     mutated = true
@@ -684,7 +684,7 @@ private extension ActionLogStore {
                 mutated = true
             }
             if let feeding = record["feedingType"] as? String {
-                let feedingType = BabyAction.FeedingType(rawValue: feeding)
+                let feedingType = BabyActionSnapshot.FeedingType(rawValue: feeding)
                 if model.feedingType != feedingType {
                     model.feedingType = feedingType
                     mutated = true
@@ -694,7 +694,7 @@ private extension ActionLogStore {
                 mutated = true
             }
             if let bottleTypeRaw = record["bottleType"] as? String {
-                let bottleType = BabyAction.BottleType(rawValue: bottleTypeRaw)
+                let bottleType = BabyActionSnapshot.BottleType(rawValue: bottleTypeRaw)
                 if model.bottleType != bottleType {
                     model.bottleType = bottleType
                     mutated = true
