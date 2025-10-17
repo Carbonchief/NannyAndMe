@@ -58,6 +58,9 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
                 throw error
             }
         } catch {
+            if Self.isMissingRecordType(error) {
+                return nil
+            }
             if Self.isRecoverable(error) {
                 throw CloudProfileImportError.recoverable(error)
             }
@@ -75,6 +78,21 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
         if ckError.code == .partialFailure {
             let partialErrors = ckError.partialErrorsByItemID ?? [:]
             return partialErrors.values.allSatisfy { isRecoverable($0) }
+        }
+
+        return false
+    }
+
+    private static func isMissingRecordType(_ error: Error) -> Bool {
+        guard let ckError = error as? CKError else { return false }
+
+        if ckError.code == .unknownItem {
+            return ckError.containsMissingRecordTypeMessage
+        }
+
+        if ckError.code == .partialFailure {
+            let partialErrors = ckError.partialErrorsByItemID ?? [:]
+            return partialErrors.values.contains { isMissingRecordType($0) }
         }
 
         return false
@@ -119,4 +137,24 @@ private struct ProfileStatePayload: Decodable {
     var profiles: [ChildProfile]
     var activeProfileID: UUID?
     var showRecentActivityOnHome: Bool?
+}
+
+private extension CKError {
+    var containsMissingRecordTypeMessage: Bool {
+        if localizedDescription.localizedCaseInsensitiveContains("did not find record type") {
+            return true
+        }
+
+        if let failureReason = userInfo[NSLocalizedFailureReasonErrorKey] as? String,
+           failureReason.localizedCaseInsensitiveContains("record type") {
+            return true
+        }
+
+        if let debugDescription = userInfo[NSDebugDescriptionErrorKey] as? String,
+           debugDescription.localizedCaseInsensitiveContains("record type") {
+            return true
+        }
+
+        return false
+    }
 }
