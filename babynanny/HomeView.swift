@@ -12,7 +12,7 @@ struct HomeView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
     @State private var presentedCategory: BabyActionCategory?
-    @State private var editingAction: BabyAction?
+    @State private var editingAction: BabyActionSnapshot?
     @State private var pendingStartAction: PendingStartAction?
     @State private var categoryClearedForSheet: BabyActionCategory?
     private let onShowAllLogs: () -> Void
@@ -145,7 +145,7 @@ struct HomeView: View {
         .interactiveSpring(response: 0.5, dampingFraction: 0.82, blendDuration: 0.25)
     }
 
-    private func headerCard(for recent: BabyAction) -> some View {
+    private func headerCard(for recent: BabyActionSnapshot) -> some View {
         let isRunning = recent.endDate == nil
         let trailingTransition = AnyTransition.move(edge: .trailing)
             .combined(with: .opacity)
@@ -213,7 +213,7 @@ struct HomeView: View {
     }
 
     @ViewBuilder
-    private func headerActiveDurationView(for action: BabyAction) -> some View {
+    private func headerActiveDurationView(for action: BabyActionSnapshot) -> some View {
         if action.endDate == nil {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 Text(action.durationDescription(asOf: context.date))
@@ -228,7 +228,7 @@ struct HomeView: View {
     }
 
     @ViewBuilder
-    private func headerCompletionElapsedView(for action: BabyAction) -> some View {
+    private func headerCompletionElapsedView(for action: BabyActionSnapshot) -> some View {
         if action.endDate != nil {
             TimelineView(.periodic(from: .now, by: 60)) { context in
                 let display = action.timeSinceCompletionDescription(asOf: context.date) ?? L10n.Formatter.justNow
@@ -244,7 +244,7 @@ struct HomeView: View {
         }
     }
 
-    private func headerCardAlignment(for action: BabyAction) -> VerticalAlignment {
+    private func headerCardAlignment(for action: BabyActionSnapshot) -> VerticalAlignment {
         action.endDate == nil ? .top : .center
     }
 
@@ -345,8 +345,8 @@ struct HomeView: View {
 
 private struct ActionCard: View {
     let category: BabyActionCategory
-    let activeAction: BabyAction?
-    let lastCompleted: BabyAction?
+    let activeAction: BabyActionSnapshot?
+    let lastCompleted: BabyActionSnapshot?
     let onStart: () -> Void
     let onStop: () -> Void
 
@@ -474,7 +474,7 @@ private struct ActionCard: View {
         .animation(cardAnimation, value: activeAction?.id)
     }
 
-    private func activeDetailView(for action: BabyAction) -> some View {
+    private func activeDetailView(for action: BabyActionSnapshot) -> some View {
         VStack(spacing: 6) {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 Text(action.durationDescription(asOf: context.date))
@@ -518,8 +518,8 @@ private struct AnimatedActionIcon: View {
 }
 
 private struct HistoryRow: View {
-    let action: BabyAction
-    let onEdit: (BabyAction) -> Void
+    let action: BabyActionSnapshot
+    let onEdit: (BabyActionSnapshot) -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -616,7 +616,7 @@ private extension HistoryRow {
         let accessibility: String
     }
 
-    func detailDescription(for action: BabyAction) -> String? {
+    func detailDescription(for action: BabyActionSnapshot) -> String? {
         if action.category == .sleep {
             return nil
         }
@@ -658,9 +658,9 @@ private extension HistoryRow {
 }
 
 private struct ActionConfiguration {
-    var diaperType: BabyAction.DiaperType?
-    var feedingType: BabyAction.FeedingType?
-    var bottleType: BabyAction.BottleType?
+    var diaperType: BabyActionSnapshot.DiaperType?
+    var feedingType: BabyActionSnapshot.FeedingType?
+    var bottleType: BabyActionSnapshot.BottleType?
     var bottleVolume: Int?
 
     static let sleep = ActionConfiguration(diaperType: nil, feedingType: nil, bottleType: nil, bottleVolume: nil)
@@ -683,9 +683,9 @@ private protocol ActionTypeOption: Identifiable, Hashable {
     var icon: String { get }
 }
 
-extension BabyAction.DiaperType: ActionTypeOption { }
-extension BabyAction.FeedingType: ActionTypeOption {
-    static var newActionOptions: [BabyAction.FeedingType] {
+extension BabyActionSnapshot.DiaperType: ActionTypeOption { }
+extension BabyActionSnapshot.FeedingType: ActionTypeOption {
+    static var newActionOptions: [BabyActionSnapshot.FeedingType] {
         [.bottle, .meal, .leftBreast, .rightBreast]
     }
 }
@@ -778,22 +778,22 @@ private enum BottleVolumeOption: Hashable, Identifiable {
 }
 
 struct ActionEditSheet: View {
-    let action: BabyAction
-    let onSave: (BabyAction) -> Void
+    let action: BabyActionSnapshot
+    let onSave: (BabyActionSnapshot) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
 
     @State private var startDate: Date
-    @State private var diaperSelection: BabyAction.DiaperType
-    @State private var feedingSelection: BabyAction.FeedingType
-    @State private var bottleTypeSelection: BabyAction.BottleType
+    @State private var diaperSelection: BabyActionSnapshot.DiaperType
+    @State private var feedingSelection: BabyActionSnapshot.FeedingType
+    @State private var bottleTypeSelection: BabyActionSnapshot.BottleType
     @State private var bottleSelection: BottleVolumeOption
     @State private var customBottleVolume: String
     @State private var endDate: Date?
 
-    init(action: BabyAction, onSave: @escaping (BabyAction) -> Void) {
+    init(action: BabyActionSnapshot, onSave: @escaping (BabyActionSnapshot) -> Void) {
         self.action = action
         self.onSave = onSave
 
@@ -920,7 +920,7 @@ struct ActionEditSheet: View {
         if action.category == .diaper {
             Section(header: Text(L10n.Home.diaperTypeSectionTitle)) {
                 Picker(selection: $diaperSelection) {
-                    ForEach(BabyAction.DiaperType.allCases) { option in
+                    ForEach(BabyActionSnapshot.DiaperType.allCases) { option in
                         Text(option.title).tag(option)
                     }
                 } label: {
@@ -937,7 +937,7 @@ struct ActionEditSheet: View {
         if action.category == .feeding {
             Section(header: Text(L10n.Home.feedingTypeSectionTitle)) {
                 Picker(selection: $feedingSelection) {
-                    ForEach(BabyAction.FeedingType.allCases) { option in
+                    ForEach(BabyActionSnapshot.FeedingType.allCases) { option in
                         Text(option.title).tag(option)
                     }
                 } label: {
@@ -957,7 +957,7 @@ struct ActionEditSheet: View {
     private var bottleTypeSection: some View {
         Section(header: Text(L10n.Home.bottleTypeSectionTitle)) {
             Picker(selection: $bottleTypeSelection) {
-                ForEach(BabyAction.BottleType.allCases) { option in
+                ForEach(BabyActionSnapshot.BottleType.allCases) { option in
                     Text(option.title).tag(option)
                 }
             } label: {
@@ -1113,7 +1113,7 @@ struct ActionEditSheet: View {
         dismiss()
     }
 
-    private func makeUpdatedAction(removingEndDate: Bool) -> BabyAction {
+    private func makeUpdatedAction(removingEndDate: Bool) -> BabyActionSnapshot {
         var updated = action
         updated.startDate = startDate
 
@@ -1143,9 +1143,9 @@ private struct ActionDetailSheet: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var diaperSelection: BabyAction.DiaperType = .pee
-    @State private var feedingSelection: BabyAction.FeedingType = .bottle
-    @State private var bottleTypeSelection: BabyAction.BottleType = .formula
+    @State private var diaperSelection: BabyActionSnapshot.DiaperType = .pee
+    @State private var feedingSelection: BabyActionSnapshot.FeedingType = .bottle
+    @State private var bottleTypeSelection: BabyActionSnapshot.BottleType = .formula
     @State private var bottleSelection: BottleVolumeOption = .preset(120)
     @State private var customBottleVolume: String = ""
 
@@ -1164,7 +1164,7 @@ private struct ActionDetailSheet: View {
                 case .diaper:
                     Section {
                         ActionTypeSelectionGrid(
-                            options: BabyAction.DiaperType.allCases,
+                            options: BabyActionSnapshot.DiaperType.allCases,
                             selection: $diaperSelection,
                             accentColor: category.accentColor,
                             onOptionActivated: { _ in
@@ -1179,7 +1179,7 @@ private struct ActionDetailSheet: View {
                 case .feeding:
                     Section {
                         ActionTypeSelectionGrid(
-                            options: BabyAction.FeedingType.newActionOptions,
+                            options: BabyActionSnapshot.FeedingType.newActionOptions,
                             selection: $feedingSelection,
                             accentColor: category.accentColor,
                             onOptionActivated: { _ in
@@ -1194,7 +1194,7 @@ private struct ActionDetailSheet: View {
                     if feedingSelection == .bottle {
                         Section {
                             Picker(selection: $bottleTypeSelection) {
-                                ForEach(BabyAction.BottleType.allCases) { option in
+                                ForEach(BabyActionSnapshot.BottleType.allCases) { option in
                                     Text(option.title).tag(option)
                                 }
                             } label: {
@@ -1310,10 +1310,10 @@ private struct ActionDetailSheet: View {
     let profileStore = ProfileStore(initialProfiles: [profile], activeProfileID: profile.id, directory: FileManager.default.temporaryDirectory, filename: "previewHomeProfiles.json")
 
     var state = ProfileActionState()
-    state.activeActions[.sleep] = BabyAction(category: .sleep, startDate: Date().addingTimeInterval(-1200))
+    state.activeActions[.sleep] = BabyActionSnapshot(category: .sleep, startDate: Date().addingTimeInterval(-1200))
     state.history = [
-        BabyAction(category: .feeding, startDate: Date().addingTimeInterval(-5400), endDate: Date().addingTimeInterval(-5100), feedingType: .bottle, bottleType: .formula, bottleVolume: 110),
-        BabyAction(category: .diaper, startDate: Date().addingTimeInterval(-3600), endDate: Date().addingTimeInterval(-3500), diaperType: .pee)
+        BabyActionSnapshot(category: .feeding, startDate: Date().addingTimeInterval(-5400), endDate: Date().addingTimeInterval(-5100), feedingType: .bottle, bottleType: .formula, bottleVolume: 110),
+        BabyActionSnapshot(category: .diaper, startDate: Date().addingTimeInterval(-3600), endDate: Date().addingTimeInterval(-3500), diaperType: .pee)
     ]
 
     let actionStore = ActionLogStore.previewStore(profiles: [profile.id: state])

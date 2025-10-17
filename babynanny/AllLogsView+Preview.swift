@@ -4,12 +4,12 @@ import SwiftUI
     let profile = ChildProfile(name: "Aria", birthDate: Date())
     var state = ProfileActionState()
     state.history = [
-        BabyAction(
+        BabyActionSnapshot(
             category: .sleep,
             startDate: Date().addingTimeInterval(-3600),
             endDate: Date().addingTimeInterval(-1800)
         ),
-        BabyAction(
+        BabyActionSnapshot(
             category: .feeding,
             startDate: Date().addingTimeInterval(-7200),
             endDate: Date().addingTimeInterval(-6600),
@@ -17,7 +17,7 @@ import SwiftUI
             bottleType: .formula,
             bottleVolume: 120
         ),
-        BabyAction(
+        BabyActionSnapshot(
             category: .diaper,
             startDate: Date().addingTimeInterval(-86000),
             endDate: Date().addingTimeInterval(-85800),

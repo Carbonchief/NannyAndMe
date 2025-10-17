@@ -20,7 +20,7 @@ struct ActionsView: View {
 
     var body: some View {
         List(actions) { model in
-            let action = model.asBabyAction()
+            let action = model.asSnapshot()
             VStack(alignment: .leading, spacing: 4) {
                 Text(action.title)
                     .font(.headline)

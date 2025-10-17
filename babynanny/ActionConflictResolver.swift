@@ -7,7 +7,7 @@ struct ActionConflictResolver {
 
     var policy: Policy = .lastModifiedWins
 
-    func resolve(local: BabyAction, remote: BabyAction) -> BabyAction {
+    func resolve(local: BabyActionSnapshot, remote: BabyActionSnapshot) -> BabyActionSnapshot {
         switch policy {
         case .lastModifiedWins:
             if remote.updatedAt > local.updatedAt {

@@ -30,7 +30,7 @@ Use this when you want to clear the on-device cache but preserve CloudKit data f
 
 - **Duplicate subscriptions** – The coordinator fetches existing subscriptions at launch and only creates a new one when necessary, preventing CloudKit errors caused by duplicate IDs.
 - **No-op saves** – `AppDataStack` checks `ModelContext.hasChanges` before saving, so toggling UI state without a data change will not trigger redundant sync traffic.
-- **Conflict storms** – Each `BabyAction` carries an `updatedAt` timestamp. `ActionConflictResolver` chooses the newer timestamp (or the entry with the latest end date on ties), stopping ping-pong updates between devices.
+- **Conflict storms** – Each `BabyActionSnapshot` carries an `updatedAt` timestamp. `ActionConflictResolver` chooses the newer timestamp (or the entry with the latest end date on ties), stopping ping-pong updates between devices.
 - **Manual fetch loops** – All syncs are push-triggered or manually requested via `SyncCoordinator.requestSyncIfNeeded(reason:)`; there is no polling loop.
 
 ## Adding sharing later
