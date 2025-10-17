@@ -328,7 +328,7 @@ final class CloudKitSharingManager {
 
 // MARK: - Snapshot helpers
 
-private extension CloudKitSharingManager {
+extension CloudKitSharingManager {
     enum RecordType: String {
         case profile = "Profile"
         case babyAction = "BabyAction"
