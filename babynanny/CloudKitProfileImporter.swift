@@ -102,30 +102,41 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
     private func fetchLegacySnapshot(in database: CKDatabase, recordType: String) async throws -> CloudProfileSnapshot? {
         let predicate = NSPredicate(value: true)
         let query = CKQuery(recordType: recordType, predicate: predicate)
-        query.sortDescriptors = [NSSortDescriptor(key: "modificationDate", ascending: false)]
 
         let (matchResults, _) = try await database.records(
             matching: query,
             desiredKeys: desiredRecordKeys(),
-            resultsLimit: 1
+            resultsLimit: CKQueryOperation.maximumResults
         )
 
-        guard let (_, result) = matchResults.first else {
+        var newestRecord: CKRecord?
+
+        for (_, result) in matchResults {
+            switch result {
+            case let .success(record):
+                guard let candidateDate = record.modificationDate ?? record.creationDate else { continue }
+
+                if let currentRecord = newestRecord,
+                   let currentDate = currentRecord.modificationDate ?? currentRecord.creationDate,
+                   currentDate >= candidateDate {
+                    continue
+                }
+
+                newestRecord = record
+            case let .failure(error):
+                if Self.isRecoverable(error) {
+                    throw CloudProfileImportError.recoverable(error)
+                }
+                throw error
+            }
+        }
+
+        guard let record = newestRecord,
+              let data = cloudPayload(from: record) else {
             return nil
         }
 
-        switch result {
-        case let .success(record):
-            guard let data = cloudPayload(from: record) else {
-                return nil
-            }
-            return try decodeSnapshot(from: data)
-        case let .failure(error):
-            if Self.isRecoverable(error) {
-                throw CloudProfileImportError.recoverable(error)
-            }
-            throw error
-        }
+        return try decodeSnapshot(from: data)
     }
 
     private func cloudPayload(from record: CKRecord) -> Data? {
@@ -152,7 +163,6 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
     private func fetchSwiftDataSnapshot(in database: CKDatabase, recordType: String) async throws -> CloudProfileSnapshot? {
         let predicate = NSPredicate(value: true)
         let query = CKQuery(recordType: recordType, predicate: predicate)
-        query.sortDescriptors = [NSSortDescriptor(key: "modificationDate", ascending: false)]
 
         let (matchResults, _) = try await database.records(
             matching: query,
