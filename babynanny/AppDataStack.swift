@@ -10,6 +10,7 @@ final class AppDataStack: ObservableObject {
     let modelContainer: ModelContainer
     let mainContext: ModelContext
     let syncCoordinator: SyncCoordinator
+    let syncStatusViewModel: SyncStatusViewModel
     let shareMetadataStore: ShareMetadataStore
     let shareAcceptanceHandler: ShareAcceptanceHandler
     let sharedSubscriptionManager: SharedScopeSubscriptionManager
@@ -28,6 +29,7 @@ final class AppDataStack: ObservableObject {
         } else {
             self.syncCoordinator = SyncCoordinator(sharedContext: container.mainContext)
         }
+        self.syncStatusViewModel = SyncStatusViewModel(modelContainer: container)
         let metadataStore = ShareMetadataStore()
         self.shareMetadataStore = metadataStore
         let zoneTokenStore = SharedZoneChangeTokenStore()
@@ -48,7 +50,7 @@ final class AppDataStack: ObservableObject {
         let configuration = ModelConfiguration(
             isStoredInMemoryOnly: inMemory,
             allowsSave: true,
-            cloudKitDatabase: .private("iCloud.com.prioritybit.babynanny")
+            cloudKitDatabase: .both("iCloud.com.prioritybit.babynanny")
         )
 
         do {

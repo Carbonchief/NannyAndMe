@@ -402,60 +402,43 @@ struct ProfileActionState: Codable {
 
 @Model
 final class Profile {
-    var profileID: UUID?
+    /// Stable identifier used for CloudKit mirroring and SwiftData uniqueness.
+    @Attribute(.unique)
+    var id: UUID
     var name: String?
     var birthDate: Date?
     @Attribute(.externalStorage)
     var imageData: Data?
     @Relationship(deleteRule: .cascade, inverse: \BabyAction.profile)
-    fileprivate var actionsStorage: [BabyAction]?
+    var actions: [BabyAction] {
+        didSet { ensureActionOwnership() }
+    }
 
     init(profileID: UUID = UUID(),
          name: String? = nil,
          birthDate: Date? = nil,
          imageData: Data? = nil,
          actions: [BabyAction] = []) {
-        self.profileID = profileID
+        self.id = profileID
         self.name = name
         self.birthDate = birthDate?.normalizedToUTC()
         self.imageData = imageData
-        if actions.isEmpty {
-            actionsStorage = nil
-        } else {
-            actionsStorage = actions
-            ensureActionOwnership()
-        }
+        self.actions = actions
+        ensureActionOwnership()
     }
 
     var resolvedProfileID: UUID {
-        get {
-            if let identifier = profileID {
-                return identifier
-            }
-            let generated = UUID()
-            profileID = generated
-            return generated
-        }
-        set {
-            profileID = newValue
-        }
+        get { id }
+        set { id = newValue }
     }
 
-    var actions: [BabyAction] {
-        get { actionsStorage ?? [] }
-        set {
-            if newValue.isEmpty {
-                actionsStorage = nil
-            } else {
-                actionsStorage = newValue
-                ensureActionOwnership()
-            }
-        }
+    var profileID: UUID {
+        get { id }
+        set { id = newValue }
     }
 
     func ensureActionOwnership() {
-        guard let actionsStorage else { return }
-        for action in actionsStorage where action.profile == nil {
+        for action in actions where action.profile == nil {
             action.profile = self
         }
     }
@@ -465,16 +448,18 @@ typealias ProfileActionStateModel = Profile
 
 @Model
 final class BabyAction {
-    var idRawValue: UUID?
-    var categoryRawValue: String?
-    var startDateRawValue: Date?
-    var endDate: Date?
+    /// Stable identifier synced with CloudKit to keep actions unique across devices.
+    @Attribute(.unique)
+    var id: UUID
+    private var categoryRawValue: String
+    private var startDateRawValue: Date
+    private var endDateRawValue: Date?
     var diaperTypeRawValue: String?
     var feedingTypeRawValue: String?
     var bottleTypeRawValue: String?
     var bottleVolume: Int?
-    var updatedAtRawValue: Date?
-    @Relationship
+    private var updatedAtRawValue: Date
+    @Relationship(inverse: \Profile.actions, deleteRule: .nullify)
     var profile: Profile?
 
     init(id: UUID = UUID(),
@@ -485,75 +470,38 @@ final class BabyAction {
          feedingType: BabyActionSnapshot.FeedingType? = nil,
          bottleType: BabyActionSnapshot.BottleType? = nil,
          bottleVolume: Int? = nil,
-         updatedAt: Date? = nil,
+         updatedAt: Date = Date(),
          profile: Profile? = nil) {
         self.id = id
-        self.category = category
-        self.startDate = startDate
-        self.endDate = endDate
-        self.diaperType = diaperType
-        self.feedingType = feedingType
-        self.bottleType = bottleType
+        self.categoryRawValue = category.rawValue
+        self.startDateRawValue = startDate.normalizedToUTC()
+        self.endDateRawValue = endDate?.normalizedToUTC()
+        self.diaperTypeRawValue = diaperType?.rawValue
+        self.feedingTypeRawValue = feedingType?.rawValue
+        self.bottleTypeRawValue = bottleType?.rawValue
         self.bottleVolume = bottleVolume
-        self.updatedAt = updatedAt ?? Date()
+        self.updatedAtRawValue = updatedAt
         self.profile = profile
     }
 
-    var id: UUID {
-        get {
-            if let existing = idRawValue {
-                return existing
-            }
-            let generated = UUID()
-            idRawValue = generated
-            return generated
-        }
-        set {
-            idRawValue = newValue
-        }
-    }
-
     var category: BabyActionCategory {
-        get {
-            if let rawValue = categoryRawValue,
-               let category = BabyActionCategory(rawValue: rawValue) {
-                return category
-            }
-            let fallback = BabyActionCategory.sleep
-            categoryRawValue = fallback.rawValue
-            return fallback
-        }
-        set {
-            categoryRawValue = newValue.rawValue
-        }
+        get { BabyActionCategory(rawValue: categoryRawValue) ?? .sleep }
+        set { categoryRawValue = newValue.rawValue }
     }
 
     var startDate: Date {
-        get {
-            if let stored = startDateRawValue {
-                return stored
-            }
-            let now = Date().normalizedToUTC()
-            startDateRawValue = now
-            return now
-        }
-        set {
-            startDateRawValue = newValue.normalizedToUTC()
-        }
+        get { startDateRawValue }
+        set { startDateRawValue = newValue.normalizedToUTC() }
+    }
+
+    var endDate: Date? {
+        get { endDateRawValue }
+        set { endDateRawValue = newValue?.normalizedToUTC() }
     }
 
     var updatedAt: Date {
-        get {
-            if let stored = updatedAtRawValue {
-                return stored
-            }
-            let now = Date()
-            updatedAtRawValue = now
-            return now
-        }
-        set {
-            updatedAtRawValue = newValue
-        }
+        get { updatedAtRawValue }
+        set { updatedAtRawValue = newValue }
     }
 }
 
@@ -608,7 +556,7 @@ extension BabyAction {
         id = action.id
         category = action.category
         startDate = action.startDate
-        endDate = action.endDate?.normalizedToUTC()
+        endDate = action.endDate
         diaperType = action.diaperType
         feedingType = action.feedingType
         bottleType = action.bottleType

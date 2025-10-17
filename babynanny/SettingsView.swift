@@ -14,6 +14,8 @@ struct SettingsView: View {
     @EnvironmentObject private var actionStore: ActionLogStore
 #if DEBUG
     @EnvironmentObject private var syncCoordinator: SyncCoordinator
+    @EnvironmentObject private var syncStatusViewModel: SyncStatusViewModel
+    private let cloudKitContainerIdentifier = "iCloud.com.prioritybit.babynanny"
 #endif
     @Environment(\.openURL) private var openURL
     @State private var selectedPhoto: PhotosPickerItem?
@@ -362,7 +364,9 @@ struct SettingsView: View {
     private var debugSection: some View {
         Section(header: Text("Debug")) {
             NavigationLink {
-                SyncDiagnosticsView(coordinator: syncCoordinator)
+                SyncDiagnosticsView(coordinator: syncCoordinator,
+                                    statusViewModel: syncStatusViewModel,
+                                    containerIdentifier: cloudKitContainerIdentifier)
             } label: {
                 Label("Sync Diagnostics", systemImage: "antenna.radiowaves.left.and.right")
             }

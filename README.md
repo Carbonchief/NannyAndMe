@@ -17,6 +17,7 @@ NannyAndMe is a SwiftUI-based iOS application that helps caregivers keep track o
 - **Data sharing** – Export the active profile's logs to JSON and merge imports that include new or updated entries.
 - **iCloud profile restore** – Automatically pull existing child profiles from your private CloudKit database the first time you install the app on a device.
 - **Nearby sharing** – Beam the latest export to nearby iOS devices with Multipeer Connectivity support.
+- **Cloud sync visibility** – Monitor SwiftData's CloudKit mirroring progress with an in-app overlay and debug diagnostics panel (Debug build).
 - **Localized experience** – Navigate the interface in English, German, or Spanish with fully translated caregiver-facing text.
 
 ## Project structure
@@ -70,7 +71,7 @@ The application relies on SwiftData's CloudKit integration for syncing. Ensure t
 1. **iCloud + CloudKit**
    - In the **Signing & Capabilities** tab, add the iCloud capability.
    - Select **CloudKit** and choose the default container `iCloud.com.prioritybit.babynanny`.
-   - Keep `Private Database` enabled only; public databases are not used.
+   - Enable both the **Private** and **Shared** databases so SwiftData can mirror personal and collaborative zones.
 2. **Push Notifications**
    - Add the **Push Notifications** capability so APNs tokens are issued on device builds.
 3. **Background Modes**

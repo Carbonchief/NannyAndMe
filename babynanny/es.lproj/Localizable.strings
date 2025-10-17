@@ -253,3 +253,7 @@
 "profile.new" = "Perfil nuevo";
 "formatter.justNow" = "Justo ahora";
 "formatter.ago" = "hace %@";
+"sync.loadingInitialData" = "Sincronizando tus datos…";
+"sync.progressPercentage" = "%.0f%% completado";
+"sync.preparingUpdates" = "Preparando tus últimas actualizaciones…";
+"sync.initialSyncFailed" = "No pudimos terminar de descargar tus datos. Seguiremos intentándolo en segundo plano.";

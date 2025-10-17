@@ -289,7 +289,10 @@ private final class ShareProfilePageViewModel: ObservableObject {
         defer { processingParticipantID = nil }
 
         do {
-            try await sharingManager.updateParticipant(item.participant, role: nil, permission: permission)
+            try await sharingManager.updateParticipant(for: profileID,
+                                                       participant: item.participant,
+                                                       role: nil,
+                                                       permission: permission)
             await refreshParticipants()
         } catch {
             alert = ShareAlert(message: error.localizedDescription)
@@ -302,7 +305,7 @@ private final class ShareProfilePageViewModel: ObservableObject {
         defer { processingParticipantID = nil }
 
         do {
-            try await sharingManager.removeParticipant(item.participant)
+            try await sharingManager.removeParticipant(for: profileID, participant: item.participant)
             await refreshParticipants()
         } catch {
             alert = ShareAlert(message: error.localizedDescription)

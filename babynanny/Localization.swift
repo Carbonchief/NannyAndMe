@@ -19,6 +19,31 @@ enum L10n {
         static let loading = String(localized: "splash.loading", defaultValue: "Loading")
     }
 
+    enum Sync {
+        static let loadingInitialData = String(
+            localized: "sync.loadingInitialData",
+            defaultValue: "Syncing your data…"
+        )
+
+        static func progressPercentage(_ value: Double) -> String {
+            let format = String(
+                localized: "sync.progressPercentage",
+                defaultValue: "%.0f%% complete"
+            )
+            return String(format: format, locale: Locale.current, value)
+        }
+
+        static let preparingUpdates = String(
+            localized: "sync.preparingUpdates",
+            defaultValue: "Preparing your latest updates…"
+        )
+
+        static let initialSyncFailed = String(
+            localized: "sync.initialSyncFailed",
+            defaultValue: "We couldn't finish downloading your data. We'll keep trying in the background."
+        )
+    }
+
     enum Onboarding {
         static let profilePromptTitle = String(
             localized: "onboarding.profilePrompt.title",
