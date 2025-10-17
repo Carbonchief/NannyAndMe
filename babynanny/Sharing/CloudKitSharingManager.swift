@@ -35,12 +35,12 @@ final class CloudKitSharingManager {
             throw SharingError.profileNotFound
         }
 
-        if let existing = try context.existingShare(for: profile) {
+        if let existing = try context.fetchShare(for: profile) {
             await persistMetadataIfNeeded(for: existing, profileID: profileID)
             return existing
         }
 
-        let share = try context.share(profile)
+        let share = try context.share(profile, to: nil)
         share[CKShare.SystemFieldKey.title] = profile.name as CKRecordValue?
         if let data = profile.imageData {
             share[CKShare.SystemFieldKey.thumbnailImageData] = data as CKRecordValue
@@ -114,7 +114,7 @@ final class CloudKitSharingManager {
 
     private func persistMetadataIfNeeded(for share: CKShare, profileID: UUID) async {
         let zoneID = share.recordID.zoneID
-        let rootRecordID = share.rootRecordID ?? CKRecord.ID(recordName: "profile-\(profileID.uuidString)", zoneID: zoneID)
+        let rootRecordID = share.rootRecord?.recordID ?? CKRecord.ID(recordName: "profile-\(profileID.uuidString)", zoneID: zoneID)
         let metadata = ShareMetadataStore.ShareMetadata(
             profileID: profileID,
             zoneID: zoneID,
