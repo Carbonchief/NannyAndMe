@@ -315,7 +315,8 @@ actor ShareMetadataStore {
     private let storageKey = "com.prioritybit.babynanny.share.metadata"
     private var cache: [UUID: ShareMetadata]
 
-    init(defaults: UserDefaults = .standard) {
+    init() {
+        let defaults = UserDefaults.standard
         self.defaults = defaults
         if let data = defaults.data(forKey: storageKey),
            let decoded = try? JSONDecoder().decode([PersistedEntry].self, from: data) {
@@ -459,5 +460,3 @@ private extension CKError.Code {
     /// Raw value for `zoneAlreadyExists`, exposed directly to remain compatible with SDK surfaces lacking the symbol.
     static let zoneAlreadyExistsRawValue: Int = 26
 }
-
-extension UserDefaults: @unchecked Sendable {}
