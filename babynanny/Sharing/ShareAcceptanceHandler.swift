@@ -33,7 +33,8 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
         guard metadatas.isEmpty == false else { return }
         try await acceptShares(metadatas)
         for metadata in metadatas {
-            let zoneID = metadata.rootRecordID.zoneID
+            let rootRecordID = metadata.share.rootRecordID
+            let zoneID = rootRecordID.zoneID
             let result = try await fetchAndIngestInitialContent(for: zoneID)
             let share = metadata.share
             if let profileRecord = result.records.first(where: { $0.recordType == RecordType.profile }),
@@ -42,7 +43,7 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
                 let stored = ShareMetadataStore.ShareMetadata(
                     profileID: profileID,
                     zoneID: zoneID,
-                    rootRecordID: metadata.rootRecordID,
+                    rootRecordID: rootRecordID,
                     shareRecordID: share.recordID,
                     isShared: true
                 )
