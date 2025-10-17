@@ -146,7 +146,9 @@ final class CloudKitSharingManager {
         do {
             try await privateDatabase.saveZoneAsync(zone)
         } catch {
-            if (error as? CKError)?.code != .zoneAlreadyExists {
+            if let ckError = error as? CKError, ckError.code == .zoneAlreadyExists {
+                // The zone already exists, which is acceptable for idempotent sharing.
+            } else {
                 throw error
             }
         }
@@ -231,7 +233,7 @@ final class CloudKitSharingManager {
             let operation = CKModifyRecordsOperation(recordsToSave: records + [share], recordIDsToDelete: nil)
             operation.savePolicy = .ifServerRecordUnchanged
             operation.isAtomic = true
-            operation.perRecordResultBlock = { _, result in
+            operation.perRecordSaveBlock = { _, result in
                 switch result {
                 case .success(let record):
                     if let fetchedShare = record as? CKShare {
