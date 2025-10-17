@@ -76,8 +76,7 @@ final class CloudKitSharingManager {
         if let role { target.role = role }
         if let permission { target.permission = permission }
         _ = try await saveShareTree(records: [], share: share)
-        logger.log("Updated participant \(participant.userIdentity.lookupInfo?.emailAddress ?? "unknown", privacy: .public)"
-                   + " for profile \(profileID.uuidString, privacy: .public)")
+        logger.log("Updated participant \(participant.userIdentity.lookupInfo?.emailAddress ?? "unknown", privacy: .public) for profile \(profileID.uuidString, privacy: .public)")
     }
 
     /// Removes the participant from the share.
@@ -97,12 +96,12 @@ final class CloudKitSharingManager {
         guard let metadata = await metadataStore.metadata(for: profileID) else { return }
         let shareID = metadata.shareRecordID
         do {
-            try await privateDatabase.deleteRecord(withID: shareID)
+            try await privateDatabase.deleteRecordAsync(withID: shareID)
         } catch {
             logger.error("Failed deleting share record: \(error.localizedDescription, privacy: .public)")
         }
         do {
-            try await privateDatabase.delete(withRecordZoneID: metadata.zoneID)
+            try await privateDatabase.deleteZoneAsync(withID: metadata.zoneID)
         } catch {
             logger.error("Failed deleting zone: \(error.localizedDescription, privacy: .public)")
         }
@@ -145,7 +144,7 @@ final class CloudKitSharingManager {
         let zoneID = CKRecordZone.ID(zoneName: zoneName(for: profileID))
         let zone = CKRecordZone(zoneID: zoneID)
         do {
-            try await privateDatabase.save(zone)
+            try await privateDatabase.saveZoneAsync(zone)
         } catch {
             if (error as? CKError)?.code != .zoneAlreadyExists {
                 throw error
@@ -401,7 +400,7 @@ private extension CKDatabase {
         }
     }
 
-    func save(_ zone: CKRecordZone) async throws {
+    func saveZoneAsync(_ zone: CKRecordZone) async throws {
         try await withCheckedThrowingContinuation { continuation in
             save(zone) { _, error in
                 if let error {
@@ -413,7 +412,7 @@ private extension CKDatabase {
         }
     }
 
-    func deleteRecord(withID recordID: CKRecord.ID) async throws {
+    func deleteRecordAsync(withID recordID: CKRecord.ID) async throws {
         try await withCheckedThrowingContinuation { continuation in
             delete(withRecordID: recordID) { _, error in
                 if let error {
@@ -425,7 +424,7 @@ private extension CKDatabase {
         }
     }
 
-    func delete(withRecordZoneID zoneID: CKRecordZone.ID) async throws {
+    func deleteZoneAsync(withID zoneID: CKRecordZone.ID) async throws {
         try await withCheckedThrowingContinuation { continuation in
             delete(withRecordZoneID: zoneID) { _, error in
                 if let error {
