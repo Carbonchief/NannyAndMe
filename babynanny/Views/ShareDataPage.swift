@@ -120,8 +120,8 @@ struct ShareDataPage: View {
             Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text(L10n.Common.done)))
         }
         .confirmationDialog(
-            Text(ShareStrings.removeParticipantTitle),
-            item: $participantPendingRemoval
+            LocalizedStringKey(ShareStrings.removeParticipantTitle),
+            presenting: $participantPendingRemoval
         ) { item in
             Button(role: .destructive) {
                 Task { await viewModel.removeParticipant(item) }
@@ -146,7 +146,7 @@ struct ShareDataPage: View {
             Text(ShareStrings.removeParticipantMessage(item.displayName))
         }
         .confirmationDialog(
-            Text(ShareStrings.stopSharingConfirmTitle),
+            LocalizedStringKey(ShareStrings.stopSharingConfirmTitle),
             isPresented: $isConfirmingStopShare
         ) {
             Button(role: .destructive) {
