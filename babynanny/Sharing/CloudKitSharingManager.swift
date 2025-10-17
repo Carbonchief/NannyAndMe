@@ -350,6 +350,15 @@ extension CloudKitSharingManager {
 
 actor ShareMetadataStore {
     struct ShareMetadata: Codable {
+        private enum CodingKeys: String, CodingKey {
+            case profileID
+            case zoneName
+            case ownerName
+            case rootRecordName
+            case shareRecordName
+            case isShared
+        }
+
         var profileID: UUID
         var zoneName: String
         var ownerName: String
@@ -367,6 +376,40 @@ actor ShareMetadataStore {
 
         var shareRecordID: CKRecord.ID {
             CKRecord.ID(recordName: shareRecordName, zoneID: zoneID)
+        }
+
+        init(profileID: UUID,
+             zoneName: String,
+             ownerName: String,
+             rootRecordName: String,
+             shareRecordName: String,
+             isShared: Bool) {
+            self.profileID = profileID
+            self.zoneName = zoneName
+            self.ownerName = ownerName
+            self.rootRecordName = rootRecordName
+            self.shareRecordName = shareRecordName
+            self.isShared = isShared
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            profileID = try container.decode(UUID.self, forKey: .profileID)
+            zoneName = try container.decode(String.self, forKey: .zoneName)
+            ownerName = try container.decode(String.self, forKey: .ownerName)
+            rootRecordName = try container.decode(String.self, forKey: .rootRecordName)
+            shareRecordName = try container.decode(String.self, forKey: .shareRecordName)
+            isShared = try container.decodeIfPresent(Bool.self, forKey: .isShared) ?? true
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(profileID, forKey: .profileID)
+            try container.encode(zoneName, forKey: .zoneName)
+            try container.encode(ownerName, forKey: .ownerName)
+            try container.encode(rootRecordName, forKey: .rootRecordName)
+            try container.encode(shareRecordName, forKey: .shareRecordName)
+            try container.encode(isShared, forKey: .isShared)
         }
     }
 
