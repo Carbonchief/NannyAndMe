@@ -63,10 +63,13 @@ final class NearbyShareController: NSObject, ObservableObject {
 
     func makeBrowserViewController() -> MCBrowserViewController {
         startAdvertising()
-        phase = .presenting
         let browser = MCBrowserViewController(serviceType: serviceType, session: session)
         browser.delegate = self
         return browser
+    }
+
+    func beginPresentingBrowser() {
+        phase = .presenting
     }
 
     func cancelSharing() {

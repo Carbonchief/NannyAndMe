@@ -302,6 +302,7 @@ struct ShareDataView: View {
             let data = try makeExportData()
             let filename = "\(defaultExportFilename).json"
             nearbyShareController.prepareShare(data: data, filename: filename)
+            nearbyShareController.beginPresentingBrowser()
             isPresentingNearbyBrowser = true
         } catch {
             alert = ShareDataAlert(
