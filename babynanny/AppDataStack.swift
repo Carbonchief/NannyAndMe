@@ -50,7 +50,7 @@ final class AppDataStack: ObservableObject {
         let configuration = ModelConfiguration(
             isStoredInMemoryOnly: inMemory,
             allowsSave: true,
-            cloudKitDatabase: .both("iCloud.com.prioritybit.babynanny")
+            cloudKitDatabase: .private("iCloud.com.prioritybit.babynanny")
         )
 
         do {
