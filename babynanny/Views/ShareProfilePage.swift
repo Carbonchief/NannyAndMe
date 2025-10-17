@@ -645,6 +645,7 @@ private struct ShareProfileSheet: View {
                 container: container,
                 itemTitle: payload.displayName,
                 thumbnailData: payload.thumbnailData,
+                showsItemPreview: false,
                 onDidSaveShare: onDidSaveShare,
                 onDidStopSharing: onDidStopSharing
             )

@@ -14,12 +14,14 @@ struct SharingUI: UIViewControllerRepresentable {
     var thumbnailData: Data?
     var onDidSaveShare: (() -> Void)?
     var onDidStopSharing: (() -> Void)?
+    var showsItemPreview: Bool = true
 
     func makeCoordinator() -> Coordinator {
         Coordinator(share: share,
                     container: container,
                     itemTitle: itemTitle,
                     thumbnailData: thumbnailData,
+                    showsItemPreview: showsItemPreview,
                     onDidSaveShare: onDidSaveShare,
                     onDidStopSharing: onDidStopSharing)
     }
@@ -46,16 +48,19 @@ struct SharingUI: UIViewControllerRepresentable {
         private let thumbnailData: Data?
         private var onDidSaveShare: (() -> Void)?
         private var onDidStopSharing: (() -> Void)?
+        private let showsItemPreview: Bool
 
         init(share: CKShare,
              container: CKContainer,
              itemTitle: String?,
              thumbnailData: Data?,
+             showsItemPreview: Bool,
              onDidSaveShare: (() -> Void)?,
              onDidStopSharing: (() -> Void)?) {
             self.share = share
             self.itemTitle = itemTitle
             self.thumbnailData = thumbnailData
+            self.showsItemPreview = showsItemPreview
             self.onDidSaveShare = onDidSaveShare
             self.onDidStopSharing = onDidStopSharing
             super.init()
@@ -71,6 +76,7 @@ struct SharingUI: UIViewControllerRepresentable {
         // MARK: UICloudSharingControllerDelegate
 
         func itemTitle(for csc: UICloudSharingController) -> String? {
+            guard showsItemPreview else { return nil }
             if let itemTitle, itemTitle.isEmpty == false {
                 return itemTitle
             }
@@ -82,6 +88,7 @@ struct SharingUI: UIViewControllerRepresentable {
         }
 
         func itemThumbnailData(for csc: UICloudSharingController) -> Data? {
+            guard showsItemPreview else { return nil }
             if let thumbnailData, thumbnailData.isEmpty == false {
                 return thumbnailData
             }
@@ -93,7 +100,8 @@ struct SharingUI: UIViewControllerRepresentable {
         }
 
         func itemThumbnailDataIsPlaceholder(for csc: UICloudSharingController) -> Bool {
-            itemThumbnailData(for: csc) == nil
+            guard showsItemPreview else { return true }
+            return itemThumbnailData(for: csc) == nil
         }
 
         func cloudSharingController(_ csc: UICloudSharingController,
