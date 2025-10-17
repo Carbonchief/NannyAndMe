@@ -45,9 +45,18 @@ struct ShareDataPage: View {
         }
         .confirmationDialog(
             LocalizedStringKey(ShareStrings.removeParticipantTitle),
-            presenting: $participantPendingRemoval
+            isPresented: Binding(
+                get: { participantPendingRemoval != nil },
+                set: { isPresented in
+                    if isPresented == false {
+                        participantPendingRemoval = nil
+                    }
+                }
+            ),
+            presenting: participantPendingRemoval
         ) { item in
             Button(role: .destructive) {
+                participantPendingRemoval = nil
                 Task { await viewModel.removeParticipant(item) }
             } label: {
                 Text(ShareStrings.confirmRemoveParticipantButton)
@@ -117,7 +126,7 @@ struct ShareDataPage: View {
 
     @ViewBuilder
     private var participantsSection: some View {
-        Section(ShareStrings.participantsSectionTitle) {
+        Section(LocalizedStringKey(ShareStrings.participantsSectionTitle)) {
             if viewModel.isLoadingParticipants {
                 HStack {
                     Spacer()
