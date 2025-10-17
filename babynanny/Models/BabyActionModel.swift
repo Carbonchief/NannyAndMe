@@ -409,7 +409,7 @@ final class Profile {
     var birthDate: Date?
     @Attribute(.externalStorage)
     var imageData: Data?
-    @Relationship(deleteRule: .cascade, inverse: \BabyAction.profile)
+    @Relationship(deleteRule: .cascade)
     var actions: [BabyAction] = []
 
     init(profileID: UUID = UUID(),
