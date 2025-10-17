@@ -629,33 +629,42 @@ private struct ShareProfileSheet: View {
     let onDidStopSharing: () -> Void
 
     var body: some View {
-        VStack(spacing: 24) {
-            VStack(spacing: 12) {
-                Text(payload.displayName ?? ShareStrings.unnamedProfileTitle)
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .multilineTextAlignment(.center)
+        NavigationStack {
+            Form {
+                Section {
+                    SharingUI(
+                        share: payload.share,
+                        container: container,
+                        itemTitle: payload.displayName,
+                        thumbnailData: payload.thumbnailData,
+                        onDidSaveShare: onDidSaveShare,
+                        onDidStopSharing: onDidStopSharing,
+                        showsItemPreview: false
+                    )
+                    .frame(maxWidth: .infinity, minHeight: 360)
+                    .frame(maxHeight: .infinity, alignment: .center)
+                    .listRowInsets(EdgeInsets())
+                }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.top, 24)
-
-            Divider()
-
-            SharingUI(
-                share: payload.share,
-                container: container,
-                itemTitle: payload.displayName,
-                thumbnailData: payload.thumbnailData,
-                onDidSaveShare: onDidSaveShare,
-                onDidStopSharing: onDidStopSharing,
-                showsItemPreview: false
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .shareProfileSheetStyling()
+            .navigationTitle(payload.displayName ?? ShareStrings.unnamedProfileTitle)
+            .navigationBarTitleDisplayMode(.inline)
         }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func shareProfileSheetStyling() -> some View {
+        if #available(iOS 16.0, *) {
+            self
+                .formStyle(.grouped)
+                .scrollContentBackground(.hidden)
+                .background(Color(.systemGroupedBackground))
+        } else {
+            self
+                .background(Color(.systemGroupedBackground))
+        }
     }
 }
 
