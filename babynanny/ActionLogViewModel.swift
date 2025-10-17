@@ -1,7 +1,9 @@
+import CloudKit
 import CoreData
 import Foundation
 import SwiftData
 import SwiftUI
+import os
 
 @MainActor
 final class ActionLogStore: ObservableObject {
@@ -13,6 +15,9 @@ final class ActionLogStore: ObservableObject {
     private let observedContainerIdentifier: ObjectIdentifier
     private var contextObservers: [NSObjectProtocol] = []
     private let conflictResolver = ActionConflictResolver()
+    private let shareMetadataStore: ShareMetadataStore
+    private let sharedDatabase: CKDatabase
+    private let shareLogger = Logger(subsystem: "com.prioritybit.babynanny", category: "share-sync")
 
     struct MergeSummary: Equatable {
         var added: Int
@@ -24,12 +29,21 @@ final class ActionLogStore: ObservableObject {
     init(modelContext: ModelContext,
          reminderScheduler: ReminderScheduling? = nil,
          notificationCenter: NotificationCenter = .default,
-         dataStack: AppDataStack? = nil) {
+         dataStack: AppDataStack? = nil,
+         shareMetadataStore: ShareMetadataStore = ShareMetadataStore(),
+         sharedDatabase: CKDatabase? = nil) {
         self.modelContext = modelContext
         self.reminderScheduler = reminderScheduler
         self.notificationCenter = notificationCenter
         self.dataStack = dataStack ?? AppDataStack.shared
         self.observedContainerIdentifier = ObjectIdentifier(modelContext.container)
+        self.shareMetadataStore = shareMetadataStore
+        if let sharedDatabase {
+            self.sharedDatabase = sharedDatabase
+        } else {
+            let container = CKContainer(identifier: "iCloud.com.prioritybit.babynanny")
+            self.sharedDatabase = container.sharedCloudDatabase
+        }
         scheduleReminders()
         observeModelContextChanges()
     }
@@ -378,8 +392,10 @@ private extension ActionLogStore {
     func persist(profileState: ProfileActionState, for profileID: UUID) {
         let model = profileModel(for: profileID)
         let existingModels = Dictionary(uniqueKeysWithValues: model.actions.map { ($0.id, $0) })
+        let existingActionIDs = Set(existingModels.keys)
         let desiredActions = Array(profileState.activeActions.values) + profileState.history
         var seenIDs = Set<UUID>()
+        var changedActionIDs = Set<UUID>()
 
         for action in desiredActions.map({ $0.withValidatedDates() }) {
             if let existing = existingModels[action.id] {
@@ -396,6 +412,7 @@ private extension ActionLogStore {
                 existing.update(from: resolved)
                 existing.profile = model
                 seenIDs.insert(existing.id)
+                changedActionIDs.insert(existing.id)
             } else {
                 let newAction = BabyActionModel(id: action.id,
                                                 category: action.category,
@@ -409,16 +426,326 @@ private extension ActionLogStore {
                                                 profile: model)
                 modelContext.insert(newAction)
                 seenIDs.insert(newAction.id)
+                changedActionIDs.insert(newAction.id)
             }
         }
 
+        var deletedActionIDs: [UUID] = []
         for (identifier, modelAction) in existingModels where seenIDs.contains(identifier) == false {
             modelContext.delete(modelAction)
+            deletedActionIDs.append(identifier)
         }
 
         dataStack.scheduleSaveIfNeeded(on: modelContext, reason: "persist-profile-state")
 
         scheduleReminders()
+
+        let actionsForShare = model.actions
+            .filter { changedActionIDs.contains($0.id) }
+            .map { $0.asBabyAction().withValidatedDates() }
+
+        if actionsForShare.isEmpty == false || deletedActionIDs.isEmpty == false {
+            Task { [weak self] in
+                await self?.synchronizeSharedActionsIfNeeded(for: profileID,
+                                                             actions: actionsForShare,
+                                                             deletedActionIDs: deletedActionIDs,
+                                                             existingActionIDs: existingActionIDs)
+            }
+        }
+    }
+
+    private func synchronizeSharedActionsIfNeeded(for profileID: UUID,
+                                                  actions: [BabyAction],
+                                                  deletedActionIDs: [UUID],
+                                                  existingActionIDs: Set<UUID>) async {
+        guard actions.isEmpty == false || deletedActionIDs.isEmpty == false else { return }
+
+        let metadata = await shareMetadataStore.metadata(for: profileID)
+        guard let metadata, metadata.isShared else { return }
+
+        let zoneID = metadata.zoneID
+        let profileRecordID = metadata.rootRecordID
+
+        do {
+            let recordsToSave = try await buildSharedActionRecords(for: actions,
+                                                                   zoneID: zoneID,
+                                                                   profileRecordID: profileRecordID,
+                                                                   existingActionIDs: existingActionIDs)
+            let recordIDsToDelete = Array(Set(deletedActionIDs.map { identifier in
+                CKRecord.ID(recordName: "action-\(identifier.uuidString)", zoneID: zoneID)
+            }))
+
+            guard recordsToSave.isEmpty == false || recordIDsToDelete.isEmpty == false else { return }
+
+            let savedRecords = try await modifySharedRecords(recordsToSave: recordsToSave,
+                                                              recordIDsToDelete: recordIDsToDelete)
+            mergeSharedRecords(savedRecords, deletedRecordIDs: recordIDsToDelete, profileID: profileID)
+        } catch {
+            if Task.isCancelled { return }
+            shareLogger.error("Failed to synchronize shared actions: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func buildSharedActionRecords(for actions: [BabyAction],
+                                          zoneID: CKRecordZone.ID,
+                                          profileRecordID: CKRecord.ID,
+                                          existingActionIDs: Set<UUID>) async throws -> [CKRecord] {
+        guard actions.isEmpty == false else { return [] }
+
+        let recordIDsToFetch = actions
+            .filter { existingActionIDs.contains($0.id) }
+            .map { CKRecord.ID(recordName: "action-\($0.id.uuidString)", zoneID: zoneID) }
+        let existingRecords = try await fetchExistingRecords(withIDs: recordIDsToFetch)
+        let profileReference = CKRecord.Reference(recordID: profileRecordID, action: .deleteSelf)
+
+        return actions.map { action in
+            let recordID = CKRecord.ID(recordName: "action-\(action.id.uuidString)", zoneID: zoneID)
+            let record = existingRecords[recordID] ?? CKRecord(recordType: CloudKitSharingManager.RecordType.babyAction.rawValue,
+                                                               recordID: recordID)
+            record["id"] = action.id.uuidString as CKRecordValue
+            record["category"] = action.category.rawValue as CKRecordValue
+            record["startDate"] = action.startDate as CKRecordValue
+            if let endDate = action.endDate {
+                record["endDate"] = endDate as CKRecordValue
+            } else {
+                record["endDate"] = nil
+            }
+            if let diaper = action.diaperType?.rawValue {
+                record["diaperType"] = diaper as CKRecordValue
+            } else {
+                record["diaperType"] = nil
+            }
+            if let feeding = action.feedingType?.rawValue {
+                record["feedingType"] = feeding as CKRecordValue
+            } else {
+                record["feedingType"] = nil
+            }
+            if let bottleType = action.bottleType?.rawValue {
+                record["bottleType"] = bottleType as CKRecordValue
+            } else {
+                record["bottleType"] = nil
+            }
+            if let bottleVolume = action.bottleVolume {
+                record["bottleVolume"] = NSNumber(value: bottleVolume)
+            } else {
+                record["bottleVolume"] = nil
+            }
+            record["updatedAt"] = action.updatedAt as CKRecordValue
+            record["profile"] = profileReference
+            return record
+        }
+    }
+
+    private func fetchExistingRecords(withIDs recordIDs: [CKRecord.ID]) async throws -> [CKRecord.ID: CKRecord] {
+        guard recordIDs.isEmpty == false else { return [:] }
+
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[CKRecord.ID: CKRecord], Error>) in
+            var fetched: [CKRecord.ID: CKRecord] = [:]
+            var firstError: Error?
+
+            let operation = CKFetchRecordsOperation(recordIDs: recordIDs)
+            operation.perRecordResultBlock = { recordID, result in
+                switch result {
+                case .success(let record):
+                    fetched[recordID] = record
+                case .failure(let error):
+                    if let ckError = error as? CKError, ckError.code == .unknownItem {
+                        return
+                    }
+                    if firstError == nil {
+                        firstError = error
+                    }
+                }
+            }
+            operation.fetchRecordsResultBlock = { result in
+                switch result {
+                case .success:
+                    if let error = firstError {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(returning: fetched)
+                    }
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+            sharedDatabase.add(operation)
+        }
+    }
+
+    private func modifySharedRecords(recordsToSave: [CKRecord],
+                                     recordIDsToDelete: [CKRecord.ID]) async throws -> [CKRecord] {
+        try await withCheckedThrowingContinuation { continuation in
+            var savedRecords: [CKRecord] = []
+            var firstError: Error?
+
+            let records = recordsToSave.isEmpty ? nil : recordsToSave
+            let deletions = recordIDsToDelete.isEmpty ? nil : recordIDsToDelete
+
+            let operation = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: deletions)
+            operation.savePolicy = .allKeys
+            operation.isAtomic = false
+            operation.perRecordSaveBlock = { _, result in
+                switch result {
+                case .success(let record):
+                    savedRecords.append(record)
+                case .failure(let error):
+                    if firstError == nil {
+                        firstError = error
+                    }
+                }
+            }
+            operation.modifyRecordsResultBlock = { result in
+                switch result {
+                case .success:
+                    if let error = firstError {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(returning: savedRecords)
+                    }
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+            sharedDatabase.add(operation)
+        }
+    }
+
+    private func mergeSharedRecords(_ records: [CKRecord],
+                                    deletedRecordIDs: [CKRecord.ID],
+                                    profileID: UUID) {
+        guard records.isEmpty == false || deletedRecordIDs.isEmpty == false else { return }
+
+        var didMutate = false
+        for record in records where record.recordType == CloudKitSharingManager.RecordType.babyAction.rawValue {
+            if mergeSharedBabyActionRecord(record, profileID: profileID) {
+                didMutate = true
+            }
+        }
+
+        for recordID in deletedRecordIDs {
+            if deleteSharedBabyActionRecord(recordID) {
+                didMutate = true
+            }
+        }
+
+        if didMutate {
+            dataStack.scheduleSaveIfNeeded(on: modelContext, reason: "merge-shared-actions")
+            notifyChange()
+        }
+    }
+
+    private func mergeSharedBabyActionRecord(_ record: CKRecord, profileID: UUID) -> Bool {
+        guard let idString = record["id"] as? String,
+              let actionID = UUID(uuidString: idString) else {
+            return false
+        }
+
+        let predicate = #Predicate<BabyActionModel> { model in
+            model.id == actionID
+        }
+        var descriptor = FetchDescriptor<BabyActionModel>(predicate: predicate)
+        descriptor.fetchLimit = 1
+
+        do {
+            let existing = try modelContext.fetch(descriptor).first
+            let model = existing ?? BabyActionModel(id: actionID)
+            if existing == nil {
+                model.profile = profileModel(for: profileID)
+                modelContext.insert(model)
+            } else if model.profile == nil {
+                model.profile = profileModel(for: profileID)
+            }
+
+            var mutated = false
+            if let categoryRaw = record["category"] as? String,
+               let category = BabyActionCategory(rawValue: categoryRaw),
+               model.category != category {
+                model.category = category
+                mutated = true
+            }
+            if let startDate = record["startDate"] as? Date, model.startDate != startDate {
+                model.startDate = startDate
+                mutated = true
+            }
+            let endDate = record["endDate"] as? Date
+            if model.endDate != endDate {
+                model.endDate = endDate
+                mutated = true
+            }
+            if let diaper = record["diaperType"] as? String {
+                let diaperType = BabyAction.DiaperType(rawValue: diaper)
+                if model.diaperType != diaperType {
+                    model.diaperType = diaperType
+                    mutated = true
+                }
+            } else if model.diaperType != nil {
+                model.diaperType = nil
+                mutated = true
+            }
+            if let feeding = record["feedingType"] as? String {
+                let feedingType = BabyAction.FeedingType(rawValue: feeding)
+                if model.feedingType != feedingType {
+                    model.feedingType = feedingType
+                    mutated = true
+                }
+            } else if model.feedingType != nil {
+                model.feedingType = nil
+                mutated = true
+            }
+            if let bottleTypeRaw = record["bottleType"] as? String {
+                let bottleType = BabyAction.BottleType(rawValue: bottleTypeRaw)
+                if model.bottleType != bottleType {
+                    model.bottleType = bottleType
+                    mutated = true
+                }
+            } else if model.bottleType != nil {
+                model.bottleType = nil
+                mutated = true
+            }
+            if let bottleVolumeNumber = record["bottleVolume"] as? NSNumber {
+                let volume = bottleVolumeNumber.intValue
+                if model.bottleVolume != volume {
+                    model.bottleVolume = volume
+                    mutated = true
+                }
+            } else if model.bottleVolume != nil {
+                model.bottleVolume = nil
+                mutated = true
+            }
+            if let updatedAt = record["updatedAt"] as? Date, model.updatedAt != updatedAt {
+                model.updatedAt = updatedAt
+                mutated = true
+            }
+
+            return mutated
+        } catch {
+            shareLogger.error("Failed to merge shared action \(record.recordID.recordName, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            return false
+        }
+    }
+
+    private func deleteSharedBabyActionRecord(_ recordID: CKRecord.ID) -> Bool {
+        guard recordID.recordName.hasPrefix("action-"),
+              let uuid = UUID(uuidString: recordID.recordName.replacingOccurrences(of: "action-", with: "")) else {
+            return false
+        }
+
+        let predicate = #Predicate<BabyActionModel> { model in
+            model.id == uuid
+        }
+        var descriptor = FetchDescriptor<BabyActionModel>(predicate: predicate)
+        descriptor.fetchLimit = 1
+
+        do {
+            if let model = try modelContext.fetch(descriptor).first {
+                modelContext.delete(model)
+                return true
+            }
+        } catch {
+            shareLogger.error("Failed to delete shared action \(recordID.recordName, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
+        return false
     }
 
     static func clamp(_ action: BabyAction, avoiding conflicts: [BabyAction]) -> BabyAction {
