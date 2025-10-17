@@ -33,7 +33,10 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
         guard metadatas.isEmpty == false else { return }
         try await acceptShares(metadatas)
         for metadata in metadatas {
-            let rootRecordID = metadata.share.rootRecordID
+            guard let rootRecordID = metadata.resolveRootRecordID() else {
+                logger.error("Unable to resolve root record ID for accepted share")
+                continue
+            }
             let zoneID = rootRecordID.zoneID
             let result = try await fetchAndIngestInitialContent(for: zoneID)
             let share = metadata.share
@@ -348,6 +351,17 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
             }
         }
         return false
+    }
+}
+
+private extension CKShare.Metadata {
+    func resolveRootRecordID() -> CKRecord.ID? {
+        if #available(iOS 17.0, macOS 14.0, *) {
+            if let record = rootRecord {
+                return record.recordID
+            }
+        }
+        return value(forKey: "rootRecordID") as? CKRecord.ID
     }
 }
 
