@@ -18,54 +18,49 @@ enum CloudProfileImportError: Error {
 struct CloudKitProfileImporter: ProfileCloudImporting {
     private let container: CKContainer
     private let recordType: String
+    private let fallbackRecordTypes: [String]
     private let dataField: String
 
     init(container: CKContainer = CKContainer(identifier: "iCloud.com.prioritybit.babynanny"),
-         recordType: String = "ProfileState",
+         recordType: String = "CD_ProfileActionStateModel",
+         fallbackRecordTypes: [String] = ["ProfileActionStateModel", "ProfileState"],
          dataField: String = "payload") {
         self.container = container
         self.recordType = recordType
+        self.fallbackRecordTypes = fallbackRecordTypes
         self.dataField = dataField
     }
 
     func fetchProfileSnapshot() async throws -> CloudProfileSnapshot? {
         let database = container.privateCloudDatabase
-        let predicate = NSPredicate(value: true)
-        let query = CKQuery(recordType: recordType, predicate: predicate)
-        query.sortDescriptors = [NSSortDescriptor(key: "modificationDate", ascending: false)]
+        let recordTypes = candidateRecordTypes()
 
-        do {
-            let (matchResults, _) = try await database.records(
-                matching: query,
-                desiredKeys: [dataField],
-                resultsLimit: 1
-            )
-
-            guard let (_, result) = matchResults.first else {
-                return nil
-            }
-
-            switch result {
-            case let .success(record):
-                guard let data = cloudPayload(from: record) else {
-                    return nil
+        for recordType in recordTypes {
+            do {
+                if isSwiftDataRecordType(recordType) {
+                    if let snapshot = try await fetchSwiftDataSnapshot(in: database, recordType: recordType) {
+                        return snapshot
+                    }
+                    continue
                 }
-                return try decodeSnapshot(from: data)
-            case let .failure(error):
+
+                if let snapshot = try await fetchLegacySnapshot(in: database, recordType: recordType) {
+                    return snapshot
+                }
+            } catch let error as CloudProfileImportError {
+                throw error
+            } catch {
+                if Self.isMissingRecordType(error) {
+                    continue
+                }
                 if Self.isRecoverable(error) {
                     throw CloudProfileImportError.recoverable(error)
                 }
                 throw error
             }
-        } catch {
-            if Self.isMissingRecordType(error) {
-                return nil
-            }
-            if Self.isRecoverable(error) {
-                throw CloudProfileImportError.recoverable(error)
-            }
-            throw error
         }
+
+        return nil
     }
 
     static func isRecoverable(_ error: Error) -> Bool {
@@ -104,16 +99,171 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
         .userDeletedZone
     ]
 
-    private func cloudPayload(from record: CKRecord) -> Data? {
-        if let data = record[dataField] as? Data {
-            return data
+    private func fetchLegacySnapshot(in database: CKDatabase, recordType: String) async throws -> CloudProfileSnapshot? {
+        let predicate = NSPredicate(value: true)
+        let query = CKQuery(recordType: recordType, predicate: predicate)
+
+        let (matchResults, _) = try await database.records(
+            matching: query,
+            desiredKeys: desiredRecordKeys(),
+            resultsLimit: CKQueryOperation.maximumResults
+        )
+
+        var newestRecord: CKRecord?
+
+        for (_, result) in matchResults {
+            switch result {
+            case let .success(record):
+                guard let candidateDate = record.modificationDate ?? record.creationDate else { continue }
+
+                if let currentRecord = newestRecord,
+                   let currentDate = currentRecord.modificationDate ?? currentRecord.creationDate,
+                   currentDate >= candidateDate {
+                    continue
+                }
+
+                newestRecord = record
+            case let .failure(error):
+                if Self.isRecoverable(error) {
+                    throw CloudProfileImportError.recoverable(error)
+                }
+                throw error
+            }
         }
 
-        if let stringValue = record[dataField] as? String {
-            return stringValue.data(using: .utf8)
+        guard let record = newestRecord,
+              let data = cloudPayload(from: record) else {
+            return nil
+        }
+
+        return try decodeSnapshot(from: data)
+    }
+
+    private func cloudPayload(from record: CKRecord) -> Data? {
+        for key in dataFieldCandidates() {
+            if let data = record[key] as? Data {
+                return data
+            }
+
+            if let asset = record[key] as? CKAsset,
+               let fileURL = asset.fileURL,
+               let data = try? Data(contentsOf: fileURL) {
+                return data
+            }
+
+            if let stringValue = record[key] as? String,
+               let data = stringValue.data(using: .utf8) {
+                return data
+            }
         }
 
         return nil
+    }
+
+    private func fetchSwiftDataSnapshot(in database: CKDatabase, recordType: String) async throws -> CloudProfileSnapshot? {
+        let predicate = NSPredicate(value: true)
+        let query = CKQuery(recordType: recordType, predicate: predicate)
+
+        let (matchResults, _) = try await database.records(
+            matching: query,
+            desiredKeys: swiftDataDesiredKeys(),
+            resultsLimit: CKQueryOperation.maximumResults
+        )
+
+        var records: [CKRecord] = []
+
+        for (_, result) in matchResults {
+            switch result {
+            case let .success(record):
+                records.append(record)
+            case let .failure(error):
+                if Self.isRecoverable(error) {
+                    throw CloudProfileImportError.recoverable(error)
+                }
+                throw error
+            }
+        }
+
+        guard records.isEmpty == false else { return nil }
+
+        let sortedRecords = records.sorted { lhs, rhs in
+            let lhsDate = lhs.modificationDate ?? lhs.creationDate ?? .distantPast
+            let rhsDate = rhs.modificationDate ?? rhs.creationDate ?? .distantPast
+            return lhsDate > rhsDate
+        }
+
+        var profiles: [ChildProfile] = []
+
+        for record in sortedRecords {
+            guard let profile = Self.decodeSwiftDataProfile(from: record) else { continue }
+            profiles.append(profile)
+        }
+
+        guard profiles.isEmpty == false else { return nil }
+
+        return CloudProfileSnapshot(
+            profiles: profiles,
+            activeProfileID: profiles.first?.id,
+            showRecentActivityOnHome: true
+        )
+    }
+
+    private func desiredRecordKeys() -> [String]? {
+        let keys = dataFieldCandidates()
+        return keys.isEmpty ? nil : keys
+    }
+
+    private func dataFieldCandidates() -> [String] {
+        var candidates: [String] = []
+        let preferred = dataField.trimmingCharacters(in: .whitespacesAndNewlines)
+        if preferred.isEmpty == false {
+            candidates.append(preferred)
+        }
+
+        let fallbacks = ["payload", "data", "stateData", "profileState", "modelData"]
+        for fallback in fallbacks where fallback.caseInsensitiveCompare(preferred) != .orderedSame {
+            if candidates.contains(where: { $0.caseInsensitiveCompare(fallback) == .orderedSame }) == false {
+                candidates.append(fallback)
+            }
+        }
+
+        return candidates
+    }
+
+    private func swiftDataDesiredKeys() -> [String]? {
+        let keys = swiftDataFieldCandidates()
+        return keys.isEmpty ? nil : keys
+    }
+
+    private func swiftDataFieldCandidates() -> [String] {
+        [
+            "CD_profileID",
+            "CD_name",
+            "CD_birthDate",
+            "CD_imageData",
+            "CD_entityName",
+            "profileID",
+            "name",
+            "birthDate",
+            "imageData"
+        ]
+    }
+
+    private func candidateRecordTypes() -> [String] {
+        var types: [String] = []
+        let preferred = recordType.trimmingCharacters(in: .whitespacesAndNewlines)
+        if preferred.isEmpty == false {
+            types.append(preferred)
+        }
+
+        for fallback in fallbackRecordTypes {
+            let sanitized = fallback.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard sanitized.isEmpty == false else { continue }
+            guard types.contains(where: { $0.caseInsensitiveCompare(sanitized) == .orderedSame }) == false else { continue }
+            types.append(sanitized)
+        }
+
+        return types
     }
 
     private func decodeSnapshot(from data: Data) throws -> CloudProfileSnapshot? {
@@ -130,6 +280,95 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
             activeProfileID: payload.activeProfileID,
             showRecentActivityOnHome: payload.showRecentActivityOnHome ?? true
         )
+    }
+
+    private func isSwiftDataRecordType(_ recordType: String) -> Bool {
+        recordType.caseInsensitiveCompare("CD_ProfileActionStateModel") == .orderedSame
+    }
+
+    static func decodeSwiftDataProfile(from record: CKRecord) -> ChildProfile? {
+        guard let identifier = swiftDataIdentifier(from: record) else { return nil }
+        guard let birthDate = swiftDataBirthDate(from: record) else { return nil }
+
+        let name = swiftDataName(from: record)
+        let imageData = swiftDataImageData(from: record)
+
+        return ChildProfile(id: identifier, name: name, birthDate: birthDate, imageData: imageData)
+    }
+
+    private static func swiftDataIdentifier(from record: CKRecord) -> UUID? {
+        for key in ["CD_profileID", "profileID", "id", "identifier"] {
+            if let uuidValue = record[key] as? UUID {
+                return uuidValue
+            }
+
+            if let stringValue = record[key] as? String {
+                let trimmed = stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                if let uuid = UUID(uuidString: trimmed) {
+                    return uuid
+                }
+            }
+        }
+
+        if let uuid = UUID(uuidString: record.recordID.recordName) {
+            return uuid
+        }
+
+        return nil
+    }
+
+    private static func swiftDataBirthDate(from record: CKRecord) -> Date? {
+        for key in ["CD_birthDate", "birthDate"] {
+            if let date = record[key] as? Date {
+                return date
+            }
+
+            if let stringValue = record[key] as? String {
+                let trimmed = stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.isEmpty == false {
+                    let iso8601 = ISO8601DateFormatter()
+                    if let parsed = iso8601.date(from: trimmed) {
+                        return parsed
+                    }
+                }
+            }
+        }
+
+        return nil
+    }
+
+    private static func swiftDataName(from record: CKRecord) -> String {
+        for key in ["CD_name", "name"] {
+            if let stringValue = record[key] as? String {
+                let trimmed = stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.isEmpty == false {
+                    return trimmed
+                }
+            }
+        }
+
+        return ""
+    }
+
+    private static func swiftDataImageData(from record: CKRecord) -> Data? {
+        for key in ["CD_imageData", "imageData"] {
+            if let data = record[key] as? Data {
+                return data
+            }
+
+            if let asset = record[key] as? CKAsset,
+               let url = asset.fileURL,
+               let data = try? Data(contentsOf: url) {
+                return data
+            }
+
+            if let stringValue = record[key] as? String,
+               let data = Data(base64Encoded: stringValue) ?? stringValue.data(using: .utf8) {
+                return data
+            }
+        }
+
+        return nil
     }
 }
 

@@ -150,6 +150,47 @@ struct ProfileStoreTests {
     }
 
     @Test
+    func doesNotBootstrapPlaceholderProfileBeforeCloudImportCompletes() async throws {
+        let scheduler = MockReminderScheduler(authorizationResult: true)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let importer = DeferredCloudImporter()
+
+        let store = await ProfileStore(
+            fileManager: .default,
+            directory: directory,
+            filename: "profiles.json",
+            reminderScheduler: scheduler,
+            cloudImporter: importer
+        )
+
+        #expect(await store.isAwaitingInitialCloudImport)
+
+        let initialProfiles = await store.profiles
+        #expect(initialProfiles.isEmpty)
+
+        await importer.waitForRequest()
+
+        let profile = ChildProfile(name: "Cloud", birthDate: Date().addingTimeInterval(-10_000))
+        let snapshot = CloudProfileSnapshot(
+            profiles: [profile],
+            activeProfileID: profile.id,
+            showRecentActivityOnHome: true
+        )
+
+        await importer.resume(with: .success(snapshot))
+
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        let importedProfiles = await store.profiles
+        #expect(importedProfiles == [profile])
+        #expect(await store.activeProfileID == profile.id)
+        #expect(await store.isAwaitingInitialCloudImport == false)
+    }
+
+    @Test
     func retriesCloudImportAfterRecoverableError() async throws {
         let scheduler = MockReminderScheduler(authorizationResult: true)
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -432,6 +473,39 @@ private actor MockCloudImporter: ProfileCloudImporting {
             return snapshot
         case let .failure(error):
             throw error
+        }
+    }
+}
+
+private actor DeferredCloudImporter: ProfileCloudImporting {
+    enum DeferredResult {
+        case success(CloudProfileSnapshot?)
+        case failure(Error)
+    }
+
+    private var continuation: CheckedContinuation<CloudProfileSnapshot?, Error>?
+
+    func fetchProfileSnapshot() async throws -> CloudProfileSnapshot? {
+        return try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func waitForRequest() async {
+        while continuation == nil {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+    }
+
+    func resume(with result: DeferredResult) {
+        guard let continuation else { return }
+        self.continuation = nil
+
+        switch result {
+        case let .success(snapshot):
+            continuation.resume(returning: snapshot)
+        case let .failure(error):
+            continuation.resume(throwing: error)
         }
     }
 }
