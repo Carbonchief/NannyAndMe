@@ -307,7 +307,7 @@ actor SharedZoneChangeTokenStore {
     private func persist() {
         let payload = tokens.map { zoneID, token in
             PersistedToken(zoneName: zoneID.zoneName,
-                           ownerName: zoneID.ownerName ?? CKCurrentUserDefaultName,
+                           ownerName: zoneID.ownerName,
                            tokenData: SharedZoneChangeTokenStore.encodeToken(token) ?? Data())
         }
         guard let data = try? JSONEncoder().encode(payload) else { return }

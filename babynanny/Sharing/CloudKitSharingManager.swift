@@ -448,7 +448,7 @@ extension ShareMetadataStore.ShareMetadata {
          isShared: Bool) {
         self.profileID = profileID
         self.zoneName = zoneID.zoneName
-        self.ownerName = zoneID.ownerName ?? CKCurrentUserDefaultName
+        self.ownerName = zoneID.ownerName
         self.rootRecordName = rootRecordID.recordName
         self.shareRecordName = shareRecordID.recordName
         self.isShared = isShared
@@ -459,3 +459,5 @@ private extension CKError.Code {
     /// Raw value for `zoneAlreadyExists`, exposed directly to remain compatible with SDK surfaces lacking the symbol.
     static let zoneAlreadyExistsRawValue: Int = 26
 }
+
+@preconcurrency extension UserDefaults: @unchecked Sendable {}
