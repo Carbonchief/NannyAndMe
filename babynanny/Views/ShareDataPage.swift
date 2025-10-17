@@ -1,0 +1,615 @@
+import CloudKit
+import Combine
+import SwiftData
+import SwiftUI
+
+struct ShareDataPage: View {
+    let profileID: UUID
+
+    @StateObject private var viewModel: ShareDataPageViewModel
+    @State private var participantPendingRemoval: ShareParticipantItem?
+    @State private var isConfirmingStopShare = false
+
+    init(profileID: UUID) {
+        self.profileID = profileID
+        _viewModel = StateObject(wrappedValue: ShareDataPageViewModel(profileID: profileID))
+    }
+
+    var body: some View {
+        List {
+            Section {
+                Button {
+                    Task { await viewModel.prepareSharingInterface() }
+                } label: {
+                    HStack {
+                        if viewModel.isPreparingShareUI {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .tint(.white)
+                        }
+                        Text(viewModel.shareExists ? ShareStrings.manageShareButton : ShareStrings.shareProfileButton)
+                            .fontWeight(.semibold)
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.isPreparingShareUI)
+                .postHogLabel("shareData.manageSharingButton")
+                .phCaptureTap(
+                    event: "shareData_manageSharing_button",
+                    properties: ["profile_id": profileID.uuidString]
+                )
+            }
+
+            Section(ShareStrings.participantsSectionTitle) {
+                if viewModel.isLoadingParticipants {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                        Spacer()
+                    }
+                } else if viewModel.participants.isEmpty {
+                    Text(viewModel.shareExists ? ShareStrings.noParticipantsMessage : ShareStrings.notSharedMessage)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                } else {
+                    ForEach(viewModel.participants) { item in
+                        ShareParticipantRow(
+                            item: item,
+                            isProcessing: viewModel.processingParticipantID == item.id,
+                            profileID: profileID,
+                            onChangePermission: { newPermission in
+                                Task { await viewModel.updatePermission(for: item, to: newPermission) }
+                            },
+                            onRemove: {
+                                participantPendingRemoval = item
+                            }
+                        )
+                    }
+                }
+            }
+
+            if viewModel.shareExists {
+                Section {
+                    Button(role: .destructive) {
+                        isConfirmingStopShare = true
+                    } label: {
+                        HStack {
+                            if viewModel.isStoppingShare {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                            }
+                            Text(ShareStrings.stopSharingButton)
+                            Spacer(minLength: 0)
+                        }
+                    }
+                    .disabled(viewModel.isStoppingShare)
+                    .postHogLabel("shareData.stopSharingButton")
+                    .phCaptureTap(
+                        event: "shareData_stopSharing_button",
+                        properties: ["profile_id": profileID.uuidString]
+                    )
+                } footer: {
+                    Text(ShareStrings.stopSharingFooter)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle(L10n.ShareData.title)
+        .onAppear {
+            viewModel.onAppear()
+        }
+        .sheet(item: $viewModel.shareSheetPayload) { payload in
+            SharingUI(
+                share: payload.share,
+                container: viewModel.container,
+                onDidSaveShare: {
+                    Task { await viewModel.refreshParticipants() }
+                },
+                onDidStopSharing: {
+                    Task { await viewModel.handleShareStoppedBySystem() }
+                }
+            )
+        }
+        .alert(item: $viewModel.alert) { alert in
+            Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text(L10n.Common.done)))
+        }
+        .confirmationDialog(
+            ShareStrings.removeParticipantTitle,
+            item: $participantPendingRemoval
+        ) { item in
+            Button(role: .destructive) {
+                Task { await viewModel.removeParticipant(item) }
+            } label: {
+                Text(ShareStrings.confirmRemoveParticipantButton)
+            }
+            .postHogLabel("shareData.confirmRemoveParticipantButton")
+            .phCaptureTap(
+                event: "shareData_confirmRemoveParticipant_button",
+                properties: [
+                    "profile_id": profileID.uuidString,
+                    "participant_id": item.id
+                ]
+            )
+            Button(L10n.Common.cancel, role: .cancel) {}
+                .postHogLabel("shareData.cancelRemoveParticipantButton")
+                .phCaptureTap(
+                    event: "shareData_cancelRemoveParticipant_button",
+                    properties: ["profile_id": profileID.uuidString]
+                )
+        } message: { item in
+            Text(ShareStrings.removeParticipantMessage(item.displayName))
+        }
+        .confirmationDialog(
+            ShareStrings.stopSharingConfirmTitle,
+            isPresented: $isConfirmingStopShare
+        ) {
+            Button(role: .destructive) {
+                Task { await viewModel.stopSharing() }
+            } label: {
+                Text(ShareStrings.stopSharingButton)
+            }
+            .postHogLabel("shareData.confirmStopSharingButton")
+            .phCaptureTap(
+                event: "shareData_confirmStopSharing_button",
+                properties: ["profile_id": profileID.uuidString]
+            )
+            Button(L10n.Common.cancel, role: .cancel) {}
+                .postHogLabel("shareData.cancelStopSharingButton")
+                .phCaptureTap(
+                    event: "shareData_cancelStopSharing_button",
+                    properties: ["profile_id": profileID.uuidString]
+                )
+        } message: {
+            Text(ShareStrings.stopSharingMessage)
+        }
+    }
+}
+
+// MARK: - View model
+
+@MainActor
+private final class ShareDataPageViewModel: ObservableObject {
+    @Published var participants: [ShareParticipantItem] = []
+    @Published var isLoadingParticipants = false
+    @Published var isPreparingShareUI = false
+    @Published var shareExists = false
+    @Published var processingParticipantID: String?
+    @Published var shareSheetPayload: ShareSheetPayload?
+    @Published var alert: ShareAlert?
+    @Published var isStoppingShare = false
+
+    let profileID: UUID
+    let container: CKContainer
+
+    private let metadataStore: ShareMetadataStore
+    private let sharingManager: CloudKitSharingManager
+    private let subscriptionManager: SharedScopeSubscriptionManager
+    private var cancellables: Set<AnyCancellable> = []
+    private var hasLoaded = false
+
+    init(profileID: UUID,
+         modelContainer: ModelContainer = AppDataStack.shared.modelContainer,
+         containerIdentifier: String = "iCloud.com.prioritybit.babynanny") {
+        self.profileID = profileID
+        let metadataStore = ShareMetadataStore()
+        self.metadataStore = metadataStore
+        self.sharingManager = CloudKitSharingManager(modelContainer: modelContainer, metadataStore: metadataStore)
+        self.container = CKContainer(identifier: containerIdentifier)
+        self.subscriptionManager = SharedScopeSubscriptionManager(shareMetadataStore: metadataStore, ingestor: nil)
+        configurePushHandling()
+    }
+
+    func onAppear() {
+        guard hasLoaded == false else { return }
+        hasLoaded = true
+        subscriptionManager.ensureSubscriptions()
+        Task { await refreshParticipants() }
+    }
+
+    func prepareSharingInterface() async {
+        guard isPreparingShareUI == false else { return }
+        isPreparingShareUI = true
+        defer { isPreparingShareUI = false }
+
+        do {
+            let share = try await sharingManager.ensureShare(for: profileID)
+            shareExists = true
+            applyParticipants(from: share.participants)
+            shareSheetPayload = ShareSheetPayload(share: share)
+        } catch {
+            alert = ShareAlert(message: error.localizedDescription)
+        }
+    }
+
+    func refreshParticipants() async {
+        if await metadataStore.metadata(for: profileID) == nil {
+            shareExists = false
+            participants = []
+            return
+        }
+
+        isLoadingParticipants = true
+        defer { isLoadingParticipants = false }
+
+        do {
+            let share = try await sharingManager.ensureShare(for: profileID)
+            shareExists = true
+            applyParticipants(from: share.participants)
+        } catch {
+            alert = ShareAlert(message: error.localizedDescription)
+        }
+    }
+
+    func updatePermission(for item: ShareParticipantItem,
+                          to permission: CKShare.ParticipantPermission) async {
+        guard item.participant.permission != permission else { return }
+        guard processingParticipantID == nil else { return }
+        processingParticipantID = item.id
+        defer { processingParticipantID = nil }
+
+        do {
+            try await sharingManager.updateParticipant(item.participant, role: nil, permission: permission)
+            await refreshParticipants()
+        } catch {
+            alert = ShareAlert(message: error.localizedDescription)
+        }
+    }
+
+    func removeParticipant(_ item: ShareParticipantItem) async {
+        guard processingParticipantID == nil else { return }
+        processingParticipantID = item.id
+        defer { processingParticipantID = nil }
+
+        do {
+            try await sharingManager.removeParticipant(item.participant)
+            await refreshParticipants()
+        } catch {
+            alert = ShareAlert(message: error.localizedDescription)
+        }
+    }
+
+    func stopSharing() async {
+        guard isStoppingShare == false else { return }
+        isStoppingShare = true
+        defer { isStoppingShare = false }
+
+        do {
+            try await sharingManager.stopSharing(profileID: profileID)
+            shareExists = false
+            participants = []
+        } catch {
+            alert = ShareAlert(message: error.localizedDescription)
+        }
+    }
+
+    func handleShareStoppedBySystem() async {
+        await metadataStore.remove(profileID: profileID)
+        await refreshParticipants()
+    }
+
+    private func applyParticipants(from participants: [CKShare.Participant]) {
+        let items = participants
+            .map { ShareParticipantItem(participant: $0) }
+            .sorted(by: ShareParticipantItem.sortComparator)
+        self.participants = items
+    }
+
+    private func configurePushHandling() {
+        NotificationCenter.default.publisher(for: .sharedScopeNotification)
+            .compactMap { $0.object as? CKNotification }
+            .sink { [weak self] notification in
+                guard let self else { return }
+                subscriptionManager.handleRemoteNotification(notification)
+                Task { await self.refreshParticipants() }
+            }
+            .store(in: &cancellables)
+    }
+}
+
+// MARK: - Models
+
+private struct ShareSheetPayload: Identifiable {
+    let id = UUID()
+    let share: CKShare
+}
+
+private struct ShareAlert: Identifiable {
+    let id = UUID()
+    let title: String
+    let message: String
+
+    init(title: String = ShareStrings.errorTitle, message: String) {
+        self.title = title
+        self.message = message
+    }
+}
+
+private struct ShareParticipantItem: Identifiable, Equatable {
+    let id: String
+    let participant: CKShare.Participant
+
+    init(participant: CKShare.Participant) {
+        self.participant = participant
+        if let recordName = participant.userIdentity.userRecordID?.recordName {
+            self.id = recordName
+        } else if let email = participant.userIdentity.lookupInfo?.emailAddress {
+            self.id = "email-" + email
+        } else if let phone = participant.userIdentity.lookupInfo?.phoneNumber {
+            self.id = "phone-" + phone
+        } else {
+            self.id = UUID().uuidString
+        }
+    }
+
+    var isOwner: Bool {
+        participant.role == .owner
+    }
+
+    var displayName: String {
+        if let components = participant.userIdentity.nameComponents {
+            let formatted = ShareParticipantItem.nameFormatter.string(from: components)
+            if formatted.isEmpty == false {
+                return formatted
+            }
+        }
+        if let email = participant.userIdentity.lookupInfo?.emailAddress {
+            return email
+        }
+        if let phone = participant.userIdentity.lookupInfo?.phoneNumber {
+            return phone
+        }
+        return ShareStrings.unknownParticipant
+    }
+
+    var roleDescription: String {
+        isOwner ? ShareStrings.ownerRole : ShareStrings.invitedRole
+    }
+
+    var permissionDescription: String {
+        switch participant.permission {
+        case .readOnly:
+            return ShareStrings.permissionReadOnly
+        case .readWrite:
+            return ShareStrings.permissionReadWrite
+        default:
+            return ShareStrings.permissionUnknown
+        }
+    }
+
+    var permission: CKShare.ParticipantPermission {
+        participant.permission
+    }
+
+    static func sortComparator(lhs: ShareParticipantItem, rhs: ShareParticipantItem) -> Bool {
+        if lhs.isOwner { return true }
+        if rhs.isOwner { return false }
+        return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+    }
+
+    private static let nameFormatter: PersonNameComponentsFormatter = {
+        let formatter = PersonNameComponentsFormatter()
+        formatter.style = .default
+        return formatter
+    }()
+
+    static func == (lhs: ShareParticipantItem, rhs: ShareParticipantItem) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+// MARK: - Views
+
+private struct ShareParticipantRow: View {
+    let item: ShareParticipantItem
+    let isProcessing: Bool
+    let profileID: UUID
+    let onChangePermission: (CKShare.ParticipantPermission) -> Void
+    let onRemove: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.displayName)
+                    .font(.body)
+                Text(item.roleDescription)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 12)
+            PermissionBadge(title: item.permissionDescription)
+            if item.isOwner == false {
+                if isProcessing {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .controlSize(.small)
+                } else {
+                    Menu {
+                        if item.permission != .readWrite {
+                            Button(ShareStrings.makeReadWrite) {
+                                onChangePermission(.readWrite)
+                            }
+                            .phCaptureTap(
+                                event: "shareData_makeReadWrite_button",
+                                properties: [
+                                    "profile_id": profileID.uuidString,
+                                    "participant_id": item.id
+                                ]
+                            )
+                            .postHogLabel("shareData.makeReadWrite")
+                        }
+                        if item.permission != .readOnly {
+                            Button(ShareStrings.makeReadOnly) {
+                                onChangePermission(.readOnly)
+                            }
+                            .phCaptureTap(
+                                event: "shareData_makeReadOnly_button",
+                                properties: [
+                                    "profile_id": profileID.uuidString,
+                                    "participant_id": item.id
+                                ]
+                            )
+                            .postHogLabel("shareData.makeReadOnly")
+                        }
+                        Divider()
+                        Button(role: .destructive) {
+                            onRemove()
+                        } label: {
+                            Text(ShareStrings.removeParticipantAction)
+                        }
+                        .phCaptureTap(
+                            event: "shareData_removeParticipant_button",
+                            properties: [
+                                "profile_id": profileID.uuidString,
+                                "participant_id": item.id
+                            ]
+                        )
+                        .postHogLabel("shareData.removeParticipant")
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .imageScale(.large)
+                            .accessibilityLabel(ShareStrings.manageParticipantMenu)
+                    }
+                    .postHogLabel("shareData.participantMenu")
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+private struct PermissionBadge: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.caption)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(Color.accentColor.opacity(0.15))
+            )
+            .foregroundStyle(.accentColor)
+    }
+}
+
+// MARK: - Strings
+
+private enum ShareStrings {
+    static let shareProfileButton = String(
+        localized: "shareData.sharing.shareProfileButton",
+        defaultValue: "Share profile"
+    )
+    static let manageShareButton = String(
+        localized: "shareData.sharing.manageButton",
+        defaultValue: "Manage sharing"
+    )
+    static let participantsSectionTitle = String(
+        localized: "shareData.sharing.participantsSectionTitle",
+        defaultValue: "Participants"
+    )
+    static let notSharedMessage = String(
+        localized: "shareData.sharing.notSharedMessage",
+        defaultValue: "This profile isn't shared yet. Tap Share profile to invite someone."
+    )
+    static let noParticipantsMessage = String(
+        localized: "shareData.sharing.noParticipantsMessage",
+        defaultValue: "Only you can access this profile right now."
+    )
+    static let ownerRole = String(
+        localized: "shareData.sharing.ownerRole",
+        defaultValue: "Owner"
+    )
+    static let invitedRole = String(
+        localized: "shareData.sharing.invitedRole",
+        defaultValue: "Invited"
+    )
+    static let permissionReadOnly = String(
+        localized: "shareData.sharing.permissionReadOnly",
+        defaultValue: "Read-Only"
+    )
+    static let permissionReadWrite = String(
+        localized: "shareData.sharing.permissionReadWrite",
+        defaultValue: "Read-Write"
+    )
+    static let permissionUnknown = String(
+        localized: "shareData.sharing.permissionUnknown",
+        defaultValue: "Unknown"
+    )
+    static let unknownParticipant = String(
+        localized: "shareData.sharing.unknownParticipant",
+        defaultValue: "Unknown participant"
+    )
+    static let makeReadOnly = String(
+        localized: "shareData.sharing.makeReadOnly",
+        defaultValue: "Make Read-Only"
+    )
+    static let makeReadWrite = String(
+        localized: "shareData.sharing.makeReadWrite",
+        defaultValue: "Make Read-Write"
+    )
+    static let removeParticipantTitle = String(
+        localized: "shareData.sharing.removeParticipantTitle",
+        defaultValue: "Remove access?"
+    )
+    static let removeParticipantAction = String(
+        localized: "shareData.sharing.removeParticipantAction",
+        defaultValue: "Remove Access…"
+    )
+    static let confirmRemoveParticipantButton = String(
+        localized: "shareData.sharing.confirmRemoveParticipantButton",
+        defaultValue: "Remove Access"
+    )
+    static func removeParticipantMessage(_ name: String) -> String {
+        let format = String(
+            localized: "shareData.sharing.removeParticipantMessage",
+            defaultValue: "Remove %@'s access to this profile?"
+        )
+        return String(format: format, locale: .current, name)
+    }
+    static let manageParticipantMenu = String(
+        localized: "shareData.sharing.manageParticipantMenu",
+        defaultValue: "Manage participant"
+    )
+    static let stopSharingButton = String(
+        localized: "shareData.sharing.stopSharingButton",
+        defaultValue: "Stop sharing…"
+    )
+    static let stopSharingFooter = String(
+        localized: "shareData.sharing.stopSharingFooter",
+        defaultValue: "Stop sharing to revoke access for everyone."
+    )
+    static let stopSharingConfirmTitle = String(
+        localized: "shareData.sharing.stopSharingConfirmTitle",
+        defaultValue: "Stop sharing this profile?"
+    )
+    static let stopSharingMessage = String(
+        localized: "shareData.sharing.stopSharingMessage",
+        defaultValue: "All participants will immediately lose access."
+    )
+    static let errorTitle = String(
+        localized: "shareData.sharing.errorTitle",
+        defaultValue: "Sharing error"
+    )
+}
+
+// MARK: - Notifications
+
+private extension Notification.Name {
+    static let sharedScopeNotification = Notification.Name("com.prioritybit.babynanny.sharedScopeNotification")
+}
+
+// MARK: - Preview
+
+#Preview {
+    NavigationStack {
+        ShareDataPage(profileID: UUID())
+    }
+    .environmentObject(ProfileStore(initialProfiles: []))
+}
