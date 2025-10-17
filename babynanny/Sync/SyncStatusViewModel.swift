@@ -1,6 +1,5 @@
-import CloudKit
 import Foundation
-@_spi(CloudKitSync) import SwiftData
+import SwiftData
 import SwiftUI
 
 @MainActor
@@ -29,18 +28,23 @@ final class SyncStatusViewModel: ObservableObject {
         }
     }
 
-    private let monitor: CloudKitSyncMonitor
     private let requiredModelNames: Set<String>
     private var eventsTask: Task<Void, Never>?
     private var timeoutTask: Task<Void, Never>?
     private let timeoutInterval: TimeInterval
+    private let events: AsyncStream<Any>
 
     init(modelContainer: ModelContainer,
          requiredModels: [any PersistentModel.Type] = [ProfileActionStateModel.self, BabyActionModel.self],
-         timeoutInterval: TimeInterval = 30) {
-        self.monitor = CloudKitSyncMonitor(modelContext: modelContainer.mainContext)
-        self.requiredModelNames = Set(requiredModels.map { String(describing: $0) })
+         timeoutInterval: TimeInterval = 30,
+         eventStream: AsyncStream<Any>? = nil) {
+        let names = Set(requiredModels.map { String(describing: $0) })
+        self.requiredModelNames = names
         self.timeoutInterval = timeoutInterval
+        self.events = eventStream ?? CloudKitSyncMonitorCompat.events(
+            modelContainer: modelContainer,
+            requiredModelNames: names
+        )
         observeMonitor()
         armTimeout()
     }
@@ -58,7 +62,7 @@ final class SyncStatusViewModel: ObservableObject {
         eventsTask?.cancel()
         eventsTask = Task { [weak self] in
             guard let self else { return }
-            for await event in monitor.events {
+            for await event in events {
                 await self.handle(event: event)
             }
         }

@@ -31,5 +31,5 @@ Use the following script to validate SwiftData + CloudKit syncing and sharing.
    - Verify Device B also loses access to the profile and actions once CloudKit processes the deletion.
 
 7. **Diagnostics sanity**
-   - In the debug panel, use "Force mirror refresh" to trigger a manual sync and observe the status flipping to `Importing` before returning to `Finished`.
+   - In the debug panel, use "Force mirror refresh" to trigger a manual sync. When the real monitor is available the status should momentarily flip to `Importing` before returning to `Finished`; otherwise the compatibility shim will leave the state at `Finished`.
    - Tap "Dump counts per scope" and confirm the private and shared counts match expectations (no orphaned records).

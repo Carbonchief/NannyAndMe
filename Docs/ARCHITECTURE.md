@@ -15,7 +15,7 @@ Relationships use SwiftData's inverse tracking so that deleting a profile cascad
 
 ## CloudKit mirroring lifecycle
 
-`SyncStatusViewModel` wraps `CloudKitSyncMonitor` and observes the async event stream to surface progress, errors, and the list of models that completed their initial import. The view model publishes a `State` enum that drives:
+`SyncStatusViewModel` consumes an async event stream sourced from either the real `CloudKitSyncMonitor` SPI (when the toolchain exposes it) or a fallback `CloudKitSyncMonitorCompat` shim that synthesizes a final idle event. The view model publishes a `State` enum that drives:
 
 - A blocking overlay (`SyncStatusOverlayView`) during first-run imports.
 - Status indicators in the new debug diagnostics panel.
