@@ -58,8 +58,10 @@ final class ActionLogStore: ObservableObject {
 
     func synchronizeProfileMetadata(_ profiles: [ChildProfile]) {
         for profile in profiles {
-            let model = profileModel(for: profile.id)
             let trimmedName = profile.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmedName.isEmpty == false else { continue }
+
+            let model = profileModel(for: profile.id)
             if model.name != trimmedName {
                 model.name = trimmedName
             }
