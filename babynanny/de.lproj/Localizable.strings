@@ -107,6 +107,7 @@
 "menu.title" = "Nanny & Me";
 "menu.subtitle" = "Schnellaktionen";
 "menu.allLogs" = "Alle Protokolle";
+"menu.shareProfile" = "Profil teilen";
 "menu.shareData" = "Daten teilen";
 "menu.settings" = "Einstellungen";
 "shareData.title" = "Daten teilen";

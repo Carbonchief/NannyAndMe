@@ -107,6 +107,7 @@
 "menu.title" = "Nanny & Me";
 "menu.subtitle" = "Quick actions";
 "menu.allLogs" = "All Logs";
+"menu.shareProfile" = "Share profile";
 "menu.shareData" = "Share Data";
 "menu.settings" = "Settings";
 "shareData.title" = "Share Data";

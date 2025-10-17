@@ -383,6 +383,7 @@ enum L10n {
         static let title = String(localized: "menu.title", defaultValue: "Nanny & Me")
         static let subtitle = String(localized: "menu.subtitle", defaultValue: "Quick actions")
         static let allLogs = String(localized: "menu.allLogs", defaultValue: "All Logs")
+        static let shareProfile = String(localized: "menu.shareProfile", defaultValue: "Share profile")
         static let settings = String(localized: "menu.settings", defaultValue: "Settings")
         static let shareData = String(localized: "menu.shareData", defaultValue: "Share Data")
     }
