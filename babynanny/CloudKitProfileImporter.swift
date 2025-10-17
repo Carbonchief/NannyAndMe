@@ -37,7 +37,14 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
 
         for recordType in recordTypes {
             do {
-                if let snapshot = try await fetchSnapshot(in: database, recordType: recordType) {
+                if isSwiftDataRecordType(recordType) {
+                    if let snapshot = try await fetchSwiftDataSnapshot(in: database, recordType: recordType) {
+                        return snapshot
+                    }
+                    continue
+                }
+
+                if let snapshot = try await fetchLegacySnapshot(in: database, recordType: recordType) {
                     return snapshot
                 }
             } catch let error as CloudProfileImportError {
@@ -92,7 +99,7 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
         .userDeletedZone
     ]
 
-    private func fetchSnapshot(in database: CKDatabase, recordType: String) async throws -> CloudProfileSnapshot? {
+    private func fetchLegacySnapshot(in database: CKDatabase, recordType: String) async throws -> CloudProfileSnapshot? {
         let predicate = NSPredicate(value: true)
         let query = CKQuery(recordType: recordType, predicate: predicate)
         query.sortDescriptors = [NSSortDescriptor(key: "modificationDate", ascending: false)]
@@ -142,6 +149,55 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
         return nil
     }
 
+    private func fetchSwiftDataSnapshot(in database: CKDatabase, recordType: String) async throws -> CloudProfileSnapshot? {
+        let predicate = NSPredicate(value: true)
+        let query = CKQuery(recordType: recordType, predicate: predicate)
+        query.sortDescriptors = [NSSortDescriptor(key: "modificationDate", ascending: false)]
+
+        let (matchResults, _) = try await database.records(
+            matching: query,
+            desiredKeys: swiftDataDesiredKeys(),
+            resultsLimit: CKQueryOperation.maximumResults
+        )
+
+        var records: [CKRecord] = []
+
+        for (_, result) in matchResults {
+            switch result {
+            case let .success(record):
+                records.append(record)
+            case let .failure(error):
+                if Self.isRecoverable(error) {
+                    throw CloudProfileImportError.recoverable(error)
+                }
+                throw error
+            }
+        }
+
+        guard records.isEmpty == false else { return nil }
+
+        let sortedRecords = records.sorted { lhs, rhs in
+            let lhsDate = lhs.modificationDate ?? lhs.creationDate ?? .distantPast
+            let rhsDate = rhs.modificationDate ?? rhs.creationDate ?? .distantPast
+            return lhsDate > rhsDate
+        }
+
+        var profiles: [ChildProfile] = []
+
+        for record in sortedRecords {
+            guard let profile = Self.decodeSwiftDataProfile(from: record) else { continue }
+            profiles.append(profile)
+        }
+
+        guard profiles.isEmpty == false else { return nil }
+
+        return CloudProfileSnapshot(
+            profiles: profiles,
+            activeProfileID: profiles.first?.id,
+            showRecentActivityOnHome: true
+        )
+    }
+
     private func desiredRecordKeys() -> [String]? {
         let keys = dataFieldCandidates()
         return keys.isEmpty ? nil : keys
@@ -162,6 +218,25 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
         }
 
         return candidates
+    }
+
+    private func swiftDataDesiredKeys() -> [String]? {
+        let keys = swiftDataFieldCandidates()
+        return keys.isEmpty ? nil : keys
+    }
+
+    private func swiftDataFieldCandidates() -> [String] {
+        [
+            "CD_profileID",
+            "CD_name",
+            "CD_birthDate",
+            "CD_imageData",
+            "CD_entityName",
+            "profileID",
+            "name",
+            "birthDate",
+            "imageData"
+        ]
     }
 
     private func candidateRecordTypes() -> [String] {
@@ -195,6 +270,95 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
             activeProfileID: payload.activeProfileID,
             showRecentActivityOnHome: payload.showRecentActivityOnHome ?? true
         )
+    }
+
+    private func isSwiftDataRecordType(_ recordType: String) -> Bool {
+        recordType.caseInsensitiveCompare("CD_ProfileActionStateModel") == .orderedSame
+    }
+
+    static func decodeSwiftDataProfile(from record: CKRecord) -> ChildProfile? {
+        guard let identifier = swiftDataIdentifier(from: record) else { return nil }
+        guard let birthDate = swiftDataBirthDate(from: record) else { return nil }
+
+        let name = swiftDataName(from: record)
+        let imageData = swiftDataImageData(from: record)
+
+        return ChildProfile(id: identifier, name: name, birthDate: birthDate, imageData: imageData)
+    }
+
+    private static func swiftDataIdentifier(from record: CKRecord) -> UUID? {
+        for key in ["CD_profileID", "profileID", "id", "identifier"] {
+            if let uuidValue = record[key] as? UUID {
+                return uuidValue
+            }
+
+            if let stringValue = record[key] as? String {
+                let trimmed = stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                if let uuid = UUID(uuidString: trimmed) {
+                    return uuid
+                }
+            }
+        }
+
+        if let uuid = UUID(uuidString: record.recordID.recordName) {
+            return uuid
+        }
+
+        return nil
+    }
+
+    private static func swiftDataBirthDate(from record: CKRecord) -> Date? {
+        for key in ["CD_birthDate", "birthDate"] {
+            if let date = record[key] as? Date {
+                return date
+            }
+
+            if let stringValue = record[key] as? String {
+                let trimmed = stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.isEmpty == false {
+                    let iso8601 = ISO8601DateFormatter()
+                    if let parsed = iso8601.date(from: trimmed) {
+                        return parsed
+                    }
+                }
+            }
+        }
+
+        return nil
+    }
+
+    private static func swiftDataName(from record: CKRecord) -> String {
+        for key in ["CD_name", "name"] {
+            if let stringValue = record[key] as? String {
+                let trimmed = stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.isEmpty == false {
+                    return trimmed
+                }
+            }
+        }
+
+        return ""
+    }
+
+    private static func swiftDataImageData(from record: CKRecord) -> Data? {
+        for key in ["CD_imageData", "imageData"] {
+            if let data = record[key] as? Data {
+                return data
+            }
+
+            if let asset = record[key] as? CKAsset,
+               let url = asset.fileURL,
+               let data = try? Data(contentsOf: url) {
+                return data
+            }
+
+            if let stringValue = record[key] as? String,
+               let data = Data(base64Encoded: stringValue) ?? stringValue.data(using: .utf8) {
+                return data
+            }
+        }
+
+        return nil
     }
 }
 
