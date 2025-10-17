@@ -1,6 +1,6 @@
 import CloudKit
 import Foundation
-import SwiftData
+@_spi(CloudKitSync) import SwiftData
 import SwiftUI
 
 @MainActor
