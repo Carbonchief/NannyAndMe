@@ -202,12 +202,13 @@ private final class ShareDataPageViewModel: ObservableObject {
     private var hasLoaded = false
 
     init(profileID: UUID,
-         modelContainer: ModelContainer = AppDataStack.shared.modelContainer,
+         modelContainer: ModelContainer? = nil,
          containerIdentifier: String = "iCloud.com.prioritybit.babynanny") {
         self.profileID = profileID
+        let resolvedModelContainer = modelContainer ?? AppDataStack.shared.modelContainer
         let metadataStore = ShareMetadataStore()
         self.metadataStore = metadataStore
-        self.sharingManager = CloudKitSharingManager(modelContainer: modelContainer, metadataStore: metadataStore)
+        self.sharingManager = CloudKitSharingManager(modelContainer: resolvedModelContainer, metadataStore: metadataStore)
         self.container = CKContainer(identifier: containerIdentifier)
         self.subscriptionManager = SharedScopeSubscriptionManager(shareMetadataStore: metadataStore, ingestor: nil)
         configurePushHandling()
