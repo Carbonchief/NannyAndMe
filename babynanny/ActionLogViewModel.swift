@@ -18,6 +18,7 @@ final class ActionLogStore: ObservableObject {
     private let shareMetadataStore: ShareMetadataStore
     private let sharedDatabase: CKDatabase
     private let shareLogger = Logger(subsystem: "com.prioritybit.babynanny", category: "share-sync")
+    private let privateDatabase: CKDatabase
 
     struct MergeSummary: Equatable {
         var added: Int
@@ -31,19 +32,17 @@ final class ActionLogStore: ObservableObject {
          notificationCenter: NotificationCenter = .default,
          dataStack: AppDataStack? = nil,
          shareMetadataStore: ShareMetadataStore = ShareMetadataStore(),
-         sharedDatabase: CKDatabase? = nil) {
+         sharedDatabase: CKDatabase? = nil,
+         privateDatabase: CKDatabase? = nil) {
         self.modelContext = modelContext
         self.reminderScheduler = reminderScheduler
         self.notificationCenter = notificationCenter
         self.dataStack = dataStack ?? AppDataStack.shared
         self.observedContainerIdentifier = ObjectIdentifier(modelContext.container)
         self.shareMetadataStore = shareMetadataStore
-        if let sharedDatabase {
-            self.sharedDatabase = sharedDatabase
-        } else {
-            let container = CKContainer(identifier: "iCloud.com.prioritybit.babynanny")
-            self.sharedDatabase = container.sharedCloudDatabase
-        }
+        let container = CKContainer(identifier: "iCloud.com.prioritybit.babynanny")
+        self.sharedDatabase = sharedDatabase ?? container.sharedCloudDatabase
+        self.privateDatabase = privateDatabase ?? container.privateCloudDatabase
         scheduleReminders()
         observeModelContextChanges()
     }
@@ -465,12 +464,14 @@ private extension ActionLogStore {
 
         let zoneID = metadata.zoneID
         let profileRecordID = metadata.rootRecordID
+        let database = database(for: metadata)
 
         do {
             let recordsToSave = try await buildSharedActionRecords(for: actions,
                                                                    zoneID: zoneID,
                                                                    profileRecordID: profileRecordID,
-                                                                   existingActionIDs: existingActionIDs)
+                                                                   existingActionIDs: existingActionIDs,
+                                                                   database: database)
             let recordIDsToDelete = Array(Set(deletedActionIDs.map { identifier in
                 CKRecord.ID(recordName: "action-\(identifier.uuidString)", zoneID: zoneID)
             }))
@@ -478,7 +479,8 @@ private extension ActionLogStore {
             guard recordsToSave.isEmpty == false || recordIDsToDelete.isEmpty == false else { return }
 
             let savedRecords = try await modifySharedRecords(recordsToSave: recordsToSave,
-                                                              recordIDsToDelete: recordIDsToDelete)
+                                                              recordIDsToDelete: recordIDsToDelete,
+                                                              database: database)
             mergeSharedRecords(savedRecords, deletedRecordIDs: recordIDsToDelete, profileID: profileID)
         } catch {
             if Task.isCancelled { return }
@@ -489,13 +491,14 @@ private extension ActionLogStore {
     private func buildSharedActionRecords(for actions: [BabyActionSnapshot],
                                           zoneID: CKRecordZone.ID,
                                           profileRecordID: CKRecord.ID,
-                                          existingActionIDs: Set<UUID>) async throws -> [CKRecord] {
+                                          existingActionIDs: Set<UUID>,
+                                          database: CKDatabase) async throws -> [CKRecord] {
         guard actions.isEmpty == false else { return [] }
 
         let recordIDsToFetch = actions
             .filter { existingActionIDs.contains($0.id) }
             .map { CKRecord.ID(recordName: "action-\($0.id.uuidString)", zoneID: zoneID) }
-        let existingRecords = try await fetchExistingRecords(withIDs: recordIDsToFetch)
+        let existingRecords = try await fetchExistingRecords(withIDs: recordIDsToFetch, database: database)
         let profileReference = CKRecord.Reference(recordID: profileRecordID, action: .deleteSelf)
 
         return actions.map { action in
@@ -536,7 +539,8 @@ private extension ActionLogStore {
         }
     }
 
-    private func fetchExistingRecords(withIDs recordIDs: [CKRecord.ID]) async throws -> [CKRecord.ID: CKRecord] {
+    private func fetchExistingRecords(withIDs recordIDs: [CKRecord.ID],
+                                      database: CKDatabase) async throws -> [CKRecord.ID: CKRecord] {
         guard recordIDs.isEmpty == false else { return [:] }
 
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[CKRecord.ID: CKRecord], Error>) in
@@ -569,12 +573,13 @@ private extension ActionLogStore {
                     continuation.resume(throwing: error)
                 }
             }
-            sharedDatabase.add(operation)
+            database.add(operation)
         }
     }
 
     private func modifySharedRecords(recordsToSave: [CKRecord],
-                                     recordIDsToDelete: [CKRecord.ID]) async throws -> [CKRecord] {
+                                     recordIDsToDelete: [CKRecord.ID],
+                                     database: CKDatabase) async throws -> [CKRecord] {
         try await withCheckedThrowingContinuation { continuation in
             var savedRecords: [CKRecord] = []
             var firstError: Error?
@@ -607,7 +612,7 @@ private extension ActionLogStore {
                     continuation.resume(throwing: error)
                 }
             }
-            sharedDatabase.add(operation)
+            database.add(operation)
         }
     }
 
@@ -879,5 +884,12 @@ private extension ActionLogStore {
         Task { [profiles, actionStates] in
             await reminderScheduler.refreshReminders(for: profiles, actionStates: actionStates)
         }
+    }
+
+    private func database(for metadata: ShareMetadataStore.ShareMetadata) -> CKDatabase {
+        if metadata.ownerName == CKCurrentUserDefaultName {
+            return privateDatabase
+        }
+        return sharedDatabase
     }
 }
