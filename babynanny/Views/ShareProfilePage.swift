@@ -32,6 +32,8 @@ struct ShareProfilePage: View {
             SharingUI(
                 share: payload.share,
                 container: viewModel.container,
+                itemTitle: payload.displayName,
+                thumbnailData: payload.thumbnailData,
                 onDidSaveShare: {
                     Task { await viewModel.refreshParticipants() }
                 },
@@ -198,8 +200,10 @@ private final class ShareProfilePageViewModel: ObservableObject {
     private let metadataStore: ShareMetadataStore
     private let sharingManager: CloudKitSharingManager
     private let subscriptionManager: SharedScopeSubscriptionManager
+    private let modelContainer: ModelContainer
     private var cancellables: Set<AnyCancellable> = []
     private var hasLoaded = false
+    private var cachedProfileSummary: ProfileSummary?
 
     init(profileID: UUID,
          modelContainer: ModelContainer? = nil,
@@ -211,6 +215,7 @@ private final class ShareProfilePageViewModel: ObservableObject {
         self.sharingManager = CloudKitSharingManager(modelContainer: resolvedModelContainer, metadataStore: metadataStore)
         self.container = CKContainer(identifier: containerIdentifier)
         self.subscriptionManager = SharedScopeSubscriptionManager(shareMetadataStore: metadataStore, ingestor: nil)
+        self.modelContainer = resolvedModelContainer
         configurePushHandling()
     }
 
@@ -227,10 +232,17 @@ private final class ShareProfilePageViewModel: ObservableObject {
         defer { isPreparingShareUI = false }
 
         do {
+            let summary = await loadProfileSummary()
             let share = try await sharingManager.ensureShare(for: profileID)
             shareExists = true
             applyParticipants(from: share.participants)
-            shareSheetPayload = ShareSheetPayload(share: share)
+            let fallbackTitle = share[CKShare.SystemFieldKey.title] as? String
+            let fallbackImageData = share[CKShare.SystemFieldKey.thumbnailImageData] as? Data
+            shareSheetPayload = ShareSheetPayload(
+                share: share,
+                displayName: summary?.name ?? fallbackTitle,
+                thumbnailData: summary?.imageData ?? fallbackImageData
+            )
         } catch {
             alert = ShareAlert(message: error.localizedDescription)
         }
@@ -319,6 +331,28 @@ private final class ShareProfilePageViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
+
+    private func loadProfileSummary() async -> ProfileSummary? {
+        if let cachedProfileSummary {
+            return cachedProfileSummary
+        }
+
+        let targetProfileID = profileID
+        let summary = await Task.detached(priority: .userInitiated) { [modelContainer] () -> ProfileSummary? in
+            let context = ModelContext(modelContainer)
+            context.autosaveEnabled = false
+            let predicate = #Predicate<ProfileActionStateModel> { model in
+                model.profileID == targetProfileID
+            }
+            var descriptor = FetchDescriptor<ProfileActionStateModel>(predicate: predicate)
+            descriptor.fetchLimit = 1
+            guard let model = try? context.fetch(descriptor).first else { return nil }
+            return ProfileSummary(name: model.name, imageData: model.imageData)
+        }.value
+
+        cachedProfileSummary = summary
+        return summary
+    }
 }
 
 // MARK: - Models
@@ -326,6 +360,13 @@ private final class ShareProfilePageViewModel: ObservableObject {
 private struct ShareSheetPayload: Identifiable {
     let id = UUID()
     let share: CKShare
+    let displayName: String?
+    let thumbnailData: Data?
+}
+
+private struct ProfileSummary: Sendable {
+    let name: String?
+    let imageData: Data?
 }
 
 private struct ShareAlert: Identifiable {

@@ -1,4 +1,5 @@
 import CloudKit
+import Foundation
 import SwiftUI
 import os
 
@@ -9,12 +10,16 @@ struct SharingUI: UIViewControllerRepresentable {
 
     var share: CKShare
     var container: CKContainer
+    var itemTitle: String?
+    var thumbnailData: Data?
     var onDidSaveShare: (() -> Void)?
     var onDidStopSharing: (() -> Void)?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(share: share,
                     container: container,
+                    itemTitle: itemTitle,
+                    thumbnailData: thumbnailData,
                     onDidSaveShare: onDidSaveShare,
                     onDidStopSharing: onDidStopSharing)
     }
@@ -37,14 +42,20 @@ struct SharingUI: UIViewControllerRepresentable {
         private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "share")
         private var observer: SystemSharingObserver?
         private let share: CKShare
+        private let itemTitle: String?
+        private let thumbnailData: Data?
         private var onDidSaveShare: (() -> Void)?
         private var onDidStopSharing: (() -> Void)?
 
         init(share: CKShare,
              container: CKContainer,
+             itemTitle: String?,
+             thumbnailData: Data?,
              onDidSaveShare: (() -> Void)?,
              onDidStopSharing: (() -> Void)?) {
             self.share = share
+            self.itemTitle = itemTitle
+            self.thumbnailData = thumbnailData
             self.onDidSaveShare = onDidSaveShare
             self.onDidStopSharing = onDidStopSharing
             super.init()
@@ -60,15 +71,29 @@ struct SharingUI: UIViewControllerRepresentable {
         // MARK: UICloudSharingControllerDelegate
 
         func itemTitle(for csc: UICloudSharingController) -> String? {
-            share[CKShare.SystemFieldKey.title] as? String
+            if let itemTitle, itemTitle.isEmpty == false {
+                return itemTitle
+            }
+            if let title = share[CKShare.SystemFieldKey.title] as? String,
+               title.isEmpty == false {
+                return title
+            }
+            return nil
         }
 
         func itemThumbnailData(for csc: UICloudSharingController) -> Data? {
-            nil
+            if let thumbnailData, thumbnailData.isEmpty == false {
+                return thumbnailData
+            }
+            if let shareThumbnail = share[CKShare.SystemFieldKey.thumbnailImageData] as? Data,
+               shareThumbnail.isEmpty == false {
+                return shareThumbnail
+            }
+            return nil
         }
 
         func itemThumbnailDataIsPlaceholder(for csc: UICloudSharingController) -> Bool {
-            true
+            itemThumbnailData(for: csc) == nil
         }
 
         func cloudSharingController(_ csc: UICloudSharingController,

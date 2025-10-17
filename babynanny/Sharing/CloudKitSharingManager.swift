@@ -185,7 +185,8 @@ final class CloudKitSharingManager {
         if let birthDate = snapshot.profile.birthDate {
             profileRecord["birthDate"] = birthDate as CKRecordValue
         }
-        if let imageData = snapshot.profile.imageData {
+        let profileImageData = snapshot.profile.imageData
+        if let imageData = profileImageData {
             let file = try TemporaryFileManager.shared.write(data: imageData)
             profileRecord["image"] = CKAsset(fileURL: file)
         }
@@ -194,6 +195,9 @@ final class CloudKitSharingManager {
         share.publicPermission = .readOnly
         if let name = snapshot.profile.name {
             share[CKShare.SystemFieldKey.title] = name as CKRecordValue
+        }
+        if let imageData = profileImageData {
+            share[CKShare.SystemFieldKey.thumbnailImageData] = imageData as CKRecordValue
         }
 
         let actionRecords: [CKRecord] = snapshot.actions.map { action in
