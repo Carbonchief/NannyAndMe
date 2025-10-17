@@ -146,7 +146,8 @@ final class CloudKitSharingManager {
         do {
             try await privateDatabase.saveZoneAsync(zone)
         } catch {
-            if let ckError = error as? CKError, ckError.code == .zoneAlreadyExists {
+            if let ckError = error as? CKError,
+               ckError.code.rawValue == CKError.Code.zoneAlreadyExistsRawValue {
                 // The zone already exists, which is acceptable for idempotent sharing.
             } else {
                 throw error
@@ -452,4 +453,9 @@ extension ShareMetadataStore.ShareMetadata {
         self.shareRecordName = shareRecordID.recordName
         self.isShared = isShared
     }
+}
+
+private extension CKError.Code {
+    /// Raw value for `zoneAlreadyExists`, exposed directly to remain compatible with SDK surfaces lacking the symbol.
+    static let zoneAlreadyExistsRawValue: Int = 26
 }
