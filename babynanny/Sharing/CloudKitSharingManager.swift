@@ -33,7 +33,9 @@ final class CloudKitSharingManager {
         if let cached = await metadataStore.metadata(for: profileID) {
             do {
                 let share = try await fetchShare(with: cached.shareRecordID)
-                await persistMetadataIfNeeded(for: share, profileID: profileID)
+                await persistMetadataIfNeeded(for: share,
+                                             profileID: profileID,
+                                             rootRecordID: cached.rootRecordID)
                 return share
             } catch {
                 logger.error("Failed to load cached share metadata: \(error.localizedDescription, privacy: .public)")
@@ -50,14 +52,18 @@ final class CloudKitSharingManager {
         let rootRecord = try await fetchRootRecord(for: profileID)
         if let shareReference = rootRecord.share {
             let share = try await fetchShare(with: shareReference.recordID)
-            await persistMetadataIfNeeded(for: share, profileID: profileID)
+            await persistMetadataIfNeeded(for: share,
+                                         profileID: profileID,
+                                         rootRecordID: rootRecord.recordID)
             return share
         }
 
         let share = try await createShare(rootRecord: rootRecord,
                                           title: profile.name,
                                           thumbnailData: profile.imageData)
-        await persistMetadataIfNeeded(for: share, profileID: profileID)
+        await persistMetadataIfNeeded(for: share,
+                                     profileID: profileID,
+                                     rootRecordID: rootRecord.recordID)
         logger.log("Created share for profile \(profileID.uuidString, privacy: .public)")
         return share
     }
@@ -123,14 +129,18 @@ final class CloudKitSharingManager {
         return try context.fetch(descriptor).first
     }
 
-    private func persistMetadataIfNeeded(for share: CKShare, profileID: UUID) async {
+    private func persistMetadataIfNeeded(for share: CKShare,
+                                         profileID: UUID,
+                                         rootRecordID: CKRecord.ID?) async {
         let zoneID = share.recordID.zoneID
-        let rootRecordID = resolveRootRecordID(for: share) ?? CKRecord.ID(recordName: "profile-\(profileID.uuidString)",
-                                                                           zoneID: zoneID)
+        let resolvedRootRecordID = await resolveRootRecordID(for: share,
+                                                             profileID: profileID,
+                                                             fallbackZoneID: zoneID,
+                                                             providedRootRecordID: rootRecordID)
         let metadata = ShareMetadataStore.ShareMetadata(
             profileID: profileID,
             zoneID: zoneID,
-            rootRecordID: rootRecordID,
+            rootRecordID: resolvedRootRecordID,
             shareRecordID: share.recordID,
             isShared: true
         )
@@ -233,13 +243,24 @@ final class CloudKitSharingManager {
         return share
     }
 
-    private func resolveRootRecordID(for share: CKShare) -> CKRecord.ID? {
-        if #available(iOS 17.0, macOS 14.0, *) {
-            if let record = share.rootRecord {
-                return record.recordID
-            }
+    private func resolveRootRecordID(for share: CKShare,
+                                     profileID: UUID,
+                                     fallbackZoneID: CKRecordZone.ID,
+                                     providedRootRecordID: CKRecord.ID?) async -> CKRecord.ID {
+        if let providedRootRecordID {
+            return providedRootRecordID
         }
-        return share.value(forKey: "rootRecordID") as? CKRecord.ID
+        if let cached = await metadataStore.metadata(for: profileID) {
+            return cached.rootRecordID
+        }
+        if let extracted = fallbackRootRecordID(from: share) {
+            return extracted
+        }
+        return CKRecord.ID(recordName: "profile-\(profileID.uuidString)", zoneID: fallbackZoneID)
+    }
+
+    private func fallbackRootRecordID(from share: CKShare) -> CKRecord.ID? {
+        (share as NSObject).value(forKey: "rootRecordID") as? CKRecord.ID
     }
 }
 
