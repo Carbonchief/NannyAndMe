@@ -137,8 +137,14 @@ final class SharedScopeSubscriptionManager {
                 recordZoneIDs: [zoneID],
                 configurationsByRecordZoneID: [zoneID: configuration]
             )
-            operation.recordChangedBlock = { record in
-                changedRecords.append(record)
+            let logger = self.logger
+            operation.recordWasChangedBlock = { recordID, result in
+                switch result {
+                case .success(let record):
+                    changedRecords.append(record)
+                case .failure(let error):
+                    logger.error("Failed to fetch shared-zone record \(recordID.recordName, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                }
             }
             operation.recordWithIDWasDeletedBlock = { recordID, _ in
                 deletedRecords.append(recordID)
@@ -275,7 +281,8 @@ actor SharedZoneChangeTokenStore {
     private let key = "com.prioritybit.babynanny.shared.zoneTokens"
     private var tokens: [CKRecordZone.ID: CKServerChangeToken]
 
-    init(defaults: UserDefaults = .standard) {
+    init() {
+        let defaults = UserDefaults.standard
         self.defaults = defaults
         if let data = defaults.data(forKey: key),
            let decoded = try? JSONDecoder().decode([PersistedToken].self, from: data) {
