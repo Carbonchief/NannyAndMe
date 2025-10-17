@@ -196,15 +196,12 @@ final class CloudKitSharingManager {
 
     private func fetchAllZones() async throws -> [CKRecordZone] {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[CKRecordZone], Error>) in
-            privateDatabase.fetchAllRecordZones { zonesByID, error in
+            privateDatabase.fetchAllRecordZones { (fetchedZones: [CKRecordZone]?, error) in
                 if let error {
                     continuation.resume(throwing: error)
                     return
                 }
-                let zonesFromFetch = zonesByID.map { dictionary in
-                    Array(dictionary.values)
-                } ?? []
-                var zones = zonesFromFetch
+                var zones = fetchedZones ?? []
                 let defaultZone = CKRecordZone.default()
                 if zones.contains(where: { $0.zoneID == defaultZone.zoneID }) == false {
                     zones.append(defaultZone)
