@@ -17,86 +17,10 @@ struct ShareDataPage: View {
 
     var body: some View {
         List {
-            Section {
-                Button {
-                    Task { await viewModel.prepareSharingInterface() }
-                } label: {
-                    HStack {
-                        if viewModel.isPreparingShareUI {
-                            ProgressView()
-                                .progressViewStyle(.circular)
-                                .tint(.white)
-                        }
-                        Text(viewModel.shareExists ? ShareStrings.manageShareButton : ShareStrings.shareProfileButton)
-                            .fontWeight(.semibold)
-                        Spacer(minLength: 0)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(viewModel.isPreparingShareUI)
-                .postHogLabel("shareData.manageSharingButton")
-                .phCaptureTap(
-                    event: "shareData_manageSharing_button",
-                    properties: ["profile_id": profileID.uuidString]
-                )
-            }
-
-            Section(ShareStrings.participantsSectionTitle) {
-                if viewModel.isLoadingParticipants {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                        Spacer()
-                    }
-                } else if viewModel.participants.isEmpty {
-                    Text(viewModel.shareExists ? ShareStrings.noParticipantsMessage : ShareStrings.notSharedMessage)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                } else {
-                    ForEach(viewModel.participants) { item in
-                        ShareParticipantRow(
-                            item: item,
-                            isProcessing: viewModel.processingParticipantID == item.id,
-                            profileID: profileID,
-                            onChangePermission: { newPermission in
-                                Task { await viewModel.updatePermission(for: item, to: newPermission) }
-                            },
-                            onRemove: {
-                                participantPendingRemoval = item
-                            }
-                        )
-                    }
-                }
-            }
-
+            shareActionSection
+            participantsSection
             if viewModel.shareExists {
-                Section {
-                    Button(role: .destructive) {
-                        isConfirmingStopShare = true
-                    } label: {
-                        HStack {
-                            if viewModel.isStoppingShare {
-                                ProgressView()
-                                    .progressViewStyle(.circular)
-                            }
-                            Text(ShareStrings.stopSharingButton)
-                            Spacer(minLength: 0)
-                        }
-                    }
-                    .disabled(viewModel.isStoppingShare)
-                    .postHogLabel("shareData.stopSharingButton")
-                    .phCaptureTap(
-                        event: "shareData_stopSharing_button",
-                        properties: ["profile_id": profileID.uuidString]
-                    )
-                } footer: {
-                    Text(ShareStrings.stopSharingFooter)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
+                stopSharingSection
             }
         }
         .listStyle(.insetGrouped)
@@ -167,6 +91,81 @@ struct ShareDataPage: View {
                 )
         } message: {
             Text(ShareStrings.stopSharingMessage)
+        }
+    }
+
+    @ViewBuilder
+    private var shareActionSection: some View {
+        Section {
+            Button {
+                Task { await viewModel.prepareSharingInterface() }
+            } label: {
+                ManageShareButtonLabel(
+                    title: viewModel.shareExists ? ShareStrings.manageShareButton : ShareStrings.shareProfileButton,
+                    isLoading: viewModel.isPreparingShareUI
+                )
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(viewModel.isPreparingShareUI)
+            .postHogLabel("shareData.manageSharingButton")
+            .phCaptureTap(
+                event: "shareData_manageSharing_button",
+                properties: ["profile_id": profileID.uuidString]
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var participantsSection: some View {
+        Section(ShareStrings.participantsSectionTitle) {
+            if viewModel.isLoadingParticipants {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                    Spacer()
+                }
+            } else if viewModel.participants.isEmpty {
+                Text(viewModel.shareExists ? ShareStrings.noParticipantsMessage : ShareStrings.notSharedMessage)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+            } else {
+                ForEach(viewModel.participants) { item in
+                    ShareParticipantRow(
+                        item: item,
+                        isProcessing: viewModel.processingParticipantID == item.id,
+                        profileID: profileID,
+                        onChangePermission: { newPermission in
+                            Task { await viewModel.updatePermission(for: item, to: newPermission) }
+                        },
+                        onRemove: {
+                            participantPendingRemoval = item
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var stopSharingSection: some View {
+        Section {
+            Button(role: .destructive) {
+                isConfirmingStopShare = true
+            } label: {
+                StopSharingButtonLabel(isLoading: viewModel.isStoppingShare)
+            }
+            .disabled(viewModel.isStoppingShare)
+            .postHogLabel("shareData.stopSharingButton")
+            .phCaptureTap(
+                event: "shareData_stopSharing_button",
+                properties: ["profile_id": profileID.uuidString]
+            )
+        } footer: {
+            Text(ShareStrings.stopSharingFooter)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
     }
 }
@@ -480,6 +479,40 @@ private struct ShareParticipantRow: View {
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+private struct ManageShareButtonLabel: View {
+    let title: String
+    let isLoading: Bool
+
+    var body: some View {
+        HStack {
+            if isLoading {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .tint(.white)
+            }
+            Text(title)
+                .fontWeight(.semibold)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+}
+
+private struct StopSharingButtonLabel: View {
+    let isLoading: Bool
+
+    var body: some View {
+        HStack {
+            if isLoading {
+                ProgressView()
+                    .progressViewStyle(.circular)
+            }
+            Text(ShareStrings.stopSharingButton)
+            Spacer(minLength: 0)
+        }
     }
 }
 
