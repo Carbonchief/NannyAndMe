@@ -449,7 +449,7 @@ final class BabyAction {
     @Attribute(.unique)
     var id: UUID
     private var categoryRawValue: String
-    private var startDateRawValue: Date
+    var startDateRawValue: Date
     private var endDateRawValue: Date?
     var diaperTypeRawValue: String?
     var feedingTypeRawValue: String?
