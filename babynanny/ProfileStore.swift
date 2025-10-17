@@ -183,8 +183,14 @@ final class ProfileStore: ObservableObject {
             return profile
         }
 
-        ensureValidState()
-        return state.activeProfile ?? ChildProfile(name: "", birthDate: Date())
+        if shouldEnsureProfileExists {
+            ensureValidState()
+            if let profile = state.activeProfile {
+                return profile
+            }
+        }
+
+        return ChildProfile(name: "", birthDate: Date())
     }
 
     var showRecentActivityOnHome: Bool {
@@ -197,6 +203,9 @@ final class ProfileStore: ObservableObject {
     private var initialCloudImportTask: Task<Void, Never>?
     private weak var actionStore: ActionLogStore?
     private let didLoadProfilesFromDisk: Bool
+    private var shouldEnsureProfileExists: Bool {
+        didLoadProfilesFromDisk || cloudImporter == nil || isAwaitingInitialCloudImport == false
+    }
     struct ActionReminderSummary: Equatable, Sendable {
         let fireDate: Date
         let message: String
@@ -236,12 +245,13 @@ final class ProfileStore: ObservableObject {
             decoder.dateDecodingStrategy = .iso8601
 
             if let decoded = try? decoder.decode(ProfileState.self, from: data) {
-                self.state = Self.sanitized(state: decoded)
+                self.state = Self.sanitized(state: decoded, ensureProfileExists: true)
             } else {
                 self.state = Self.defaultState()
             }
         } else {
-            self.state = Self.defaultState()
+            let shouldCreateBootstrapProfile = didLoadProfilesFromDisk || cloudImporter == nil
+            self.state = Self.sanitized(state: nil, ensureProfileExists: shouldCreateBootstrapProfile)
         }
 
         persistState()
@@ -265,7 +275,7 @@ final class ProfileStore: ObservableObject {
         self.didLoadProfilesFromDisk = true
         self.isAwaitingInitialCloudImport = false
         let state = ProfileState(profiles: initialProfiles, activeProfileID: activeProfileID)
-        self.state = Self.sanitized(state: state)
+        self.state = Self.sanitized(state: state, ensureProfileExists: true)
         persistState()
         scheduleReminders()
     }
@@ -280,7 +290,7 @@ final class ProfileStore: ObservableObject {
         guard state.profiles.contains(where: { $0.id == profile.id }) else { return }
         var newState = state
         newState.activeProfileID = profile.id
-        state = Self.sanitized(state: newState)
+        state = Self.sanitized(state: newState, ensureProfileExists: true)
     }
 
     func addProfile(name: String, imageData: Data? = nil) {
@@ -289,7 +299,7 @@ final class ProfileStore: ObservableObject {
         let profile = ChildProfile(name: trimmedName, birthDate: Date(), imageData: imageData)
         newState.profiles.append(profile)
         newState.activeProfileID = profile.id
-        state = Self.sanitized(state: newState)
+        state = Self.sanitized(state: newState, ensureProfileExists: true)
     }
 
     func addProfile() {
@@ -299,7 +309,7 @@ final class ProfileStore: ObservableObject {
     func setShowRecentActivityOnHome(_ newValue: Bool) {
         var newState = state
         newState.showRecentActivityOnHome = newValue
-        state = Self.sanitized(state: newState)
+        state = Self.sanitized(state: newState, ensureProfileExists: true)
     }
 
     func deleteProfile(_ profile: ChildProfile) {
@@ -316,7 +326,7 @@ final class ProfileStore: ObservableObject {
             }
         }
 
-        state = Self.sanitized(state: newState)
+        state = Self.sanitized(state: newState, ensureProfileExists: true)
         actionStore?.removeProfileData(for: profile.id)
     }
 
@@ -326,7 +336,7 @@ final class ProfileStore: ObservableObject {
 
         var newState = state
         updates(&newState.profiles[index])
-        state = Self.sanitized(state: newState)
+        state = Self.sanitized(state: newState, ensureProfileExists: true)
     }
 
     func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
@@ -359,7 +369,7 @@ final class ProfileStore: ObservableObject {
         }
 
         if didChange {
-            state = Self.sanitized(state: newState)
+            state = Self.sanitized(state: newState, ensureProfileExists: true)
         }
     }
 
@@ -380,7 +390,7 @@ final class ProfileStore: ObservableObject {
             var newState = state
             newState.profiles.append(importedProfile)
             newState.activeProfileID = importedProfile.id
-            state = Self.sanitized(state: newState)
+            state = Self.sanitized(state: newState, ensureProfileExists: true)
             return true
         }
 
@@ -474,7 +484,7 @@ final class ProfileStore: ObservableObject {
     }
 
     private func ensureValidState() {
-        let sanitized = Self.sanitized(state: state)
+        let sanitized = Self.sanitized(state: state, ensureProfileExists: shouldEnsureProfileExists)
         if sanitized != state {
             state = sanitized
         }
@@ -539,12 +549,12 @@ final class ProfileStore: ObservableObject {
                     return
                 }
 
-                let currentState = Self.sanitized(state: state)
+                let currentState = Self.sanitized(state: state, ensureProfileExists: shouldEnsureProfileExists)
                 let importedState = Self.sanitized(state: ProfileState(
                     profiles: snapshot.profiles,
                     activeProfileID: snapshot.activeProfileID,
                     showRecentActivityOnHome: snapshot.showRecentActivityOnHome
-                ))
+                ), ensureProfileExists: true)
 
                 guard importedState.profiles.isEmpty == false else { return }
 
@@ -592,12 +602,13 @@ final class ProfileStore: ObservableObject {
     private func finishInitialCloudImport() {
         if isAwaitingInitialCloudImport {
             isAwaitingInitialCloudImport = false
+            ensureValidState()
         }
     }
 
     private func merged(localState: ProfileState, remoteState: ProfileState) -> ProfileState {
         if didLoadProfilesFromDisk == false && isBootstrapState(localState) {
-            return Self.sanitized(state: remoteState)
+            return Self.sanitized(state: remoteState, ensureProfileExists: true)
         }
 
         let remoteProfilesByID = Dictionary(uniqueKeysWithValues: remoteState.profiles.map { ($0.id, $0) })
@@ -630,10 +641,14 @@ final class ProfileStore: ObservableObject {
             }
         }
 
-        return Self.sanitized(state: mergedState)
+        return Self.sanitized(state: mergedState, ensureProfileExists: true)
     }
 
     private func isBootstrapState(_ state: ProfileState) -> Bool {
+        if state.profiles.isEmpty {
+            return true
+        }
+
         guard state.profiles.count == 1 else { return false }
         guard let profile = state.profiles.first else { return false }
 
@@ -646,13 +661,15 @@ final class ProfileStore: ObservableObject {
         return true
     }
 
-    private static func sanitized(state: ProfileState?) -> ProfileState {
+    private static func sanitized(state: ProfileState?, ensureProfileExists: Bool) -> ProfileState {
         var state = state ?? ProfileState(profiles: [], activeProfileID: nil)
 
         if state.profiles.isEmpty {
-            let defaultProfile = ChildProfile(name: "", birthDate: Date())
-            state.profiles = [defaultProfile]
-            state.activeProfileID = defaultProfile.id
+            if ensureProfileExists {
+                let defaultProfile = ChildProfile(name: "", birthDate: Date())
+                state.profiles = [defaultProfile]
+                state.activeProfileID = defaultProfile.id
+            }
         } else if let activeID = state.activeProfileID,
                   state.profiles.contains(where: { $0.id == activeID }) == false {
             state.activeProfileID = state.profiles.first?.id
@@ -670,7 +687,7 @@ final class ProfileStore: ObservableObject {
     }
 
     private static func defaultState() -> ProfileState {
-        sanitized(state: nil)
+        sanitized(state: nil, ensureProfileExists: true)
     }
 
     private static func resolveSaveURL(fileManager: FileManager, directory: URL?, filename: String) -> URL {
