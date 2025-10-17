@@ -347,7 +347,7 @@ private final class ShareProfilePageViewModel: ObservableObject {
         let task = Task<String?, Never> {
             do {
                 let recordID = try await container.userRecordID()
-                let identity = try await container.userIdentity(for: recordID)
+                let identity = try await container.userIdentity(forUserRecordID: recordID)
                 if let components = identity.nameComponents {
                     let formatted = nameFormatter.string(from: components)
                     if formatted.isEmpty == false {
