@@ -346,18 +346,17 @@ private final class ShareProfilePageViewModel: ObservableObject {
 
         let task = Task<String?, Never> {
             do {
-                let recordID = try await container.userRecordID()
-                if let identity = try await container.userIdentity(forUserRecordID: recordID) {
-                    if let components = identity.nameComponents {
+                if let participant = try await fetchCurrentUserParticipant() {
+                    if let components = participant.userIdentity.nameComponents {
                         let formatted = nameFormatter.string(from: components)
                         if formatted.isEmpty == false {
                             return formatted
                         }
                     }
-                    if let email = identity.lookupInfo?.emailAddress, email.isEmpty == false {
+                    if let email = participant.userIdentity.lookupInfo?.emailAddress, email.isEmpty == false {
                         return email
                     }
-                    if let phone = identity.lookupInfo?.phoneNumber, phone.isEmpty == false {
+                    if let phone = participant.userIdentity.lookupInfo?.phoneNumber, phone.isEmpty == false {
                         return phone
                     }
                 }
@@ -386,6 +385,31 @@ private final class ShareProfilePageViewModel: ObservableObject {
                 Task { await self.refreshParticipants() }
             }
             .store(in: &cancellables)
+    }
+
+    private func fetchCurrentUserParticipant() async throws -> CKShare.Participant? {
+        let recordID = try await container.userRecordID()
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKShare.Participant?, Error>) in
+            let lookup = CKUserIdentityLookupInfo(userRecordID: recordID)
+            let operation = CKFetchShareParticipantsOperation(userIdentityLookupInfos: [lookup])
+            operation.qualityOfService = .userInitiated
+
+            var fetchedParticipant: CKShare.Participant?
+            operation.shareParticipantFetchedBlock = { participant in
+                fetchedParticipant = participant
+            }
+
+            operation.fetchShareParticipantsResultBlock = { result in
+                switch result {
+                case .success:
+                    continuation.resume(returning: fetchedParticipant)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+
+            container.add(operation)
+        }
     }
 
     private func loadProfileSummary() async -> ProfileSummary? {
