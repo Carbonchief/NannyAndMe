@@ -395,8 +395,7 @@ private final class ShareProfilePageViewModel: ObservableObject {
             operation.qualityOfService = .userInitiated
 
             var fetchedParticipant: CKShare.Participant?
-            operation.perShareParticipantCompletionBlock = { participant, _, error in
-                guard error == nil else { return }
+            operation.shareParticipantFetchedBlock = { participant in
                 if fetchedParticipant == nil {
                     fetchedParticipant = participant
                 }
