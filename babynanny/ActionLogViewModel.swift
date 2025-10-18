@@ -39,7 +39,7 @@ final class ActionLogStore: ObservableObject {
         observeSyncCoordinatorIfNeeded()
     }
 
-    deinit {
+    @MainActor deinit {
         if isObservingSyncCoordinator {
             let coordinator = dataStack.syncCoordinator
             let observer: SyncCoordinator.Observer = self
@@ -357,7 +357,8 @@ final class ActionLogStore: ObservableObject {
             }
         }
 
-        return ActionLogStore(modelContext: context)
+        let dataStack = AppDataStack(cloudSyncEnabled: true, modelContainer: container)
+        return ActionLogStore(modelContext: context, dataStack: dataStack)
     }
 }
 
