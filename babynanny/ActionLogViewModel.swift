@@ -539,7 +539,8 @@ private extension ActionLogStore {
                 return ObjectIdentifier(coordinator) == observedPersistentStoreCoordinatorIdentifier
             }
 
-            if let payload = notification.userInfo?[NSManagedObjectContextDidSaveObjectIDsKey] as? [String: Set<NSManagedObjectID>] {
+            let objectIDsKey = NSManagedObjectContext.notificationObjectIDsUserInfoKey
+            if let payload = notification.userInfo?[objectIDsKey] as? [AnyHashable: Set<NSManagedObjectID>] {
                 for objectIDs in payload.values {
                     for objectID in objectIDs {
                         guard let coordinator = objectID.persistentStore?.persistentStoreCoordinator else { continue }
@@ -626,7 +627,7 @@ private extension ActionLogStore {
 }
 
 private extension ActionLogStore {
-    static func makePersistentStoreContextIdentifiers(for context: ModelContext) -> PersistentStoreContextIdentifiers {
+    private static func makePersistentStoreContextIdentifiers(for context: ModelContext) -> PersistentStoreContextIdentifiers {
         var visitedObjects: Set<ObjectIdentifier> = []
         var identifiers = PersistentStoreContextIdentifiers()
 
@@ -693,6 +694,16 @@ private extension ActionLogStore {
         }
 
         return nil
+    }
+}
+
+private extension NSManagedObjectContext {
+    static var notificationObjectIDsUserInfoKey: String {
+        if #available(iOS 15.0, *) {
+            return NotificationKey.objectIDs.rawValue
+        } else {
+            return "NSManagedObjectContextDidSaveObjectIDsKey"
+        }
     }
 }
 
