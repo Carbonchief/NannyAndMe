@@ -699,10 +699,10 @@ private extension ActionLogStore {
 
 private extension NSManagedObjectContext {
     static var notificationObjectIDsUserInfoKey: String {
-        if #available(iOS 15.0, *) {
-            return NSManagedObjectContextDidSaveObjectIDsKey
-        }
-
+        // Newer SDKs vend a typed constant for the object ID payload key, but some
+        // deployment targets still build against older Core Data headers where the
+        // symbol does not exist. Returning the raw string keeps the lookup resilient
+        // regardless of SDK availability.
         return "NSManagedObjectContextDidSaveObjectIDsKey"
     }
 }
