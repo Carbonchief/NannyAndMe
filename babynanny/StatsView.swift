@@ -828,6 +828,13 @@ private struct ChartShareSnapshot<Content: View>: View {
         .frame(width: targetWidth, alignment: .leading)
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(alignment: .topTrailing) {
+            Image("Logo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 40, height: 40)
+                .padding(16)
+        }
         .shadow(color: Color.black.opacity(0.08), radius: 18, x: 0, y: 8)
         .overlay(alignment: .bottomTrailing) {
             Text("Nanny & Me")
