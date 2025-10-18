@@ -224,6 +224,8 @@
 "stats.chart.lastSevenDays" = "Letzte 7 Tage";
 "stats.chart.actionPicker.label" = "Aktivität";
 "stats.chart.series.subtype" = "Untertyp";
+"stats.chart.share.button" = "Teilen";
+"stats.chart.share.accessibility" = "Diagramm teilen";
 "stats.chart.xAxis.hour" = "Stunde";
 "stats.chart.xAxis.day" = "Tag";
 "stats.chart.activityTrends.title" = "Aktivitätstrends";

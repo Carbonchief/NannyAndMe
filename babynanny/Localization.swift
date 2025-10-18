@@ -728,6 +728,11 @@ enum L10n {
         static let lastSevenDays = String(localized: "stats.chart.lastSevenDays", defaultValue: "Last 7 Days")
         static let actionPickerLabel = String(localized: "stats.chart.actionPicker.label", defaultValue: "Activity")
         static let subtypeLegend = String(localized: "stats.chart.series.subtype", defaultValue: "Subtype")
+        static let shareChartButton = String(localized: "stats.chart.share.button", defaultValue: "Share")
+        static let shareChartAccessibility = String(
+            localized: "stats.chart.share.accessibility",
+            defaultValue: "Share chart"
+        )
         static let patternTitle = String(
             localized: "stats.pattern.title",
             defaultValue: "Daily Pattern",

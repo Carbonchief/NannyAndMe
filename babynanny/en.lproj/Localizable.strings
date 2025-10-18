@@ -228,6 +228,8 @@
 "stats.chart.lastSevenDays" = "Last 7 Days";
 "stats.chart.actionPicker.label" = "Activity";
 "stats.chart.series.subtype" = "Subtype";
+"stats.chart.share.button" = "Share";
+"stats.chart.share.accessibility" = "Share chart";
 "stats.chart.xAxis.hour" = "Hour";
 "stats.chart.xAxis.day" = "Day";
 "stats.chart.activityTrends.title" = "Activity Trends";

@@ -7,11 +7,13 @@
 
 import SwiftUI
 import Charts
+import UIKit
 
 struct StatsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
     @State private var selectedCategory: BabyActionCategory?
+    @State private var shareItem: ChartShareItem?
 
     var body: some View {
         let state = currentState
@@ -34,6 +36,17 @@ struct StatsView: View {
         .phScreen("stats_screen_statsView", properties: ["tab": "stats"])
         .onChange(of: profileStore.activeProfile.id) { _, _ in
             selectedCategory = nil
+        }
+        .sheet(item: $shareItem) { item in
+            ChartShareSheet(item: item) { outcome in
+                if case .completed = outcome {
+                    Analytics.capture(
+                        "stats_share_chart_completed",
+                        properties: ["chart": item.chartIdentifier]
+                    )
+                }
+                shareItem = nil
+            }
         }
     }
 
@@ -102,35 +115,38 @@ struct StatsView: View {
 
                     Spacer()
 
+                    if hasData {
+                        Button {
+                            Analytics.capture(
+                                "stats_share_chart_button",
+                                properties: ["chart": "daily_trend", "category": focusCategory.rawValue]
+                            )
+                            let context = DailyTrendShareContext(metrics: metrics,
+                                                                  yAxisTitle: yAxisTitle,
+                                                                  axisDays: axisDays,
+                                                                  subtypeTitle: subtypeTitle,
+                                                                  subtypeScale: subtypeScale,
+                                                                  focusCategory: focusCategory)
+                            shareDailyTrendChart(context: context)
+                        } label: {
+                            Label(L10n.Stats.shareChartButton, systemImage: "square.and.arrow.up")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                        }
+                        .buttonStyle(.bordered)
+                        .postHogLabel("stats.shareChartButton.dailyTrend")
+                        .accessibilityLabel(L10n.Stats.shareChartAccessibility)
+                    }
+
                     categoryPicker(for: state)
                 }
 
                 if hasData {
-                    Chart(metrics) { metric in
-                        BarMark(
-                            x: .value(L10n.Stats.dayAxisLabel, metric.date, unit: .day),
-                            y: .value(yAxisTitle, metric.value)
-                        )
-                        .foregroundStyle(by: .value(subtypeTitle, metric.subtype.legendLabel))
-                        .cornerRadius(6)
-                    }
-                    .chartForegroundStyleScale(domain: subtypeScale.domain, range: subtypeScale.range)
-                    .chartLegend(position: .bottom, alignment: .leading, spacing: 12)
-                    .chartYAxis {
-                        AxisMarks(position: .leading)
-                    }
-                    .chartXAxis {
-                        AxisMarks(values: axisDays) { value in
-                            AxisGridLine()
-                            AxisTick()
-                            AxisValueLabel {
-                                if let dateValue = value.as(Date.self) {
-                                    Text(dateValue, format: .dateTime.weekday(.abbreviated))
-                                }
-                            }
-                        }
-                    }
-                    .frame(height: 220)
+                    dailyTrendChart(metrics: metrics,
+                                     yAxisTitle: yAxisTitle,
+                                     axisDays: axisDays,
+                                     subtypeTitle: subtypeTitle,
+                                     subtypeScale: subtypeScale)
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(L10n.Stats.emptyStateTitle(focusCategory.title.localizedLowercase))
@@ -183,49 +199,46 @@ struct StatsView: View {
         let subtypeScale = colorScale(for: patternSegments.map(\.subtype))
 
         VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.Stats.patternTitle)
-                .font(.headline)
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L10n.Stats.patternTitle)
+                        .font(.headline)
 
-            Text(L10n.Stats.patternSubtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                    Text(L10n.Stats.patternSubtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if hasData {
+                    Button {
+                        Analytics.capture(
+                            "stats_share_chart_button",
+                            properties: ["chart": "daily_pattern", "category": focusCategory.rawValue]
+                        )
+                        let context = ActionPatternShareContext(segments: patternSegments,
+                                                                dayAxisValues: dayAxisValues,
+                                                                subtypeTitle: subtypeTitle,
+                                                                subtypeScale: subtypeScale,
+                                                                focusCategory: focusCategory)
+                        shareActionPatternChart(context: context)
+                    } label: {
+                        Label(L10n.Stats.shareChartButton, systemImage: "square.and.arrow.up")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+                    .buttonStyle(.bordered)
+                    .postHogLabel("stats.shareChartButton.dailyPattern")
+                    .accessibilityLabel(L10n.Stats.shareChartAccessibility)
+                }
+            }
 
             if hasData {
-                Chart(patternSegments) { segment in
-                    BarMark(
-                        x: .value(L10n.Stats.dayAxisLabel, segment.day, unit: .day),
-                        yStart: .value(L10n.Stats.hourAxisLabel, segment.startMinutes),
-                        yEnd: .value(L10n.Stats.hourAxisLabel, segment.endMinutes)
-                    )
-                    .cornerRadius(6)
-                    .foregroundStyle(by: .value(subtypeTitle, segment.subtype.legendLabel))
-                }
-                .chartForegroundStyleScale(domain: subtypeScale.domain, range: subtypeScale.range)
-                .chartLegend(position: .bottom, alignment: .leading, spacing: 12)
-                .chartYAxis {
-                    AxisMarks(values: Array(stride(from: 0, through: 1440, by: 180))) { value in
-                        AxisGridLine()
-                        AxisTick()
-                        AxisValueLabel {
-                            if let minutes = value.as(Double.self) {
-                                Text(timeLabel(for: minutes))
-                            }
-                        }
-                    }
-                }
-                .chartYScale(domain: 0...1440)
-                .chartXAxis {
-                    AxisMarks(values: dayAxisValues) { value in
-                        AxisGridLine()
-                        AxisTick()
-                        AxisValueLabel {
-                            if let dateValue = value.as(Date.self) {
-                                Text(dayLabel(for: dateValue))
-                            }
-                        }
-                    }
-                }
-                .frame(height: 220)
+                actionPatternChart(segments: patternSegments,
+                                    dayAxisValues: dayAxisValues,
+                                    subtypeTitle: subtypeTitle,
+                                    subtypeScale: subtypeScale)
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(L10n.Stats.patternEmptyTitle(focusCategory.title.localizedLowercase))
@@ -246,6 +259,130 @@ struct StatsView: View {
                 .fill(Color(.systemBackground))
                 .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
         )
+    }
+
+    @ViewBuilder
+    private func dailyTrendChart(metrics: [DailyActionMetric],
+                                 yAxisTitle: String,
+                                 axisDays: [Date],
+                                 subtypeTitle: String,
+                                 subtypeScale: (domain: [String], range: [Color])) -> some View
+    {
+        Chart(metrics) { metric in
+            BarMark(
+                x: .value(L10n.Stats.dayAxisLabel, metric.date, unit: .day),
+                y: .value(yAxisTitle, metric.value)
+            )
+            .foregroundStyle(by: .value(subtypeTitle, metric.subtype.legendLabel))
+            .cornerRadius(6)
+        }
+        .chartForegroundStyleScale(domain: subtypeScale.domain, range: subtypeScale.range)
+        .chartLegend(position: .bottom, alignment: .leading, spacing: 12)
+        .chartYAxis {
+            AxisMarks(position: .leading)
+        }
+        .chartXAxis {
+            AxisMarks(values: axisDays) { value in
+                AxisGridLine()
+                AxisTick()
+                AxisValueLabel {
+                    if let dateValue = value.as(Date.self) {
+                        Text(dateValue, format: .dateTime.weekday(.abbreviated))
+                    }
+                }
+            }
+        }
+        .frame(height: 220)
+    }
+
+    @ViewBuilder
+    private func actionPatternChart(segments: [ActionPatternSegment],
+                                    dayAxisValues: [Date],
+                                    subtypeTitle: String,
+                                    subtypeScale: (domain: [String], range: [Color])) -> some View
+    {
+        Chart(segments) { segment in
+            BarMark(
+                x: .value(L10n.Stats.dayAxisLabel, segment.day, unit: .day),
+                yStart: .value(L10n.Stats.hourAxisLabel, segment.startMinutes),
+                yEnd: .value(L10n.Stats.hourAxisLabel, segment.endMinutes)
+            )
+            .cornerRadius(6)
+            .foregroundStyle(by: .value(subtypeTitle, segment.subtype.legendLabel))
+        }
+        .chartForegroundStyleScale(domain: subtypeScale.domain, range: subtypeScale.range)
+        .chartLegend(position: .bottom, alignment: .leading, spacing: 12)
+        .chartYAxis {
+            AxisMarks(values: Array(stride(from: 0, through: 1440, by: 180))) { value in
+                AxisGridLine()
+                AxisTick()
+                AxisValueLabel {
+                    if let minutes = value.as(Double.self) {
+                        Text(timeLabel(for: minutes))
+                    }
+                }
+            }
+        }
+        .chartYScale(domain: 0...1440)
+        .chartXAxis {
+            AxisMarks(values: dayAxisValues) { value in
+                AxisGridLine()
+                AxisTick()
+                AxisValueLabel {
+                    if let dateValue = value.as(Date.self) {
+                        Text(dayLabel(for: dateValue))
+                    }
+                }
+            }
+        }
+        .frame(height: 220)
+    }
+
+    private func shareDailyTrendChart(context: DailyTrendShareContext) {
+        let chartView = AnyView(
+            dailyTrendChart(metrics: context.metrics,
+                             yAxisTitle: context.yAxisTitle,
+                             axisDays: context.axisDays,
+                             subtypeTitle: context.subtypeTitle,
+                             subtypeScale: context.subtypeScale)
+        )
+
+        renderChartShare(title: L10n.Stats.lastSevenDays,
+                          subtitle: context.focusCategory.title,
+                          chart: chartView,
+                          identifier: "daily_trend")
+    }
+
+    private func shareActionPatternChart(context: ActionPatternShareContext) {
+        let chartView = AnyView(
+            actionPatternChart(segments: context.segments,
+                               dayAxisValues: context.dayAxisValues,
+                               subtypeTitle: context.subtypeTitle,
+                               subtypeScale: context.subtypeScale)
+        )
+
+        renderChartShare(title: L10n.Stats.patternTitle,
+                          subtitle: context.focusCategory.title,
+                          chart: chartView,
+                          identifier: "daily_pattern")
+    }
+
+    private func renderChartShare(title: String,
+                                  subtitle: String?,
+                                  chart: AnyView,
+                                  identifier: String) {
+        let snapshot = ChartShareSnapshot(title: title, subtitle: subtitle) {
+            chart
+        }
+
+        let renderer = ImageRenderer(content: snapshot.environment(\.colorScheme, .light))
+        renderer.scale = UIScreen.main.scale
+
+        guard let image = renderer.uiImage else {
+            return
+        }
+
+        shareItem = ChartShareItem(image: image, chartIdentifier: identifier)
     }
 
     private func resolvedCategory(for state: ProfileActionState) -> BabyActionCategory {
@@ -560,6 +697,135 @@ struct StatsView: View {
         }
 
         return (domain, range)
+    }
+}
+
+private struct DailyTrendShareContext {
+    let metrics: [DailyActionMetric]
+    let yAxisTitle: String
+    let axisDays: [Date]
+    let subtypeTitle: String
+    let subtypeScale: (domain: [String], range: [Color])
+    let focusCategory: BabyActionCategory
+}
+
+private struct ActionPatternShareContext {
+    let segments: [ActionPatternSegment]
+    let dayAxisValues: [Date]
+    let subtypeTitle: String
+    let subtypeScale: (domain: [String], range: [Color])
+    let focusCategory: BabyActionCategory
+}
+
+private struct ChartShareItem: Identifiable {
+    let id = UUID()
+    let image: UIImage
+    let chartIdentifier: String
+}
+
+private enum ChartShareOutcome {
+    case completed
+    case cancelled
+    case failed(Error)
+}
+
+private struct ChartShareSheet: UIViewControllerRepresentable {
+    let item: ChartShareItem
+    let completion: (ChartShareOutcome) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(completion: completion)
+    }
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: [item.image], applicationActivities: nil)
+        controller.completionWithItemsHandler = { _, completed, _, error in
+            DispatchQueue.main.async {
+                if let error {
+                    context.coordinator.handle(.failed(error))
+                } else if completed {
+                    context.coordinator.handle(.completed)
+                } else {
+                    context.coordinator.handle(.cancelled)
+                }
+            }
+        }
+
+        if let popover = controller.popoverPresentationController {
+            popover.sourceView = UIApplication.shared.connectedScenes
+                .compactMap { ($0 as? UIWindowScene)?.windows.first { $0.isKeyWindow } }
+                .first
+            if let sourceView = popover.sourceView {
+                popover.sourceRect = CGRect(
+                    x: sourceView.bounds.midX,
+                    y: sourceView.bounds.midY,
+                    width: 0,
+                    height: 0
+                )
+                popover.permittedArrowDirections = []
+            }
+        }
+
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+
+    final class Coordinator {
+        private let completion: (ChartShareOutcome) -> Void
+
+        init(completion: @escaping (ChartShareOutcome) -> Void) {
+            self.completion = completion
+        }
+
+        func handle(_ outcome: ChartShareOutcome) {
+            completion(outcome)
+        }
+    }
+}
+
+private struct ChartShareSnapshot<Content: View>: View {
+    let title: String
+    let subtitle: String?
+    let content: Content
+
+    init(title: String, subtitle: String? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.subtitle = subtitle
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(title)
+                .font(.title2)
+                .fontWeight(.semibold)
+
+            if let subtitle {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            content
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shadow(color: Color.black.opacity(0.08), radius: 18, x: 0, y: 8)
+        .overlay(alignment: .bottomTrailing) {
+            Text("Nanny & Me")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.black.opacity(0.6), in: Capsule())
+                .padding(16)
+        }
+        .padding(24)
+        .background(Color(.systemGroupedBackground))
     }
 }
 
