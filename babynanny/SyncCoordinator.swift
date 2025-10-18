@@ -116,6 +116,7 @@ final class SyncCoordinator: ObservableObject {
 
         do {
             try fetchLatestChangesFromStore()
+            try persistMergedChangesIfNeeded()
             notifyObserversDidMergeChanges(for: reason)
             diagnostics.lastSyncFinishedAt = Date()
             diagnostics.lastSyncError = nil
@@ -124,6 +125,16 @@ final class SyncCoordinator: ObservableObject {
         } catch {
             diagnostics.lastSyncError = error.localizedDescription
             cloudLogger.error("Failed to merge CloudKit changes: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func persistMergedChangesIfNeeded() throws {
+        guard sharedContext.hasChanges else { return }
+        do {
+            try sharedContext.save()
+            syncLogger.debug("Persisted merged SwiftData changes after fetch")
+        } catch {
+            throw error
         }
     }
 

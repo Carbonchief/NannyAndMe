@@ -29,3 +29,30 @@ func notifiesObserversAfterRemoteSync() async throws {
 
     #expect(observer.receivedReasons.contains(.remoteNotification))
 }
+
+@Test
+@MainActor
+func persistsMergedChangesDuringSync() async throws {
+    let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try ModelContainer(
+        for: [ProfileActionStateModel.self, BabyActionModel.self],
+        configurations: configuration
+    )
+    let context = container.mainContext
+    let coordinator = SyncCoordinator(sharedContext: context)
+
+    let identifier = UUID()
+    let profile = ProfileActionStateModel(profileID: identifier)
+    context.insert(profile)
+    #expect(context.hasChanges)
+
+    coordinator.requestSyncIfNeeded(reason: .remoteNotification)
+    try await Task.sleep(nanoseconds: 400_000_000)
+
+    #expect(context.hasChanges == false)
+
+    let verificationContext = ModelContext(container)
+    let descriptor = FetchDescriptor<ProfileActionStateModel>()
+    let fetched = try verificationContext.fetch(descriptor)
+    #expect(fetched.contains(where: { $0.profileID == identifier }))
+}

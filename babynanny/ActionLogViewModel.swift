@@ -602,7 +602,10 @@ private extension ActionLogStore {
         isObservingSyncCoordinator = true
     }
 
-    func refreshAfterRemoteMerge() {
+    func refreshAfterSync(for reason: SyncCoordinator.SyncReason) {
+        // Remote pushes and foreground refreshes should hydrate the cache from disk so the
+        // UI matches a cold start. Other sync reasons currently share the same path because
+        // we do not maintain a separate incremental-update pipeline yet.
         handleModelContextChange(reloadFromPersistentStore: true)
     }
 }
@@ -610,6 +613,6 @@ private extension ActionLogStore {
 extension ActionLogStore: SyncCoordinator.Observer {
     func syncCoordinator(_ coordinator: SyncCoordinator,
                          didMergeChangesFor reason: SyncCoordinator.SyncReason) {
-        refreshAfterRemoteMerge()
+        refreshAfterSync(for: reason)
     }
 }
