@@ -16,9 +16,7 @@ protocol MPCSessioning: AnyObject {
     func disconnect()
 }
 
-extension MCSession: MPCSessioning {
-    var myPeerID: MCPeerID { peerID }
-}
+extension MCSession: MPCSessioning {}
 
 /// Abstraction for ``MCNearbyServiceBrowser`` interactions.
 protocol MPCBrowsing: AnyObject {
