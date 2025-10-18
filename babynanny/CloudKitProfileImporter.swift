@@ -22,8 +22,8 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
     private let dataField: String
 
     init(container: CKContainer = CKContainer(identifier: "iCloud.com.prioritybit.babynanny"),
-         recordType: String = "Profile",
-         fallbackRecordTypes: [String] = ["ProfileActionStateModel", "ProfileState", "CD_ProfileActionStateModel"],
+         recordType: String = "CD_Profile",
+         fallbackRecordTypes: [String] = ["Profile", "ProfileActionStateModel", "ProfileState", "CD_ProfileActionStateModel"],
          dataField: String = "payload") {
         self.container = container
         self.recordType = recordType
@@ -326,7 +326,7 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
 
     private func isSwiftDataRecordType(_ recordType: String) -> Bool {
         let sanitized = recordType.trimmingCharacters(in: .whitespacesAndNewlines)
-        let candidates = ["Profile", "CD_ProfileActionStateModel"]
+        let candidates = ["CD_Profile", "Profile", "CD_ProfileActionStateModel"]
         return candidates.contains { candidate in
             sanitized.caseInsensitiveCompare(candidate) == .orderedSame
         }

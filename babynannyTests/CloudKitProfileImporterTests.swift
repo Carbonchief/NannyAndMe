@@ -58,4 +58,16 @@ struct CloudKitProfileImporterTests {
 
         #expect(profile == nil)
     }
+
+    @Test
+    func defaultImporterTargetsCDProfileRecords() {
+        let importer = CloudKitProfileImporter()
+        let mirror = Mirror(reflecting: importer)
+
+        let recordType = mirror.descendant("recordType") as? String
+        let fallbackRecordTypes = mirror.descendant("fallbackRecordTypes") as? [String]
+
+        #expect(recordType == "CD_Profile")
+        #expect(fallbackRecordTypes?.contains(where: { $0.caseInsensitiveCompare("Profile") == .orderedSame }) == true)
+    }
 }
