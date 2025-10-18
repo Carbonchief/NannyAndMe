@@ -199,7 +199,7 @@ final class ProfileStore: ObservableObject {
 
     private let saveURL: URL
     private let reminderScheduler: ReminderScheduling
-    private let cloudImporter: ProfileCloudImporting?
+    private var cloudImporter: ProfileCloudImporting?
     private var initialCloudImportTask: Task<Void, Never>?
     private weak var actionStore: ActionLogStore?
     private let didLoadProfilesFromDisk: Bool
@@ -626,6 +626,22 @@ final class ProfileStore: ObservableObject {
             isAwaitingInitialCloudImport = false
             ensureValidState()
         }
+    }
+
+    func updateCloudImporter(_ importer: ProfileCloudImporting?) {
+        if importer == nil {
+            initialCloudImportTask?.cancel()
+            initialCloudImportTask = nil
+            cloudImporter = nil
+            finishInitialCloudImport()
+            return
+        }
+
+        cloudImporter = importer
+        isAwaitingInitialCloudImport = true
+        initialCloudImportTask?.cancel()
+        initialCloudImportTask = nil
+        scheduleInitialCloudImport()
     }
 
     private func merged(localState: ProfileState, remoteState: ProfileState) -> ProfileState {

@@ -5,15 +5,49 @@ import SwiftUI
 import UIKit
 
 struct ShareProfilePage: View {
+    @EnvironmentObject private var cloudStatusController: CloudAccountStatusController
+    @EnvironmentObject private var appDataStack: AppDataStack
     let profileID: UUID
 
+    private var isCloudSharingAvailable: Bool {
+        cloudStatusController.status == .available && appDataStack.cloudSyncEnabled
+    }
+
+    var body: some View {
+        if isCloudSharingAvailable,
+           let metadataStore = appDataStack.shareMetadataStore,
+           let subscriptionManager = appDataStack.sharedSubscriptionManager {
+            ShareProfilePageContent(
+                profileID: profileID,
+                modelContainer: appDataStack.modelContainer,
+                metadataStore: metadataStore,
+                subscriptionManager: subscriptionManager
+            )
+        } else {
+            ShareProfileUnavailableView()
+        }
+    }
+}
+
+private struct ShareProfilePageContent: View {
+    let profileID: UUID
     @StateObject private var viewModel: ShareProfilePageViewModel
     @State private var participantPendingRemoval: ShareParticipantItem?
     @State private var isConfirmingStopShare = false
 
-    init(profileID: UUID) {
+    init(profileID: UUID,
+         modelContainer: ModelContainer,
+         metadataStore: ShareMetadataStore,
+         subscriptionManager: SharedScopeSubscriptionManager,
+         containerIdentifier: String = "iCloud.com.prioritybit.babynanny") {
         self.profileID = profileID
-        _viewModel = StateObject(wrappedValue: ShareProfilePageViewModel(profileID: profileID))
+        _viewModel = StateObject(wrappedValue: ShareProfilePageViewModel(
+            profileID: profileID,
+            modelContainer: modelContainer,
+            metadataStore: metadataStore,
+            subscriptionManager: subscriptionManager,
+            containerIdentifier: containerIdentifier
+        ))
     }
 
     var body: some View {
@@ -90,6 +124,7 @@ struct ShareProfilePage: View {
             } label: {
                 Text(ShareStrings.stopSharingButton)
             }
+            .disabled(viewModel.isStoppingShare)
             .postHogLabel("shareData.confirmStopSharingButton")
             .phCaptureTap(
                 event: "shareData_confirmStopSharing_button",
@@ -182,6 +217,52 @@ struct ShareProfilePage: View {
     }
 }
 
+private struct ShareProfileUnavailableView: View {
+    @Environment(\.openURL) private var openURL
+    @EnvironmentObject private var cloudStatusController: CloudAccountStatusController
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "icloud.slash")
+                .font(.system(size: 56, weight: .medium))
+                .foregroundStyle(.secondary)
+            Text(L10n.ShareData.Unavailable.title)
+                .font(.title2)
+                .fontWeight(.semibold)
+                .multilineTextAlignment(.center)
+            Text(L10n.ShareData.Unavailable.message)
+                .font(.body)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+            Button {
+                Analytics.capture("shareProfile_open_settings_button", properties: ["status": cloudStatusController.status.analyticsValue])
+                if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                    openURL(settingsURL)
+                }
+            } label: {
+                Text(L10n.ShareData.Unavailable.openSettings)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .postHogLabel("shareData.unavailable.openSettings")
+            Button {
+                Analytics.capture("shareProfile_retry_cloud_button", properties: ["status": cloudStatusController.status.analyticsValue])
+                cloudStatusController.refreshAccountStatus(force: true)
+            } label: {
+                Text(L10n.ShareData.Unavailable.retry)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .postHogLabel("shareData.unavailable.retry")
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle(L10n.ShareData.title)
+    }
+}
+
 // MARK: - View model
 
 @MainActor
@@ -214,17 +295,16 @@ private final class ShareProfilePageViewModel: ObservableObject {
     }()
 
     init(profileID: UUID,
-         modelContainer: ModelContainer? = nil,
-         containerIdentifier: String = "iCloud.com.prioritybit.babynanny") {
+         modelContainer: ModelContainer,
+         metadataStore: ShareMetadataStore,
+         subscriptionManager: SharedScopeSubscriptionManager,
+         containerIdentifier: String) {
         self.profileID = profileID
-        let dataStack = AppDataStack.shared
-        let resolvedModelContainer = modelContainer ?? dataStack.modelContainer
-        let metadataStore = dataStack.shareMetadataStore
+        self.modelContainer = modelContainer
         self.metadataStore = metadataStore
-        self.sharingManager = CloudKitSharingManager(modelContainer: resolvedModelContainer, metadataStore: metadataStore)
+        self.sharingManager = CloudKitSharingManager(modelContainer: modelContainer, metadataStore: metadataStore)
+        self.subscriptionManager = subscriptionManager
         self.container = CKContainer(identifier: containerIdentifier)
-        self.subscriptionManager = dataStack.sharedSubscriptionManager
-        self.modelContainer = resolvedModelContainer
         configurePushHandling()
     }
 
@@ -841,4 +921,7 @@ extension Notification.Name {
         ShareProfilePage(profileID: UUID())
     }
     .environmentObject(ProfileStore(initialProfiles: []))
+    .environmentObject(AppDataStack.preview())
+    .environmentObject(CloudAccountStatusController.previewController())
 }
+

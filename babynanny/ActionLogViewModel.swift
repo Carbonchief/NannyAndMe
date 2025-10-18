@@ -28,11 +28,11 @@ final class ActionLogStore: ObservableObject {
     init(modelContext: ModelContext,
          reminderScheduler: ReminderScheduling? = nil,
          notificationCenter: NotificationCenter = .default,
-         dataStack: AppDataStack? = nil) {
+         dataStack: AppDataStack) {
         self.modelContext = modelContext
         self.reminderScheduler = reminderScheduler
         self.notificationCenter = notificationCenter
-        self.dataStack = dataStack ?? AppDataStack.shared
+        self.dataStack = dataStack
         self.observedContainerIdentifier = ObjectIdentifier(modelContext.container)
         scheduleReminders()
         observeModelContextChanges()
@@ -40,22 +40,8 @@ final class ActionLogStore: ObservableObject {
     }
 
     deinit {
-        if isObservingSyncCoordinator {
-            let coordinator = dataStack.syncCoordinator
-            let observer: SyncCoordinator.Observer = self
-            Task { @MainActor in
-                coordinator.removeObserver(observer)
-            }
-        }
         stateReloadTask?.cancel()
-        let observers = contextObservers
-        let center = notificationCenter
-        guard observers.isEmpty == false else { return }
-        Task { @MainActor in
-            for token in observers {
-                center.removeObserver(token)
-            }
-        }
+        contextObservers.removeAll()
     }
 
     private func notifyChange() {
@@ -67,6 +53,17 @@ final class ActionLogStore: ObservableObject {
         scheduleReminders()
         refreshDurationActivityOnLaunch()
         synchronizeMetadataFromModelContext()
+    }
+
+    func refreshSyncObservation() {
+        if dataStack.cloudSyncEnabled {
+            if isObservingSyncCoordinator == false {
+                observeSyncCoordinatorIfNeeded()
+            }
+        } else if isObservingSyncCoordinator {
+            dataStack.syncCoordinator.removeObserver(self)
+            isObservingSyncCoordinator = false
+        }
     }
 
     func synchronizeProfileMetadata(_ profiles: [ChildProfile]) {
@@ -323,9 +320,8 @@ final class ActionLogStore: ObservableObject {
     }
 
     static func previewStore(profiles: [UUID: ProfileActionState]) -> ActionLogStore {
-        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try! ModelContainer(for: ProfileActionStateModel.self, BabyActionModel.self, configurations: configuration)
-        let context = container.mainContext
+        let dataStack = AppDataStack.preview()
+        let context = dataStack.modelContainer.mainContext
 
         for (profileID, state) in profiles {
             let model = ProfileActionStateModel(profileID: profileID)
@@ -345,8 +341,7 @@ final class ActionLogStore: ObservableObject {
                 context.insert(modelAction)
             }
         }
-
-        return ActionLogStore(modelContext: context)
+        return ActionLogStore(modelContext: context, dataStack: dataStack)
     }
 }
 
@@ -597,6 +592,7 @@ private extension ActionLogStore {
 private extension ActionLogStore {
     func observeSyncCoordinatorIfNeeded() {
         let coordinator = dataStack.syncCoordinator
+        guard dataStack.cloudSyncEnabled else { return }
         guard coordinator.sharesModelContainer(with: modelContext) else { return }
         coordinator.addObserver(self)
         isObservingSyncCoordinator = true
