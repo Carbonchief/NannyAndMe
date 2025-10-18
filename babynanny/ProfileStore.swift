@@ -344,6 +344,7 @@ final class ProfileStore: ObservableObject {
 
         var newState = state
         var didChange = false
+        var insertedProfiles: [ChildProfile] = []
 
         for update in updates {
             guard let index = newState.profiles.firstIndex(where: { $0.id == update.id }) else { continue }
@@ -366,6 +367,26 @@ final class ProfileStore: ObservableObject {
             }
 
             newState.profiles[index] = profile
+        }
+
+        let existingIDs = Set(newState.profiles.map { $0.id })
+        for update in updates where existingIDs.contains(update.id) == false {
+            let trimmedName = update.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let birthDate = update.birthDate ?? Date()
+            var profile = ChildProfile(id: update.id,
+                                       name: trimmedName,
+                                       birthDate: birthDate,
+                                       imageData: update.imageData)
+            profile.normalizeReminderPreferences()
+            insertedProfiles.append(profile)
+        }
+
+        if insertedProfiles.isEmpty == false {
+            newState.profiles.append(contentsOf: insertedProfiles)
+            if newState.activeProfileID == nil {
+                newState.activeProfileID = insertedProfiles.first?.id ?? newState.profiles.first?.id
+            }
+            didChange = true
         }
 
         if didChange {

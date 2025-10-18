@@ -14,6 +14,7 @@ final class ActionLogStore: ObservableObject {
     private let observedContainerIdentifier: ObjectIdentifier
     private var contextObservers: [NSObjectProtocol] = []
     private let conflictResolver = ActionConflictResolver()
+    private var isObservingSyncCoordinator = false
 
     struct MergeSummary: Equatable {
         var added: Int
@@ -33,9 +34,13 @@ final class ActionLogStore: ObservableObject {
         self.observedContainerIdentifier = ObjectIdentifier(modelContext.container)
         scheduleReminders()
         observeModelContextChanges()
+        observeSyncCoordinatorIfNeeded()
     }
 
     deinit {
+        if isObservingSyncCoordinator {
+            dataStack.syncCoordinator.removeObserver(self)
+        }
         let observers = contextObservers
         let center = notificationCenter
         guard observers.isEmpty == false else { return }
@@ -506,6 +511,10 @@ private extension ActionLogStore {
     }
 
     private func handleModelContextChange() {
+        applyModelContextChanges()
+    }
+
+    fileprivate func applyModelContextChanges() {
         objectWillChange.send()
         synchronizeMetadataFromModelContext()
         refreshDurationActivityForAllProfiles()
@@ -550,4 +559,24 @@ private extension ActionLogStore {
         }
     }
 
+}
+
+private extension ActionLogStore {
+    func observeSyncCoordinatorIfNeeded() {
+        let coordinator = dataStack.syncCoordinator
+        guard coordinator.sharesModelContainer(with: modelContext) else { return }
+        coordinator.addObserver(self)
+        isObservingSyncCoordinator = true
+    }
+
+    func refreshAfterRemoteMerge() {
+        applyModelContextChanges()
+    }
+}
+
+extension ActionLogStore: SyncCoordinator.Observer {
+    func syncCoordinator(_ coordinator: SyncCoordinator,
+                         didMergeChangesFor reason: SyncCoordinator.SyncReason) {
+        refreshAfterRemoteMerge()
+    }
 }
