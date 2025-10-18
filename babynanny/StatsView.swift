@@ -14,6 +14,7 @@ struct StatsView: View {
     @EnvironmentObject private var actionStore: ActionLogStore
     @State private var selectedCategory: BabyActionCategory?
     @State private var shareItem: ChartShareItem?
+    @State private var shareContentWidth: CGFloat = 0
 
     var body: some View {
         let state = currentState
@@ -31,6 +32,9 @@ struct StatsView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(24)
+        }
+        .onPreferenceChange(ChartShareContentWidthPreferenceKey.self) { width in
+            shareContentWidth = width
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .phScreen("stats_screen_statsView", properties: ["tab": "stats"])
@@ -165,6 +169,7 @@ struct StatsView: View {
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(widthTracker())
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(Color(.systemBackground))
@@ -256,6 +261,7 @@ struct StatsView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(widthTracker())
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(Color(.systemBackground))
@@ -373,11 +379,15 @@ struct StatsView: View {
                                   subtitle: String?,
                                   chart: AnyView,
                                   identifier: String) {
-        let snapshot = ChartShareSnapshot(title: title, subtitle: subtitle) {
+        let targetWidth = shareContentWidth > 0 ? shareContentWidth : nil
+        let snapshot = ChartShareSnapshot(title: title, subtitle: subtitle, targetWidth: targetWidth) {
             chart
         }
 
         let renderer = ImageRenderer(content: snapshot.environment(\.colorScheme, .light))
+        if let targetWidth {
+            renderer.proposedSize = ProposedViewSize(width: targetWidth + 48, height: nil)
+        }
         renderer.scale = UIScreen.main.scale
 
         guard let image = renderer.uiImage else {
@@ -790,11 +800,13 @@ private struct ChartShareSnapshot<Content: View>: View {
     let title: String
     let subtitle: String?
     let content: Content
+    let targetWidth: CGFloat?
 
-    init(title: String, subtitle: String? = nil, @ViewBuilder content: () -> Content) {
+    init(title: String, subtitle: String? = nil, targetWidth: CGFloat? = nil, @ViewBuilder content: () -> Content) {
         self.title = title
         self.subtitle = subtitle
         self.content = content()
+        self.targetWidth = targetWidth
     }
 
     var body: some View {
@@ -813,6 +825,7 @@ private struct ChartShareSnapshot<Content: View>: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(width: targetWidth, alignment: .leading)
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: Color.black.opacity(0.08), radius: 18, x: 0, y: 8)
@@ -828,6 +841,25 @@ private struct ChartShareSnapshot<Content: View>: View {
         }
         .padding(24)
         .background(Color(.systemGroupedBackground))
+    }
+}
+
+private extension StatsView {
+    @ViewBuilder
+    func widthTracker() -> some View {
+        GeometryReader { proxy in
+            Color.clear
+                .preference(key: ChartShareContentWidthPreferenceKey.self,
+                            value: proxy.size.width)
+        }
+    }
+}
+
+private struct ChartShareContentWidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
