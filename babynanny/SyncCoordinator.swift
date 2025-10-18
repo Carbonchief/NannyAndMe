@@ -5,6 +5,10 @@ import SwiftData
 
 @MainActor
 final class SyncCoordinator: ObservableObject {
+    protocol Observer: AnyObject {
+        func syncCoordinator(_ coordinator: SyncCoordinator,
+                              didMergeChangesFor reason: SyncReason)
+    }
     enum SyncReason: String {
         case appLaunch
         case foregroundRefresh
@@ -38,6 +42,7 @@ final class SyncCoordinator: ObservableObject {
     private var processedNotificationIDs: [String: Date] = [:]
     private var pendingSyncTask: Task<Void, Never>?
     private var isPerformingSync = false
+    private let observers = NSHashTable<AnyObject>.weakObjects()
 
     init(sharedContext: ModelContext,
          cloudContainerIdentifier: String = "iCloud.com.prioritybit.babynanny",
@@ -88,6 +93,18 @@ final class SyncCoordinator: ObservableObject {
         }
     }
 
+    func addObserver(_ observer: Observer) {
+        observers.add(observer)
+    }
+
+    func removeObserver(_ observer: Observer) {
+        observers.remove(observer)
+    }
+
+    func sharesModelContainer(with context: ModelContext) -> Bool {
+        ObjectIdentifier(context.container) == ObjectIdentifier(sharedContext.container)
+    }
+
     private func performSync(reason: SyncReason) async {
         guard isPerformingSync == false else {
             syncLogger.debug("Skipping sync because another sync is already running")
@@ -99,6 +116,8 @@ final class SyncCoordinator: ObservableObject {
 
         do {
             try fetchLatestChangesFromStore()
+            try persistMergedChangesIfNeeded()
+            notifyObserversDidMergeChanges(for: reason)
             diagnostics.lastSyncFinishedAt = Date()
             diagnostics.lastSyncError = nil
             diagnostics.pendingChangeCount = sharedContext.hasChanges ? 1 : 0
@@ -106,6 +125,16 @@ final class SyncCoordinator: ObservableObject {
         } catch {
             diagnostics.lastSyncError = error.localizedDescription
             cloudLogger.error("Failed to merge CloudKit changes: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func persistMergedChangesIfNeeded() throws {
+        guard sharedContext.hasChanges else { return }
+        do {
+            try sharedContext.save()
+            syncLogger.debug("Persisted merged SwiftData changes after fetch")
+        } catch {
+            throw error
         }
     }
 
@@ -152,6 +181,12 @@ final class SyncCoordinator: ObservableObject {
 
         let actionsDescriptor = FetchDescriptor<BabyActionModel>()
         _ = try sharedContext.fetch(actionsDescriptor)
+    }
+
+    private func notifyObserversDidMergeChanges(for reason: SyncReason) {
+        for case let observer as Observer in observers.allObjects {
+            observer.syncCoordinator(self, didMergeChangesFor: reason)
+        }
     }
 }
 

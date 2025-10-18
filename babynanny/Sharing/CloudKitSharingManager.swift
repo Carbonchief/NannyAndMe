@@ -10,6 +10,7 @@ final class CloudKitSharingManager {
     enum SharingError: Error {
         case profileNotFound
         case participantNotFound
+        case shareUnavailable
     }
 
     private let modelContainer: ModelContainer
@@ -29,24 +30,40 @@ final class CloudKitSharingManager {
     // MARK: - Public API
 
     func ensureShare(for profileID: UUID) async throws -> CKShare {
+        if let cached = await metadataStore.metadata(for: profileID) {
+            do {
+                let share = try await fetchShare(with: cached.shareRecordID)
+                await persistMetadataIfNeeded(for: share,
+                                             profileID: profileID,
+                                             rootRecordID: cached.rootRecordID)
+                return share
+            } catch {
+                logger.error("Failed to load cached share metadata: \(error.localizedDescription, privacy: .public)")
+                await metadataStore.remove(profileID: profileID)
+            }
+        }
+
         let context = ModelContext(modelContainer)
         context.autosaveEnabled = false
         guard let profile = try fetchProfile(in: context, id: profileID) else {
             throw SharingError.profileNotFound
         }
 
-        if let existing = try context.existingShare(for: profile) {
-            await persistMetadataIfNeeded(for: existing, profileID: profileID)
-            return existing
+        let rootRecord = try await fetchRootRecord(for: profileID)
+        if let shareReference = rootRecord.share {
+            let share = try await fetchShare(with: shareReference.recordID)
+            await persistMetadataIfNeeded(for: share,
+                                         profileID: profileID,
+                                         rootRecordID: rootRecord.recordID)
+            return share
         }
 
-        let share = try context.share(profile)
-        share[CKShare.SystemFieldKey.title] = profile.name as CKRecordValue?
-        if let data = profile.imageData {
-            share[CKShare.SystemFieldKey.thumbnailImageData] = data as CKRecordValue
-        }
-        try context.save()
-        await persistMetadataIfNeeded(for: share, profileID: profileID)
+        let share = try await createShare(rootRecord: rootRecord,
+                                          title: profile.name,
+                                          thumbnailData: profile.imageData)
+        await persistMetadataIfNeeded(for: share,
+                                     profileID: profileID,
+                                     rootRecordID: rootRecord.recordID)
         logger.log("Created share for profile \(profileID.uuidString, privacy: .public)")
         return share
     }
@@ -112,22 +129,31 @@ final class CloudKitSharingManager {
         return try context.fetch(descriptor).first
     }
 
-    private func persistMetadataIfNeeded(for share: CKShare, profileID: UUID) async {
+    private func persistMetadataIfNeeded(for share: CKShare,
+                                         profileID: UUID,
+                                         rootRecordID: CKRecord.ID?) async {
         let zoneID = share.recordID.zoneID
-        let rootRecordID = share.rootRecordID ?? CKRecord.ID(recordName: "profile-\(profileID.uuidString)", zoneID: zoneID)
+        let resolvedRootRecordID = await resolveRootRecordID(for: share,
+                                                             profileID: profileID,
+                                                             fallbackZoneID: zoneID,
+                                                             providedRootRecordID: rootRecordID)
         let metadata = ShareMetadataStore.ShareMetadata(
             profileID: profileID,
             zoneID: zoneID,
-            rootRecordID: rootRecordID,
+            rootRecordID: resolvedRootRecordID,
             shareRecordID: share.recordID,
             isShared: true
         )
         await metadataStore.upsert(metadata)
     }
 
-    private func save(share: CKShare) async throws {
+    private func save(share: CKShare, rootRecord: CKRecord? = nil) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            let operation = CKModifyRecordsOperation(recordsToSave: [share], recordIDsToDelete: nil)
+            var records: [CKRecord] = [share]
+            if let rootRecord {
+                records.append(rootRecord)
+            }
+            let operation = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: nil)
             operation.modifyRecordsResultBlock = { result in
                 switch result {
                 case .success:
@@ -138,6 +164,103 @@ final class CloudKitSharingManager {
             }
             privateDatabase.add(operation)
         }
+    }
+
+    private func fetchShare(with recordID: CKRecord.ID) async throws -> CKShare {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKShare, Error>) in
+            privateDatabase.fetch(withRecordID: recordID) { record, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                guard let share = record as? CKShare else {
+                    continuation.resume(throwing: SharingError.shareUnavailable)
+                    return
+                }
+                continuation.resume(returning: share)
+            }
+        }
+    }
+
+    private func fetchRootRecord(for profileID: UUID) async throws -> CKRecord {
+        let recordName = "profile-\(profileID.uuidString)"
+        let zones = try await fetchAllZones()
+        for zone in zones {
+            let recordID = CKRecord.ID(recordName: recordName, zoneID: zone.zoneID)
+            if let record = try? await fetchRecord(with: recordID) {
+                return record
+            }
+        }
+        throw SharingError.profileNotFound
+    }
+
+    private func fetchAllZones() async throws -> [CKRecordZone] {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[CKRecordZone], Error>) in
+            privateDatabase.fetchAllRecordZones { (fetchedZones: [CKRecordZone]?, error) in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                var zones = fetchedZones ?? []
+                let defaultZone = CKRecordZone.default()
+                if zones.contains(where: { $0.zoneID == defaultZone.zoneID }) == false {
+                    zones.append(defaultZone)
+                }
+                continuation.resume(returning: zones)
+            }
+        }
+    }
+
+    private func fetchRecord(with recordID: CKRecord.ID) async throws -> CKRecord {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKRecord, Error>) in
+            privateDatabase.fetch(withRecordID: recordID) { record, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                if let record {
+                    continuation.resume(returning: record)
+                } else {
+                    continuation.resume(throwing: SharingError.profileNotFound)
+                }
+            }
+        }
+    }
+
+    private func createShare(rootRecord: CKRecord,
+                             title: String?,
+                             thumbnailData: Data?) async throws -> CKShare {
+        let share = CKShare(rootRecord: rootRecord)
+        share[CKShare.SystemFieldKey.title] = title as CKRecordValue?
+        if let thumbnailData {
+            share[CKShare.SystemFieldKey.thumbnailImageData] = thumbnailData as CKRecordValue
+        }
+        do {
+            try await save(share: share, rootRecord: rootRecord)
+        } catch {
+            throw error
+        }
+        return share
+    }
+
+    private func resolveRootRecordID(for share: CKShare,
+                                     profileID: UUID,
+                                     fallbackZoneID: CKRecordZone.ID,
+                                     providedRootRecordID: CKRecord.ID?) async -> CKRecord.ID {
+        if let providedRootRecordID {
+            return providedRootRecordID
+        }
+        if let cached = await metadataStore.metadata(for: profileID) {
+            return cached.rootRecordID
+        }
+        if let extracted = fallbackRootRecordID(from: share) {
+            return extracted
+        }
+        return CKRecord.ID(recordName: "profile-\(profileID.uuidString)", zoneID: fallbackZoneID)
+    }
+
+    private func fallbackRootRecordID(from share: CKShare) -> CKRecord.ID? {
+        (share as NSObject).value(forKey: "rootRecordID") as? CKRecord.ID
     }
 }
 

@@ -11,6 +11,7 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
+    @EnvironmentObject private var syncStatusViewModel: SyncStatusViewModel
     @State private var presentedCategory: BabyActionCategory?
     @State private var editingAction: BabyActionSnapshot?
     @State private var pendingStartAction: PendingStartAction?
@@ -74,6 +75,10 @@ struct HomeView: View {
             .padding(.top, 8)
             .padding(.bottom, 24)
         }
+        .safeAreaInset(edge: .bottom) {
+            syncStatusFooter
+        }
+        .animation(.easeInOut(duration: 0.25), value: syncStatusViewModel.state)
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .phScreen("home_screen_homeView", properties: ["tab": "home"])
         .sheet(item: $presentedCategory, onDismiss: {
@@ -317,6 +322,48 @@ struct HomeView: View {
         actionStore.state(for: activeProfileID)
     }
 
+    @ViewBuilder
+    private var syncStatusFooter: some View {
+        if let content = syncStatusFooterContent {
+            SyncStatusFooterMessage(content: content)
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 12)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
+    private var syncStatusFooterContent: SyncStatusFooterContent? {
+        switch syncStatusViewModel.state {
+        case .finished:
+            return nil
+        case .failed:
+            return SyncStatusFooterContent(
+                title: L10n.Sync.initialSyncFailed,
+                detail: syncStatusViewModel.lastError,
+                isError: true
+            )
+        case .exporting:
+            return SyncStatusFooterContent(
+                title: L10n.Sync.preparingUpdates,
+                detail: nil,
+                isError: false
+            )
+        case .importing(let progress):
+            return SyncStatusFooterContent(
+                title: L10n.Sync.loadingInitialData,
+                detail: progress.map { L10n.Sync.progressPercentage($0 * 100) },
+                isError: false
+            )
+        case .idle, .waiting:
+            return SyncStatusFooterContent(
+                title: L10n.Sync.loadingInitialData,
+                detail: nil,
+                isError: false
+            )
+        }
+    }
+
     private func interruptedActionTitles(for category: BabyActionCategory) -> [String] {
         guard !category.isInstant else { return [] }
 
@@ -339,6 +386,50 @@ struct HomeView: View {
         case .presentCategorySheet:
             categoryClearedForSheet = pending.category
             presentedCategory = pending.category
+        }
+    }
+}
+
+private extension HomeView {
+    struct SyncStatusFooterContent {
+        let title: String
+        let detail: String?
+        let isError: Bool
+    }
+
+    struct SyncStatusFooterMessage: View {
+        let content: SyncStatusFooterContent
+
+        var body: some View {
+            VStack(spacing: content.detail?.isEmpty == false ? 6 : 0) {
+                Text(content.title)
+                    .font(.footnote)
+                    .fontWeight(.semibold)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .foregroundStyle(content.isError ? Color.red : Color.primary)
+
+                if let detail = content.detail, detail.isEmpty == false {
+                    Text(detail)
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .foregroundStyle(content.isError ? Color.red.opacity(0.8) : Color.secondary)
+                }
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity)
+            .background(
+                .ultraThinMaterial,
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(content.isError ? Color.red.opacity(0.4) : Color.clear, lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.06), radius: 16, x: 0, y: 6)
+            .accessibilityElement(children: .combine)
         }
     }
 }

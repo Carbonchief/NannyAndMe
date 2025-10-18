@@ -2,6 +2,39 @@ import XCTest
 @testable import babynanny
 
 final class SyncStatusViewModelTests: XCTestCase {
+    func testIdleEventCompletesInitialImport() async throws {
+        let container = AppDataStack.makeModelContainer(inMemory: true)
+        let event = MockEvent(
+            phase: .init(description: "CloudKitSyncMonitor.Phase.idle"),
+            error: nil,
+            work: .init(models: [
+                .init(description: "Model(modelName: Profile)"),
+                .init(description: "Model(modelName: BabyAction)")
+            ])
+        )
+        let stream = AsyncStream<Any> { continuation in
+            continuation.yield(event)
+            continuation.finish()
+        }
+
+        let viewModel = await MainActor.run {
+            SyncStatusViewModel(modelContainer: container,
+                                 eventStream: stream)
+        }
+
+        try? await Task.sleep(for: .milliseconds(50))
+
+        let isComplete = await MainActor.run { viewModel.isInitialImportComplete }
+        XCTAssertTrue(isComplete)
+
+        let state = await MainActor.run { viewModel.state }
+        if case .finished = state {
+            // expected path
+        } else {
+            XCTFail("Expected finished state, got \(state)")
+        }
+    }
+
     func testImportEventParsingExtractsProgressAndModels() {
         let event = MockEvent(
             phase: .init(description: "CloudKitSyncMonitor.Phase.import(fractionCompleted: 0.5)"),
@@ -56,6 +89,20 @@ final class SyncStatusViewModelTests: XCTestCase {
         XCTAssertTrue(summary.isWaiting)
         XCTAssertNil(summary.progress)
     }
+
+    func testModelParsingFallsBackToEventDescription() {
+        let event = AlternateMockEvent(
+            phase: .init(description: "CloudKitSyncMonitor.Phase.idle"),
+            error: nil,
+            work: .init(payload: "Model(modelName: \"Profile\"), Model(modelName: \"BabyAction\")")
+        )
+
+        let summary = SyncMonitorEventSummary(event: event)
+
+        XCTAssertTrue(summary.isIdle)
+        XCTAssertEqual(Set(summary.modelNames), Set(["Profile", "BabyAction"]))
+    }
+
 }
 
 private extension SyncStatusViewModelTests {
@@ -79,5 +126,15 @@ private extension SyncStatusViewModelTests {
         var phase: MockPhase
         var error: Error?
         var work: MockWork
+    }
+
+    struct AlternateMockWork {
+        var payload: String
+    }
+
+    struct AlternateMockEvent {
+        var phase: MockPhase
+        var error: Error?
+        var work: AlternateMockWork
     }
 }

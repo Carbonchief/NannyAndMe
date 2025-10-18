@@ -20,6 +20,7 @@ struct SyncMonitorEventSummary {
         var capturedProgress: Double?
         var capturedModels: [String] = []
         var capturedError: String?
+        let eventDescription = String(describing: event)
 
         let mirror = Mirror(reflecting: event)
         for child in mirror.children {
@@ -49,12 +50,16 @@ struct SyncMonitorEventSummary {
             }
         }
 
+        if capturedModels.isEmpty {
+            capturedModels = Self.modelNames(in: eventDescription)
+        }
+
         isIdle = idle
         isImporting = importing
         isExporting = exporting
         isWaiting = waiting
         progress = capturedProgress
-        modelNames = capturedModels
+        modelNames = Self.deduplicatedModelNames(from: capturedModels)
         errorDescription = capturedError
     }
 }
@@ -83,5 +88,28 @@ private extension SyncMonitorEventSummary {
             }
         }
         return []
+    }
+
+    static func modelNames(in description: String) -> [String] {
+        guard let regex = try? NSRegularExpression(pattern: "modelName\\s*[:=]\\s*\"?([A-Za-z0-9_]+)\"?",
+                                                   options: .caseInsensitive) else {
+            return []
+        }
+        let range = NSRange(description.startIndex..<description.endIndex, in: description)
+        let matches = regex.matches(in: description, options: [], range: range)
+        return matches.compactMap { match in
+            guard let nameRange = Range(match.range(at: 1), in: description) else { return nil }
+            return String(description[nameRange])
+        }
+    }
+
+    static func deduplicatedModelNames(from names: [String]) -> [String] {
+        var seen: Set<String> = []
+        var ordered: [String] = []
+        for name in names where seen.contains(name) == false {
+            seen.insert(name)
+            ordered.append(name)
+        }
+        return ordered
     }
 }

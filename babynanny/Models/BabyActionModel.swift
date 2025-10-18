@@ -56,7 +56,7 @@ enum BabyActionCategory: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-struct BabyActionSnapshot: Identifiable, Codable, Equatable {
+struct BabyActionSnapshot: Identifiable, Codable, Equatable, Sendable {
     enum DiaperType: String, CaseIterable, Identifiable, Codable {
         case pee
         case poo
@@ -339,7 +339,7 @@ extension BabyActionSnapshot {
     }
 }
 
-struct ProfileActionState: Codable {
+struct ProfileActionState: Codable, Sendable {
     var activeActions: [BabyActionCategory: BabyActionSnapshot]
     var history: [BabyActionSnapshot]
 
@@ -403,61 +403,100 @@ struct ProfileActionState: Codable {
 @Model
 final class Profile {
     /// Stable identifier used for CloudKit mirroring and SwiftData uniqueness.
-    @Attribute(.unique)
-    var id: UUID
+    var profileID: UUID = UUID()
     var name: String?
     var birthDate: Date?
     @Attribute(.externalStorage)
     var imageData: Data?
     @Relationship(deleteRule: .cascade)
-    var actions: [BabyAction] = []
+    var storedActions: [BabyAction]?
 
     init(profileID: UUID = UUID(),
          name: String? = nil,
          birthDate: Date? = nil,
          imageData: Data? = nil,
          actions: [BabyAction] = []) {
-        self.id = profileID
+        self.profileID = profileID
         self.name = name
         self.birthDate = birthDate?.normalizedToUTC()
         self.imageData = imageData
-        self.actions = actions
+        self.storedActions = actions
         ensureActionOwnership()
     }
 
     var resolvedProfileID: UUID {
-        get { id }
-        set { id = newValue }
+        get { profileID }
+        set { profileID = newValue }
     }
 
-    var profileID: UUID {
-        get { id }
-        set { id = newValue }
+    var actions: [BabyAction] {
+        get { storedActions ?? [] }
+        set {
+            storedActions = newValue
+            ensureActionOwnership()
+        }
     }
 
     func ensureActionOwnership() {
-        for action in actions where action.profile == nil {
-            action.profile = self
+        guard var currentActions = storedActions else { return }
+        var needsUpdate = false
+        for index in currentActions.indices where currentActions[index].profile == nil {
+            currentActions[index].profile = self
+            needsUpdate = true
+        }
+        if needsUpdate {
+            storedActions = currentActions
         }
     }
 }
 
 typealias ProfileActionStateModel = Profile
 
+extension ProfileActionStateModel {
+    func makeActionState() -> ProfileActionState {
+        ensureActionOwnership()
+
+        var activeActions: [BabyActionCategory: BabyActionSnapshot] = [:]
+        var history: [BabyActionSnapshot] = []
+        var seenIDs = Set<UUID>()
+
+        for actionModel in actions {
+            var action = actionModel.asSnapshot().withValidatedDates()
+            guard seenIDs.insert(action.id).inserted else { continue }
+
+            if action.endDate == nil {
+                if action.category.isInstant {
+                    action.endDate = action.startDate
+                    history.append(action)
+                } else {
+                    if let existing = activeActions[action.category], existing.startDate > action.startDate {
+                        continue
+                    }
+                    activeActions[action.category] = action
+                }
+            } else {
+                history.append(action)
+            }
+        }
+
+        history.sort { $0.startDate > $1.startDate }
+        return ProfileActionState(activeActions: activeActions, history: history)
+    }
+}
+
 @Model
 final class BabyAction {
     /// Stable identifier synced with CloudKit to keep actions unique across devices.
-    @Attribute(.unique)
-    var id: UUID
-    private var categoryRawValue: String
-    private var startDateRawValue: Date
+    var id: UUID = UUID()
+    private var categoryRawValue: String = BabyActionCategory.sleep.rawValue
+    var startDateRawValue: Date = Date().normalizedToUTC()
     private var endDateRawValue: Date?
     var diaperTypeRawValue: String?
     var feedingTypeRawValue: String?
     var bottleTypeRawValue: String?
     var bottleVolume: Int?
-    private var updatedAtRawValue: Date
-    @Relationship(deleteRule: .nullify, inverse: \Profile.actions)
+    private var updatedAtRawValue: Date = Date()
+    @Relationship(deleteRule: .nullify, inverse: \Profile.storedActions)
     var profile: Profile?
 
     init(id: UUID = UUID(),

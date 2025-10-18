@@ -216,7 +216,6 @@ private extension SyncDiagnosticsView {
     func forceSync() {
         guard forceSyncInFlight == false else { return }
         forceSyncInFlight = true
-        statusViewModel.resetInitialImportTimeout()
         coordinator.requestSyncIfNeeded(reason: .userInitiated)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             forceSyncInFlight = false
@@ -277,16 +276,20 @@ private extension SyncDiagnosticsView {
         repeat {
             if let currentCursor = cursor {
                 let (matchResults, newCursor) = try await database.records(continuingMatchFrom: currentCursor)
-                total += matchResults.values.reduce(into: 0) { partialResult, result in
+                let successes = matchResults.reduce(into: 0) { partialResult, element in
+                    let (_, result) = element
                     if case .success = result { partialResult += 1 }
                 }
+                total += successes
                 cursor = newCursor
             } else {
                 let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
                 let (matchResults, newCursor) = try await database.records(matching: query)
-                total += matchResults.values.reduce(into: 0) { partialResult, result in
+                let successes = matchResults.reduce(into: 0) { partialResult, element in
+                    let (_, result) = element
                     if case .success = result { partialResult += 1 }
                 }
+                total += successes
                 cursor = newCursor
             }
         } while cursor != nil

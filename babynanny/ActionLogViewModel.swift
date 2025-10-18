@@ -14,6 +14,9 @@ final class ActionLogStore: ObservableObject {
     private let observedContainerIdentifier: ObjectIdentifier
     private var contextObservers: [NSObjectProtocol] = []
     private let conflictResolver = ActionConflictResolver()
+    private var isObservingSyncCoordinator = false
+    private var cachedStates: [UUID: ProfileActionState] = [:]
+    private var stateReloadTask: Task<Void, Never>?
 
     struct MergeSummary: Equatable {
         var added: Int
@@ -33,9 +36,18 @@ final class ActionLogStore: ObservableObject {
         self.observedContainerIdentifier = ObjectIdentifier(modelContext.container)
         scheduleReminders()
         observeModelContextChanges()
+        observeSyncCoordinatorIfNeeded()
     }
 
     deinit {
+        if isObservingSyncCoordinator {
+            let coordinator = dataStack.syncCoordinator
+            let observer: SyncCoordinator.Observer = self
+            Task { @MainActor in
+                coordinator.removeObserver(observer)
+            }
+        }
+        stateReloadTask?.cancel()
         let observers = contextObservers
         let center = notificationCenter
         guard observers.isEmpty == false else { return }
@@ -81,37 +93,17 @@ final class ActionLogStore: ObservableObject {
     }
 
     func state(for profileID: UUID) -> ProfileActionState {
+        if let cached = cachedStates[profileID] {
+            return cached
+        }
+
         guard let model = existingProfileModel(for: profileID) else {
             return ProfileActionState()
         }
 
-        var activeActions: [BabyActionCategory: BabyActionSnapshot] = [:]
-        var history: [BabyActionSnapshot] = []
-
-        var seenIDs = Set<UUID>()
-
-        for actionModel in model.actions {
-            let action = actionModel.asSnapshot().withValidatedDates()
-            guard seenIDs.contains(action.id) == false else { continue }
-            seenIDs.insert(action.id)
-            if action.endDate == nil {
-                if action.category.isInstant {
-                    var instant = action
-                    instant.endDate = instant.startDate
-                    history.append(instant)
-                } else {
-                    if let existing = activeActions[action.category], existing.startDate > action.startDate {
-                        continue
-                    }
-                    activeActions[action.category] = action
-                }
-            } else {
-                history.append(action)
-            }
-        }
-
-        history.sort { $0.startDate > $1.startDate }
-        return ProfileActionState(activeActions: activeActions, history: history)
+        let state = model.makeActionState()
+        cachedStates[profileID] = state
+        return state
     }
 
     func startAction(for profileID: UUID,
@@ -258,6 +250,7 @@ final class ActionLogStore: ObservableObject {
         notifyChange()
         guard let model = existingProfileModel(for: profileID) else { return }
         modelContext.delete(model)
+        cachedStates.removeValue(forKey: profileID)
         dataStack.saveIfNeeded(on: modelContext, reason: "remove-profile-data")
 
         refreshDurationActivity(for: profileID)
@@ -310,13 +303,23 @@ final class ActionLogStore: ObservableObject {
         return summary
     }
 
-    var actionStatesSnapshot: [UUID: ProfileActionState] {
-        let descriptor = FetchDescriptor<ProfileActionStateModel>()
-        let models = (try? modelContext.fetch(descriptor)) ?? []
-        return models.reduce(into: [UUID: ProfileActionState]()) { partialResult, model in
-            let identifier = model.resolvedProfileID
-            partialResult[identifier] = state(for: identifier)
+    func actionStatesSnapshot() async -> [UUID: ProfileActionState] {
+        let container = dataStack.modelContainer
+        struct SendableContainer: @unchecked Sendable {
+            let container: ModelContainer
         }
+        let sendableContainer = SendableContainer(container: container)
+
+        return await Task.detached(priority: .userInitiated) {
+            let context = ModelContext(sendableContainer.container)
+            context.autosaveEnabled = false
+            let descriptor = FetchDescriptor<ProfileActionStateModel>()
+            let models = (try? context.fetch(descriptor)) ?? []
+            return models.reduce(into: [UUID: ProfileActionState]()) { partialResult, model in
+                let identifier = model.resolvedProfileID
+                partialResult[identifier] = model.makeActionState()
+            }
+        }.value
     }
 
     static func previewStore(profiles: [UUID: ProfileActionState]) -> ActionLogStore {
@@ -357,8 +360,8 @@ private extension ActionLogStore {
             return nil
         }
 
-        if model.profileID == nil {
-            model.profileID = profileID
+        if model.resolvedProfileID != profileID {
+            model.resolvedProfileID = profileID
             dataStack.scheduleSaveIfNeeded(on: modelContext, reason: "assign-profile-id")
         }
 
@@ -423,6 +426,7 @@ private extension ActionLogStore {
             deletedActionIDs.append(identifier)
         }
 
+        cachedStates[profileID] = profileState
         dataStack.scheduleSaveIfNeeded(on: modelContext, reason: "persist-profile-state")
 
         scheduleReminders()
@@ -461,17 +465,19 @@ private extension ActionLogStore {
     func refreshDurationActivityOnLaunch() {
 #if canImport(ActivityKit)
         guard #available(iOS 17.0, *) else { return }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let snapshot = await self.actionStatesSnapshot()
+            if let runningProfileID = snapshot.first(where: { _, state in
+                state.activeActions.values.contains(where: { $0.endDate == nil && $0.category.isInstant == false })
+            })?.key {
+                self.refreshDurationActivity(for: runningProfileID)
+                return
+            }
 
-        let snapshot = actionStatesSnapshot
-        if let runningProfileID = snapshot.first(where: { _, state in
-            state.activeActions.values.contains(where: { $0.endDate == nil && $0.category.isInstant == false })
-        })?.key {
-            refreshDurationActivity(for: runningProfileID)
-            return
-        }
-
-        if let fallbackProfileID = profileStore?.activeProfileID ?? snapshot.keys.first {
-            refreshDurationActivity(for: fallbackProfileID)
+            if let fallbackProfileID = self.profileStore?.activeProfileID ?? snapshot.keys.first {
+                self.refreshDurationActivity(for: fallbackProfileID)
+            }
         }
 #endif
     }
@@ -482,7 +488,7 @@ private extension ActionLogStore {
                                                            queue: nil) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
-                self.handleModelContextChange()
+                self.handleModelContextChange(reloadFromPersistentStore: false)
             }
         }
         contextObservers.append(primaryToken)
@@ -492,7 +498,7 @@ private extension ActionLogStore {
                                                             queue: nil) { [weak self] notification in
             Task { @MainActor in
                 guard let self, self.shouldHandleExternalContextChange(from: notification) else { return }
-                self.handleModelContextChange()
+                self.handleModelContextChange(reloadFromPersistentStore: true)
             }
         }
         contextObservers.append(externalToken)
@@ -502,7 +508,7 @@ private extension ActionLogStore {
                                                           queue: nil) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
-                self.handleModelContextChange()
+                self.handleModelContextChange(reloadFromPersistentStore: true)
             }
         }
         contextObservers.append(remoteToken)
@@ -519,7 +525,29 @@ private extension ActionLogStore {
         return false
     }
 
-    private func handleModelContextChange() {
+    private func handleModelContextChange(reloadFromPersistentStore: Bool) {
+        if reloadFromPersistentStore {
+            reloadStateFromPersistentStore()
+        } else {
+            applyModelContextChanges(prefetchedStates: nil)
+        }
+    }
+
+    private func reloadStateFromPersistentStore() {
+        stateReloadTask?.cancel()
+        stateReloadTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.stateReloadTask = nil }
+            let snapshot = await self.actionStatesSnapshot()
+            guard Task.isCancelled == false else { return }
+            self.applyModelContextChanges(prefetchedStates: snapshot)
+        }
+    }
+
+    fileprivate func applyModelContextChanges(prefetchedStates: [UUID: ProfileActionState]? = nil) {
+        if let prefetchedStates {
+            cachedStates = prefetchedStates
+        }
         objectWillChange.send()
         synchronizeMetadataFromModelContext()
         refreshDurationActivityForAllProfiles()
@@ -555,11 +583,36 @@ private extension ActionLogStore {
     func scheduleReminders() {
         guard let reminderScheduler else { return }
         let profiles = profileStore?.profiles ?? []
-        let actionStates = actionStatesSnapshot
+        let scheduler = reminderScheduler
 
-        Task { [profiles, actionStates] in
-            await reminderScheduler.refreshReminders(for: profiles, actionStates: actionStates)
+        Task { @MainActor [weak self, profiles, scheduler] in
+            guard let self else { return }
+            let actionStates = await self.actionStatesSnapshot()
+            await scheduler.refreshReminders(for: profiles, actionStates: actionStates)
         }
     }
 
+}
+
+private extension ActionLogStore {
+    func observeSyncCoordinatorIfNeeded() {
+        let coordinator = dataStack.syncCoordinator
+        guard coordinator.sharesModelContainer(with: modelContext) else { return }
+        coordinator.addObserver(self)
+        isObservingSyncCoordinator = true
+    }
+
+    func refreshAfterSync(for reason: SyncCoordinator.SyncReason) {
+        // Remote pushes and foreground refreshes should hydrate the cache from disk so the
+        // UI matches a cold start. Other sync reasons currently share the same path because
+        // we do not maintain a separate incremental-update pipeline yet.
+        handleModelContextChange(reloadFromPersistentStore: true)
+    }
+}
+
+extension ActionLogStore: SyncCoordinator.Observer {
+    func syncCoordinator(_ coordinator: SyncCoordinator,
+                         didMergeChangesFor reason: SyncCoordinator.SyncReason) {
+        refreshAfterSync(for: reason)
+    }
 }

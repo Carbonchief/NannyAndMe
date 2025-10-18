@@ -402,6 +402,35 @@ struct ProfileStoreTests {
         #expect(updatedMetadata.birthDate == addedProfile.birthDate)
         #expect(updatedMetadata.imageData == nil)
     }
+
+    @Test
+    func appliesRemoteMetadataToCreateMissingProfiles() async {
+        let scheduler = MockReminderScheduler(authorizationResult: true)
+        let localProfile = ChildProfile(name: "Local", birthDate: Date())
+        let store = await ProfileStore(
+            initialProfiles: [localProfile],
+            activeProfileID: localProfile.id,
+            reminderScheduler: scheduler
+        )
+
+        let remoteID = UUID()
+        let birthDate = Date().addingTimeInterval(-100_000)
+        let update = ProfileStore.ProfileMetadataUpdate(
+            id: remoteID,
+            name: "Remote", 
+            birthDate: birthDate,
+            imageData: Data([0x01, 0x02])
+        )
+
+        await store.applyMetadataUpdates([update])
+
+        let profiles = await store.profiles
+        let remoteProfile = profiles.first(where: { $0.id == remoteID })
+        #expect(remoteProfile?.name == "Remote")
+        #expect(remoteProfile?.birthDate == birthDate)
+        #expect(remoteProfile?.imageData == Data([0x01, 0x02]))
+        #expect(profiles.contains(localProfile))
+    }
 }
 
 private actor MockReminderScheduler: ReminderScheduling {
