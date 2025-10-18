@@ -91,12 +91,13 @@ final class SyncStatusViewModel: ObservableObject {
             return
         }
 
+        if summary.modelNames.isEmpty == false {
+            var names = observedModelNames
+            names.formUnion(summary.modelNames)
+            observedModelNames = names
+        }
+
         if summary.isImporting {
-            if summary.modelNames.isEmpty == false {
-                var names = observedModelNames
-                names.formUnion(summary.modelNames)
-                observedModelNames = names
-            }
             state = .importing(progress: summary.progress)
             return
         }
