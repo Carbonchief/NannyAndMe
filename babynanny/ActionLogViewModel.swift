@@ -320,9 +320,8 @@ final class ActionLogStore: ObservableObject {
     }
 
     static func previewStore(profiles: [UUID: ProfileActionState]) -> ActionLogStore {
-        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try! ModelContainer(for: ProfileActionStateModel.self, BabyActionModel.self, configurations: configuration)
-        let context = container.mainContext
+        let dataStack = AppDataStack.preview()
+        let context = dataStack.modelContainer.mainContext
 
         for (profileID, state) in profiles {
             let model = ProfileActionStateModel(profileID: profileID)
@@ -342,8 +341,6 @@ final class ActionLogStore: ObservableObject {
                 context.insert(modelAction)
             }
         }
-
-        let dataStack = AppDataStack(cloudSyncEnabled: true, modelContainer: container)
         return ActionLogStore(modelContext: context, dataStack: dataStack)
     }
 }
