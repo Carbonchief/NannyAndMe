@@ -31,15 +31,16 @@ final class SyncStatusViewModel: ObservableObject {
     private let requiredModelNames: Set<String>
     private var eventsTask: Task<Void, Never>?
     private let events: AsyncStream<Any>
+    private var normalizedObservedModelNames: Set<String> = []
 
     init(modelContainer: ModelContainer,
          requiredModels: [any PersistentModel.Type] = [ProfileActionStateModel.self, BabyActionModel.self],
          eventStream: AsyncStream<Any>? = nil) {
-        let names = Set(requiredModels.map { String(describing: $0) })
-        self.requiredModelNames = names
+        let requiredNames = Set(requiredModels.map { Self.normalize(modelName: String(describing: $0)) })
+        self.requiredModelNames = requiredNames
         self.events = eventStream ?? CloudKitSyncMonitorCompat.events(
             modelContainer: modelContainer,
-            requiredModelNames: names
+            requiredModelNames: Set(requiredModels.map { String(describing: $0) })
         )
         observeMonitor()
     }
@@ -71,8 +72,13 @@ final class SyncStatusViewModel: ObservableObject {
 
         if summary.modelNames.isEmpty == false {
             var names = observedModelNames
+            var normalizedNames = normalizedObservedModelNames
             names.formUnion(summary.modelNames)
+            for name in summary.modelNames {
+                normalizedNames.insert(Self.normalize(modelName: name))
+            }
             observedModelNames = names
+            normalizedObservedModelNames = normalizedNames
         }
 
         if summary.isImporting {
@@ -91,11 +97,40 @@ final class SyncStatusViewModel: ObservableObject {
         }
 
         if summary.isIdle {
-            if requiredModelNames.isSubset(of: observedModelNames) {
+            if requiredModelNames.isSubset(of: normalizedObservedModelNames) {
                 state = .finished(Date())
             } else {
                 state = .idle
             }
         }
+    }
+}
+
+private extension SyncStatusViewModel {
+    static func normalize(modelName: String) -> String {
+        let trimmed = modelName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let withoutPrefix = trimmed.removingKnownPrefixes(["CD_", "SD_"])
+
+        if let alias = modelNameAliases[withoutPrefix] {
+            return alias
+        }
+
+        return withoutPrefix
+    }
+
+    static let modelNameAliases: [String: String] = [
+        "ProfileActionStateModel": "Profile",
+        "ProfileState": "Profile",
+        "ProfileActionState": "Profile",
+        "BabyActionModel": "BabyAction"
+    ]
+}
+
+private extension String {
+    func removingKnownPrefixes(_ prefixes: [String]) -> String {
+        for prefix in prefixes where hasPrefix(prefix) {
+            return String(dropFirst(prefix.count))
+        }
+        return self
     }
 }
