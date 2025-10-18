@@ -35,17 +35,6 @@ struct SideMenu: View {
             }
             .postHogLabel("menu.allLogs")
 
-            if isCloudSharingAvailable {
-                Button(action: {
-                    Analytics.capture("menu_select_shareProfile_drawer", properties: ["source": "side_menu"])
-                    onSelectShareProfile()
-                }) {
-                    Label(L10n.Menu.shareProfile, systemImage: "person.2.fill")
-                        .font(.headline)
-                }
-                .postHogLabel("menu.shareProfile")
-            }
-
             Button(action: {
                 Analytics.capture("menu_select_shareData_drawer", properties: ["source": "side_menu"])
                 onSelectShareData()
