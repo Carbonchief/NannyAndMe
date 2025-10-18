@@ -102,6 +102,33 @@ final class SyncStatusViewModelTests: XCTestCase {
         XCTAssertTrue(summary.isIdle)
         XCTAssertEqual(Set(summary.modelNames), Set(["Profile", "BabyAction"]))
     }
+
+    func testTimeoutCompletesInitialImport() async throws {
+        let container = AppDataStack.makeModelContainer(inMemory: true)
+        let stream = AsyncStream<Any> { continuation in
+            continuation.finish()
+        }
+
+        let viewModel = await MainActor.run {
+            SyncStatusViewModel(modelContainer: container,
+                                 timeoutInterval: 0.05,
+                                 eventStream: stream)
+        }
+
+        try? await Task.sleep(for: .milliseconds(100))
+
+        let state = await MainActor.run { viewModel.state }
+        guard case .finished = state else {
+            XCTFail("Expected finished state after timeout, got \(state)")
+            return
+        }
+
+        let names = await MainActor.run { viewModel.observedModelNames }
+        XCTAssertEqual(names, Set([String(describing: ProfileActionStateModel.self), String(describing: BabyActionModel.self)]))
+
+        let error = await MainActor.run { viewModel.lastError }
+        XCTAssertEqual(error, "Timed out waiting for initial CloudKit import.")
+    }
 }
 
 private extension SyncStatusViewModelTests {

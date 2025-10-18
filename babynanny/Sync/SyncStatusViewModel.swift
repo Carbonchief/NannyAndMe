@@ -36,7 +36,7 @@ final class SyncStatusViewModel: ObservableObject {
 
     init(modelContainer: ModelContainer,
          requiredModels: [any PersistentModel.Type] = [ProfileActionStateModel.self, BabyActionModel.self],
-         timeoutInterval: TimeInterval = 30,
+         timeoutInterval: TimeInterval = 15,
          eventStream: AsyncStream<Any>? = nil) {
         let names = Set(requiredModels.map { String(describing: $0) })
         self.requiredModelNames = names
@@ -75,7 +75,14 @@ final class SyncStatusViewModel: ObservableObject {
             try? await Task.sleep(for: .seconds(timeoutInterval))
             guard Task.isCancelled == false else { return }
             if self.isInitialImportComplete == false {
-                self.state = .failed("Timed out waiting for initial CloudKit import.")
+                let message = "Timed out waiting for initial CloudKit import."
+                self.lastError = message
+                var names = self.observedModelNames
+                names.formUnion(self.requiredModelNames)
+                self.observedModelNames = names
+                self.state = .finished(Date())
+                self.timeoutTask?.cancel()
+                self.timeoutTask = nil
             }
         }
     }
