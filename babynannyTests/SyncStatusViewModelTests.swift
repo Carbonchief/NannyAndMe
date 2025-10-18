@@ -35,6 +35,58 @@ final class SyncStatusViewModelTests: XCTestCase {
         }
     }
 
+    func testIdleEventWithCloudKitPrefixedNamesCompletesInitialImport() async throws {
+        let container = AppDataStack.makeModelContainer(inMemory: true)
+        let event = MockEvent(
+            phase: .init(description: "CloudKitSyncMonitor.Phase.idle"),
+            error: nil,
+            work: .init(models: [
+                .init(description: "Model(modelName: CD_Profile)"),
+                .init(description: "Model(modelName: CD_BabyAction)")
+            ])
+        )
+        let stream = AsyncStream<Any> { continuation in
+            continuation.yield(event)
+            continuation.finish()
+        }
+
+        let viewModel = await MainActor.run {
+            SyncStatusViewModel(modelContainer: container,
+                                 eventStream: stream)
+        }
+
+        try? await Task.sleep(for: .milliseconds(50))
+
+        let isComplete = await MainActor.run { viewModel.isInitialImportComplete }
+        XCTAssertTrue(isComplete)
+    }
+
+    func testIdleEventWithLegacyProfileRecordNameCompletesInitialImport() async throws {
+        let container = AppDataStack.makeModelContainer(inMemory: true)
+        let event = MockEvent(
+            phase: .init(description: "CloudKitSyncMonitor.Phase.idle"),
+            error: nil,
+            work: .init(models: [
+                .init(description: "Model(modelName: CD_ProfileActionStateModel)"),
+                .init(description: "Model(modelName: CD_BabyAction)")
+            ])
+        )
+        let stream = AsyncStream<Any> { continuation in
+            continuation.yield(event)
+            continuation.finish()
+        }
+
+        let viewModel = await MainActor.run {
+            SyncStatusViewModel(modelContainer: container,
+                                 eventStream: stream)
+        }
+
+        try? await Task.sleep(for: .milliseconds(50))
+
+        let isComplete = await MainActor.run { viewModel.isInitialImportComplete }
+        XCTAssertTrue(isComplete)
+    }
+
     func testImportEventParsingExtractsProgressAndModels() {
         let event = MockEvent(
             phase: .init(description: "CloudKitSyncMonitor.Phase.import(fractionCompleted: 0.5)"),
