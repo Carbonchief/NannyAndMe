@@ -442,14 +442,14 @@ final class ProfileStore: ObservableObject {
 
     func nextReminder(for profileID: UUID) async -> ReminderOverview? {
         let profiles = state.profiles
-        let actionStates = actionStore?.actionStatesSnapshot ?? [:]
+        let actionStates = await actionStore?.actionStatesSnapshot() ?? [:]
         let reminders = await reminderScheduler.upcomingReminders(for: profiles, actionStates: actionStates, reference: Date())
         return reminders.first(where: { $0.includes(profileID: profileID) })
     }
 
     func nextActionReminderSummaries(for profileID: UUID) async -> [BabyActionCategory: ActionReminderSummary] {
         let profiles = state.profiles
-        let actionStates = actionStore?.actionStatesSnapshot ?? [:]
+        let actionStates = await actionStore?.actionStatesSnapshot() ?? [:]
         let reminders = await reminderScheduler.upcomingReminders(for: profiles, actionStates: actionStates, reference: Date())
 
         var summaries: [BabyActionCategory: ActionReminderSummary] = [:]
@@ -510,9 +510,10 @@ final class ProfileStore: ObservableObject {
 
     private func scheduleReminders() {
         let profiles = state.profiles
-        let actionStates = actionStore?.actionStatesSnapshot ?? [:]
-        Task {
-            await reminderScheduler.refreshReminders(for: profiles, actionStates: actionStates)
+        Task { @MainActor [weak self, profiles] in
+            guard let self else { return }
+            let actionStates = await self.actionStore?.actionStatesSnapshot() ?? [:]
+            await self.reminderScheduler.refreshReminders(for: profiles, actionStates: actionStates)
         }
     }
 

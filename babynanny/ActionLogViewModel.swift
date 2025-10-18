@@ -85,33 +85,7 @@ final class ActionLogStore: ObservableObject {
             return ProfileActionState()
         }
 
-        var activeActions: [BabyActionCategory: BabyActionSnapshot] = [:]
-        var history: [BabyActionSnapshot] = []
-
-        var seenIDs = Set<UUID>()
-
-        for actionModel in model.actions {
-            let action = actionModel.asSnapshot().withValidatedDates()
-            guard seenIDs.contains(action.id) == false else { continue }
-            seenIDs.insert(action.id)
-            if action.endDate == nil {
-                if action.category.isInstant {
-                    var instant = action
-                    instant.endDate = instant.startDate
-                    history.append(instant)
-                } else {
-                    if let existing = activeActions[action.category], existing.startDate > action.startDate {
-                        continue
-                    }
-                    activeActions[action.category] = action
-                }
-            } else {
-                history.append(action)
-            }
-        }
-
-        history.sort { $0.startDate > $1.startDate }
-        return ProfileActionState(activeActions: activeActions, history: history)
+        return model.makeActionState()
     }
 
     func startAction(for profileID: UUID,
@@ -310,13 +284,23 @@ final class ActionLogStore: ObservableObject {
         return summary
     }
 
-    var actionStatesSnapshot: [UUID: ProfileActionState] {
-        let descriptor = FetchDescriptor<ProfileActionStateModel>()
-        let models = (try? modelContext.fetch(descriptor)) ?? []
-        return models.reduce(into: [UUID: ProfileActionState]()) { partialResult, model in
-            let identifier = model.resolvedProfileID
-            partialResult[identifier] = state(for: identifier)
+    func actionStatesSnapshot() async -> [UUID: ProfileActionState] {
+        let container = dataStack.modelContainer
+        struct SendableContainer: @unchecked Sendable {
+            let container: ModelContainer
         }
+        let sendableContainer = SendableContainer(container: container)
+
+        return await Task.detached(priority: .userInitiated) {
+            let context = ModelContext(sendableContainer.container)
+            context.autosaveEnabled = false
+            let descriptor = FetchDescriptor<ProfileActionStateModel>()
+            let models = (try? context.fetch(descriptor)) ?? []
+            return models.reduce(into: [UUID: ProfileActionState]()) { partialResult, model in
+                let identifier = model.resolvedProfileID
+                partialResult[identifier] = model.makeActionState()
+            }
+        }.value
     }
 
     static func previewStore(profiles: [UUID: ProfileActionState]) -> ActionLogStore {
@@ -461,17 +445,19 @@ private extension ActionLogStore {
     func refreshDurationActivityOnLaunch() {
 #if canImport(ActivityKit)
         guard #available(iOS 17.0, *) else { return }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let snapshot = await self.actionStatesSnapshot()
+            if let runningProfileID = snapshot.first(where: { _, state in
+                state.activeActions.values.contains(where: { $0.endDate == nil && $0.category.isInstant == false })
+            })?.key {
+                self.refreshDurationActivity(for: runningProfileID)
+                return
+            }
 
-        let snapshot = actionStatesSnapshot
-        if let runningProfileID = snapshot.first(where: { _, state in
-            state.activeActions.values.contains(where: { $0.endDate == nil && $0.category.isInstant == false })
-        })?.key {
-            refreshDurationActivity(for: runningProfileID)
-            return
-        }
-
-        if let fallbackProfileID = profileStore?.activeProfileID ?? snapshot.keys.first {
-            refreshDurationActivity(for: fallbackProfileID)
+            if let fallbackProfileID = self.profileStore?.activeProfileID ?? snapshot.keys.first {
+                self.refreshDurationActivity(for: fallbackProfileID)
+            }
         }
 #endif
     }
@@ -555,10 +541,12 @@ private extension ActionLogStore {
     func scheduleReminders() {
         guard let reminderScheduler else { return }
         let profiles = profileStore?.profiles ?? []
-        let actionStates = actionStatesSnapshot
+        let scheduler = reminderScheduler
 
-        Task { [profiles, actionStates] in
-            await reminderScheduler.refreshReminders(for: profiles, actionStates: actionStates)
+        Task { @MainActor [weak self, profiles, scheduler] in
+            guard let self else { return }
+            let actionStates = await self.actionStatesSnapshot()
+            await scheduler.refreshReminders(for: profiles, actionStates: actionStates)
         }
     }
 

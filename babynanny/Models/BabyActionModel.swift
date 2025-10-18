@@ -56,7 +56,7 @@ enum BabyActionCategory: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-struct BabyActionSnapshot: Identifiable, Codable, Equatable {
+struct BabyActionSnapshot: Identifiable, Codable, Equatable, Sendable {
     enum DiaperType: String, CaseIterable, Identifiable, Codable {
         case pee
         case poo
@@ -339,7 +339,7 @@ extension BabyActionSnapshot {
     }
 }
 
-struct ProfileActionState: Codable {
+struct ProfileActionState: Codable, Sendable {
     var activeActions: [BabyActionCategory: BabyActionSnapshot]
     var history: [BabyActionSnapshot]
 
@@ -451,6 +451,38 @@ final class Profile {
 }
 
 typealias ProfileActionStateModel = Profile
+
+extension ProfileActionStateModel {
+    func makeActionState() -> ProfileActionState {
+        ensureActionOwnership()
+
+        var activeActions: [BabyActionCategory: BabyActionSnapshot] = [:]
+        var history: [BabyActionSnapshot] = []
+        var seenIDs = Set<UUID>()
+
+        for actionModel in actions {
+            var action = actionModel.asSnapshot().withValidatedDates()
+            guard seenIDs.insert(action.id).inserted else { continue }
+
+            if action.endDate == nil {
+                if action.category.isInstant {
+                    action.endDate = action.startDate
+                    history.append(action)
+                } else {
+                    if let existing = activeActions[action.category], existing.startDate > action.startDate {
+                        continue
+                    }
+                    activeActions[action.category] = action
+                }
+            } else {
+                history.append(action)
+            }
+        }
+
+        history.sort { $0.startDate > $1.startDate }
+        return ProfileActionState(activeActions: activeActions, history: history)
+    }
+}
 
 @Model
 final class BabyAction {
