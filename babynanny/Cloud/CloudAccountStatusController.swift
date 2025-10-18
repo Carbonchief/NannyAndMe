@@ -132,3 +132,51 @@ final class CloudAccountStatusController: ObservableObject {
         }
     }
 }
+
+#if DEBUG
+extension CloudAccountStatusController {
+    static func previewController(status: Status = .available) -> CloudAccountStatusController {
+        final class PreviewProvider: CloudAccountStatusProviding {
+            let status: CKAccountStatus
+
+            init(status: CKAccountStatus) {
+                self.status = status
+            }
+
+            func accountStatus() async throws -> CKAccountStatus {
+                status
+            }
+        }
+
+        let defaults = UserDefaults(suiteName: "com.prioritybit.babynanny.preview.cloudStatus")!
+        defaults.removePersistentDomain(forName: "com.prioritybit.babynanny.preview.cloudStatus")
+
+        let ckStatus: CKAccountStatus
+        switch status {
+        case .available:
+            ckStatus = .available
+        case .needsAccount:
+            ckStatus = .noAccount
+        case .localOnly:
+            ckStatus = .available
+        case .loading:
+            ckStatus = .available
+        }
+
+        let controller = CloudAccountStatusController(provider: PreviewProvider(status: ckStatus),
+                                                      notificationCenter: .init(),
+                                                      userDefaults: defaults)
+
+        switch status {
+        case .localOnly:
+            controller.selectLocalOnly()
+        case .needsAccount:
+            controller.refreshAccountStatus(force: true)
+        case .available, .loading:
+            break
+        }
+
+        return controller
+    }
+}
+#endif
