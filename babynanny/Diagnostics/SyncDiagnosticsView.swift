@@ -216,7 +216,6 @@ private extension SyncDiagnosticsView {
     func forceSync() {
         guard forceSyncInFlight == false else { return }
         forceSyncInFlight = true
-        statusViewModel.resetInitialImportTimeout()
         coordinator.requestSyncIfNeeded(reason: .userInitiated)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             forceSyncInFlight = false

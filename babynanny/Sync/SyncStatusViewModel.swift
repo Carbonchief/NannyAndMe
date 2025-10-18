@@ -30,32 +30,22 @@ final class SyncStatusViewModel: ObservableObject {
 
     private let requiredModelNames: Set<String>
     private var eventsTask: Task<Void, Never>?
-    private var timeoutTask: Task<Void, Never>?
-    private let timeoutInterval: TimeInterval
     private let events: AsyncStream<Any>
 
     init(modelContainer: ModelContainer,
          requiredModels: [any PersistentModel.Type] = [ProfileActionStateModel.self, BabyActionModel.self],
-         timeoutInterval: TimeInterval = 15,
          eventStream: AsyncStream<Any>? = nil) {
         let names = Set(requiredModels.map { String(describing: $0) })
         self.requiredModelNames = names
-        self.timeoutInterval = timeoutInterval
         self.events = eventStream ?? CloudKitSyncMonitorCompat.events(
             modelContainer: modelContainer,
             requiredModelNames: names
         )
         observeMonitor()
-        armTimeout()
     }
 
     deinit {
         eventsTask?.cancel()
-        timeoutTask?.cancel()
-    }
-
-    func resetInitialImportTimeout() {
-        armTimeout()
     }
 
     private func observeMonitor() {
@@ -64,25 +54,6 @@ final class SyncStatusViewModel: ObservableObject {
             guard let self else { return }
             for await event in events {
                 await self.handle(event: event)
-            }
-        }
-    }
-
-    private func armTimeout() {
-        timeoutTask?.cancel()
-        timeoutTask = Task { [weak self] in
-            guard let self else { return }
-            try? await Task.sleep(for: .seconds(timeoutInterval))
-            guard Task.isCancelled == false else { return }
-            if self.isInitialImportComplete == false {
-                let message = "Timed out waiting for initial CloudKit import."
-                self.lastError = message
-                var names = self.observedModelNames
-                names.formUnion(self.requiredModelNames)
-                self.observedModelNames = names
-                self.state = .finished(Date())
-                self.timeoutTask?.cancel()
-                self.timeoutTask = nil
             }
         }
     }
@@ -122,7 +93,6 @@ final class SyncStatusViewModel: ObservableObject {
         if summary.isIdle {
             if requiredModelNames.isSubset(of: observedModelNames) {
                 state = .finished(Date())
-                timeoutTask?.cancel()
             } else {
                 state = .idle
             }
