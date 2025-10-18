@@ -403,7 +403,7 @@ struct ProfileActionState: Codable {
 @Model
 final class Profile {
     /// Stable identifier used for CloudKit mirroring and SwiftData uniqueness.
-    var id: UUID = UUID()
+    var profileID: UUID = UUID()
     var name: String?
     var birthDate: Date?
     @Attribute(.externalStorage)
@@ -416,7 +416,7 @@ final class Profile {
          birthDate: Date? = nil,
          imageData: Data? = nil,
          actions: [BabyAction] = []) {
-        self.id = profileID
+        self.profileID = profileID
         self.name = name
         self.birthDate = birthDate?.normalizedToUTC()
         self.imageData = imageData
@@ -425,12 +425,8 @@ final class Profile {
     }
 
     var resolvedProfileID: UUID {
-        get { id }
-        set { id = newValue }
-    }
-
-    var profileID: UUID {
-        id
+        get { profileID }
+        set { profileID = newValue }
     }
 
     var actions: [BabyAction] {
