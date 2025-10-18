@@ -16,7 +16,7 @@ NannyAndMe is a SwiftUI-based iOS application that helps caregivers keep track o
 - **Action reminders** – Get configurable notifications for sleep, diaper, and feeding actions with per-action intervals that reset whenever you log an entry.
 - **Data sharing** – Export the active profile's logs to JSON and merge imports that include new or updated entries.
 - **iCloud profile restore** – Automatically pull existing child profiles from your private CloudKit database the first time you install the app on a device.
-- **Nearby sharing** – Beam the latest export to nearby iOS devices with Multipeer Connectivity support.
+- **Nearby sharing** – Discover nearby devices, approve invitations, and monitor live transfer progress powered by Multipeer Connectivity.
 - **Cloud sync visibility** – Monitor SwiftData's CloudKit mirroring progress with an in-app overlay and debug diagnostics panel (Debug build).
 - **Localized experience** – Navigate the interface in English, German, or Spanish with fully translated caregiver-facing text.
 

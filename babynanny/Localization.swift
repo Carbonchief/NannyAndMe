@@ -485,37 +485,260 @@ enum L10n {
             static let retry = String(localized: "shareData.unavailable.retry", defaultValue: "Check Again")
         }
 
+        static let advancedSectionTitle = String(
+            localized: "shareData.advanced.title",
+            defaultValue: "Advanced"
+        )
+
         enum Nearby {
-            static let sectionTitle = String(
-                localized: "shareData.nearby.title",
-                defaultValue: "Nearby Share"
+            static let devicesSectionTitle = String(
+                localized: "shareData.nearby.devices.title",
+                defaultValue: "Nearby Devices"
             )
-            static let shareButton = String(
-                localized: "shareData.nearby.button",
-                defaultValue: "Share to Nearby Device"
+            static let noPeers = String(
+                localized: "shareData.nearby.devices.empty",
+                defaultValue: "No nearby devices found."
             )
-            static let footer = String(
-                localized: "shareData.nearby.footer",
-                defaultValue: "Send a JSON export directly to a nearby device running Nanny & Me."
-            )
-            static let statusPreparing = String(
-                localized: "shareData.nearby.status.preparing",
-                defaultValue: "Preparing data…"
-            )
-            static let statusWaiting = String(
-                localized: "shareData.nearby.status.waiting",
-                defaultValue: "Select a device to start sharing."
-            )
-            static func statusSending(_ peer: String) -> String {
+            static func appVersion(_ version: String) -> String {
                 let format = String(
-                    localized: "shareData.nearby.status.sending",
-                    defaultValue: "Sending to %@…"
+                    localized: "shareData.nearby.devices.appVersion",
+                    defaultValue: "App version %@"
+                )
+                return String(format: format, locale: Locale.current, version)
+            }
+            static func peerAccessibility(_ name: String) -> String {
+                let format = String(
+                    localized: "shareData.nearby.devices.accessibility",
+                    defaultValue: "Nearby device %@"
+                )
+                return String(format: format, locale: Locale.current, name)
+            }
+            static let connect = String(
+                localized: "shareData.nearby.devices.connect",
+                defaultValue: "Connect"
+            )
+            static let currentConnectionTitle = String(
+                localized: "shareData.nearby.connection.title",
+                defaultValue: "Current Connection"
+            )
+            static func connectedTo(_ peer: String) -> String {
+                let format = String(
+                    localized: "shareData.nearby.connection.connectedTo",
+                    defaultValue: "Connected to %@"
                 )
                 return String(format: format, locale: Locale.current, peer)
             }
-            static let errorPeerDisconnected = String(
-                localized: "shareData.nearby.error.peerDisconnected",
-                defaultValue: "The connection to the other device was lost."
+            static let disconnect = String(
+                localized: "shareData.nearby.connection.disconnect",
+                defaultValue: "Disconnect"
+            )
+            static let statusIdle = String(
+                localized: "shareData.nearby.status.idle",
+                defaultValue: "Not connected"
+            )
+            static let statusBrowsing = String(
+                localized: "shareData.nearby.status.browsing",
+                defaultValue: "Searching for nearby devices…"
+            )
+            static let statusAdvertising = String(
+                localized: "shareData.nearby.status.advertising",
+                defaultValue: "Visible to nearby devices"
+            )
+            static func statusInviting(_ peer: String) -> String {
+                let format = String(
+                    localized: "shareData.nearby.status.inviting",
+                    defaultValue: "Inviting %@…"
+                )
+                return String(format: format, locale: Locale.current, peer)
+            }
+            static let statusDisconnecting = String(
+                localized: "shareData.nearby.status.disconnecting",
+                defaultValue: "Disconnecting…"
+            )
+            static let sendSectionTitle = String(
+                localized: "shareData.nearby.send.title",
+                defaultValue: "Send"
+            )
+            static let sendSnapshot = String(
+                localized: "shareData.nearby.send.snapshot",
+                defaultValue: "Send full snapshot"
+            )
+            static let sendChanges = String(
+                localized: "shareData.nearby.send.changes",
+                defaultValue: "Send recent changes"
+            )
+            static let sendExport = String(
+                localized: "shareData.nearby.send.export",
+                defaultValue: "Send export file"
+            )
+            static func transferMessage(_ message: String) -> String {
+                let format = String(
+                    localized: "shareData.nearby.transfer.message",
+                    defaultValue: "Message: %@"
+                )
+                return String(format: format, locale: Locale.current, message)
+            }
+            static func transferResource(_ name: String) -> String {
+                let format = String(
+                    localized: "shareData.nearby.transfer.resource",
+                    defaultValue: "Sending %@"
+                )
+                return String(format: format, locale: Locale.current, name)
+            }
+            static func transferDetail(_ transferred: String, _ total: String) -> String {
+                let format = String(
+                    localized: "shareData.nearby.transfer.detail",
+                    defaultValue: "%@ of %@"
+                )
+                return String(format: format, locale: Locale.current, transferred, total)
+            }
+            static func transferSpeed(_ speed: String) -> String {
+                let format = String(
+                    localized: "shareData.nearby.transfer.speed",
+                    defaultValue: "%@/s"
+                )
+                return String(format: format, locale: Locale.current, speed)
+            }
+            static func transferRemaining(_ remaining: String) -> String {
+                let format = String(
+                    localized: "shareData.nearby.transfer.remaining",
+                    defaultValue: "%@ remaining"
+                )
+                return String(format: format, locale: Locale.current, remaining)
+            }
+            static let receiveSectionTitle = String(
+                localized: "shareData.nearby.receive.title",
+                defaultValue: "Receive & History"
+            )
+            static func lastReceived(_ time: String) -> String {
+                let format = String(
+                    localized: "shareData.nearby.receive.last",
+                    defaultValue: "Last received %@"
+                )
+                return String(format: format, locale: Locale.current, time)
+            }
+            static let awaitingData = String(
+                localized: "shareData.nearby.receive.awaiting",
+                defaultValue: "No data received yet."
+            )
+            static let browsingToggle = String(
+                localized: "shareData.nearby.controls.browsing",
+                defaultValue: "Discover nearby devices"
+            )
+            static let advertisingToggle = String(
+                localized: "shareData.nearby.controls.advertising",
+                defaultValue: "Allow others to find me"
+            )
+            static let invitationTitle = String(
+                localized: "shareData.nearby.invite.title",
+                defaultValue: "Incoming connection"
+            )
+            static func invitationMessage(_ peer: String) -> String {
+                let format = String(
+                    localized: "shareData.nearby.invite.message",
+                    defaultValue: "%@ wants to connect."
+                )
+                return String(format: format, locale: Locale.current, peer)
+            }
+            static func acceptInvite(_ peer: String) -> String {
+                let format = String(
+                    localized: "shareData.nearby.invite.accept",
+                    defaultValue: "Connect to %@"
+                )
+                return String(format: format, locale: Locale.current, peer)
+            }
+            static let declineInvite = String(
+                localized: "shareData.nearby.invite.decline",
+                defaultValue: "Not now"
+            )
+            static let timeout = String(
+                localized: "shareData.nearby.error.timeout",
+                defaultValue: "The request timed out."
+            )
+            static let rejected = String(
+                localized: "shareData.nearby.error.rejected",
+                defaultValue: "The other device declined the connection."
+            )
+            static func invalidState(_ expected: String, _ actual: String) -> String {
+                let format = String(
+                    localized: "shareData.nearby.error.invalidState",
+                    defaultValue: "Already connected to %@. Disconnect before pairing with %@."
+                )
+                return String(format: format, locale: Locale.current, expected, actual)
+            }
+            static let sessionFailed = String(
+                localized: "shareData.nearby.error.sessionFailed",
+                defaultValue: "The connection was lost."
+            )
+            static let codecError = String(
+                localized: "shareData.nearby.error.codec",
+                defaultValue: "We couldn't decode the message. Update the app and try again."
+            )
+            static let incompatibleVersion = String(
+                localized: "shareData.nearby.error.version",
+                defaultValue: "The other device needs a newer version of the app."
+            )
+            static let transferCancelled = String(
+                localized: "shareData.nearby.error.transferCancelled",
+                defaultValue: "Transfer cancelled."
+            )
+            static let resourceMissing = String(
+                localized: "shareData.nearby.error.resourceMissing",
+                defaultValue: "Export file could not be prepared."
+            )
+            static let unknownError = String(
+                localized: "shareData.nearby.error.unknown",
+                defaultValue: "Something went wrong. Please try again."
+            )
+            static func sentSnapshot(_ name: String) -> String {
+                let format = String(
+                    localized: "shareData.nearby.toast.sentSnapshot",
+                    defaultValue: "Sent a snapshot of %@"
+                )
+                return String(format: format, locale: Locale.current, name)
+            }
+            static let noRecentChanges = String(
+                localized: "shareData.nearby.toast.noChanges",
+                defaultValue: "No recent changes to send."
+            )
+            static let sentDelta = String(
+                localized: "shareData.nearby.toast.sentChanges",
+                defaultValue: "Sent recent changes"
+            )
+            static func sendingFile(_ filename: String) -> String {
+                let format = String(
+                    localized: "shareData.nearby.toast.sendingFile",
+                    defaultValue: "Sending %@"
+                )
+                return String(format: format, locale: Locale.current, filename)
+            }
+            static let messageHello = String(
+                localized: "shareData.nearby.message.hello",
+                defaultValue: "Hello"
+            )
+            static let messageCapabilities = String(
+                localized: "shareData.nearby.message.capabilities",
+                defaultValue: "Capabilities"
+            )
+            static let messageSnapshot = String(
+                localized: "shareData.nearby.message.snapshot",
+                defaultValue: "Snapshot"
+            )
+            static let messageDelta = String(
+                localized: "shareData.nearby.message.delta",
+                defaultValue: "Changes"
+            )
+            static let messageAck = String(
+                localized: "shareData.nearby.message.ack",
+                defaultValue: "Acknowledgement"
+            )
+            static let messageError = String(
+                localized: "shareData.nearby.message.error",
+                defaultValue: "Error"
+            )
+            static let cancelTransfer = String(
+                localized: "shareData.nearby.transfer.cancel",
+                defaultValue: "Cancel transfer"
             )
         }
 
@@ -611,6 +834,10 @@ enum L10n {
                 )
                 return String(format: format, locale: Locale.current, trimmed)
             }
+            static let toastTitle = String(
+                localized: "shareData.alert.toast.title",
+                defaultValue: "Share Data"
+            )
         }
 
         enum Error {

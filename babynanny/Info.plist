@@ -18,8 +18,14 @@
 		</dict>
 	</array>
 	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-	</array>
+        <array>
+                <string>remote-notification</string>
+        </array>
+        <key>NSLocalNetworkUsageDescription</key>
+        <string>Nanny &amp; Me uses local networking to share profiles securely with nearby devices.</string>
+        <key>NSBonjourServices</key>
+        <array>
+                <string>_nanme-share._tcp</string>
+        </array>
 </dict>
 </plist>
