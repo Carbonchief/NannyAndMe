@@ -39,23 +39,9 @@ final class ActionLogStore: ObservableObject {
         observeSyncCoordinatorIfNeeded()
     }
 
-    @MainActor deinit {
-        if isObservingSyncCoordinator {
-            let coordinator = dataStack.syncCoordinator
-            let observer: SyncCoordinator.Observer = self
-            Task { @MainActor in
-                coordinator.removeObserver(observer)
-            }
-        }
+    deinit {
         stateReloadTask?.cancel()
-        let observers = contextObservers
-        let center = notificationCenter
-        guard observers.isEmpty == false else { return }
-        Task { @MainActor in
-            for token in observers {
-                center.removeObserver(token)
-            }
-        }
+        contextObservers.removeAll()
     }
 
     private func notifyChange() {
