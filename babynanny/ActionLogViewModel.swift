@@ -15,6 +15,8 @@ final class ActionLogStore: ObservableObject {
     private var contextObservers: [NSObjectProtocol] = []
     private let conflictResolver = ActionConflictResolver()
     private var isObservingSyncCoordinator = false
+    private var cachedStates: [UUID: ProfileActionState] = [:]
+    private var stateReloadTask: Task<Void, Never>?
 
     struct MergeSummary: Equatable {
         var added: Int
@@ -41,6 +43,7 @@ final class ActionLogStore: ObservableObject {
         if isObservingSyncCoordinator {
             dataStack.syncCoordinator.removeObserver(self)
         }
+        stateReloadTask?.cancel()
         let observers = contextObservers
         let center = notificationCenter
         guard observers.isEmpty == false else { return }
@@ -86,11 +89,17 @@ final class ActionLogStore: ObservableObject {
     }
 
     func state(for profileID: UUID) -> ProfileActionState {
+        if let cached = cachedStates[profileID] {
+            return cached
+        }
+
         guard let model = existingProfileModel(for: profileID) else {
             return ProfileActionState()
         }
 
-        return model.makeActionState()
+        let state = model.makeActionState()
+        cachedStates[profileID] = state
+        return state
     }
 
     func startAction(for profileID: UUID,
@@ -237,6 +246,7 @@ final class ActionLogStore: ObservableObject {
         notifyChange()
         guard let model = existingProfileModel(for: profileID) else { return }
         modelContext.delete(model)
+        cachedStates.removeValue(forKey: profileID)
         dataStack.saveIfNeeded(on: modelContext, reason: "remove-profile-data")
 
         refreshDurationActivity(for: profileID)
@@ -412,6 +422,7 @@ private extension ActionLogStore {
             deletedActionIDs.append(identifier)
         }
 
+        cachedStates[profileID] = profileState
         dataStack.scheduleSaveIfNeeded(on: modelContext, reason: "persist-profile-state")
 
         scheduleReminders()
@@ -473,7 +484,7 @@ private extension ActionLogStore {
                                                            queue: nil) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
-                self.handleModelContextChange()
+                self.handleModelContextChange(reloadFromPersistentStore: false)
             }
         }
         contextObservers.append(primaryToken)
@@ -483,7 +494,7 @@ private extension ActionLogStore {
                                                             queue: nil) { [weak self] notification in
             Task { @MainActor in
                 guard let self, self.shouldHandleExternalContextChange(from: notification) else { return }
-                self.handleModelContextChange()
+                self.handleModelContextChange(reloadFromPersistentStore: true)
             }
         }
         contextObservers.append(externalToken)
@@ -493,7 +504,7 @@ private extension ActionLogStore {
                                                           queue: nil) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
-                self.handleModelContextChange()
+                self.handleModelContextChange(reloadFromPersistentStore: true)
             }
         }
         contextObservers.append(remoteToken)
@@ -510,11 +521,29 @@ private extension ActionLogStore {
         return false
     }
 
-    private func handleModelContextChange() {
-        applyModelContextChanges()
+    private func handleModelContextChange(reloadFromPersistentStore: Bool) {
+        if reloadFromPersistentStore {
+            reloadStateFromPersistentStore()
+        } else {
+            applyModelContextChanges(prefetchedStates: nil)
+        }
     }
 
-    fileprivate func applyModelContextChanges() {
+    private func reloadStateFromPersistentStore() {
+        stateReloadTask?.cancel()
+        stateReloadTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.stateReloadTask = nil }
+            let snapshot = await self.actionStatesSnapshot()
+            guard Task.isCancelled == false else { return }
+            self.applyModelContextChanges(prefetchedStates: snapshot)
+        }
+    }
+
+    fileprivate func applyModelContextChanges(prefetchedStates: [UUID: ProfileActionState]? = nil) {
+        if let prefetchedStates {
+            cachedStates = prefetchedStates
+        }
         objectWillChange.send()
         synchronizeMetadataFromModelContext()
         refreshDurationActivityForAllProfiles()
@@ -570,7 +599,7 @@ private extension ActionLogStore {
     }
 
     func refreshAfterRemoteMerge() {
-        applyModelContextChanges()
+        handleModelContextChange(reloadFromPersistentStore: true)
     }
 }
 
