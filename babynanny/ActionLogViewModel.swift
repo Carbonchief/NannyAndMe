@@ -700,10 +700,10 @@ private extension ActionLogStore {
 private extension NSManagedObjectContext {
     static var notificationObjectIDsUserInfoKey: String {
         if #available(iOS 15.0, *) {
-            return NotificationKey.objectIDs.rawValue
-        } else {
-            return "NSManagedObjectContextDidSaveObjectIDsKey"
+            return NSManagedObjectContextDidSaveObjectIDsKey
         }
+
+        return "NSManagedObjectContextDidSaveObjectIDsKey"
     }
 }
 
