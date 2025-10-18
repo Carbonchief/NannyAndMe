@@ -15,6 +15,7 @@ final class ActionLogStore: ObservableObject {
     private let observedManagedObjectContextIdentifier: ObjectIdentifier?
     private let observedPersistentStoreCoordinatorIdentifier: ObjectIdentifier?
     private var contextObservers: [NSObjectProtocol] = []
+    private var localMutationDepth = 0
     private let conflictResolver = ActionConflictResolver()
     private var isObservingSyncCoordinator = false
     private var cachedStates: [UUID: ProfileActionState] = [:]
@@ -58,6 +59,17 @@ final class ActionLogStore: ObservableObject {
         objectWillChange.send()
     }
 
+    private var isPerformingLocalMutation: Bool {
+        localMutationDepth > 0
+    }
+
+    @discardableResult
+    private func performLocalMutation<R>(_ work: () throws -> R) rethrows -> R {
+        localMutationDepth += 1
+        defer { localMutationDepth -= 1 }
+        return try work()
+    }
+
     func registerProfileStore(_ store: ProfileStore) {
         profileStore = store
         scheduleReminders()
@@ -77,22 +89,33 @@ final class ActionLogStore: ObservableObject {
     }
 
     func synchronizeProfileMetadata(_ profiles: [ChildProfile]) {
-        for profile in profiles {
-            let trimmedName = profile.name.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard trimmedName.isEmpty == false else { continue }
+        let didMutate: Bool = performLocalMutation {
+            var hasChanges = false
 
-            let model = profileModel(for: profile.id)
-            if model.name != trimmedName {
-                model.name = trimmedName
+            for profile in profiles {
+                let trimmedName = profile.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard trimmedName.isEmpty == false else { continue }
+
+                let model = profileModel(for: profile.id)
+                if model.name != trimmedName {
+                    model.name = trimmedName
+                    hasChanges = true
+                }
+                let normalizedBirthDate = profile.birthDate.normalizedToUTC()
+                if model.birthDate != normalizedBirthDate {
+                    model.birthDate = normalizedBirthDate
+                    hasChanges = true
+                }
+                if model.imageData != profile.imageData {
+                    model.imageData = profile.imageData
+                    hasChanges = true
+                }
             }
-            let normalizedBirthDate = profile.birthDate.normalizedToUTC()
-            if model.birthDate != normalizedBirthDate {
-                model.birthDate = normalizedBirthDate
-            }
-            if model.imageData != profile.imageData {
-                model.imageData = profile.imageData
-            }
+
+            return hasChanges
         }
+
+        guard didMutate else { return }
 
         if modelContext.hasChanges {
             dataStack.saveIfNeeded(on: modelContext, reason: "profile-metadata-sync")
@@ -255,9 +278,15 @@ final class ActionLogStore: ObservableObject {
 
     func removeProfileData(for profileID: UUID) {
         notifyChange()
-        guard let model = existingProfileModel(for: profileID) else { return }
-        modelContext.delete(model)
-        cachedStates.removeValue(forKey: profileID)
+        let didMutate: Bool = performLocalMutation {
+            guard let model = existingProfileModel(for: profileID) else { return false }
+            modelContext.delete(model)
+            cachedStates.removeValue(forKey: profileID)
+            return true
+        }
+
+        guard didMutate else { return }
+
         dataStack.saveIfNeeded(on: modelContext, reason: "remove-profile-data")
 
         refreshDurationActivity(for: profileID)
@@ -385,53 +414,50 @@ private extension ActionLogStore {
     }
 
     func persist(profileState: ProfileActionState, for profileID: UUID) {
-        let model = profileModel(for: profileID)
-        let existingModels = Dictionary(uniqueKeysWithValues: model.actions.map { ($0.id, $0) })
-        let existingActionIDs = Set(existingModels.keys)
-        let desiredActions = Array(profileState.activeActions.values) + profileState.history
-        var seenIDs = Set<UUID>()
-        var changedActionIDs = Set<UUID>()
+        performLocalMutation {
+            let model = profileModel(for: profileID)
+            let existingModels = Dictionary(uniqueKeysWithValues: model.actions.map { ($0.id, $0) })
+            let desiredActions = Array(profileState.activeActions.values) + profileState.history
+            var seenIDs = Set<UUID>()
 
-        for action in desiredActions.map({ $0.withValidatedDates() }) {
-            if let existing = existingModels[action.id] {
-                let existingAction = existing.asSnapshot()
-                let resolved = conflictResolver.resolve(local: existingAction, remote: action)
-                guard resolved != existingAction else {
+            for action in desiredActions.map({ $0.withValidatedDates() }) {
+                if let existing = existingModels[action.id] {
+                    let existingAction = existing.asSnapshot()
+                    let resolved = conflictResolver.resolve(local: existingAction, remote: action)
+                    guard resolved != existingAction else {
+                        seenIDs.insert(existing.id)
+                        continue
+                    }
+                    guard resolved.updatedAt >= existingAction.updatedAt else {
+                        seenIDs.insert(existing.id)
+                        continue
+                    }
+                    existing.update(from: resolved)
+                    existing.profile = model
                     seenIDs.insert(existing.id)
-                    continue
+                } else {
+                    let newAction = BabyActionModel(id: action.id,
+                                                    category: action.category,
+                                                    startDate: action.startDate,
+                                                    endDate: action.endDate,
+                                                    diaperType: action.diaperType,
+                                                    feedingType: action.feedingType,
+                                                    bottleType: action.bottleType,
+                                                    bottleVolume: action.bottleVolume,
+                                                    updatedAt: action.updatedAt,
+                                                    profile: model)
+                    modelContext.insert(newAction)
+                    seenIDs.insert(newAction.id)
                 }
-                guard resolved.updatedAt >= existingAction.updatedAt else {
-                    seenIDs.insert(existing.id)
-                    continue
-                }
-                existing.update(from: resolved)
-                existing.profile = model
-                seenIDs.insert(existing.id)
-                changedActionIDs.insert(existing.id)
-            } else {
-                let newAction = BabyActionModel(id: action.id,
-                                                category: action.category,
-                                                startDate: action.startDate,
-                                                endDate: action.endDate,
-                                                diaperType: action.diaperType,
-                                                feedingType: action.feedingType,
-                                                bottleType: action.bottleType,
-                                                bottleVolume: action.bottleVolume,
-                                                updatedAt: action.updatedAt,
-                                                profile: model)
-                modelContext.insert(newAction)
-                seenIDs.insert(newAction.id)
-                changedActionIDs.insert(newAction.id)
             }
+
+            for (identifier, modelAction) in existingModels where seenIDs.contains(identifier) == false {
+                modelContext.delete(modelAction)
+            }
+
+            cachedStates[profileID] = profileState
         }
 
-        var deletedActionIDs: [UUID] = []
-        for (identifier, modelAction) in existingModels where seenIDs.contains(identifier) == false {
-            modelContext.delete(modelAction)
-            deletedActionIDs.append(identifier)
-        }
-
-        cachedStates[profileID] = profileState
         dataStack.scheduleSaveIfNeeded(on: modelContext, reason: "persist-profile-state")
 
         scheduleReminders()
@@ -491,9 +517,10 @@ private extension ActionLogStore {
         let primaryToken = notificationCenter.addObserver(forName: .NSManagedObjectContextObjectsDidChange,
                                                            object: modelContext,
                                                            queue: nil) { [weak self] _ in
-            guard let self else { return }
-            Task { @MainActor in
-                self.handleModelContextChange(reloadFromPersistentStore: false)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let shouldReloadFromStore = self.isPerformingLocalMutation == false
+                self.handleModelContextChange(reloadFromPersistentStore: shouldReloadFromStore)
             }
         }
         contextObservers.append(primaryToken)
