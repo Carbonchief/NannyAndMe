@@ -165,9 +165,8 @@ struct HomeView: View {
                 )
 
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(recent.detailDescription)
-                            .font(.headline)
+                    HStack(alignment: .top, spacing: 8) {
+                        headerTitleContent(for: recent)
 
                         Spacer(minLength: 8)
 
@@ -251,6 +250,48 @@ struct HomeView: View {
 
     private func headerCardAlignment(for action: BabyActionSnapshot) -> VerticalAlignment {
         action.endDate == nil ? .top : .center
+    }
+
+    @ViewBuilder
+    private func headerTitleContent(for action: BabyActionSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(headerHeadline(for: action))
+                .font(.headline)
+
+            if let subtitle = headerSubtitle(for: action) {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func headerHeadline(for action: BabyActionSnapshot) -> String {
+        if action.category == .feeding, action.feedingType == .bottle {
+            return action.feedingType?.title ?? action.detailDescription
+        }
+
+        return action.detailDescription
+    }
+
+    private func headerSubtitle(for action: BabyActionSnapshot) -> String? {
+        guard action.category == .feeding, action.feedingType == .bottle else {
+            return nil
+        }
+
+        var components: [String] = []
+
+        if let bottleTypeTitle = action.bottleType?.title {
+            components.append(bottleTypeTitle)
+        }
+
+        if let volume = action.bottleVolume {
+            components.append(L10n.Home.bottlePresetLabel(volume))
+        }
+
+        guard components.isEmpty == false else { return nil }
+
+        return components.joined(separator: " • ")
     }
 
     private func handleStartTap(for category: BabyActionCategory) {
