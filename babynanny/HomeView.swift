@@ -324,16 +324,13 @@ struct HomeView: View {
 
     @ViewBuilder
     private var syncStatusFooter: some View {
-        guard let content = syncStatusFooterContent else {
-            EmptyView()
-            return
+        if let content = syncStatusFooterContent {
+            SyncStatusFooterMessage(content: content)
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 12)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
         }
-
-        SyncStatusFooterMessage(content: content)
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-            .padding(.bottom, 12)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
     private var syncStatusFooterContent: SyncStatusFooterContent? {
