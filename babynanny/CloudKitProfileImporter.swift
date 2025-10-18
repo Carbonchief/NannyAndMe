@@ -119,13 +119,11 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
         var newestRecord: CKRecord?
 
         for zone in zones {
-            let predicate = NSPredicate(value: true)
-            let query = CKQuery(recordType: recordType, predicate: predicate)
-            query.zoneID = zone.zoneID
-
             do {
+                let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
                 let (matchResults, _) = try await database.records(
                     matching: query,
+                    inZoneWith: zone.zoneID,
                     desiredKeys: desiredRecordKeys(),
                     resultsLimit: CKQueryOperation.maximumResults
                 )
@@ -195,13 +193,11 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
         var records: [CKRecord] = []
 
         for zone in zones {
-            let predicate = NSPredicate(value: true)
-            let query = CKQuery(recordType: recordType, predicate: predicate)
-            query.zoneID = zone.zoneID
-
             do {
+                let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
                 let (matchResults, _) = try await database.records(
                     matching: query,
+                    inZoneWith: zone.zoneID,
                     desiredKeys: swiftDataDesiredKeys(),
                     resultsLimit: CKQueryOperation.maximumResults
                 )
