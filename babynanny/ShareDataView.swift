@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
@@ -6,6 +7,9 @@ struct ShareDataView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
+    @Environment(\.scenePhase) private var scenePhase
+
+    @StateObject private var viewModel = ShareDataViewModel(manager: MPCManager())
 
     @State private var isExporting = false
     @State private var exportDocument: ShareDataDocument?
@@ -13,106 +17,45 @@ struct ShareDataView: View {
     @State private var lastImportSummary: ActionLogStore.MergeSummary?
     @State private var didUpdateProfile = false
     @State private var alert: ShareDataAlert?
-    @StateObject private var nearbyShareController = NearbyShareController()
-    @State private var isPresentingNearbyBrowser = false
-    @State private var pendingNearbyAlert: ShareDataAlert?
     @State private var airDropShareItem: AirDropShareItem?
     @State private var isPreparingAirDropShare = false
     @State private var processedExternalImportID: ShareDataCoordinator.ExternalImportRequest.ID?
+    @State private var advertisingEnabled = true
+    @State private var browsingEnabled = true
+    @State private var showingInvitationDialog = false
+    @State private var didConfigureViewModel = false
+
+    private static let byteCountFormatter: ByteCountFormatter = {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter
+    }()
+
+    private static let speedFormatter: ByteCountFormatter = {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useKB, .useMB, .useGB]
+        formatter.countStyle = .file
+        formatter.includesUnit = true
+        formatter.isAdaptive = true
+        return formatter
+    }()
+
+    private static let remainingFormatter: DateComponentsFormatter = {
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = [.minute, .second]
+        formatter.maximumUnitCount = 2
+        formatter.unitsStyle = .short
+        return formatter
+    }()
 
     var body: some View {
         Form {
-            Section(header: Text(L10n.ShareData.profileSectionTitle)) {
-                Text(L10n.ShareData.profileName(profileStore.activeProfile.displayName))
-                let historyCount = actionStore.state(for: profileStore.activeProfile.id).history.count
-                Text(L10n.ShareData.logCount(historyCount))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section {
-                ShareDataActionButton(
-                    title: L10n.ShareData.AirDrop.shareButton,
-                    systemImage: "airplane.circle",
-                    tint: .blue,
-                    action: startAirDropShare,
-                    isLoading: isPreparingAirDropShare
-                )
-                .postHogLabel("shareData.airDrop")
-                .phCaptureTap(
-                    event: "shareData_airdrop_button",
-                    properties: [
-                        "profile_id": profileStore.activeProfile.id.uuidString
-                    ]
-                )
-                .disabled(nearbyShareController.isBusy || isPreparingAirDropShare)
-            } header: {
-                Text(L10n.ShareData.AirDrop.sectionTitle)
-            } footer: {
-                Text(L10n.ShareData.AirDrop.footer)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section {
-                ShareDataActionButton(
-                    title: L10n.ShareData.exportButton,
-                    systemImage: "square.and.arrow.up",
-                    tint: .accentColor,
-                    action: startExport
-                )
-                .postHogLabel("shareData.export")
-                .phCaptureTap(
-                    event: "shareData_export_button",
-                    properties: ["profile_id": profileStore.activeProfile.id.uuidString]
-                )
-            } header: {
-                Text(L10n.ShareData.exportSectionTitle)
-            } footer: {
-                Text(L10n.ShareData.exportFooter)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section {
-                ShareDataActionButton(
-                    title: L10n.ShareData.importButton,
-                    systemImage: "square.and.arrow.down",
-                    tint: .mint,
-                    action: { isImporting = true }
-                )
-                .postHogLabel("shareData.import")
-                .phCaptureTap(
-                    event: "shareData_import_button",
-                    properties: ["profile_id": profileStore.activeProfile.id.uuidString]
-                )
-            } header: {
-                Text(L10n.ShareData.importSectionTitle)
-            } footer: {
-                importFooter
-            }
-
-            Section {
-                ShareDataActionButton(
-                    title: L10n.ShareData.Nearby.shareButton,
-                    systemImage: "antenna.radiowaves.left.and.right",
-                    tint: .indigo,
-                    action: startNearbyShare
-                )
-                .postHogLabel("shareData.nearbyShare")
-                .phCaptureTap(
-                    event: "shareData_nearby_share_button",
-                    properties: [
-                        "profile_id": profileStore.activeProfile.id.uuidString,
-                        "is_busy": nearbyShareController.isBusy ? "true" : "false"
-                    ]
-                )
-                .disabled(nearbyShareController.isBusy)
-            } header: {
-                Text(L10n.ShareData.Nearby.sectionTitle)
-            } footer: {
-                nearbyFooter
-            }
+            profileSection
+            nearbyDevicesSection
+            currentConnectionSection
+            sendSection
+            receiveSection
+            advancedSection
         }
         .shareDataFormStyling()
         .navigationTitle(L10n.ShareData.title)
@@ -139,15 +82,6 @@ struct ShareDataView: View {
                 dismissButton: .default(Text(L10n.Common.done))
             )
         }
-        .sheet(isPresented: $isPresentingNearbyBrowser, onDismiss: {
-            nearbyShareController.cancelSharing()
-            if let pendingAlert = pendingNearbyAlert {
-                alert = pendingAlert
-                pendingNearbyAlert = nil
-            }
-        }) {
-            NearbyShareBrowserView(controller: nearbyShareController)
-        }
         .sheet(item: $airDropShareItem) { item in
             AirDropShareSheet(item: item) { outcome in
                 let shareItem = item
@@ -171,44 +105,343 @@ struct ShareDataView: View {
                 }
             }
         }
-        .onReceive(nearbyShareController.resultPublisher) { result in
-            let wasPresentingBrowser = isPresentingNearbyBrowser
-            isPresentingNearbyBrowser = false
-
-            let pendingAlert: ShareDataAlert?
-            switch result.outcome {
-            case let .success(peer, filename):
-                pendingAlert = ShareDataAlert(
-                    title: L10n.ShareData.Alert.nearbySuccessTitle,
-                    message: L10n.ShareData.Alert.nearbySuccessMessage(filename, peer)
-                )
-            case let .failure(message):
-                pendingAlert = ShareDataAlert(
-                    title: L10n.ShareData.Alert.nearbyFailureTitle,
-                    message: message
-                )
-            case .cancelled:
-                pendingAlert = nil
+        .confirmationDialog(
+            L10n.ShareData.Nearby.invitationTitle,
+            isPresented: $showingInvitationDialog,
+            presenting: viewModel.pendingInvitation
+        ) { peer in
+            Button(L10n.ShareData.Nearby.acceptInvite(peer.displayName)) {
+                viewModel.acceptInvitation()
             }
+            .postHogLabel("shareData.acceptInvite")
+            .phCaptureTap(
+                event: "shareData_acceptInvite_button",
+                properties: ["peer": peer.displayName]
+            )
 
-            if let pendingAlert {
-                if wasPresentingBrowser {
-                    pendingNearbyAlert = pendingAlert
-                } else {
-                    alert = pendingAlert
-                }
+            Button(L10n.ShareData.Nearby.declineInvite, role: .cancel) {
+                viewModel.declineInvitation()
             }
-
-            nearbyShareController.clearLatestResult()
+            .postHogLabel("shareData.declineInvite")
+            .phCaptureTap(
+                event: "shareData_declineInvite_button",
+                properties: ["peer": peer.displayName]
+            )
+        } message: { peer in
+            Text(L10n.ShareData.Nearby.invitationMessage(peer.displayName))
         }
         .onAppear {
+            configureViewModelIfNeeded()
             processPendingExternalImportIfNeeded()
+            startDefaultBrowsing()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            viewModel.handleScenePhase(newPhase)
         }
         .onChange(of: shareDataCoordinator.externalImportRequest) { _, _ in
             processPendingExternalImportIfNeeded()
         }
+        .onChange(of: viewModel.pendingInvitation) { _, newValue in
+            showingInvitationDialog = newValue != nil
+        }
+        .onReceive(viewModel.$toastMessage.compactMap { $0 }) { message in
+            alert = ShareDataAlert(title: L10n.ShareData.Alert.toastTitle, message: message)
+            viewModel.clearToast()
+        }
+        .onReceive(viewModel.$sessionState) { _ in
+            syncStateToggles()
+        }
         .onDisappear {
+            viewModel.stopAll()
             shareDataCoordinator.dismissShareData()
+        }
+    }
+
+    private var profileSection: some View {
+        Section(header: Text(L10n.ShareData.profileSectionTitle)) {
+            Text(L10n.ShareData.profileName(profileStore.activeProfile.displayName))
+            let historyCount = actionStore.state(for: profileStore.activeProfile.id).history.count
+            Text(L10n.ShareData.logCount(historyCount))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var nearbyDevicesSection: some View {
+        Section(header: Text(L10n.ShareData.Nearby.devicesSectionTitle)) {
+            if viewModel.nearbyPeers.isEmpty {
+                Text(L10n.ShareData.Nearby.noPeers)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(viewModel.nearbyPeers) { peer in
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(peer.displayName)
+                                .font(.headline)
+                            if let version = peer.appVersion {
+                                Text(L10n.ShareData.Nearby.appVersion(version))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        Button {
+                            viewModel.invite(peer)
+                        } label: {
+                            Text(L10n.ShareData.Nearby.connect)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(viewModel.sessionState == .inviting(peer) || viewModel.connectedPeer?.peerID == peer.peerID)
+                        .postHogLabel("shareData.connectPeer")
+                        .phCaptureTap(
+                            event: "shareData_connectPeer_button",
+                            properties: ["peer": peer.displayName]
+                        )
+                    }
+                    .accessibilityLabel(Text(L10n.ShareData.Nearby.peerAccessibility(peer.displayName)))
+                }
+            }
+        }
+    }
+
+    private var currentConnectionSection: some View {
+        Section(header: Text(L10n.ShareData.Nearby.currentConnectionTitle)) {
+            if let connected = viewModel.connectedPeer {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L10n.ShareData.Nearby.connectedTo(connected.displayName))
+                    if let version = connected.appVersion {
+                        Text(L10n.ShareData.Nearby.appVersion(version))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    Button(role: .destructive) {
+                        viewModel.disconnect()
+                    } label: {
+                        Text(L10n.ShareData.Nearby.disconnect)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .postHogLabel("shareData.disconnect")
+                    .phCaptureTap(
+                        event: "shareData_disconnect_button",
+                        properties: ["peer": connected.displayName]
+                    )
+                }
+            } else {
+                Text(statusText)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var sendSection: some View {
+        Section(header: Text(L10n.ShareData.Nearby.sendSectionTitle)) {
+            ShareDataActionButton(
+                title: L10n.ShareData.Nearby.sendSnapshot,
+                systemImage: "person.crop.circle.badge.checkmark",
+                tint: .accentColor
+            ) {
+                viewModel.sendProfileSnapshot()
+            }
+            .disabled(viewModel.connectedPeer == nil)
+            .postHogLabel("shareData.sendSnapshot")
+            .phCaptureTap(
+                event: "shareData_sendSnapshot_button",
+                properties: ["peer_connected": viewModel.connectedPeer?.displayName ?? "none"]
+            )
+
+            ShareDataActionButton(
+                title: L10n.ShareData.Nearby.sendChanges,
+                systemImage: "arrow.triangle.2.circlepath",
+                tint: .indigo
+            ) {
+                viewModel.sendLatestChanges()
+            }
+            .disabled(viewModel.connectedPeer == nil)
+            .postHogLabel("shareData.sendDelta")
+            .phCaptureTap(
+                event: "shareData_sendDelta_button",
+                properties: ["peer_connected": viewModel.connectedPeer?.displayName ?? "none"]
+            )
+
+            ShareDataActionButton(
+                title: L10n.ShareData.Nearby.sendExport,
+                systemImage: "tray.and.arrow.up.fill",
+                tint: .mint
+            ) {
+                sendFullExportOverMPC()
+            }
+            .disabled(viewModel.connectedPeer == nil || isPreparingAirDropShare)
+            .postHogLabel("shareData.sendExport")
+            .phCaptureTap(
+                event: "shareData_sendExport_button",
+                properties: ["peer_connected": viewModel.connectedPeer?.displayName ?? "none"]
+            )
+
+            if viewModel.transferProgress.isEmpty == false {
+                ForEach(viewModel.transferProgress) { progress in
+                    let detailText = transferDetail(for: progress)
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(progressTitle(for: progress))
+                                .font(.subheadline)
+                            Spacer()
+                            Text(progressPercentage(for: progress))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if viewModel.isTransferCancellable(progress) {
+                                Button(L10n.ShareData.Nearby.cancelTransfer) {
+                                    viewModel.cancelTransfer(progress)
+                                }
+                                .buttonStyle(.borderless)
+                                .tint(.red)
+                                .postHogLabel("shareData.cancelTransfer")
+                                .phCaptureTap(
+                                    event: "shareData_cancelTransfer_button",
+                                    properties: cancelAnalyticsProperties(for: progress)
+                                )
+                                .accessibilityLabel(Text(L10n.ShareData.Nearby.cancelTransfer))
+                            }
+                        }
+                        ProgressView(value: progress.progress)
+                            .progressViewStyle(.linear)
+                            .accessibilityLabel(Text(progressTitle(for: progress)))
+                            .accessibilityValue(Text(progressPercentage(for: progress)))
+                        Text(detailText)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel(Text(detailText))
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+    }
+
+    private var receiveSection: some View {
+        Section(header: Text(L10n.ShareData.Nearby.receiveSectionTitle)) {
+            if let timestamp = viewModel.lastReceivedAt {
+                Text(L10n.ShareData.Nearby.lastReceived(relativeString(from: timestamp)))
+            } else {
+                Text(L10n.ShareData.Nearby.awaitingData)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var advancedSection: some View {
+        Section(header: Text(L10n.ShareData.advancedSectionTitle)) {
+            Toggle(L10n.ShareData.Nearby.browsingToggle, isOn: $browsingEnabled)
+                .onChange(of: browsingEnabled) { _, isOn in
+                    if isOn {
+                        viewModel.startBrowsing()
+                    } else {
+                        viewModel.stopBrowsing()
+                    }
+                }
+                .postHogLabel("shareData.toggleBrowsing")
+                .phCaptureTap(
+                    event: "shareData_toggleBrowsing_toggle",
+                    properties: ["enabled": browsingEnabled ? "true" : "false"]
+                )
+
+            Toggle(L10n.ShareData.Nearby.advertisingToggle, isOn: $advertisingEnabled)
+                .onChange(of: advertisingEnabled) { _, isOn in
+                    viewModel.advertise(on: isOn)
+                }
+                .postHogLabel("shareData.toggleAdvertising")
+                .phCaptureTap(
+                    event: "shareData_toggleAdvertising_toggle",
+                    properties: ["enabled": advertisingEnabled ? "true" : "false"]
+                )
+
+            ShareDataActionButton(
+                title: L10n.ShareData.AirDrop.shareButton,
+                systemImage: "airplane.circle",
+                tint: .blue,
+                action: startAirDropShare,
+                isLoading: isPreparingAirDropShare
+            )
+            .postHogLabel("shareData.airDrop")
+            .phCaptureTap(
+                event: "shareData_airdrop_button",
+                properties: ["profile_id": profileStore.activeProfile.id.uuidString]
+            )
+            .disabled(isPreparingAirDropShare)
+
+            ShareDataActionButton(
+                title: L10n.ShareData.exportButton,
+                systemImage: "square.and.arrow.up",
+                tint: .accentColor,
+                action: startExport
+            )
+            .postHogLabel("shareData.export")
+            .phCaptureTap(
+                event: "shareData_export_button",
+                properties: ["profile_id": profileStore.activeProfile.id.uuidString]
+            )
+
+            ShareDataActionButton(
+                title: L10n.ShareData.importButton,
+                systemImage: "square.and.arrow.down",
+                tint: .mint
+            ) {
+                isImporting = true
+            }
+            .postHogLabel("shareData.import")
+            .phCaptureTap(
+                event: "shareData_import_button",
+                properties: ["profile_id": profileStore.activeProfile.id.uuidString]
+            )
+
+            importFooter
+        }
+    }
+
+    private func configureViewModelIfNeeded() {
+        guard didConfigureViewModel == false else { return }
+        viewModel.configure(
+            profileProvider: { profileStore.activeProfile },
+            actionStateProvider: { actionStore.state(for: $0) }
+        )
+        didConfigureViewModel = true
+    }
+
+    private func startDefaultBrowsing() {
+        if browsingEnabled {
+            viewModel.startBrowsing()
+        }
+        if advertisingEnabled {
+            viewModel.advertise(on: true)
+        }
+    }
+
+    private func syncStateToggles() {
+        switch viewModel.sessionState {
+        case .browsing:
+            browsingEnabled = true
+        case .advertising:
+            advertisingEnabled = true
+        default:
+            break
+        }
+    }
+
+    private func sendFullExportOverMPC() {
+        do {
+            let data = try makeExportData()
+            let filename = "\(defaultExportFilename).json"
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+            if FileManager.default.fileExists(atPath: url.path) {
+                try FileManager.default.removeItem(at: url)
+            }
+            try data.write(to: url, options: .atomic)
+            viewModel.sendExportFile(at: url)
+        } catch {
+            alert = ShareDataAlert(
+                title: L10n.ShareData.Alert.nearbyFailureTitle,
+                message: L10n.ShareData.Alert.nearbyFailureMessage(error.localizedDescription)
+            )
         }
     }
 
@@ -242,21 +475,6 @@ struct ShareDataView: View {
         }
     }
 
-    @ViewBuilder
-    private var nearbyFooter: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(L10n.ShareData.Nearby.footer)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            if let status = nearbyStatusDescription {
-                Text(status)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
     private func startExport() {
         let profile = profileStore.activeProfile
         let state = actionStore.state(for: profile.id)
@@ -266,7 +484,7 @@ struct ShareDataView: View {
     }
 
     private func startAirDropShare() {
-        guard !isPreparingAirDropShare else { return }
+        guard isPreparingAirDropShare == false else { return }
 
         withAnimation {
             isPreparingAirDropShare = true
@@ -297,21 +515,6 @@ struct ShareDataView: View {
         }
     }
 
-    private func startNearbyShare() {
-        do {
-            let data = try makeExportData()
-            let filename = "\(defaultExportFilename).json"
-            nearbyShareController.prepareShare(data: data, filename: filename)
-            nearbyShareController.beginPresentingBrowser()
-            isPresentingNearbyBrowser = true
-        } catch {
-            alert = ShareDataAlert(
-                title: L10n.ShareData.Alert.nearbyFailureTitle,
-                message: L10n.ShareData.Alert.nearbyFailureMessage(error.localizedDescription)
-            )
-        }
-    }
-
     private func makeExportData() throws -> Data {
         let profile = profileStore.activeProfile
         let state = actionStore.state(for: profile.id)
@@ -324,12 +527,12 @@ struct ShareDataView: View {
 
     private func handleExportResult(_ result: Result<URL, Error>) {
         switch result {
-        case .success(let url):
+        case let .success(url):
             alert = ShareDataAlert(
                 title: L10n.ShareData.Alert.exportSuccessTitle,
                 message: L10n.ShareData.Alert.exportSuccessMessage(url.lastPathComponent)
             )
-        case .failure(let error):
+        case let .failure(error):
             guard (error as NSError).code != NSUserCancelledError else { return }
             alert = ShareDataAlert(
                 title: L10n.ShareData.Alert.exportFailureTitle,
@@ -340,7 +543,7 @@ struct ShareDataView: View {
 
     private func handleImportResult(_ result: Result<[URL], Error>) {
         switch result {
-        case .success(let urls):
+        case let .success(urls):
             guard let url = urls.first else {
                 alert = ShareDataAlert(
                     title: L10n.ShareData.Alert.importFailureTitle,
@@ -349,7 +552,7 @@ struct ShareDataView: View {
                 return
             }
             importData(from: url)
-        case .failure(let error):
+        case let .failure(error):
             guard (error as NSError).code != NSUserCancelledError else { return }
             alert = ShareDataAlert(
                 title: L10n.ShareData.Alert.importFailureTitle,
@@ -374,18 +577,12 @@ struct ShareDataView: View {
 
             let profileUpdated = try profileStore.mergeActiveProfile(with: payload.profile)
             let summary = actionStore.mergeProfileState(payload.actions, for: payload.profile.id)
-
             lastImportSummary = summary
             didUpdateProfile = profileUpdated
 
-            var messages = [L10n.ShareData.importSummary(summary.added, summary.updated)]
-            if profileUpdated {
-                messages.append(L10n.ShareData.profileUpdatedNote)
-            }
-
             alert = ShareDataAlert(
                 title: L10n.ShareData.Alert.importSuccessTitle,
-                message: messages.joined(separator: "\n")
+                message: importSuccessMessage(summary: summary)
             )
         } catch let error as ProfileStore.ShareDataError {
             alert = ShareDataAlert(
@@ -400,6 +597,18 @@ struct ShareDataView: View {
         }
     }
 
+    private func importSuccessMessage(summary: ActionLogStore.MergeSummary) -> String {
+        var messages = [L10n.ShareData.importSummary(summary.added, summary.updated)]
+        if didUpdateProfile {
+            messages.append(L10n.ShareData.profileUpdatedNote)
+        }
+        return messages.joined(separator: "\n")
+    }
+
+    private func relativeString(from date: Date) -> String {
+        DateFormatter.relative.localizedString(for: date, relativeTo: Date())
+    }
+
     private func processPendingExternalImportIfNeeded() {
         guard let request = shareDataCoordinator.externalImportRequest else { return }
         guard processedExternalImportID != request.id else { return }
@@ -409,7 +618,7 @@ struct ShareDataView: View {
     }
 
     private func sanitizeFilename(_ name: String) -> String {
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_") )
         let sanitizedScalars = name.unicodeScalars.map { scalar -> Character in
             if allowed.contains(scalar) {
                 return Character(scalar)
@@ -417,107 +626,79 @@ struct ShareDataView: View {
             return "-"
         }
         let sanitized = String(sanitizedScalars)
-        let trimmed = sanitized.trimmingCharacters(in: CharacterSet(charactersIn: "-_"))
+        let trimmed = sanitized.trimmingCharacters(in: CharacterSet(charactersIn: "-_") )
         let base = trimmed.isEmpty ? "Profile" : trimmed
         return "\(base)-share"
     }
 
-    private var nearbyStatusDescription: String? {
-        switch nearbyShareController.phase {
+    private var statusText: String {
+        switch viewModel.sessionState {
         case .idle:
+            return L10n.ShareData.Nearby.statusIdle
+        case .browsing:
+            return L10n.ShareData.Nearby.statusBrowsing
+        case .advertising:
+            return L10n.ShareData.Nearby.statusAdvertising
+        case let .inviting(peer):
+            return L10n.ShareData.Nearby.statusInviting(peer.displayName)
+        case let .connected(peer):
+            return L10n.ShareData.Nearby.connectedTo(peer.displayName)
+        case .disconnecting:
+            return L10n.ShareData.Nearby.statusDisconnecting
+        }
+    }
+
+    private func progressTitle(for progress: MPCTransferProgress) -> String {
+        switch progress.kind {
+        case let .message(type):
+            return L10n.ShareData.Nearby.transferMessage(type.localizedDescription)
+        case let .resource(name):
+            return L10n.ShareData.Nearby.transferResource(name)
+        }
+    }
+
+    private func progressPercentage(for progress: MPCTransferProgress) -> String {
+        String(format: "%.0f%%", progress.progress * 100)
+    }
+
+    private func transferDetail(for progress: MPCTransferProgress) -> String {
+        let transferred = ShareDataView.byteCountFormatter.string(fromByteCount: progress.bytesTransferred)
+        let total = ShareDataView.byteCountFormatter.string(fromByteCount: max(progress.totalBytes, progress.bytesTransferred))
+        var components = [L10n.ShareData.Nearby.transferDetail(transferred, total)]
+        if let speed = transferSpeedDescription(for: progress) {
+            components.append(L10n.ShareData.Nearby.transferSpeed(speed))
+        }
+        if let remaining = transferRemainingDescription(for: progress) {
+            components.append(L10n.ShareData.Nearby.transferRemaining(remaining))
+        }
+        return components.joined(separator: " • ")
+    }
+
+    private func transferSpeedDescription(for progress: MPCTransferProgress) -> String? {
+        let elapsed = progress.updatedAt.timeIntervalSince(progress.startedAt)
+        guard elapsed > 0 else { return nil }
+        let bytesPerSecond = Double(progress.bytesTransferred) / elapsed
+        guard bytesPerSecond.isFinite, bytesPerSecond > 0 else { return nil }
+        let formatted = ShareDataView.speedFormatter.string(fromByteCount: Int64(bytesPerSecond))
+        return formatted
+    }
+
+    private func transferRemainingDescription(for progress: MPCTransferProgress) -> String? {
+        guard let remaining = progress.estimatedRemainingTime, remaining.isFinite, remaining > 1 else {
             return nil
-        case .preparing:
-            return L10n.ShareData.Nearby.statusPreparing
-        case .presenting:
-            return L10n.ShareData.Nearby.statusWaiting
-        case let .sending(peer):
-            return L10n.ShareData.Nearby.statusSending(peer)
         }
-    }
-}
-
-private struct AirDropShareItem: Identifiable {
-    let id = UUID()
-    let url: URL
-
-    func cleanup() {
-        try? FileManager.default.removeItem(at: url)
-    }
-}
-
-private enum AirDropShareOutcome {
-    case completed
-    case cancelled
-    case failed(Error)
-}
-
-private struct AirDropShareSheet: UIViewControllerRepresentable {
-    let item: AirDropShareItem
-    let completion: (AirDropShareOutcome) -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(completion: completion)
+        return ShareDataView.remainingFormatter.string(from: remaining)
     }
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        let controller = UIActivityViewController(activityItems: [item.url], applicationActivities: nil)
-        controller.excludedActivityTypes = Self.nonAirDropActivities
-        controller.completionWithItemsHandler = { _, completed, _, error in
-            DispatchQueue.main.async {
-                if let error {
-                    context.coordinator.completion(.failed(error))
-                } else if completed {
-                    context.coordinator.completion(.completed)
-                } else {
-                    context.coordinator.completion(.cancelled)
-                }
-            }
+    private func cancelAnalyticsProperties(for progress: MPCTransferProgress) -> [String: Any] {
+        var properties: [String: Any] = ["peer": progress.peerID.displayName]
+        switch progress.kind {
+        case let .resource(name):
+            properties["resource"] = name
+        case let .message(type):
+            properties["messageType"] = type.rawValue
         }
-        if let popover = controller.popoverPresentationController {
-            popover.sourceView = UIApplication.shared.connectedScenes
-                .compactMap { ($0 as? UIWindowScene)?.windows.first { $0.isKeyWindow } }
-                .first
-            if let sourceView = popover.sourceView {
-                popover.sourceRect = CGRect(
-                    x: sourceView.bounds.midX,
-                    y: sourceView.bounds.midY,
-                    width: 0,
-                    height: 0
-                )
-                popover.permittedArrowDirections = []
-            }
-        }
-        return controller
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-
-    static var nonAirDropActivities: [UIActivity.ActivityType] {
-        [
-            .postToFacebook,
-            .postToTwitter,
-            .postToWeibo,
-            .message,
-            .mail,
-            .print,
-            .copyToPasteboard,
-            .assignToContact,
-            .saveToCameraRoll,
-            .addToReadingList,
-            .postToFlickr,
-            .postToVimeo,
-            .postToTencentWeibo,
-            .openInIBooks,
-            .markupAsPDF
-        ]
-    }
-
-    final class Coordinator {
-        let completion: (AirDropShareOutcome) -> Void
-
-        init(completion: @escaping (AirDropShareOutcome) -> Void) {
-            self.completion = completion
-        }
+        return properties
     }
 }
 
@@ -611,6 +792,118 @@ struct ShareDataDocument: FileDocument {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(payload)
         return FileWrapper(regularFileWithContents: data)
+    }
+}
+
+private struct AirDropShareItem: Identifiable {
+    let id = UUID()
+    let url: URL
+
+    func cleanup() {
+        try? FileManager.default.removeItem(at: url)
+    }
+}
+
+private enum AirDropShareOutcome {
+    case completed
+    case cancelled
+    case failed(Error)
+}
+
+private struct AirDropShareSheet: UIViewControllerRepresentable {
+    let item: AirDropShareItem
+    let completion: (AirDropShareOutcome) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(completion: completion)
+    }
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: [item.url], applicationActivities: nil)
+        controller.excludedActivityTypes = Self.nonAirDropActivities
+        controller.completionWithItemsHandler = { _, completed, _, error in
+            DispatchQueue.main.async {
+                if let error {
+                    context.coordinator.completion(.failed(error))
+                } else if completed {
+                    context.coordinator.completion(.completed)
+                } else {
+                    context.coordinator.completion(.cancelled)
+                }
+            }
+        }
+        if let popover = controller.popoverPresentationController {
+            popover.sourceView = UIApplication.shared.connectedScenes
+                .compactMap { ($0 as? UIWindowScene)?.windows.first { $0.isKeyWindow } }
+                .first
+            if let sourceView = popover.sourceView {
+                popover.sourceRect = CGRect(
+                    x: sourceView.bounds.midX,
+                    y: sourceView.bounds.midY,
+                    width: 0,
+                    height: 0
+                )
+                popover.permittedArrowDirections = []
+            }
+        }
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+
+    static var nonAirDropActivities: [UIActivity.ActivityType] {
+        [
+            .postToFacebook,
+            .postToTwitter,
+            .postToWeibo,
+            .message,
+            .mail,
+            .print,
+            .copyToPasteboard,
+            .assignToContact,
+            .saveToCameraRoll,
+            .addToReadingList,
+            .postToFlickr,
+            .postToVimeo,
+            .postToTencentWeibo,
+            .openInIBooks,
+            .markupAsPDF
+        ]
+    }
+
+    final class Coordinator {
+        let completion: (AirDropShareOutcome) -> Void
+
+        init(completion: @escaping (AirDropShareOutcome) -> Void) {
+            self.completion = completion
+        }
+    }
+}
+
+private extension DateFormatter {
+    static let relative: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter
+    }()
+}
+
+private extension MPCMessageType {
+    var localizedDescription: String {
+        switch self {
+        case .hello:
+            return L10n.ShareData.Nearby.messageHello
+        case .capabilities:
+            return L10n.ShareData.Nearby.messageCapabilities
+        case .profileSnapshot:
+            return L10n.ShareData.Nearby.messageSnapshot
+        case .actionsDelta:
+            return L10n.ShareData.Nearby.messageDelta
+        case .ack:
+            return L10n.ShareData.Nearby.messageAck
+        case .error:
+            return L10n.ShareData.Nearby.messageError
+        }
     }
 }
 
