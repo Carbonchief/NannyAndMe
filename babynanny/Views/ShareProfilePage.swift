@@ -5,15 +5,49 @@ import SwiftUI
 import UIKit
 
 struct ShareProfilePage: View {
+    @EnvironmentObject private var cloudStatusController: CloudAccountStatusController
+    @EnvironmentObject private var appDataStack: AppDataStack
     let profileID: UUID
 
+    private var isCloudSharingAvailable: Bool {
+        cloudStatusController.status == .available && appDataStack.cloudSyncEnabled
+    }
+
+    var body: some View {
+        if isCloudSharingAvailable,
+           let metadataStore = appDataStack.shareMetadataStore,
+           let subscriptionManager = appDataStack.sharedSubscriptionManager {
+            ShareProfilePageContent(
+                profileID: profileID,
+                modelContainer: appDataStack.modelContainer,
+                metadataStore: metadataStore,
+                subscriptionManager: subscriptionManager
+            )
+        } else {
+            ShareProfileUnavailableView()
+        }
+    }
+}
+
+private struct ShareProfilePageContent: View {
+    let profileID: UUID
     @StateObject private var viewModel: ShareProfilePageViewModel
     @State private var participantPendingRemoval: ShareParticipantItem?
     @State private var isConfirmingStopShare = false
 
-    init(profileID: UUID) {
+    init(profileID: UUID,
+         modelContainer: ModelContainer,
+         metadataStore: ShareMetadataStore,
+         subscriptionManager: SharedScopeSubscriptionManager,
+         containerIdentifier: String = "iCloud.com.prioritybit.babynanny") {
         self.profileID = profileID
-        _viewModel = StateObject(wrappedValue: ShareProfilePageViewModel(profileID: profileID))
+        _viewModel = StateObject(wrappedValue: ShareProfilePageViewModel(
+            profileID: profileID,
+            modelContainer: modelContainer,
+            metadataStore: metadataStore,
+            subscriptionManager: subscriptionManager,
+            containerIdentifier: containerIdentifier
+        ))
     }
 
     var body: some View {
@@ -90,6 +124,7 @@ struct ShareProfilePage: View {
             } label: {
                 Text(ShareStrings.stopSharingButton)
             }
+            .disabled(viewModel.isStoppingShare)
             .postHogLabel("shareData.confirmStopSharingButton")
             .phCaptureTap(
                 event: "shareData_confirmStopSharing_button",
@@ -182,6 +217,52 @@ struct ShareProfilePage: View {
     }
 }
 
+private struct ShareProfileUnavailableView: View {
+    @Environment(\.openURL) private var openURL
+    @EnvironmentObject private var cloudStatusController: CloudAccountStatusController
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "icloud.slash")
+                .font(.system(size: 56, weight: .medium))
+                .foregroundStyle(.secondary)
+            Text(L10n.ShareData.Unavailable.title)
+                .font(.title2)
+                .fontWeight(.semibold)
+                .multilineTextAlignment(.center)
+            Text(L10n.ShareData.Unavailable.message)
+                .font(.body)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+            Button {
+                Analytics.capture("shareProfile_open_settings_button", properties: ["status": cloudStatusController.status.analyticsValue])
+                if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                    openURL(settingsURL)
+                }
+            } label: {
+                Text(L10n.ShareData.Unavailable.openSettings)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .postHogLabel("shareData.unavailable.openSettings")
+            Button {
+                Analytics.capture("shareProfile_retry_cloud_button", properties: ["status": cloudStatusController.status.analyticsValue])
+                cloudStatusController.refreshAccountStatus(force: true)
+            } label: {
+                Text(L10n.ShareData.Unavailable.retry)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .postHogLabel("shareData.unavailable.retry")
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle(L10n.ShareData.title)
+    }
+}
+
 // MARK: - View model
 
 @MainActor
@@ -214,17 +295,16 @@ private final class ShareProfilePageViewModel: ObservableObject {
     }()
 
     init(profileID: UUID,
-         modelContainer: ModelContainer? = nil,
-         containerIdentifier: String = "iCloud.com.prioritybit.babynanny") {
+         modelContainer: ModelContainer,
+         metadataStore: ShareMetadataStore,
+         subscriptionManager: SharedScopeSubscriptionManager,
+         containerIdentifier: String) {
         self.profileID = profileID
-        let dataStack = AppDataStack.shared
-        let resolvedModelContainer = modelContainer ?? dataStack.modelContainer
-        let metadataStore = dataStack.shareMetadataStore
+        self.modelContainer = modelContainer
         self.metadataStore = metadataStore
-        self.sharingManager = CloudKitSharingManager(modelContainer: resolvedModelContainer, metadataStore: metadataStore)
+        self.sharingManager = CloudKitSharingManager(modelContainer: modelContainer, metadataStore: metadataStore)
+        self.subscriptionManager = subscriptionManager
         self.container = CKContainer(identifier: containerIdentifier)
-        self.subscriptionManager = dataStack.sharedSubscriptionManager
-        self.modelContainer = resolvedModelContainer
         configurePushHandling()
     }
 
@@ -398,24 +478,18 @@ private final class ShareProfilePageViewModel: ObservableObject {
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKShare.Participant?, Error>) in
             let lookup = CKUserIdentity.LookupInfo(userRecordID: recordID)
             let operation = CKFetchShareParticipantsOperation(userIdentityLookupInfos: [lookup])
-            operation.qualityOfService = .userInitiated
-
-            var fetchedParticipant: CKShare.Participant?
+            var resultParticipant: CKShare.Participant?
             operation.shareParticipantFetchedBlock = { participant in
-                if fetchedParticipant == nil {
-                    fetchedParticipant = participant
-                }
+                resultParticipant = participant
             }
-
             operation.fetchShareParticipantsResultBlock = { result in
                 switch result {
                 case .success:
-                    continuation.resume(returning: fetchedParticipant)
+                    continuation.resume(returning: resultParticipant)
                 case .failure(let error):
                     continuation.resume(throwing: error)
                 }
             }
-
             container.add(operation)
         }
     }
@@ -425,420 +499,18 @@ private final class ShareProfilePageViewModel: ObservableObject {
             return cachedProfileSummary
         }
 
-        let targetProfileID = profileID
-        let summary = await Task.detached(priority: .userInitiated) { [modelContainer] () -> ProfileSummary? in
-            let context = ModelContext(modelContainer)
-            context.autosaveEnabled = false
-            let predicate = #Predicate<ProfileActionStateModel> { model in
-                model.profileID == targetProfileID
-            }
-            var descriptor = FetchDescriptor<ProfileActionStateModel>(predicate: predicate)
-            descriptor.fetchLimit = 1
+        let context = ModelContext(modelContainer)
+        context.autosaveEnabled = false
+
+        return await Task.detached(priority: .userInitiated) {
+            let descriptor = FetchDescriptor<ProfileActionStateModel>(predicate: #Predicate { $0.profileID == profileID })
             guard let model = try? context.fetch(descriptor).first else { return nil }
-            return ProfileSummary(name: model.name, imageData: model.imageData)
+            let summary = ProfileSummary(name: model.name, imageData: model.imageData)
+            await MainActor.run { [weak self] in
+                self?.cachedProfileSummary = summary
+            }
+            return summary
         }.value
-
-        cachedProfileSummary = summary
-        return summary
     }
 }
 
-// MARK: - Models
-
-private struct ShareSheetPayload: Identifiable {
-    let id = UUID()
-    let share: CKShare
-    let displayName: String?
-    let thumbnailData: Data?
-}
-
-private struct ProfileSummary: Sendable {
-    let name: String?
-    let imageData: Data?
-}
-
-private struct ShareAlert: Identifiable {
-    let id = UUID()
-    let title: String
-    let message: String
-
-    init(title: String = ShareStrings.errorTitle, message: String) {
-        self.title = title
-        self.message = message
-    }
-}
-
-private struct ShareParticipantItem: Identifiable, Equatable {
-    let id: String
-    let participant: CKShare.Participant
-    private let ownerFallbackName: String?
-
-    init(participant: CKShare.Participant, ownerFallbackName: String?) {
-        self.participant = participant
-        self.ownerFallbackName = ownerFallbackName
-        if let recordName = participant.userIdentity.userRecordID?.recordName {
-            self.id = recordName
-        } else if let email = participant.userIdentity.lookupInfo?.emailAddress {
-            self.id = "email-" + email
-        } else if let phone = participant.userIdentity.lookupInfo?.phoneNumber {
-            self.id = "phone-" + phone
-        } else {
-            self.id = UUID().uuidString
-        }
-    }
-
-    var isOwner: Bool {
-        participant.role == .owner
-    }
-
-    var displayName: String {
-        if let components = participant.userIdentity.nameComponents {
-            let formatted = ShareParticipantItem.nameFormatter.string(from: components)
-            if formatted.isEmpty == false {
-                return formatted
-            }
-        }
-        if participant.role == .owner,
-           let ownerFallbackName,
-           ownerFallbackName.isEmpty == false {
-            return ownerFallbackName
-        }
-        if let email = participant.userIdentity.lookupInfo?.emailAddress {
-            return email
-        }
-        if let phone = participant.userIdentity.lookupInfo?.phoneNumber {
-            return phone
-        }
-        return ShareStrings.unknownParticipant
-    }
-
-    var roleDescription: String {
-        isOwner ? ShareStrings.ownerRole : ShareStrings.invitedRole
-    }
-
-    var permissionDescription: String {
-        switch participant.permission {
-        case .readOnly:
-            return ShareStrings.permissionReadOnly
-        case .readWrite:
-            return ShareStrings.permissionReadWrite
-        default:
-            return ShareStrings.permissionUnknown
-        }
-    }
-
-    var permission: CKShare.ParticipantPermission {
-        participant.permission
-    }
-
-    static func sortComparator(lhs: ShareParticipantItem, rhs: ShareParticipantItem) -> Bool {
-        if lhs.isOwner { return true }
-        if rhs.isOwner { return false }
-        return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
-    }
-
-    private static let nameFormatter: PersonNameComponentsFormatter = {
-        let formatter = PersonNameComponentsFormatter()
-        formatter.style = .default
-        return formatter
-    }()
-
-    static func == (lhs: ShareParticipantItem, rhs: ShareParticipantItem) -> Bool {
-        lhs.id == rhs.id
-    }
-}
-
-// MARK: - Views
-
-private struct ShareParticipantRow: View {
-    let item: ShareParticipantItem
-    let isProcessing: Bool
-    let profileID: UUID
-    let onChangePermission: (CKShare.ParticipantPermission) -> Void
-    let onRemove: () -> Void
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.displayName)
-                    .font(.body)
-                Text(item.roleDescription)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 12)
-            PermissionBadge(title: item.permissionDescription)
-            if item.isOwner == false {
-                if isProcessing {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .controlSize(.small)
-                } else {
-                    Menu {
-                        if item.permission != .readWrite {
-                            Button(ShareStrings.makeReadWrite) {
-                                onChangePermission(.readWrite)
-                            }
-                            .phCaptureTap(
-                                event: "shareData_makeReadWrite_button",
-                                properties: [
-                                    "profile_id": profileID.uuidString,
-                                    "participant_id": item.id
-                                ]
-                            )
-                            .postHogLabel("shareData.makeReadWrite")
-                        }
-                        if item.permission != .readOnly {
-                            Button(ShareStrings.makeReadOnly) {
-                                onChangePermission(.readOnly)
-                            }
-                            .phCaptureTap(
-                                event: "shareData_makeReadOnly_button",
-                                properties: [
-                                    "profile_id": profileID.uuidString,
-                                    "participant_id": item.id
-                                ]
-                            )
-                            .postHogLabel("shareData.makeReadOnly")
-                        }
-                        Divider()
-                        Button(role: .destructive) {
-                            onRemove()
-                        } label: {
-                            Text(ShareStrings.removeParticipantAction)
-                        }
-                        .phCaptureTap(
-                            event: "shareData_removeParticipant_button",
-                            properties: [
-                                "profile_id": profileID.uuidString,
-                                "participant_id": item.id
-                            ]
-                        )
-                        .postHogLabel("shareData.removeParticipant")
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .imageScale(.large)
-                            .accessibilityLabel(ShareStrings.manageParticipantMenu)
-                    }
-                    .postHogLabel("shareData.participantMenu")
-                }
-            }
-        }
-        .padding(.vertical, 4)
-    }
-}
-
-private struct ShareProfileSheet: View {
-    let payload: ShareSheetPayload
-    let container: CKContainer
-    let onDidSaveShare: () -> Void
-    let onDidStopSharing: () -> Void
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    SharingUI(
-                        share: payload.share,
-                        container: container,
-                        itemTitle: payload.displayName,
-                        thumbnailData: payload.thumbnailData,
-                        onDidSaveShare: onDidSaveShare,
-                        onDidStopSharing: onDidStopSharing,
-                        showsItemPreview: false
-                    )
-                    .frame(maxWidth: .infinity, minHeight: 360)
-                    .frame(maxHeight: .infinity, alignment: .center)
-                    .listRowInsets(EdgeInsets())
-                }
-            }
-            .shareProfileSheetStyling()
-            .navigationTitle(payload.displayName ?? ShareStrings.unnamedProfileTitle)
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-}
-
-private extension View {
-    @ViewBuilder
-    func shareProfileSheetStyling() -> some View {
-        if #available(iOS 16.0, *) {
-            self
-                .formStyle(.grouped)
-                .scrollContentBackground(.hidden)
-                .background(Color(.systemGroupedBackground))
-        } else {
-            self
-                .background(Color(.systemGroupedBackground))
-        }
-    }
-}
-
-private struct ManageShareButtonLabel: View {
-    let title: String
-    let isLoading: Bool
-
-    var body: some View {
-        HStack {
-            if isLoading {
-                ProgressView()
-                    .progressViewStyle(.circular)
-                    .tint(.white)
-            }
-            Text(title)
-                .fontWeight(.semibold)
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, alignment: .center)
-    }
-}
-
-private struct StopSharingButtonLabel: View {
-    let isLoading: Bool
-
-    var body: some View {
-        HStack {
-            if isLoading {
-                ProgressView()
-                    .progressViewStyle(.circular)
-            }
-            Text(ShareStrings.stopSharingButton)
-            Spacer(minLength: 0)
-        }
-    }
-}
-
-private struct PermissionBadge: View {
-    let title: String
-
-    var body: some View {
-        Text(title)
-            .font(.caption)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(
-                Capsule()
-                    .fill(Color.accentColor.opacity(0.15))
-            )
-            .foregroundStyle(Color.accentColor)
-    }
-}
-
-// MARK: - Strings
-
-private enum ShareStrings {
-    static let shareProfileButton = String(
-        localized: "shareData.sharing.shareProfileButton",
-        defaultValue: "Share profile"
-    )
-    static let manageShareButton = String(
-        localized: "shareData.sharing.manageButton",
-        defaultValue: "Manage sharing"
-    )
-    static let participantsSectionTitle = String(
-        localized: "shareData.sharing.participantsSectionTitle",
-        defaultValue: "Participants"
-    )
-    static let notSharedMessage = String(
-        localized: "shareData.sharing.notSharedMessage",
-        defaultValue: "This profile isn't shared yet. Tap Share profile to invite someone."
-    )
-    static let noParticipantsMessage = String(
-        localized: "shareData.sharing.noParticipantsMessage",
-        defaultValue: "Only you can access this profile right now."
-    )
-    static let ownerRole = String(
-        localized: "shareData.sharing.ownerRole",
-        defaultValue: "Owner"
-    )
-    static let invitedRole = String(
-        localized: "shareData.sharing.invitedRole",
-        defaultValue: "Invited"
-    )
-    static let permissionReadOnly = String(
-        localized: "shareData.sharing.permissionReadOnly",
-        defaultValue: "Read-Only"
-    )
-    static let permissionReadWrite = String(
-        localized: "shareData.sharing.permissionReadWrite",
-        defaultValue: "Read-Write"
-    )
-    static let permissionUnknown = String(
-        localized: "shareData.sharing.permissionUnknown",
-        defaultValue: "Unknown"
-    )
-    static let unknownParticipant = String(
-        localized: "shareData.sharing.unknownParticipant",
-        defaultValue: "Unknown participant"
-    )
-    static let unnamedProfileTitle = String(
-        localized: "shareData.sharing.unnamedProfileTitle",
-        defaultValue: "Profile"
-    )
-    static let makeReadOnly = String(
-        localized: "shareData.sharing.makeReadOnly",
-        defaultValue: "Make Read-Only"
-    )
-    static let makeReadWrite = String(
-        localized: "shareData.sharing.makeReadWrite",
-        defaultValue: "Make Read-Write"
-    )
-    static let removeParticipantTitle = String(
-        localized: "shareData.sharing.removeParticipantTitle",
-        defaultValue: "Remove access?"
-    )
-    static let removeParticipantAction = String(
-        localized: "shareData.sharing.removeParticipantAction",
-        defaultValue: "Remove Access…"
-    )
-    static let confirmRemoveParticipantButton = String(
-        localized: "shareData.sharing.confirmRemoveParticipantButton",
-        defaultValue: "Remove Access"
-    )
-    static func removeParticipantMessage(_ name: String) -> String {
-        let format = String(
-            localized: "shareData.sharing.removeParticipantMessage",
-            defaultValue: "Remove %@'s access to this profile?"
-        )
-        return String(format: format, locale: .current, name)
-    }
-    static let manageParticipantMenu = String(
-        localized: "shareData.sharing.manageParticipantMenu",
-        defaultValue: "Manage participant"
-    )
-    static let stopSharingButton = String(
-        localized: "shareData.sharing.stopSharingButton",
-        defaultValue: "Stop sharing…"
-    )
-    static let stopSharingFooter = String(
-        localized: "shareData.sharing.stopSharingFooter",
-        defaultValue: "Stop sharing to revoke access for everyone."
-    )
-    static let stopSharingConfirmTitle = String(
-        localized: "shareData.sharing.stopSharingConfirmTitle",
-        defaultValue: "Stop sharing this profile?"
-    )
-    static let stopSharingMessage = String(
-        localized: "shareData.sharing.stopSharingMessage",
-        defaultValue: "All participants will immediately lose access."
-    )
-    static let errorTitle = String(
-        localized: "shareData.sharing.errorTitle",
-        defaultValue: "Sharing error"
-    )
-}
-
-// MARK: - Notifications
-
-extension Notification.Name {
-    static let sharedScopeNotification = Notification.Name("com.prioritybit.babynanny.sharedScopeNotification")
-}
-
-// MARK: - Preview
-
-#Preview {
-    NavigationStack {
-        ShareProfilePage(profileID: UUID())
-    }
-    .environmentObject(ProfileStore(initialProfiles: []))
-}

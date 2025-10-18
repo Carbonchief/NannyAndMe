@@ -8,8 +8,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     private weak var syncCoordinator: SyncCoordinator?
     private var sharedSubscriptionManager: SharedScopeSubscriptionManager?
 
-    func configure(with coordinator: SyncCoordinator,
-                   sharedSubscriptionManager: SharedScopeSubscriptionManager) {
+    func configure(with coordinator: SyncCoordinator?,
+                   sharedSubscriptionManager: SharedScopeSubscriptionManager?) {
         syncCoordinator = coordinator
         self.sharedSubscriptionManager = sharedSubscriptionManager
     }

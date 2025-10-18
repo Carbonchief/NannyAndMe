@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct SideMenu: View {
+    let isCloudSharingAvailable: Bool
     let onSelectAllLogs: () -> Void
     let onSelectShareProfile: () -> Void
     let onSelectSettings: () -> Void
@@ -34,14 +35,16 @@ struct SideMenu: View {
             }
             .postHogLabel("menu.allLogs")
 
-            Button(action: {
-                Analytics.capture("menu_select_shareProfile_drawer", properties: ["source": "side_menu"])
-                onSelectShareProfile()
-            }) {
-                Label(L10n.Menu.shareProfile, systemImage: "person.2.fill")
-                    .font(.headline)
+            if isCloudSharingAvailable {
+                Button(action: {
+                    Analytics.capture("menu_select_shareProfile_drawer", properties: ["source": "side_menu"])
+                    onSelectShareProfile()
+                }) {
+                    Label(L10n.Menu.shareProfile, systemImage: "person.2.fill")
+                        .font(.headline)
+                }
+                .postHogLabel("menu.shareProfile")
             }
-            .postHogLabel("menu.shareProfile")
 
             Button(action: {
                 Analytics.capture("menu_select_shareData_drawer", properties: ["source": "side_menu"])
@@ -73,5 +76,9 @@ struct SideMenu: View {
 }
 
 #Preview {
-    SideMenu(onSelectAllLogs: {}, onSelectShareProfile: {}, onSelectSettings: {}, onSelectShareData: {})
+    SideMenu(isCloudSharingAvailable: true,
+             onSelectAllLogs: {},
+             onSelectShareProfile: {},
+             onSelectSettings: {},
+             onSelectShareData: {})
 }

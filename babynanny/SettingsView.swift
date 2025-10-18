@@ -10,6 +10,8 @@ import PhotosUI
 import UIKit
 
 struct SettingsView: View {
+    @EnvironmentObject private var cloudStatusController: CloudAccountStatusController
+    @EnvironmentObject private var appDataStack: AppDataStack
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
 #if DEBUG
@@ -36,6 +38,7 @@ struct SettingsView: View {
             profilesSection
             activeProfileSection
             homeSection
+            cloudSection
             notificationsSection
             aboutSection
 #if DEBUG
@@ -121,6 +124,35 @@ struct SettingsView: View {
         }
     }
 
+    private var cloudSection: some View {
+        Section(header: Text(L10n.Settings.Cloud.sectionTitle)) {
+            HStack {
+                Label(L10n.Settings.Cloud.statusLabel, systemImage: "icloud")
+                Spacer()
+                Text(cloudStatusDescription)
+                    .foregroundStyle(.secondary)
+            }
+
+            Button {
+                Analytics.capture("settings_cloud_recheck_button", properties: ["status": cloudStatusController.status.analyticsValue])
+                cloudStatusController.refreshAccountStatus(force: true)
+            } label: {
+                Text(L10n.Settings.Cloud.recheck)
+            }
+            .postHogLabel("settings.cloud.recheck")
+
+            if appDataStack.cloudSyncEnabled == false {
+                Button {
+                    Analytics.capture("settings_cloud_enable_button", properties: ["status": cloudStatusController.status.analyticsValue])
+                    cloudStatusController.enableCloudSync()
+                } label: {
+                    Text(L10n.Settings.Cloud.enable)
+                }
+                .postHogLabel("settings.cloud.enable")
+            }
+        }
+    }
+
     private var profilesSection: some View {
         Section(header: Text(L10n.Profiles.title)) {
             ForEach(profileStore.profiles) { profile in
@@ -191,6 +223,19 @@ struct SettingsView: View {
         Section(header: Text(L10n.Profiles.activeProfileSection)) {
             activeProfileHeader
             processingPhotoIndicator
+        }
+    }
+
+    private var cloudStatusDescription: String {
+        switch cloudStatusController.status {
+        case .available:
+            return L10n.Settings.Cloud.statusAvailable
+        case .needsAccount:
+            return L10n.Settings.Cloud.statusNeedsAccount
+        case .localOnly:
+            return L10n.Settings.Cloud.statusLocalOnly
+        case .loading:
+            return L10n.Settings.Cloud.statusLoading
         }
     }
 

@@ -13,55 +13,59 @@ import UniformTypeIdentifiers
 @main
 struct babynannyApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var appDataStack = AppDataStack.shared
-    @StateObject private var profileStore: ProfileStore
-    private let actionStore: ActionLogStore
+    @StateObject private var cloudStatusController = CloudAccountStatusController()
     @StateObject private var shareDataCoordinator = ShareDataCoordinator()
-    @StateObject private var syncStatusViewModel: SyncStatusViewModel
+    @State private var appDataStack: AppDataStack?
+    @State private var profileStore: ProfileStore?
+    @State private var actionStore: ActionLogStore?
+    @State private var syncStatusViewModel: SyncStatusViewModel?
     @State private var isShowingSplashScreen = true
+    @State private var isPresentingCloudPrompt = false
 
     init() {
         Analytics.setup()
-        let stack = AppDataStack.shared
-        let scheduler = UserNotificationReminderScheduler()
-        let profileStore = ProfileStore(reminderScheduler: scheduler)
-        let actionStore = ActionLogStore(modelContext: stack.mainContext,
-                                         reminderScheduler: scheduler,
-                                         dataStack: stack)
-        profileStore.registerActionStore(actionStore)
-        actionStore.registerProfileStore(profileStore)
-        _profileStore = StateObject(wrappedValue: profileStore)
-        _syncStatusViewModel = StateObject(wrappedValue: stack.syncStatusViewModel)
-        self.actionStore = actionStore
-        appDelegate.configure(with: stack.syncCoordinator,
-                              sharedSubscriptionManager: stack.sharedSubscriptionManager)
-        stack.prepareSubscriptionsIfNeeded()
-        stack.requestSyncIfNeeded(reason: .appLaunch)
     }
 
     var body: some Scene {
         WindowGroup {
             ZStack {
-                ContentView()
-                    .environmentObject(profileStore)
-                    .environmentObject(actionStore)
-                    .environmentObject(shareDataCoordinator)
-                    .environmentObject(appDataStack.syncCoordinator)
-                    .environmentObject(syncStatusViewModel)
-                    .onOpenURL { url in
-                        guard shouldHandle(url: url) else { return }
-                        shareDataCoordinator.handleIncomingFile(url: url)
-                    }
-                    .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                        appDataStack.requestSyncIfNeeded(reason: .foregroundRefresh)
-                    }
+                if let appDataStack,
+                   let profileStore,
+                   let actionStore,
+                   let syncStatusViewModel {
+                    ContentView()
+                        .environmentObject(cloudStatusController)
+                        .environmentObject(appDataStack)
+                        .environmentObject(profileStore)
+                        .environmentObject(actionStore)
+                        .environmentObject(shareDataCoordinator)
+                        .environmentObject(appDataStack.syncCoordinator)
+                        .environmentObject(syncStatusViewModel)
+                        .onOpenURL { url in
+                            guard shouldHandle(url: url) else { return }
+                            shareDataCoordinator.handleIncomingFile(url: url)
+                        }
+                        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                            appDataStack.requestSyncIfNeeded(reason: .foregroundRefresh)
+                            cloudStatusController.refreshAccountStatus()
+                        }
+                        .sheet(isPresented: $isPresentingCloudPrompt) {
+                            CloudSyncPromptView()
+                                .environmentObject(cloudStatusController)
+                                .environmentObject(appDataStack)
+                        }
+                } else {
+                    SplashScreenView()
+                }
 
                 if isShowingSplashScreen {
                     SplashScreenView()
                         .transition(.opacity)
                         .zIndex(1)
                 }
-
+            }
+            .task(id: cloudStatusController.status) {
+                await handleCloudStatusChange(cloudStatusController.status)
             }
             .task {
                 try? await Task.sleep(for: .seconds(1.2))
@@ -71,8 +75,8 @@ struct babynannyApp: App {
                     }
                 }
             }
+            .modelContainer(appDataStack?.modelContainer ?? AppDataStack.makeModelContainer())
         }
-        .modelContainer(appDataStack.modelContainer)
     }
 }
 
@@ -82,5 +86,64 @@ private extension babynannyApp {
             return contentType.conforms(to: .json)
         }
         return url.pathExtension.lowercased() == "json"
+    }
+
+    func updateDependencies(cloudSyncEnabled: Bool) {
+        if let appDataStack {
+            appDataStack.setCloudSyncEnabled(cloudSyncEnabled)
+            profileStore?.updateCloudImporter(cloudSyncEnabled ? CloudKitProfileImporter() : nil)
+            actionStore?.refreshSyncObservation()
+            if cloudSyncEnabled {
+                appDataStack.prepareSubscriptionsIfNeeded()
+                appDataStack.requestSyncIfNeeded(reason: .appLaunch)
+            }
+            configureAppDelegate(with: appDataStack)
+            isPresentingCloudPrompt = cloudStatusController.status == .needsAccount
+            return
+        }
+
+        let stack = AppDataStack(cloudSyncEnabled: cloudSyncEnabled)
+        let scheduler = UserNotificationReminderScheduler()
+        let profileStore = ProfileStore(reminderScheduler: scheduler,
+                                        cloudImporter: cloudSyncEnabled ? CloudKitProfileImporter() : nil)
+        let actionStore = ActionLogStore(modelContext: stack.mainContext,
+                                         reminderScheduler: scheduler,
+                                         dataStack: stack)
+        profileStore.registerActionStore(actionStore)
+        actionStore.registerProfileStore(profileStore)
+        stack.prepareSubscriptionsIfNeeded()
+        if cloudSyncEnabled {
+            stack.requestSyncIfNeeded(reason: .appLaunch)
+        }
+        self.appDataStack = stack
+        self.profileStore = profileStore
+        self.actionStore = actionStore
+        self.syncStatusViewModel = stack.syncStatusViewModel
+        configureAppDelegate(with: stack)
+        isPresentingCloudPrompt = cloudStatusController.status == .needsAccount
+    }
+
+    func configureAppDelegate(with stack: AppDataStack) {
+        appDelegate.configure(with: stack.cloudSyncEnabled ? stack.syncCoordinator : nil,
+                              sharedSubscriptionManager: stack.sharedSubscriptionManager)
+    }
+
+    func handleCloudStatusChange(_ status: CloudAccountStatusController.Status) async {
+        switch status {
+        case .loading:
+            isPresentingCloudPrompt = false
+        case .available:
+            await MainActor.run {
+                updateDependencies(cloudSyncEnabled: true)
+            }
+        case .needsAccount:
+            await MainActor.run {
+                updateDependencies(cloudSyncEnabled: false)
+            }
+        case .localOnly:
+            await MainActor.run {
+                updateDependencies(cloudSyncEnabled: false)
+            }
+        }
     }
 }

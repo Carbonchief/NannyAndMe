@@ -33,8 +33,10 @@ final class SyncCoordinator: ObservableObject {
 
     @Published private(set) var diagnostics = Diagnostics()
 
+    private(set) var cloudSyncEnabled: Bool
+
     private let sharedContext: ModelContext
-    private let cloudDatabase: CKDatabase
+    private var cloudDatabase: CKDatabase?
     private let cloudContainerIdentifier: String
     private let subscriptionID = "com.prioritybit.babynanny.databaseSubscription"
     private let syncLogger = Logger(subsystem: "com.prioritybit.babynanny", category: "sync")
@@ -46,14 +48,21 @@ final class SyncCoordinator: ObservableObject {
 
     init(sharedContext: ModelContext,
          cloudContainerIdentifier: String = "iCloud.com.prioritybit.babynanny",
-         database: CKDatabase? = nil) {
+         database: CKDatabase? = nil,
+         cloudSyncEnabled: Bool = true) {
         self.sharedContext = sharedContext
         self.cloudContainerIdentifier = cloudContainerIdentifier
-        let ckContainer = CKContainer(identifier: cloudContainerIdentifier)
-        self.cloudDatabase = database ?? ckContainer.privateCloudDatabase
+        self.cloudSyncEnabled = cloudSyncEnabled
+        if cloudSyncEnabled {
+            let ckContainer = CKContainer(identifier: cloudContainerIdentifier)
+            self.cloudDatabase = database ?? ckContainer.privateCloudDatabase
+        } else {
+            self.cloudDatabase = nil
+        }
     }
 
     func prepareSubscriptionsIfNeeded() {
+        guard cloudSyncEnabled, cloudDatabase != nil else { return }
         Task { [weak self] in
             guard let self else { return }
             await self.ensureDatabaseSubscription()
@@ -61,6 +70,7 @@ final class SyncCoordinator: ObservableObject {
     }
 
     func handleRemoteNotification(_ userInfo: [AnyHashable: Any]) {
+        guard cloudSyncEnabled else { return }
         guard let notification = CKNotification(fromRemoteNotificationDictionary: userInfo) else {
             cloudLogger.error("Received remote notification that was not a CloudKit notification")
             return
@@ -84,6 +94,7 @@ final class SyncCoordinator: ObservableObject {
     }
 
     func requestSyncIfNeeded(reason: SyncReason) {
+        guard cloudSyncEnabled else { return }
         syncLogger.debug("Sync requested for reason \(reason.rawValue, privacy: .public)")
         pendingSyncTask?.cancel()
         pendingSyncTask = Task { [weak self] in
@@ -139,6 +150,9 @@ final class SyncCoordinator: ObservableObject {
     }
 
     private func ensureDatabaseSubscription() async {
+        guard cloudSyncEnabled else { return }
+        guard let cloudDatabase else { return }
+
         if diagnostics.subscriptionState == .active {
             return
         }
@@ -168,6 +182,22 @@ final class SyncCoordinator: ObservableObject {
         } catch {
             diagnostics.subscriptionState = .failed(error.localizedDescription)
             cloudLogger.error("Failed to create CloudKit subscription: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    func setCloudSyncEnabled(_ isEnabled: Bool) {
+        guard isEnabled != cloudSyncEnabled else { return }
+        cloudSyncEnabled = isEnabled
+        if isEnabled {
+            let ckContainer = CKContainer(identifier: cloudContainerIdentifier)
+            cloudDatabase = ckContainer.privateCloudDatabase
+            diagnostics.subscriptionState = .unknown
+        } else {
+            pendingSyncTask?.cancel()
+            pendingSyncTask = nil
+            cloudDatabase = nil
+            diagnostics.subscriptionState = .unknown
+            diagnostics.lastSyncError = nil
         }
     }
 

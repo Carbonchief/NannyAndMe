@@ -28,11 +28,11 @@ final class ActionLogStore: ObservableObject {
     init(modelContext: ModelContext,
          reminderScheduler: ReminderScheduling? = nil,
          notificationCenter: NotificationCenter = .default,
-         dataStack: AppDataStack? = nil) {
+         dataStack: AppDataStack) {
         self.modelContext = modelContext
         self.reminderScheduler = reminderScheduler
         self.notificationCenter = notificationCenter
-        self.dataStack = dataStack ?? AppDataStack.shared
+        self.dataStack = dataStack
         self.observedContainerIdentifier = ObjectIdentifier(modelContext.container)
         scheduleReminders()
         observeModelContextChanges()
@@ -67,6 +67,17 @@ final class ActionLogStore: ObservableObject {
         scheduleReminders()
         refreshDurationActivityOnLaunch()
         synchronizeMetadataFromModelContext()
+    }
+
+    func refreshSyncObservation() {
+        if dataStack.cloudSyncEnabled {
+            if isObservingSyncCoordinator == false {
+                observeSyncCoordinatorIfNeeded()
+            }
+        } else if isObservingSyncCoordinator {
+            dataStack.syncCoordinator.removeObserver(self)
+            isObservingSyncCoordinator = false
+        }
     }
 
     func synchronizeProfileMetadata(_ profiles: [ChildProfile]) {
@@ -597,6 +608,7 @@ private extension ActionLogStore {
 private extension ActionLogStore {
     func observeSyncCoordinatorIfNeeded() {
         let coordinator = dataStack.syncCoordinator
+        guard dataStack.cloudSyncEnabled else { return }
         guard coordinator.sharesModelContainer(with: modelContext) else { return }
         coordinator.addObserver(self)
         isObservingSyncCoordinator = true

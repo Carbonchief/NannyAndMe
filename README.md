@@ -88,6 +88,13 @@ The application relies on SwiftData's CloudKit integration for syncing. Ensure t
 - After the first launch, accept the remote-notification prompt so silent pushes are delivered.
 - Verify in **Settings ▸ Developer ▸ Sync Diagnostics** (Debug builds) that the CloudKit subscription state reads *Active*.
 
+### Offline & iCloud-optional mode
+
+- The app now checks the user's iCloud account status on launch and whenever the system reports a change.
+- If iCloud is unavailable, caregivers can continue in a "Local Only" mode without creating an account. A one-time prompt appears with quick links to iOS Settings or to stay offline permanently.
+- You can revisit the decision at any time from **Settings ▸ Cloud**, which shows whether the current device is syncing with iCloud and offers buttons to re-check availability or enable syncing.
+- When iCloud access returns, switching back to cloud sync triggers a fresh profile import and re-enables CloudKit-based sharing features without requiring a relaunch.
+
 ## Analytics
 
 The application is instrumented with [PostHog](https://posthog.com/) for product analytics.
