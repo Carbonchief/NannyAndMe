@@ -17,7 +17,7 @@ Relationships use SwiftData's inverse tracking so that deleting a profile cascad
 
 `SyncStatusViewModel` consumes an async event stream sourced from either the real `CloudKitSyncMonitor` SPI (when the toolchain exposes it) or a fallback `CloudKitSyncMonitorCompat` shim that synthesizes a final idle event. The view model publishes a `State` enum that drives:
 
-- A blocking overlay (`SyncStatusOverlayView`) during first-run imports.
+- A non-blocking sync message anchored to the bottom of `HomeView` during first-run imports.
 - Status indicators in the new debug diagnostics panel.
 - Force-refresh and timeout handling for manual sync attempts.
 
@@ -37,4 +37,4 @@ Under `#if DEBUG`, `SyncDiagnosticsView` combines information from `SyncCoordina
 - Review the current CloudKit monitor phase and model progress.
 - Trigger a manual sync or dump record counts for the private and shared databases.
 
-The view is accessible from Settings → Debug and complements the overlay that end users see during long imports.
+The view is accessible from Settings → Debug and complements the inline footer that end users see during long imports.

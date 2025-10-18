@@ -62,12 +62,6 @@ struct babynannyApp: App {
                         .zIndex(1)
                 }
 
-                if syncStatusViewModel.isInitialImportComplete == false {
-                    SyncStatusOverlayView(state: syncStatusViewModel.state,
-                                          lastError: syncStatusViewModel.lastError)
-                        .transition(.opacity)
-                        .zIndex(2)
-                }
             }
             .task {
                 try? await Task.sleep(for: .seconds(1.2))
