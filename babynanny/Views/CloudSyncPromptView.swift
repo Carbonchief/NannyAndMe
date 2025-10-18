@@ -71,4 +71,3 @@ struct CloudSyncPromptView: View {
         }
     }
 }
-*** End of File
