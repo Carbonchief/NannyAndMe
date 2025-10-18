@@ -29,6 +29,7 @@ final class SyncStatusViewModel: ObservableObject {
     }
 
     private let requiredModelNames: Set<String>
+    private var reportedRequiredModelNames: Set<String> = []
     private var eventsTask: Task<Void, Never>?
     private var timeoutTask: Task<Void, Never>?
     private let timeoutInterval: TimeInterval
@@ -38,7 +39,7 @@ final class SyncStatusViewModel: ObservableObject {
          requiredModels: [any PersistentModel.Type] = [ProfileActionStateModel.self, BabyActionModel.self],
          timeoutInterval: TimeInterval = 30,
          eventStream: AsyncStream<Any>? = nil) {
-        let names = Set(requiredModels.map { String(describing: $0) })
+        let names = Set(requiredModels.map { Self.normalize(modelName: String(describing: $0)) })
         self.requiredModelNames = names
         self.timeoutInterval = timeoutInterval
         self.events = eventStream ?? CloudKitSyncMonitorCompat.events(
@@ -82,6 +83,7 @@ final class SyncStatusViewModel: ObservableObject {
 
     private func handle(event: Any) async {
         let summary = SyncMonitorEventSummary(event: event)
+        let normalizedModelNames = summary.modelNames.map(Self.normalize(modelName:))
 
         lastError = nil
 
@@ -91,12 +93,18 @@ final class SyncStatusViewModel: ObservableObject {
             return
         }
 
-        if summary.isImporting {
-            if summary.modelNames.isEmpty == false {
-                var names = observedModelNames
-                names.formUnion(summary.modelNames)
-                observedModelNames = names
+        if normalizedModelNames.isEmpty == false {
+            var names = observedModelNames
+            names.formUnion(normalizedModelNames)
+            observedModelNames = names
+
+            let requiredMatches = normalizedModelNames.filter { requiredModelNames.contains($0) }
+            if requiredMatches.isEmpty == false {
+                reportedRequiredModelNames.formUnion(requiredMatches)
             }
+        }
+
+        if summary.isImporting {
             state = .importing(progress: summary.progress)
             return
         }
@@ -112,12 +120,20 @@ final class SyncStatusViewModel: ObservableObject {
         }
 
         if summary.isIdle {
-            if requiredModelNames.isSubset(of: observedModelNames) {
+            let expectedRequiredModelNames = reportedRequiredModelNames.isEmpty ? requiredModelNames : reportedRequiredModelNames
+            if expectedRequiredModelNames.isSubset(of: observedModelNames) {
                 state = .finished(Date())
                 timeoutTask?.cancel()
             } else {
                 state = .idle
             }
         }
+    }
+}
+
+private extension SyncStatusViewModel {
+    static func normalize(modelName: String) -> String {
+        guard modelName.hasPrefix("CD_") else { return modelName }
+        return String(modelName.dropFirst(3))
     }
 }

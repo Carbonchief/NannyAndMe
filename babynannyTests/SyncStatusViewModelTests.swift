@@ -1,3 +1,4 @@
+import SwiftData
 import XCTest
 @testable import babynanny
 
@@ -55,6 +56,49 @@ final class SyncStatusViewModelTests: XCTestCase {
 
         XCTAssertTrue(summary.isWaiting)
         XCTAssertNil(summary.progress)
+    }
+
+    func testViewModelFinishesWhenOnlyProfileRecordsReported() async throws {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: [ProfileActionStateModel.self, BabyActionModel.self],
+            configurations: configuration
+        )
+
+        let events = AsyncStream<Any> { continuation in
+            continuation.yield(
+                MockEvent(
+                    phase: .init(description: "CloudKitSyncMonitor.Phase.import(fractionCompleted: 1.0)"),
+                    error: nil,
+                    work: .init(models: [
+                        .init(description: "Model(modelName: CD_ProfileActionStateModel)")
+                    ])
+                )
+            )
+            continuation.yield(
+                MockEvent(
+                    phase: .init(description: "CloudKitSyncMonitor.Phase.idle"),
+                    error: nil,
+                    work: .init(models: [])
+                )
+            )
+            continuation.finish()
+        }
+
+        let viewModel = await MainActor.run {
+            SyncStatusViewModel(modelContainer: container, eventStream: events)
+        }
+
+        try await Task.sleep(for: .milliseconds(50))
+
+        let state = await MainActor.run { viewModel.state }
+        guard case .finished = state else {
+            XCTFail("Expected finished state, got \(state)")
+            return
+        }
+
+        let observedNames = await MainActor.run { viewModel.observedModelNames }
+        XCTAssertEqual(observedNames, Set(["ProfileActionStateModel"]))
     }
 }
 
