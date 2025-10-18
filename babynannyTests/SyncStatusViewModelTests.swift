@@ -89,6 +89,19 @@ final class SyncStatusViewModelTests: XCTestCase {
         XCTAssertTrue(summary.isWaiting)
         XCTAssertNil(summary.progress)
     }
+
+    func testModelParsingFallsBackToEventDescription() {
+        let event = AlternateMockEvent(
+            phase: .init(description: "CloudKitSyncMonitor.Phase.idle"),
+            error: nil,
+            work: .init(payload: "Model(modelName: \"Profile\"), Model(modelName: \"BabyAction\")")
+        )
+
+        let summary = SyncMonitorEventSummary(event: event)
+
+        XCTAssertTrue(summary.isIdle)
+        XCTAssertEqual(Set(summary.modelNames), Set(["Profile", "BabyAction"]))
+    }
 }
 
 private extension SyncStatusViewModelTests {
@@ -112,5 +125,15 @@ private extension SyncStatusViewModelTests {
         var phase: MockPhase
         var error: Error?
         var work: MockWork
+    }
+
+    struct AlternateMockWork {
+        var payload: String
+    }
+
+    struct AlternateMockEvent {
+        var phase: MockPhase
+        var error: Error?
+        var work: AlternateMockWork
     }
 }
