@@ -96,7 +96,7 @@ struct MPCCapabilitiesMessage: Codable, Equatable {
 }
 
 /// Message carrying a snapshot of a profile and its actions.
-struct ProfileExportV1: Codable, Equatable {
+struct ProfileExportV1: Codable {
     let exportedAt: Date
     let profile: ChildProfile
     let actions: ProfileActionState

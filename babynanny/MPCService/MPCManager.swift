@@ -14,7 +14,7 @@ final class MPCManager: NSObject, ObservableObject {
 
         init(serviceType: String = "nanme-share",
              invitationTimeout: TimeInterval = 15,
-             discoveryInfoProvider: @escaping () -> [String: String]) {
+             discoveryInfoProvider: @escaping () -> [String: String] = { [:] }) {
             self.serviceType = serviceType
             self.invitationTimeout = invitationTimeout
             self.discoveryInfoProvider = discoveryInfoProvider
@@ -52,18 +52,16 @@ final class MPCManager: NSObject, ObservableObject {
 
     private let log = Logger(subsystem: "com.prioritybit.babynanny", category: "mpc")
 
-    init(configuration: Configuration = Configuration(discoveryInfoProvider: MPCManager.makeDefaultDiscoveryInfo),
+    init(configuration: Configuration? = nil,
          sessionFactory: MPCSessionFactory = DefaultMPCSessionFactory()) {
-        self.configuration = configuration
+        let resolvedConfiguration = configuration ?? Configuration(discoveryInfoProvider: { MPCManager.makeDefaultDiscoveryInfo() })
+        self.configuration = resolvedConfiguration
         self.sessionFactory = sessionFactory
         self.peerID = MPCManager.makePersistentPeerID()
         super.init()
         prepareSession()
     }
 
-    deinit {
-        stopAll()
-    }
 
     func startBrowsing() {
         guard browser == nil else { return }
@@ -219,7 +217,7 @@ final class MPCManager: NSObject, ObservableObject {
         transfer.onErrorMessage = { [weak self] message, _ in
             guard let self else { return }
             self.lastError = .sessionFailed
-            self.log.error("Received MPC error: %{public}@", message.code)
+            self.log.error("Received MPC error: \(message.code, privacy: .public)")
         }
         transfer.onResourceReceived = { [weak self] _, _, _ in
             guard let self else { return }
