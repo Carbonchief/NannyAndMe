@@ -121,7 +121,8 @@ private extension SyncStatusViewModel {
     static let modelNameAliases: [String: String] = [
         "ProfileActionStateModel": "Profile",
         "ProfileState": "Profile",
-        "ProfileActionState": "Profile"
+        "ProfileActionState": "Profile",
+        "BabyActionModel": "BabyAction"
     ]
 }
 
