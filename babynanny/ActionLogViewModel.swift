@@ -12,11 +12,18 @@ final class ActionLogStore: ObservableObject {
     private let notificationCenter: NotificationCenter
     private let dataStack: AppDataStack
     private let observedContainerIdentifier: ObjectIdentifier
+    private let observedManagedObjectContextIdentifier: ObjectIdentifier?
+    private let observedPersistentStoreCoordinatorIdentifier: ObjectIdentifier?
     private var contextObservers: [NSObjectProtocol] = []
     private let conflictResolver = ActionConflictResolver()
     private var isObservingSyncCoordinator = false
     private var cachedStates: [UUID: ProfileActionState] = [:]
     private var stateReloadTask: Task<Void, Never>?
+
+    private struct PersistentStoreContextIdentifiers {
+        var contextIdentifier: ObjectIdentifier?
+        var coordinatorIdentifier: ObjectIdentifier?
+    }
 
     struct MergeSummary: Equatable {
         var added: Int
@@ -34,6 +41,9 @@ final class ActionLogStore: ObservableObject {
         self.notificationCenter = notificationCenter
         self.dataStack = dataStack
         self.observedContainerIdentifier = ObjectIdentifier(modelContext.container)
+        let contextIdentifiers = Self.makePersistentStoreContextIdentifiers(for: modelContext)
+        self.observedManagedObjectContextIdentifier = contextIdentifiers.contextIdentifier
+        self.observedPersistentStoreCoordinatorIdentifier = contextIdentifiers.coordinatorIdentifier
         scheduleReminders()
         observeModelContextChanges()
         observeSyncCoordinatorIfNeeded()
@@ -517,6 +527,32 @@ private extension ActionLogStore {
             return modelContext !== self.modelContext
         }
 
+        if let managedObjectContext = context as? NSManagedObjectContext {
+            if let observedManagedObjectContextIdentifier,
+               ObjectIdentifier(managedObjectContext) == observedManagedObjectContextIdentifier {
+                return false
+            }
+
+            guard let observedPersistentStoreCoordinatorIdentifier else { return false }
+
+            if let coordinator = managedObjectContext.persistentStoreCoordinator {
+                return ObjectIdentifier(coordinator) == observedPersistentStoreCoordinatorIdentifier
+            }
+
+            if let payload = notification.userInfo?[NSManagedObjectContextDidSaveObjectIDsKey] as? [String: Set<NSManagedObjectID>] {
+                for objectIDs in payload.values {
+                    for objectID in objectIDs {
+                        guard let coordinator = objectID.persistentStore?.persistentStoreCoordinator else { continue }
+                        if ObjectIdentifier(coordinator) == observedPersistentStoreCoordinatorIdentifier {
+                            return true
+                        }
+                    }
+                }
+            }
+
+            return false
+        }
+
         return false
     }
 
@@ -587,6 +623,77 @@ private extension ActionLogStore {
         }
     }
 
+}
+
+private extension ActionLogStore {
+    static func makePersistentStoreContextIdentifiers(for context: ModelContext) -> PersistentStoreContextIdentifiers {
+        var visitedObjects: Set<ObjectIdentifier> = []
+        var identifiers = PersistentStoreContextIdentifiers()
+
+        if let managedObjectContext = extractManagedObjectContext(from: context, visitedObjects: &visitedObjects) ??
+            extractManagedObjectContext(from: context.container, visitedObjects: &visitedObjects) {
+            identifiers.contextIdentifier = ObjectIdentifier(managedObjectContext)
+            if let coordinator = managedObjectContext.persistentStoreCoordinator {
+                identifiers.coordinatorIdentifier = ObjectIdentifier(coordinator)
+            }
+        }
+
+        if identifiers.coordinatorIdentifier == nil {
+            if let coordinator = extractPersistentStoreCoordinator(from: context, visitedObjects: &visitedObjects) ??
+                extractPersistentStoreCoordinator(from: context.container, visitedObjects: &visitedObjects) {
+                identifiers.coordinatorIdentifier = ObjectIdentifier(coordinator)
+            }
+        }
+
+        return identifiers
+    }
+
+    static func extractManagedObjectContext(from root: Any,
+                                            visitedObjects: inout Set<ObjectIdentifier>) -> NSManagedObjectContext? {
+        if let context = root as? NSManagedObjectContext {
+            return context
+        }
+
+        if let object = root as? AnyObject {
+            let identifier = ObjectIdentifier(object)
+            guard visitedObjects.insert(identifier).inserted else { return nil }
+        }
+
+        let mirror = Mirror(reflecting: root)
+        for child in mirror.children {
+            if let context = extractManagedObjectContext(from: child.value, visitedObjects: &visitedObjects) {
+                return context
+            }
+        }
+
+        return nil
+    }
+
+    static func extractPersistentStoreCoordinator(from root: Any,
+                                                  visitedObjects: inout Set<ObjectIdentifier>) -> NSPersistentStoreCoordinator? {
+        if let coordinator = root as? NSPersistentStoreCoordinator {
+            return coordinator
+        }
+
+        if let context = root as? NSManagedObjectContext,
+           let coordinator = context.persistentStoreCoordinator {
+            return coordinator
+        }
+
+        if let object = root as? AnyObject {
+            let identifier = ObjectIdentifier(object)
+            guard visitedObjects.insert(identifier).inserted else { return nil }
+        }
+
+        let mirror = Mirror(reflecting: root)
+        for child in mirror.children {
+            if let coordinator = extractPersistentStoreCoordinator(from: child.value, visitedObjects: &visitedObjects) {
+                return coordinator
+            }
+        }
+
+        return nil
+    }
 }
 
 private extension ActionLogStore {
