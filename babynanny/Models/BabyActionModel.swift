@@ -409,7 +409,7 @@ final class Profile {
     @Attribute(.externalStorage)
     var imageData: Data?
     @Relationship(deleteRule: .cascade)
-    var persistedActions: [BabyAction]? = []
+    var storedActions: [BabyAction]?
 
     init(profileID: UUID = UUID(),
          name: String? = nil,
@@ -420,7 +420,7 @@ final class Profile {
         self.name = name
         self.birthDate = birthDate?.normalizedToUTC()
         self.imageData = imageData
-        self.persistedActions = actions
+        self.storedActions = actions
         ensureActionOwnership()
     }
 
@@ -430,19 +430,23 @@ final class Profile {
     }
 
     var actions: [BabyAction] {
-        get { persistedActions ?? [] }
+        get { storedActions ?? [] }
         set {
-            persistedActions = newValue
+            storedActions = newValue
             ensureActionOwnership()
         }
     }
 
     func ensureActionOwnership() {
-        var storedActions = persistedActions ?? []
-        for index in storedActions.indices where storedActions[index].profile == nil {
-            storedActions[index].profile = self
+        guard var currentActions = storedActions else { return }
+        var needsUpdate = false
+        for index in currentActions.indices where currentActions[index].profile == nil {
+            currentActions[index].profile = self
+            needsUpdate = true
         }
-        persistedActions = storedActions
+        if needsUpdate {
+            storedActions = currentActions
+        }
     }
 }
 
@@ -460,7 +464,7 @@ final class BabyAction {
     var bottleTypeRawValue: String?
     var bottleVolume: Int?
     private var updatedAtRawValue: Date = Date()
-    @Relationship(deleteRule: .nullify, inverse: \Profile.persistedActions)
+    @Relationship(deleteRule: .nullify, inverse: \Profile.storedActions)
     var profile: Profile?
 
     init(id: UUID = UUID(),

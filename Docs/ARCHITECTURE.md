@@ -25,7 +25,7 @@ Remote notifications are funneled through `SyncCoordinator`, which still prepare
 
 ## Sharing flow
 
-`CloudKitSharingManager` now relies on SwiftData's built-in share support. When a share is requested it calls `ModelContext.share(_:)`, applies metadata (title/thumbnail), saves, and records the share's `CKShare` identifiers in `ShareMetadataStore`. Participant mutations reuse the stored share record ID and send minimal `CKModifyRecordsOperation` updates—no custom record zones or manual child record syncing are necessary. Because profiles own their actions through SwiftData relationships, sharing a profile automatically includes every associated action.
+`CloudKitSharingManager` provisions shares by talking directly to CloudKit. It looks for previously cached `CKShare` identifiers, fetches the associated records when possible, and falls back to creating a new share with `CKShare(rootRecord:)`. The manager persists share metadata via `ShareMetadataStore` so future lookups avoid redundant network work. Participant mutations reuse the stored record identifiers and send targeted `CKModifyRecordsOperation` updates, while stop-sharing tears down the share record and its custom zone.
 
 `ShareProfilePageViewModel` asks the manager for the share and presents participants via the standard `CKShare` interface. Updates, removals, and stop-sharing requests flow through the same manager so the UI reacts as soon as CloudKit confirms the change. Since SwiftData mirrors shared zones, collaborators see updates without custom fetch logic.
 
