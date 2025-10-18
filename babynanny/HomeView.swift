@@ -376,32 +376,16 @@ struct HomeView: View {
 
     private var syncStatusFooterContent: SyncStatusFooterContent? {
         switch syncStatusViewModel.state {
-        case .finished:
-            return nil
         case .failed:
             return SyncStatusFooterContent(
                 title: L10n.Sync.initialSyncFailed,
                 detail: syncStatusViewModel.lastError,
                 isError: true
             )
-        case .exporting:
-            return SyncStatusFooterContent(
-                title: L10n.Sync.preparingUpdates,
-                detail: nil,
-                isError: false
-            )
-        case .importing(let progress):
-            return SyncStatusFooterContent(
-                title: L10n.Sync.loadingInitialData,
-                detail: progress.map { L10n.Sync.progressPercentage($0 * 100) },
-                isError: false
-            )
-        case .idle, .waiting:
-            return SyncStatusFooterContent(
-                title: L10n.Sync.loadingInitialData,
-                detail: nil,
-                isError: false
-            )
+        case .finished, .exporting, .idle, .waiting:
+            return nil
+        case .importing:
+            return nil
         }
     }
 
