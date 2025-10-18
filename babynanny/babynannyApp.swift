@@ -52,9 +52,6 @@ struct babynannyApp: App {
                         guard shouldHandle(url: url) else { return }
                         shareDataCoordinator.handleIncomingFile(url: url)
                     }
-                    .task {
-                        appDataStack.prepareSubscriptionsIfNeeded()
-                    }
                     .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                         appDataStack.requestSyncIfNeeded(reason: .foregroundRefresh)
                     }
