@@ -34,17 +34,31 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
     func fetchProfileSnapshot() async throws -> CloudProfileSnapshot? {
         let database = container.privateCloudDatabase
         let recordTypes = candidateRecordTypes()
+        let zones: [CKRecordZone]
+
+        do {
+            zones = try await fetchCandidateZones(in: database)
+        } catch {
+            if Self.isRecoverable(error) {
+                throw CloudProfileImportError.recoverable(error)
+            }
+            throw error
+        }
 
         for recordType in recordTypes {
             do {
                 if isSwiftDataRecordType(recordType) {
-                    if let snapshot = try await fetchSwiftDataSnapshot(in: database, recordType: recordType) {
+                    if let snapshot = try await fetchSwiftDataSnapshot(in: database,
+                                                                       recordType: recordType,
+                                                                       zones: zones) {
                         return snapshot
                     }
                     continue
                 }
 
-                if let snapshot = try await fetchLegacySnapshot(in: database, recordType: recordType) {
+                if let snapshot = try await fetchLegacySnapshot(in: database,
+                                                                recordType: recordType,
+                                                                zones: zones) {
                     return snapshot
                 }
             } catch let error as CloudProfileImportError {
@@ -99,31 +113,46 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
         .userDeletedZone
     ]
 
-    private func fetchLegacySnapshot(in database: CKDatabase, recordType: String) async throws -> CloudProfileSnapshot? {
-        let predicate = NSPredicate(value: true)
-        let query = CKQuery(recordType: recordType, predicate: predicate)
-
-        let (matchResults, _) = try await database.records(
-            matching: query,
-            desiredKeys: desiredRecordKeys(),
-            resultsLimit: CKQueryOperation.maximumResults
-        )
-
+    private func fetchLegacySnapshot(in database: CKDatabase,
+                                     recordType: String,
+                                     zones: [CKRecordZone]) async throws -> CloudProfileSnapshot? {
         var newestRecord: CKRecord?
 
-        for (_, result) in matchResults {
-            switch result {
-            case let .success(record):
-                guard let candidateDate = record.modificationDate ?? record.creationDate else { continue }
+        for zone in zones {
+            let predicate = NSPredicate(value: true)
+            let query = CKQuery(recordType: recordType, predicate: predicate)
+            query.zoneID = zone.zoneID
 
-                if let currentRecord = newestRecord,
-                   let currentDate = currentRecord.modificationDate ?? currentRecord.creationDate,
-                   currentDate >= candidateDate {
+            do {
+                let (matchResults, _) = try await database.records(
+                    matching: query,
+                    desiredKeys: desiredRecordKeys(),
+                    resultsLimit: CKQueryOperation.maximumResults
+                )
+
+                for (_, result) in matchResults {
+                    switch result {
+                    case let .success(record):
+                        guard let candidateDate = record.modificationDate ?? record.creationDate else { continue }
+
+                        if let currentRecord = newestRecord,
+                           let currentDate = currentRecord.modificationDate ?? currentRecord.creationDate,
+                           currentDate >= candidateDate {
+                            continue
+                        }
+
+                        newestRecord = record
+                    case let .failure(error):
+                        if Self.isRecoverable(error) {
+                            throw CloudProfileImportError.recoverable(error)
+                        }
+                        throw error
+                    }
+                }
+            } catch {
+                if Self.isMissingRecordType(error) {
                     continue
                 }
-
-                newestRecord = record
-            case let .failure(error):
                 if Self.isRecoverable(error) {
                     throw CloudProfileImportError.recoverable(error)
                 }
@@ -160,23 +189,38 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
         return nil
     }
 
-    private func fetchSwiftDataSnapshot(in database: CKDatabase, recordType: String) async throws -> CloudProfileSnapshot? {
-        let predicate = NSPredicate(value: true)
-        let query = CKQuery(recordType: recordType, predicate: predicate)
-
-        let (matchResults, _) = try await database.records(
-            matching: query,
-            desiredKeys: swiftDataDesiredKeys(),
-            resultsLimit: CKQueryOperation.maximumResults
-        )
-
+    private func fetchSwiftDataSnapshot(in database: CKDatabase,
+                                        recordType: String,
+                                        zones: [CKRecordZone]) async throws -> CloudProfileSnapshot? {
         var records: [CKRecord] = []
 
-        for (_, result) in matchResults {
-            switch result {
-            case let .success(record):
-                records.append(record)
-            case let .failure(error):
+        for zone in zones {
+            let predicate = NSPredicate(value: true)
+            let query = CKQuery(recordType: recordType, predicate: predicate)
+            query.zoneID = zone.zoneID
+
+            do {
+                let (matchResults, _) = try await database.records(
+                    matching: query,
+                    desiredKeys: swiftDataDesiredKeys(),
+                    resultsLimit: CKQueryOperation.maximumResults
+                )
+
+                for (_, result) in matchResults {
+                    switch result {
+                    case let .success(record):
+                        records.append(record)
+                    case let .failure(error):
+                        if Self.isRecoverable(error) {
+                            throw CloudProfileImportError.recoverable(error)
+                        }
+                        throw error
+                    }
+                }
+            } catch {
+                if Self.isMissingRecordType(error) {
+                    continue
+                }
                 if Self.isRecoverable(error) {
                     throw CloudProfileImportError.recoverable(error)
                 }
@@ -193,9 +237,11 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
         }
 
         var profiles: [ChildProfile] = []
+        var seenIdentifiers = Set<UUID>()
 
         for record in sortedRecords {
             guard let profile = Self.decodeSwiftDataProfile(from: record) else { continue }
+            guard seenIdentifiers.insert(profile.id).inserted else { continue }
             profiles.append(profile)
         }
 
@@ -287,6 +333,24 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
         let candidates = ["Profile", "CD_ProfileActionStateModel"]
         return candidates.contains { candidate in
             sanitized.caseInsensitiveCompare(candidate) == .orderedSame
+        }
+    }
+
+    private func fetchCandidateZones(in database: CKDatabase) async throws -> [CKRecordZone] {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[CKRecordZone], Error>) in
+            database.fetchAllRecordZones { zones, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                var records = zones ?? []
+                let defaultZone = CKRecordZone.default()
+                if records.contains(where: { $0.zoneID == defaultZone.zoneID }) == false {
+                    records.append(defaultZone)
+                }
+                continuation.resume(returning: records)
+            }
         }
     }
 
