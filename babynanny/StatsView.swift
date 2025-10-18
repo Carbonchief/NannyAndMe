@@ -51,14 +51,20 @@ struct StatsView: View {
     }
 
     private func headerSection(for state: ProfileActionState, todayActions: [BabyActionSnapshot]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(L10n.Stats.dailySnapshotTitle)
-                .font(.title2)
-                .fontWeight(.semibold)
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(L10n.Stats.dailySnapshotTitle)
+                    .font(.title2)
+                    .fontWeight(.semibold)
 
-            Text(L10n.Stats.trackingActivities(todayActions.count, profileStore.activeProfile.displayName))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                Text(L10n.Stats.trackingActivities(todayActions.count, profileStore.activeProfile.displayName))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            categoryPicker(for: state)
         }
     }
 
@@ -129,16 +135,13 @@ struct StatsView: View {
                                                                   focusCategory: focusCategory)
                             shareDailyTrendChart(context: context)
                         } label: {
-                            Label(L10n.Stats.shareChartButton, systemImage: "square.and.arrow.up")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 16, weight: .semibold))
                         }
                         .buttonStyle(.bordered)
                         .postHogLabel("stats.shareChartButton.dailyTrend")
                         .accessibilityLabel(L10n.Stats.shareChartAccessibility)
                     }
-
-                    categoryPicker(for: state)
                 }
 
                 if hasData {
@@ -224,9 +227,8 @@ struct StatsView: View {
                                                                 focusCategory: focusCategory)
                         shareActionPatternChart(context: context)
                     } label: {
-                        Label(L10n.Stats.shareChartButton, systemImage: "square.and.arrow.up")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 16, weight: .semibold))
                     }
                     .buttonStyle(.bordered)
                     .postHogLabel("stats.shareChartButton.dailyPattern")
