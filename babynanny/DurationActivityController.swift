@@ -2,6 +2,10 @@
 import ActivityKit
 import Foundation
 import SwiftData
+import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 @available(iOS 17.0, *)
 enum DurationActivityController {
@@ -82,6 +86,7 @@ private extension BabyActionModel {
             profileDisplayName: sanitizedProfileName,
             actionType: category.title,
             actionIconSystemName: actionIconSystemName,
+            actionAccentColorHex: actionAccentColorHex,
             startDate: startDate,
             endDate: endDate,
             notePreview: nil
@@ -104,6 +109,10 @@ private extension BabyActionModel {
 
         return category.icon
     }
+
+    private var actionAccentColorHex: String? {
+        category.accentColor.hexString()
+    }
 }
 
 private extension Optional where Wrapped == String {
@@ -116,4 +125,27 @@ private extension Optional where Wrapped == String {
         }
     }
 }
+
+#if canImport(UIKit)
+private extension Color {
+    func hexString() -> String? {
+        let uiColor = UIColor(self)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+
+        guard uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) else {
+            return nil
+        }
+
+        let r = Int(round(red * 255))
+        let g = Int(round(green * 255))
+        let b = Int(round(blue * 255))
+        let a = Int(round(alpha * 255))
+
+        return String(format: "#%02X%02X%02X%02X", r, g, b, a)
+    }
+}
+#endif
 #endif

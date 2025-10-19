@@ -68,7 +68,10 @@ struct DurationLiveActivityWidget: Widget {
         for context: ActivityViewContext<DurationAttributes>
     ) -> some View {
         let symbolName = actionIconName(for: context)
+        let accentColor = accentColor(for: context)
+
         Image(systemName: symbolName)
+            .foregroundStyle(accentColor ?? .primary)
             .accessibilityLabel(context.state.actionType)
     }
 
@@ -89,6 +92,10 @@ private struct DurationLockScreenView: View {
     private var runningInterval: ClosedRange<Date> {
         let end = context.state.endDate ?? .now
         return context.state.startDate...end
+    }
+
+    private var accentColor: Color? {
+        accentColor(for: context)
     }
 
     var body: some View {
@@ -115,7 +122,7 @@ private struct DurationLockScreenView: View {
 
                 StopActionButton(
                     actionID: context.state.activityID,
-                    style: .title,
+                    accentColor: accentColor,
                     postHogLabel: "duration_stop_button_liveActivity_lockScreen"
                 )
             }
@@ -139,48 +146,71 @@ private struct DurationLockScreenView: View {
 
 @available(iOS 17.0, *)
 private struct StopActionButton: View {
-    enum Style {
-        case title
-        case iconOnly
-    }
-
     let actionID: UUID
-    let style: Style
+    let accentColor: Color?
     let postHogLabel: String
 
     @ViewBuilder
     var body: some View {
         if let stopURL {
             Link(destination: stopURL) {
-                label
+                Image(systemName: "stop.fill")
+                    .font(.body.weight(.semibold))
+                    .symbolVariant(.fill)
+                    .foregroundStyle(resolvedAccentColor)
+                    .frame(width: 36, height: 36)
+                    // Match the in-app accent color with a soft circular background.
+                    .background(
+                        Circle()
+                            .fill(resolvedAccentColor.opacity(0.2))
+                    )
+                    .contentShape(Circle())
+                    .accessibilityLabel(WidgetL10n.Common.stop)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            .tint(.red)
             .postHogLabel(postHogLabel)
             .privacySensitive(false)
         }
     }
 
-    @ViewBuilder
-    private var label: some View {
-        switch style {
-        case .title:
-            Label {
-                Text(WidgetL10n.Common.stop)
-                    .font(.subheadline.weight(.semibold))
-            } icon: {
-                Image(systemName: "stop.fill")
-            }
-            .labelStyle(.titleAndIcon)
-        case .iconOnly:
-            Image(systemName: "stop.fill")
-                .symbolVariant(.fill)
-                .accessibilityLabel(WidgetL10n.Common.stop)
-        }
-    }
-
     private var stopURL: URL? {
         URL(string: "nannyme://activity/\(actionID.uuidString)/stop")
+    }
+
+    private var resolvedAccentColor: Color {
+        accentColor ?? .accentColor
+    }
+}
+
+private func accentColor(
+    for context: ActivityViewContext<DurationAttributes>
+) -> Color? {
+    guard let hex = context.state.actionAccentColorHex else {
+        return nil
+    }
+
+    return Color(hex: hex)
+}
+
+private extension Color {
+    init?(hex: String) {
+        var sanitized = hex
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "#", with: "")
+
+        if sanitized.count == 6 {
+            sanitized.append("FF")
+        }
+
+        guard sanitized.count == 8,
+              let value = UInt64(sanitized, radix: 16) else {
+            return nil
+        }
+
+        let red = Double((value & 0xFF000000) >> 24) / 255.0
+        let green = Double((value & 0x00FF0000) >> 16) / 255.0
+        let blue = Double((value & 0x0000FF00) >> 8) / 255.0
+        let alpha = Double(value & 0x000000FF) / 255.0
+
+        self = Color(red: red, green: green, blue: blue, opacity: alpha)
     }
 }

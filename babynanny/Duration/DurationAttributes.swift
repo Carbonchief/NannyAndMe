@@ -15,6 +15,8 @@ struct DurationAttributes: ActivityAttributes, Sendable {
         var actionType: String
         /// SFSymbol name representing the category or subtype icon.
         var actionIconSystemName: String?
+        /// Hex encoded accent color matching the action's category/subtype.
+        var actionAccentColorHex: String?
         /// Start date of the running action.
         var startDate: Date
         /// End date when the action is finished. `nil` while the action is

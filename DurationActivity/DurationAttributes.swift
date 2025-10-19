@@ -9,6 +9,8 @@ struct DurationAttributes: ActivityAttributes, Sendable {
         var profileDisplayName: String?
         var actionType: String
         var actionIconSystemName: String?
+        /// Hex encoded accent color matching the action's category/subtype.
+        var actionAccentColorHex: String?
         var startDate: Date
         var endDate: Date?
         var notePreview: String?
