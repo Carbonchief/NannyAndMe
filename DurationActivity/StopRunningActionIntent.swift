@@ -35,6 +35,6 @@ struct StopRunningActionIntent: AppIntent {
             throw DurationIntentError.invalidIdentifier
         }
 
-        return .result(opening: url)
+        return .openApp(at: url)
     }
 }
