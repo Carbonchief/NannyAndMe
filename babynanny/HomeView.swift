@@ -682,8 +682,9 @@ private struct HistoryRow: View {
                             Spacer()
 
                             Text(durationText)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.primary)
                                 .lineLimit(1)
                                 .monospacedDigit()
                         }
