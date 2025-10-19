@@ -34,62 +34,45 @@ struct DurationLiveActivityWidget: Widget {
     private func dynamicIsland(
         for context: ActivityViewContext<DurationAttributes>
     ) -> DynamicIsland {
-        let runningInterval: ClosedRange<Date> = {
-            let end = context.state.endDate ?? .now
-            return context.state.startDate...end
-        }()
-
-        return DynamicIsland {
-            DynamicIslandExpandedRegion(.leading) {
-                VStack(alignment: .leading, spacing: 4) {
-                    if let name = context.state.profileDisplayName, name.isEmpty == false {
-                        Text(name)
-                            .font(.headline)
-                            .privacySensitive()
-                    }
-
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(context.state.actionType)
-                            .font(.subheadline)
-                            .privacySensitive()
-
-                        Text(timerInterval: runningInterval, countsDown: false)
-                            .font(.title2.monospacedDigit())
-                            .privacySensitive()
-                    }
-                }
-            }
-
-            DynamicIslandExpandedRegion(.trailing) {
-                StopActionButton(
-                    actionID: context.state.activityID,
-                    style: .iconOnly,
-                    postHogLabel: "duration_stop_button_liveActivity_dynamicIsland"
-                )
-            }
-
-            DynamicIslandExpandedRegion(.bottom) {
-                if let note = context.state.notePreview, note.isEmpty == false {
-                    Text(note)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .privacySensitive()
-                }
-            }
+        // Compact-only Dynamic Island: icon + relative duration, no expanded regions.
+        DynamicIsland {
         } compactLeading: {
-            Image(systemName: "stopwatch")
+            Text(icon(for: context.state.actionType))
                 .accessibilityLabel(context.state.actionType)
         } compactTrailing: {
-            Text(timerInterval: runningInterval, countsDown: false)
+            durationText(for: context)
                 .font(.caption2.monospacedDigit())
                 .privacySensitive()
         } minimal: {
-            Image(systemName: "stopwatch")
+            Text(icon(for: context.state.actionType))
                 .accessibilityLabel(context.state.actionType)
         }
         .widgetURL(
             URL(string: "nannyme://activity/\(context.attributes.activityID.uuidString)")
         )
+    }
+
+    private func durationText(
+        for context: ActivityViewContext<DurationAttributes>
+    ) -> Text {
+        if let endDate = context.state.endDate {
+            return Text(timerInterval: context.state.startDate...endDate, countsDown: false)
+        }
+
+        return Text(context.state.startDate, style: .timer)
+    }
+
+    private func icon(for actionType: String) -> String {
+        switch actionType.lowercased() {
+        case "feed":
+            return "🍼"
+        case "sleep":
+            return "😴"
+        case "diaper":
+            return "💩"
+        default:
+            return "⏱"
+        }
     }
 }
 
