@@ -25,10 +25,63 @@ struct DurationLiveActivityWidget: Widget {
             DurationLockScreenView(context: context)
                 .activityBackgroundTint(.clear)
         } dynamicIsland: { context in
-            DurationDynamicIslandView(context: context)
+            dynamicIsland(for: context)
         }
         .configurationDisplayName("Duration")
         .description("Track in-progress actions from Nanny and Me.")
+    }
+
+    private func dynamicIsland(
+        for context: ActivityViewContext<DurationAttributes>
+    ) -> DynamicIsland {
+        let runningInterval: ClosedRange<Date> = {
+            let end = context.state.endDate ?? .now
+            return context.state.startDate...end
+        }()
+
+        return DynamicIsland {
+            DynamicIslandExpandedRegion(.leading) {
+                VStack(alignment: .leading) {
+                    if let name = context.state.profileDisplayName, name.isEmpty == false {
+                        Text(name)
+                            .font(.headline)
+                            .privacySensitive()
+                    }
+
+                    Text(context.state.actionType)
+                        .font(.subheadline)
+                        .privacySensitive()
+                }
+            }
+
+            DynamicIslandExpandedRegion(.trailing) {
+                Text(timerInterval: runningInterval, countsDown: false)
+                    .font(.title2.monospacedDigit())
+                    .privacySensitive()
+            }
+
+            DynamicIslandExpandedRegion(.bottom) {
+                if let note = context.state.notePreview, note.isEmpty == false {
+                    Text(note)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .privacySensitive()
+                }
+            }
+        } compactLeading: {
+            Image(systemName: "stopwatch")
+                .accessibilityLabel(context.state.actionType)
+        } compactTrailing: {
+            Text(timerInterval: runningInterval, countsDown: false)
+                .font(.caption2.monospacedDigit())
+                .privacySensitive()
+        } minimal: {
+            Image(systemName: "stopwatch")
+                .accessibilityLabel(context.state.actionType)
+        }
+        .widgetURL(
+            URL(string: "nannyme://activity/\(context.attributes.activityID.uuidString)")
+        )
     }
 }
 
@@ -67,63 +120,6 @@ private struct DurationLockScreenView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .widgetURL(widgetURL)
-    }
-
-    private var widgetURL: URL? {
-        URL(string: "nannyme://activity/\(context.attributes.activityID.uuidString)")
-    }
-}
-
-@available(iOS 17.0, *)
-private struct DurationDynamicIslandView: View {
-    let context: ActivityViewContext<DurationAttributes>
-
-    private var runningInterval: ClosedRange<Date> {
-        let end = context.state.endDate ?? .now
-        return context.state.startDate...end
-    }
-
-    var body: some DynamicIsland {
-        DynamicIsland {
-            DynamicIslandExpandedRegion(.leading) {
-                VStack(alignment: .leading) {
-                    if let name = context.state.profileDisplayName, name.isEmpty == false {
-                        Text(name)
-                            .font(.headline)
-                            .privacySensitive()
-                    }
-                    Text(context.state.actionType)
-                        .font(.subheadline)
-                        .privacySensitive()
-                }
-            }
-
-        DynamicIslandExpandedRegion(.trailing) {
-            Text(timerInterval: runningInterval, countsDown: false)
-                .font(.title2.monospacedDigit())
-                .privacySensitive()
-        }
-
-            DynamicIslandExpandedRegion(.bottom) {
-                if let note = context.state.notePreview, note.isEmpty == false {
-                    Text(note)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .privacySensitive()
-                }
-            }
-        } compactLeading: {
-            Image(systemName: "stopwatch")
-                .accessibilityLabel(context.state.actionType)
-        } compactTrailing: {
-            Text(timerInterval: runningInterval, countsDown: false)
-                .font(.caption2.monospacedDigit())
-                .privacySensitive()
-        } minimal: {
-            Image(systemName: "stopwatch")
-                .accessibilityLabel(context.state.actionType)
-        }
         .widgetURL(widgetURL)
     }
 
