@@ -111,9 +111,12 @@ struct StatsView: View {
         if hasAnyTrackedData {
             let focusCategory = resolvedCategory(for: state)
             let windowDays = 7
-            let metrics = dailyMetrics(for: state, focusCategory: focusCategory, days: windowDays)
+            let rawMetrics = dailyMetrics(for: state, focusCategory: focusCategory, days: windowDays)
+            let displayConfiguration = dailyTrendDisplayConfiguration(for: rawMetrics,
+                                                                      focusCategory: focusCategory)
+            let metrics = displayConfiguration.metrics
             let hasData = metrics.contains { $0.value > 0 }
-            let yAxisTitle = focusCategory == .diaper ? L10n.Stats.diapersYAxis : L10n.Stats.minutesYAxis
+            let yAxisTitle = displayConfiguration.yAxisTitle
             let axisDays = recentDayStarts(count: windowDays)
             let subtypeTitle = L10n.Stats.subtypeLegend
             let subtypeScale = colorScale(for: metrics.map(\.subtype))
@@ -516,6 +519,41 @@ struct StatsView: View {
         }
     }
 
+    private func dailyTrendDisplayConfiguration(for metrics: [DailyActionMetric],
+                                                focusCategory: BabyActionCategory)
+        -> (metrics: [DailyActionMetric], yAxisTitle: String)
+    {
+        if focusCategory == .diaper {
+            return (metrics, L10n.Stats.diapersYAxis)
+        }
+
+        guard focusCategory == .sleep || focusCategory == .feeding else {
+            return (metrics, L10n.Stats.minutesYAxis)
+        }
+
+        guard let maxValue = metrics.map(\.value).max(), maxValue > 0 else {
+            return (metrics, L10n.Stats.minutesYAxis)
+        }
+
+        let unit: DailyTrendDurationUnit
+
+        if maxValue < 1 {
+            unit = .seconds
+        } else if maxValue >= 120 {
+            unit = .hours
+        } else {
+            unit = .minutes
+        }
+
+        let scaledMetrics = metrics.map { metric -> DailyActionMetric in
+            var metric = metric
+            metric.value = unit.scaledValue(fromMinutes: metric.value)
+            return metric
+        }
+
+        return (scaledMetrics, unit.axisTitle)
+    }
+
     private func subtypes(for action: BabyActionSnapshot, focusCategory: BabyActionCategory) -> [ActionSubtype] {
         switch focusCategory {
         case .sleep:
@@ -867,6 +905,34 @@ private struct ChartShareContentWidthPreferenceKey: PreferenceKey {
 
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
+    }
+}
+
+private enum DailyTrendDurationUnit {
+    case seconds
+    case minutes
+    case hours
+
+    func scaledValue(fromMinutes minutes: Double) -> Double {
+        switch self {
+        case .seconds:
+            return minutes * 60
+        case .minutes:
+            return minutes
+        case .hours:
+            return minutes / 60
+        }
+    }
+
+    var axisTitle: String {
+        switch self {
+        case .seconds:
+            return L10n.Stats.secondsYAxis
+        case .minutes:
+            return L10n.Stats.minutesYAxis
+        case .hours:
+            return L10n.Stats.hoursYAxis
+        }
     }
 }
 

@@ -238,6 +238,8 @@
 "stats.pattern.subtitle" = "Typische Aktivitätszeiten der letzten Woche.";
 "stats.chart.yAxis.diapers" = "Windeln";
 "stats.chart.yAxis.minutes" = "Minuten";
+"stats.chart.yAxis.seconds" = "Sekunden";
+"stats.chart.yAxis.hours" = "Stunden";
 "stats.chart.lastSevenDays" = "Letzte 7 Tage";
 "stats.chart.actionPicker.label" = "Aktivität";
 "stats.chart.series.subtype" = "Untertyp";
