@@ -211,15 +211,9 @@ final class ActionLogStore: ObservableObject {
         let now = Date()
 
         if let index = profileState.history.firstIndex(where: { $0.id == actionID }) {
-            let action = profileState.history.remove(at: index)
-            var restarted = BabyActionSnapshot(category: action.category,
-                                               startDate: now,
-                                               endDate: nil,
-                                               diaperType: action.diaperType,
-                                               feedingType: action.feedingType,
-                                               bottleType: action.bottleType,
-                                               bottleVolume: action.bottleVolume)
-            restarted = Self.clamp(restarted, avoiding: profileState.history)
+            var restarted = profileState.history.remove(at: index)
+            restarted.endDate = nil
+            restarted.updatedAt = now
             profileState.activeActions[restarted.category] = restarted
             persist(profileState: profileState, for: profileID)
             refreshDurationActivity(for: profileID)
