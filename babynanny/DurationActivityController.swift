@@ -81,6 +81,7 @@ private extension BabyActionModel {
             activityID: id,
             profileDisplayName: sanitizedProfileName,
             actionType: category.title,
+            actionIconSystemName: actionIconSystemName,
             startDate: startDate,
             endDate: endDate,
             notePreview: nil
@@ -90,6 +91,18 @@ private extension BabyActionModel {
     private var sanitizedProfileName: String? {
         let trimmed = profile?.name?.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.nilIfEmpty
+    }
+
+    private var actionIconSystemName: String {
+        if let diaperType {
+            return diaperType.icon
+        }
+
+        if let feedingType {
+            return feedingType.icon
+        }
+
+        return category.icon
     }
 }
 

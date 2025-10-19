@@ -8,6 +8,7 @@ struct DurationAttributes: ActivityAttributes, Sendable {
         var activityID: UUID
         var profileDisplayName: String?
         var actionType: String
+        var actionIconSystemName: String?
         var startDate: Date
         var endDate: Date?
         var notePreview: String?

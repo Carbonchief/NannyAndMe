@@ -13,6 +13,8 @@ struct DurationAttributes: ActivityAttributes, Sendable {
         var profileDisplayName: String?
         /// Raw action type string (`BabyActionCategory.title`).
         var actionType: String
+        /// SFSymbol name representing the category or subtype icon.
+        var actionIconSystemName: String?
         /// Start date of the running action.
         var startDate: Date
         /// End date when the action is finished. `nil` while the action is

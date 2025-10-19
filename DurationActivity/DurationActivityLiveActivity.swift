@@ -36,21 +36,17 @@ struct DurationLiveActivityWidget: Widget {
     ) -> DynamicIsland {
         // Compact-only Dynamic Island: icon + relative duration, no expanded regions.
         DynamicIsland {
-            // Returning an empty center region prevents the system from presenting
-            // a full-width expanded island while satisfying the builder.
             DynamicIslandExpandedRegion(.center) {
                 EmptyView()
             }
         } compactLeading: {
-            Text(icon(for: context.state.actionType))
-                .accessibilityLabel(context.state.actionType)
+            actionIconView(for: context)
         } compactTrailing: {
             durationText(for: context)
                 .font(.caption2.monospacedDigit())
                 .privacySensitive()
         } minimal: {
-            Text(icon(for: context.state.actionType))
-                .accessibilityLabel(context.state.actionType)
+            actionIconView(for: context)
         }
         .widgetURL(
             URL(string: "nannyme://activity/\(context.attributes.activityID.uuidString)")
@@ -67,17 +63,22 @@ struct DurationLiveActivityWidget: Widget {
         return Text(context.state.startDate, style: .timer)
     }
 
-    private func icon(for actionType: String) -> String {
-        switch actionType.lowercased() {
-        case "feed":
-            return "🍼"
-        case "sleep":
-            return "😴"
-        case "diaper":
-            return "💩"
-        default:
-            return "⏱"
+    @ViewBuilder
+    private func actionIconView(
+        for context: ActivityViewContext<DurationAttributes>
+    ) -> some View {
+        let symbolName = actionIconName(for: context)
+        Image(systemName: symbolName)
+            .accessibilityLabel(context.state.actionType)
+    }
+
+    private func actionIconName(
+        for context: ActivityViewContext<DurationAttributes>
+    ) -> String {
+        guard let icon = context.state.actionIconSystemName, icon.isEmpty == false else {
+            return "clock"
         }
+        return icon
     }
 }
 
