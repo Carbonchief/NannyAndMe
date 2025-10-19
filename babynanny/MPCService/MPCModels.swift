@@ -73,7 +73,13 @@ struct MPCPeer: Identifiable, Hashable {
     var id: String { peerID.displayName }
 
     var displayName: String {
-        discoveryInfo["shortName"] ?? peerID.displayName
+        if let encoded = discoveryInfo["prettyName"],
+           let data = Data(base64Encoded: encoded),
+           let decoded = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+           decoded.isEmpty == false {
+            return decoded
+        }
+        return discoveryInfo["shortName"] ?? peerID.displayName
     }
 
     var appVersion: String? { discoveryInfo["appVersion"] }

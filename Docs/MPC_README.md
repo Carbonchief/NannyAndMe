@@ -13,7 +13,8 @@ ShareDataView ──▶ ShareDataViewModel ──▶ MPCManager
   unit tested in isolation.
 * **MPCManager** owns discovery (`MCNearbyServiceBrowser`), advertising (`MCNearbyServiceAdvertiser`), and an
   `MCSession`. It publishes session state transitions, pending invitations, transfer progress, and recovered errors. Stable
-  `MCPeerID` values are persisted in `UserDefaults` under `mpc.peer.displayName`.
+  `MCPeerID` values are persisted in `UserDefaults` under `mpc.peer.displayName`; the stored identifier appends a four-character
+  suffix derived from `identifierForVendor` so devices with the same marketing name still negotiate unique peer identifiers.
 * **MPCSessionController** wraps the `MCSessionDelegate` callbacks to keep a single-threaded state machine on the main
   actor. It forwards envelopes, resource progress, and failures to the manager/transfer controller.
 * **MPCTransferController** is responsible for encoding/decoding envelopes, tracking resource progress with key-value
@@ -23,7 +24,9 @@ ShareDataView ──▶ ShareDataViewModel ──▶ MPCManager
 
 * Service type: `nanme-share`
 * Discovery info keys:
-  * `shortName`: persisted local display name (sanitized to <= 24 characters, alphanumerics and `-/_`).
+  * `shortName`: sanitized device name (ASCII, trimmed to 60 characters, whitespace collapsed). Updated automatically when the
+    user renames the device.
+  * `prettyName`: Base64-encoded UTF-8 device name used for UI presentation so apostrophes and emoji survive discovery.
   * `appVersion`: value of `CFBundleShortVersionString` when available.
 * Encryption preference: `.required` (default).
 

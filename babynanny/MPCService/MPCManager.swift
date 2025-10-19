@@ -21,6 +21,16 @@ final class MPCManager: NSObject, ObservableObject {
         }
     }
 
+    private enum DefaultsKey {
+        static let peerDisplayName = "mpc.peer.displayName"
+        static let peerShortName = "mpc.peer.shortName"
+    }
+
+    private struct Identity {
+        let peerID: MCPeerID
+        let shortName: String
+    }
+
     enum SessionState: Equatable {
         case idle
         case browsing
@@ -40,6 +50,7 @@ final class MPCManager: NSObject, ObservableObject {
 
     private let configuration: Configuration
     private let peerID: MCPeerID
+    private var localShortName: String
     private let sessionFactory: MPCSessionFactory
 
     private var currentSession: MCSession!
@@ -54,10 +65,14 @@ final class MPCManager: NSObject, ObservableObject {
 
     init(configuration: Configuration? = nil,
          sessionFactory: MPCSessionFactory = DefaultMPCSessionFactory()) {
-        let resolvedConfiguration = configuration ?? Configuration(discoveryInfoProvider: { MPCManager.makeDefaultDiscoveryInfo() })
+        let identity = MPCManager.makeIdentity()
+        let resolvedConfiguration = configuration ?? Configuration(discoveryInfoProvider: {
+            MPCManager.makeDefaultDiscoveryInfo()
+        })
         self.configuration = resolvedConfiguration
         self.sessionFactory = sessionFactory
-        self.peerID = MPCManager.makePersistentPeerID()
+        self.peerID = identity.peerID
+        self.localShortName = identity.shortName
         super.init()
         prepareSession()
     }
@@ -85,8 +100,17 @@ final class MPCManager: NSObject, ObservableObject {
 
     func startAdvertising() {
         guard advertiser == nil else { return }
+        refreshLocalShortNameIfNeeded()
+        var discoveryInfo = configuration.discoveryInfoProvider()
+        if discoveryInfo["shortName"].map({ $0.isEmpty }) != false {
+            discoveryInfo["shortName"] = localShortName
+        }
+        if discoveryInfo["prettyName"].map({ $0.isEmpty }) != false,
+           let encoded = MPCManager.encodePrettyName(from: UIDevice.current.name) {
+            discoveryInfo["prettyName"] = encoded
+        }
         advertiser = MCNearbyServiceAdvertiser(peer: peerID,
-                                               discoveryInfo: configuration.discoveryInfoProvider(),
+                                               discoveryInfo: discoveryInfo,
                                                serviceType: configuration.serviceType)
         advertiser?.delegate = self
         advertiser?.startAdvertisingPeer()
@@ -179,6 +203,23 @@ final class MPCManager: NSObject, ObservableObject {
     }
 
     private func prepareSession() {
+        sessionController?.onPeerStateChange = nil
+        sessionController?.onSessionFailed = nil
+        transferController?.onTransferProgress = nil
+        transferController?.onHelloMessage = nil
+        transferController?.onCapabilitiesMessage = nil
+        transferController?.onProfileExport = nil
+        transferController?.onActionsDelta = nil
+        transferController?.onAcknowledgement = nil
+        transferController?.onIncompatibleEnvelope = nil
+        transferController?.onErrorMessage = nil
+        transferController?.onResourceReceived = nil
+        transferController = nil
+        sessionController = nil
+        if let currentSession {
+            currentSession.delegate = nil
+            currentSession.disconnect()
+        }
         let session = sessionFactory.makeSession(for: peerID)
         currentSession = session
         let controller = MPCSessionController(session: session)
@@ -191,6 +232,9 @@ final class MPCManager: NSObject, ObservableObject {
             self.lastError = error
             self.connectedPeer = nil
             self.sessionState = .idle
+            self.invitationExpiryTask?.cancel()
+            self.invitationExpiryTask = nil
+            self.prepareSession()
         }
 
         let transfer = MPCTransferController(sessionController: controller)
@@ -200,7 +244,7 @@ final class MPCManager: NSObject, ObservableObject {
         }
         transfer.onHelloMessage = { [weak self] message, peer in
             guard let self else { return }
-            self.updateConnectedPeer(peerID: peer, shortName: message.displayName)
+            self.updateConnectedPeer(peerID: peer, displayName: message.displayName)
         }
         transfer.onProfileExport = { [weak self] _, _ in
             guard let self else { return }
@@ -239,10 +283,17 @@ final class MPCManager: NSObject, ObservableObject {
             invitationExpiryTask = nil
             sendHello(to: peerID)
         case .notConnected:
+            if case .inviting(let target) = sessionState, target.peerID == peerID {
+                invitationExpiryTask?.cancel()
+                invitationExpiryTask = nil
+                sessionState = .idle
+                lastError = .sessionFailed
+            }
             if let current = connectedPeer, current.peerID == peerID {
                 connectedPeer = nil
                 sessionState = .idle
             }
+            prepareSession()
         case .connecting:
             break
         @unknown default:
@@ -251,7 +302,10 @@ final class MPCManager: NSObject, ObservableObject {
     }
 
     private func sendHello(to peerID: MCPeerID) {
-        let hello = MPCHelloMessage(displayName: self.peerID.displayName, supportsFileTransfer: true)
+        refreshLocalShortNameIfNeeded()
+        let actualName = UIDevice.current.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let helloName = actualName.isEmpty ? localShortName : actualName
+        let hello = MPCHelloMessage(displayName: helloName, supportsFileTransfer: true)
         do {
             try transferController.sendMessage(payload: hello, type: .hello, to: [peerID], mode: .reliable)
         } catch {
@@ -283,28 +337,48 @@ final class MPCManager: NSObject, ObservableObject {
         nearbyPeers.removeAll { $0.peerID == peerID }
     }
 
-    private func updateConnectedPeer(peerID: MCPeerID, shortName: String) {
+    private func updateConnectedPeer(peerID: MCPeerID, displayName: String) {
+        let sanitized = MPCManager.sanitizeDiscoveryName(displayName)
+        let prettyEncoded = MPCManager.encodePrettyName(from: displayName)
         if let index = nearbyPeers.firstIndex(where: { $0.peerID == peerID }) {
             var info = nearbyPeers[index].discoveryInfo
-            info["shortName"] = shortName
+            if sanitized.isEmpty == false {
+                info["shortName"] = sanitized
+            }
+            if let prettyEncoded {
+                info["prettyName"] = prettyEncoded
+            }
             nearbyPeers[index] = MPCPeer(peerID: peerID, discoveryInfo: info, lastSeen: Date())
             nearbyPeers.sort { $0.displayName < $1.displayName }
         }
 
         if var current = connectedPeer, current.peerID == peerID {
             var info = current.discoveryInfo
-            info["shortName"] = shortName
+            if sanitized.isEmpty == false {
+                info["shortName"] = sanitized
+            }
+            if let prettyEncoded {
+                info["prettyName"] = prettyEncoded
+            }
             let updated = MPCPeer(peerID: peerID, discoveryInfo: info, lastSeen: Date())
             connectedPeer = updated
             sessionState = .connected(updated)
         }
     }
 
-    private static func makeDefaultDiscoveryInfo() -> [String: String] {
+    private func refreshLocalShortNameIfNeeded() {
+        let resolved = MPCManager.resolveShortName()
+        if resolved != localShortName {
+            localShortName = resolved
+        }
+    }
+
+    private static func makeDefaultDiscoveryInfo(shortName: String? = nil) -> [String: String] {
         var info: [String: String] = [:]
-        let defaults = UserDefaults.standard
-        if let shortName = defaults.string(forKey: "mpc.peer.displayName") {
-            info["shortName"] = shortName
+        let resolvedShortName = shortName ?? resolveShortName()
+        info["shortName"] = resolvedShortName
+        if let pretty = encodePrettyName(from: UIDevice.current.name) {
+            info["prettyName"] = pretty
         }
         if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
             info["appVersion"] = version
@@ -312,19 +386,67 @@ final class MPCManager: NSObject, ObservableObject {
         return info
     }
 
-    private static func makePersistentPeerID() -> MCPeerID {
+    private static func makeIdentity() -> Identity {
+        let shortName = resolveShortName()
         let defaults = UserDefaults.standard
-        let key = "mpc.peer.displayName"
-        if let stored = defaults.string(forKey: key) {
-            return MCPeerID(displayName: stored)
+        if let storedDisplayName = defaults.string(forKey: DefaultsKey.peerDisplayName) {
+            return Identity(peerID: MCPeerID(displayName: storedDisplayName), shortName: shortName)
         }
 
-        let base = UIDevice.current.name
-        let allowed = base.replacingOccurrences(of: "[^A-Za-z0-9-_]", with: "", options: .regularExpression)
-        let sanitized = allowed.isEmpty ? "NannyUser" : allowed
-        let displayName = String(sanitized.prefix(24))
-        defaults.set(displayName, forKey: key)
-        return MCPeerID(displayName: displayName)
+        let base = sanitizePeerDisplayNameComponent(shortName)
+        let suffix = makeStableSuffix()
+        let composed = [base, suffix].joined(separator: "-")
+        defaults.set(composed, forKey: DefaultsKey.peerDisplayName)
+        return Identity(peerID: MCPeerID(displayName: composed), shortName: shortName)
+    }
+
+    private static func resolveShortName() -> String {
+        let defaults = UserDefaults.standard
+        let rawName = UIDevice.current.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sanitized = sanitizeDiscoveryName(rawName)
+        let fallback = UIDevice.current.localizedModel
+        let shortName = sanitized.isEmpty ? fallback : sanitized
+        if defaults.string(forKey: DefaultsKey.peerShortName) != shortName {
+            defaults.set(shortName, forKey: DefaultsKey.peerShortName)
+        }
+        return shortName
+    }
+
+    private static func sanitizeDiscoveryName(_ name: String) -> String {
+        let filteredScalars = name.unicodeScalars.filter { scalar in
+            scalar.isASCII && scalar.value >= 32
+        }
+        var ascii = String(String.UnicodeScalarView(filteredScalars))
+        ascii = ascii.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        let trimmed = ascii.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return ""
+        }
+        return String(trimmed.prefix(60))
+    }
+
+    private static func sanitizePeerDisplayNameComponent(_ name: String) -> String {
+        let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
+        let filteredScalars = name.unicodeScalars.filter { allowed.contains($0) }
+        let sanitized = String(String.UnicodeScalarView(filteredScalars))
+        let trimmed = sanitized.trimmingCharacters(in: CharacterSet(charactersIn: "-_"))
+        if trimmed.isEmpty {
+            return "NannyUser"
+        }
+        return String(trimmed.prefix(48))
+    }
+
+    private static func makeStableSuffix() -> String {
+        let raw = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
+        let cleaned = raw.replacingOccurrences(of: "-", with: "").uppercased()
+        let suffix = cleaned.suffix(4)
+        return suffix.isEmpty ? "0000" : String(suffix)
+    }
+
+    private static func encodePrettyName(from name: String) -> String? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else { return nil }
+        return Data(trimmed.utf8).base64EncodedString()
     }
 }
 
