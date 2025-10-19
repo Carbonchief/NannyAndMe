@@ -93,6 +93,7 @@ struct AllLogsDateFilterSheet: View {
                     }
                 }
             }
+            .listSectionSpacing(.compact)
             .navigationTitle(L10n.Logs.filterTitle)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
