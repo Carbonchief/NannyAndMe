@@ -1,6 +1,17 @@
 import AppIntents
 import Foundation
 
+private enum DurationIntentError: LocalizedError {
+    case invalidIdentifier
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidIdentifier:
+            return String(localized: "intent.duration.invalidIdentifier", defaultValue: "Unable to stop the selected action.")
+        }
+    }
+}
+
 @available(iOS 17.0, *)
 struct StopRunningActionIntent: AppIntent {
     static let title: LocalizedStringResource = "Stop Action"
@@ -16,8 +27,14 @@ struct StopRunningActionIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        // The live activity is driven by SwiftData. We immediately hand off to
-        // the app so the underlying model is updated before the activity ends.
-        return .result()
+        guard let uuid = UUID(uuidString: actionID) else {
+            throw DurationIntentError.invalidIdentifier
+        }
+
+        guard let url = URL(string: "nannyme://activity/\(uuid.uuidString)/stop") else {
+            throw DurationIntentError.invalidIdentifier
+        }
+
+        return .result(opening: url)
     }
 }

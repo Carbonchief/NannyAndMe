@@ -209,6 +209,41 @@ final class ActionLogStore: ObservableObject {
         refreshDurationActivities()
     }
 
+    func stopAction(withID actionID: UUID) {
+        guard let actionModel = existingAction(withID: actionID),
+              let profileModel = actionModel.profile else { return }
+
+        guard actionModel.endDate == nil else { return }
+
+        let profileID = profileModel.resolvedProfileID
+        notifyChange()
+        var profileState = state(for: profileID)
+
+        let now = Date()
+        actionModel.endDate = now
+        actionModel.updatedAt = now
+
+        if var running = profileState.activeActions[actionModel.category], running.id == actionID {
+            running.endDate = now
+            running.updatedAt = now
+            profileState.activeActions.removeValue(forKey: actionModel.category)
+            profileState.history.insert(running, at: 0)
+        } else {
+            var snapshot = actionModel.asSnapshot().withValidatedDates()
+            snapshot.endDate = now
+            snapshot.updatedAt = now
+
+            if let index = profileState.history.firstIndex(where: { $0.id == actionID }) {
+                profileState.history[index] = snapshot
+            } else {
+                profileState.history.insert(snapshot, at: 0)
+            }
+        }
+
+        persist(profileState: profileState, for: profileID)
+        refreshDurationActivities()
+    }
+
     func updateAction(for profileID: UUID, action updatedAction: BabyActionSnapshot) {
         var profileState = state(for: profileID)
         let sanitized = updatedAction.withValidatedDates()
@@ -623,6 +658,15 @@ private extension ActionLogStore {
 }
 
 private extension ActionLogStore {
+    func existingAction(withID id: UUID) -> BabyActionModel? {
+        let predicate = #Predicate<BabyActionModel> { model in
+            model.id == id
+        }
+        var descriptor = FetchDescriptor<BabyActionModel>(predicate: predicate)
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first
+    }
+
     private static func makePersistentStoreContextIdentifiers(for context: ModelContext) -> PersistentStoreContextIdentifiers {
         var visitedObjects: Set<ObjectIdentifier> = []
         var identifiers = PersistentStoreContextIdentifiers()

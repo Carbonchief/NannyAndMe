@@ -11,3 +11,4 @@
 "formatter.justNow" = "Justo ahora";
 "widget.duration.noActive" = "No hay temporizadores activos";
 "widget.duration.tracking" = "En seguimiento";
+"intent.duration.invalidIdentifier" = "No se pudo detener la acción.";

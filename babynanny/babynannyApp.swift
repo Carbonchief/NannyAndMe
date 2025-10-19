@@ -42,6 +42,9 @@ struct babynannyApp: App {
                         .environmentObject(appDataStack.syncCoordinator)
                         .environmentObject(syncStatusViewModel)
                         .onOpenURL { url in
+                            if handleDurationActivityURL(url) {
+                                return
+                            }
                             guard shouldHandle(url: url) else { return }
                             shareDataCoordinator.handleIncomingFile(url: url)
                         }
@@ -86,6 +89,21 @@ private extension babynannyApp {
             return contentType.conforms(to: .json)
         }
         return url.pathExtension.lowercased() == "json"
+    }
+
+    func handleDurationActivityURL(_ url: URL) -> Bool {
+        guard url.scheme == "nannyme", url.host == "activity" else { return false }
+
+        let pathComponents = url.pathComponents.dropFirst()
+        guard let identifierComponent = pathComponents.first,
+              let actionID = UUID(uuidString: identifierComponent) else { return false }
+
+        if pathComponents.dropFirst().first == "stop" {
+            actionStore?.stopAction(withID: actionID)
+            return true
+        }
+
+        return false
     }
 
     func updateDependencies(cloudSyncEnabled: Bool) {

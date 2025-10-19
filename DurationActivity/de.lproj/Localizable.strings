@@ -11,3 +11,4 @@
 "formatter.justNow" = "Gerade eben";
 "widget.duration.noActive" = "Keine aktiven Timer";
 "widget.duration.tracking" = "Aktuell erfasst";
+"intent.duration.invalidIdentifier" = "Aktion konnte nicht beendet werden.";

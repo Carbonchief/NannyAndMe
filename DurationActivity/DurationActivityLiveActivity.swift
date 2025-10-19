@@ -61,7 +61,11 @@ struct DurationLiveActivityWidget: Widget {
             }
 
             DynamicIslandExpandedRegion(.trailing) {
-                EmptyView()
+                StopActionButton(
+                    actionID: context.state.activityID,
+                    style: .iconOnly,
+                    postHogLabel: "duration_stop_button_liveActivity_dynamicIsland"
+                )
             }
 
             DynamicIslandExpandedRegion(.bottom) {
@@ -106,15 +110,25 @@ private struct DurationLockScreenView: View {
                     .privacySensitive()
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(context.state.actionType)
-                    .font(.title3.weight(.semibold))
-                    .privacySensitive()
+            HStack(alignment: .center, spacing: 12) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text(context.state.actionType)
+                        .font(.title3.weight(.semibold))
+                        .privacySensitive()
 
-                Text(timerInterval: runningInterval, countsDown: false)
-                    .monospacedDigit()
-                    .font(.title2)
-                    .privacySensitive()
+                    Text(timerInterval: runningInterval, countsDown: false)
+                        .monospacedDigit()
+                        .font(.title2)
+                        .privacySensitive()
+                }
+
+                Spacer(minLength: 12)
+
+                StopActionButton(
+                    actionID: context.state.activityID,
+                    style: .title,
+                    postHogLabel: "duration_stop_button_liveActivity_lockScreen"
+                )
             }
 
             if let note = context.state.notePreview, note.isEmpty == false {
@@ -131,5 +145,46 @@ private struct DurationLockScreenView: View {
 
     private var widgetURL: URL? {
         URL(string: "nannyme://activity/\(context.attributes.activityID.uuidString)")
+    }
+}
+
+@available(iOS 17.0, *)
+private struct StopActionButton: View {
+    enum Style {
+        case title
+        case iconOnly
+    }
+
+    let actionID: UUID
+    let style: Style
+    let postHogLabel: String
+
+    var body: some View {
+        Button(intent: StopRunningActionIntent(actionID: actionID)) {
+            label
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.small)
+        .tint(.red)
+        .postHogLabel(postHogLabel)
+        .privacySensitive(false)
+    }
+
+    @ViewBuilder
+    private var label: some View {
+        switch style {
+        case .title:
+            Label {
+                Text(WidgetL10n.Common.stop)
+                    .font(.subheadline.weight(.semibold))
+            } icon: {
+                Image(systemName: "stop.fill")
+            }
+            .labelStyle(.titleAndIcon)
+        case .iconOnly:
+            Image(systemName: "stop.fill")
+                .symbolVariant(.fill)
+                .accessibilityLabel(WidgetL10n.Common.stop)
+        }
     }
 }

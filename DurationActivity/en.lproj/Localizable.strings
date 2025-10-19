@@ -15,3 +15,4 @@
 "formatter.justNow" = "Just now";
 "widget.duration.noActive" = "No active timers";
 "widget.duration.tracking" = "Currently tracking";
+"intent.duration.invalidIdentifier" = "Unable to stop the selected action.";
