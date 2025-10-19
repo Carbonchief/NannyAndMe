@@ -68,7 +68,7 @@ struct DurationLiveActivityWidget: Widget {
         for context: ActivityViewContext<DurationAttributes>
     ) -> some View {
         let symbolName = actionIconName(for: context)
-        let accentColor = accentColor(for: context)
+        let accentColor = activityAccentColor(for: context)
 
         Image(systemName: symbolName)
             .foregroundStyle(accentColor ?? .primary)
@@ -95,7 +95,7 @@ private struct DurationLockScreenView: View {
     }
 
     private var resolvedAccentColor: Color? {
-        accentColor(for: context)
+        activityAccentColor(for: context)
     }
 
     var body: some View {
@@ -181,7 +181,7 @@ private struct StopActionButton: View {
     }
 }
 
-private func accentColor(
+private func activityAccentColor(
     for context: ActivityViewContext<DurationAttributes>
 ) -> Color? {
     guard let hex = context.state.actionAccentColorHex else {
