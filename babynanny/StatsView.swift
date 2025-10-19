@@ -307,12 +307,12 @@ struct StatsView: View {
             if let selectedDay,
                let aggregate = aggregates.first(where: { $0.date == selectedDay })
             {
-                RuleMark(
+                PointMark(
                     x: .value(L10n.Stats.dayAxisLabel, aggregate.date, unit: .day),
                     y: .value(yAxisTitle, aggregate.total)
                 )
-                .foregroundStyle(.clear)
-                .lineStyle(StrokeStyle(lineWidth: 0))
+                .symbolSize(0)
+                .opacity(0)
                 .annotation(position: .top, alignment: .center) {
                     Text(valueFormatter.string(for: aggregate.total))
                         .font(.caption)
