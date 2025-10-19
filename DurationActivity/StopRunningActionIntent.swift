@@ -1,10 +1,10 @@
-import ActivityKit
 import AppIntents
 import Foundation
 
 @available(iOS 17.0, *)
 struct StopRunningActionIntent: AppIntent {
     static let title: LocalizedStringResource = "Stop Action"
+    static var openAppWhenRun: Bool { true }
 
     @Parameter(title: "Action Identifier")
     var actionID: String
@@ -16,48 +16,8 @@ struct StopRunningActionIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        let dataStore = DurationDataStore()
-
-        do {
-            guard let uuid = UUID(uuidString: actionID) else {
-                return .result()
-            }
-
-            try dataStore.stopAction(withID: uuid)
-            await updateLiveActivity(afterStoppingActionWithID: uuid)
-        } catch DurationDataStore.StopActionError.actionNotFound {
-            return .result()
-        } catch DurationDataStore.StopActionError.stateUnavailable {
-            return .result()
-        }
-
+        // The live activity is driven by SwiftData. We immediately hand off to
+        // the app so the underlying model is updated before the activity ends.
         return .result()
-    }
-}
-
-@available(iOS 17.0, *)
-private extension StopRunningActionIntent {
-    func updateLiveActivity(afterStoppingActionWithID actionID: UUID) async {
-        let activities = Activity<DurationActivityAttributes>.activities
-
-        guard let activity = activities.first(where: { activity in
-            activity.content.state.actions.contains(where: { $0.id == actionID })
-        }) else { return }
-
-        let currentContent = activity.content
-        var newState = currentContent.state
-        newState.actions.removeAll(where: { $0.id == actionID })
-        newState.updatedAt = Date()
-
-        let updatedContent = ActivityContent(
-            state: newState,
-            staleDate: currentContent.staleDate
-        )
-
-        if newState.actions.isEmpty {
-            await activity.end(updatedContent, dismissalPolicy: .immediate)
-        } else {
-            await activity.update(updatedContent)
-        }
     }
 }

@@ -11,6 +11,6 @@ import SwiftUI
 @main
 struct DurationActivityBundle: WidgetBundle {
     var body: some Widget {
-        DurationActivityLiveActivity()
+        DurationLiveActivityWidget()
     }
 }

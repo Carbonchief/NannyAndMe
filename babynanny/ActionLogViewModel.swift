@@ -162,7 +162,7 @@ final class ActionLogStore: ObservableObject {
                                             bottleVolume: bottleVolume)
             profileState.history.insert(action, at: 0)
             persist(profileState: profileState, for: profileID)
-            refreshDurationActivity(for: profileID)
+            refreshDurationActivities()
             return
         }
 
@@ -195,7 +195,7 @@ final class ActionLogStore: ObservableObject {
         profileState.activeActions[category] = action
 
         persist(profileState: profileState, for: profileID)
-        refreshDurationActivity(for: profileID)
+        refreshDurationActivities()
     }
 
     func stopAction(for profileID: UUID, category: BabyActionCategory) {
@@ -206,7 +206,7 @@ final class ActionLogStore: ObservableObject {
         running.updatedAt = Date()
         profileState.history.insert(running, at: 0)
         persist(profileState: profileState, for: profileID)
-        refreshDurationActivity(for: profileID)
+        refreshDurationActivities()
     }
 
     func updateAction(for profileID: UUID, action updatedAction: BabyActionSnapshot) {
@@ -234,7 +234,7 @@ final class ActionLogStore: ObservableObject {
         notifyChange()
         profileState.history.sort { $0.startDate > $1.startDate }
         persist(profileState: profileState, for: profileID)
-        refreshDurationActivity(for: profileID)
+        refreshDurationActivities()
     }
 
     func continueAction(for profileID: UUID, actionID: UUID) {
@@ -249,7 +249,7 @@ final class ActionLogStore: ObservableObject {
             restarted.updatedAt = now
             profileState.activeActions[restarted.category] = restarted
             persist(profileState: profileState, for: profileID)
-            refreshDurationActivity(for: profileID)
+            refreshDurationActivities()
         }
     }
 
@@ -267,7 +267,7 @@ final class ActionLogStore: ObservableObject {
         }
         profileState.history.removeAll(where: { $0.id == actionID })
         persist(profileState: profileState, for: profileID)
-        refreshDurationActivity(for: profileID)
+        refreshDurationActivities()
     }
 
     func removeProfileData(for profileID: UUID) {
@@ -283,7 +283,7 @@ final class ActionLogStore: ObservableObject {
 
         dataStack.saveIfNeeded(on: modelContext, reason: "remove-profile-data")
 
-        refreshDurationActivity(for: profileID)
+        refreshDurationActivities()
         scheduleReminders()
     }
 
@@ -329,7 +329,7 @@ final class ActionLogStore: ObservableObject {
         }
 
         persist(profileState: profileState, for: profileID)
-        refreshDurationActivity(for: profileID)
+        refreshDurationActivities()
         return summary
     }
 
@@ -473,17 +473,13 @@ private extension ActionLogStore {
         return action
     }
 
-    func refreshDurationActivity(for profileID: UUID) {
+    func refreshDurationActivities() {
 #if canImport(ActivityKit)
         guard #available(iOS 17.0, *) else { return }
-
-        let profile = profileStore?.profiles.first(where: { $0.id == profileID })
-        let profileName = profile?.displayName
-        let activeActions = state(for: profileID).activeActions.values.map { $0 }
-        DurationActivityController.shared.update(
-            for: profileName,
-            actions: activeActions
-        )
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await DurationActivityController.syncAllActiveActivities(in: self.modelContext)
+        }
 #endif
     }
 
@@ -492,17 +488,7 @@ private extension ActionLogStore {
         guard #available(iOS 17.0, *) else { return }
         Task { @MainActor [weak self] in
             guard let self else { return }
-            let snapshot = await self.actionStatesSnapshot()
-            if let runningProfileID = snapshot.first(where: { _, state in
-                state.activeActions.values.contains(where: { $0.endDate == nil && $0.category.isInstant == false })
-            })?.key {
-                self.refreshDurationActivity(for: runningProfileID)
-                return
-            }
-
-            if let fallbackProfileID = self.profileStore?.activeProfileID ?? snapshot.keys.first {
-                self.refreshDurationActivity(for: fallbackProfileID)
-            }
+            await DurationActivityController.syncAllActiveActivities(in: self.modelContext)
         }
 #endif
     }
@@ -603,7 +589,7 @@ private extension ActionLogStore {
         }
         objectWillChange.send()
         synchronizeMetadataFromModelContext()
-        refreshDurationActivityForAllProfiles()
+        refreshDurationActivities()
         scheduleReminders()
     }
 
@@ -620,17 +606,6 @@ private extension ActionLogStore {
             )
         }
         profileStore.applyMetadataUpdates(updates)
-    }
-
-    private func refreshDurationActivityForAllProfiles() {
-#if canImport(ActivityKit)
-        guard #available(iOS 17.0, *) else { return }
-        guard let profileStore else { return }
-        let profileIDs = profileStore.profiles.map { $0.id }
-        for identifier in profileIDs {
-            refreshDurationActivity(for: identifier)
-        }
-#endif
     }
 
     func scheduleReminders() {
