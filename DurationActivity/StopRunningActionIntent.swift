@@ -26,7 +26,7 @@ struct StopRunningActionIntent: AppIntent {
         self.actionID = actionID.uuidString
     }
 
-    func perform() async throws -> some IntentResult & OpensIntent {
+    func perform() async throws -> some IntentResult & OpensIntent & ReturnsValue<Void> {
         guard let uuid = UUID(uuidString: actionID) else {
             throw DurationIntentError.invalidIdentifier
         }
