@@ -242,6 +242,8 @@
 "stats.pattern.subtitle" = "Typical activity times over the last week.";
 "stats.chart.yAxis.diapers" = "Diapers";
 "stats.chart.yAxis.minutes" = "Minutes";
+"stats.chart.yAxis.seconds" = "Seconds";
+"stats.chart.yAxis.hours" = "Hours";
 "stats.chart.lastSevenDays" = "Last 7 Days";
 "stats.chart.actionPicker.label" = "Activity";
 "stats.chart.series.subtype" = "Subtype";

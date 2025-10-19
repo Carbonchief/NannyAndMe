@@ -238,6 +238,8 @@
 "stats.pattern.subtitle" = "Horarios típicos de la actividad en la última semana.";
 "stats.chart.yAxis.diapers" = "Pañales";
 "stats.chart.yAxis.minutes" = "Minutos";
+"stats.chart.yAxis.seconds" = "Segundos";
+"stats.chart.yAxis.hours" = "Horas";
 "stats.chart.lastSevenDays" = "Últimos 7 días";
 "stats.chart.actionPicker.label" = "Actividad";
 "stats.chart.series.subtype" = "Subtipo";
