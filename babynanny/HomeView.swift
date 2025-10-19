@@ -677,7 +677,7 @@ private struct HistoryRow: View {
     let onEdit: (BabyActionSnapshot) -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(action.category.accentColor.opacity(0.15))
@@ -733,7 +733,10 @@ private struct HistoryRow: View {
                 .accessibilityLabel(accessibilityLabel(timeInformation: timeInformation,
                                                        durationText: durationText))
             }
+            .frame(maxHeight: .infinity, alignment: .center)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: 68, alignment: .center)
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
