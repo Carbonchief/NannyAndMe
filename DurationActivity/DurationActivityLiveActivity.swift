@@ -94,7 +94,7 @@ private struct DurationLockScreenView: View {
         return context.state.startDate...end
     }
 
-    private var accentColor: Color? {
+    private var resolvedAccentColor: Color? {
         accentColor(for: context)
     }
 
@@ -122,7 +122,7 @@ private struct DurationLockScreenView: View {
 
                 StopActionButton(
                     actionID: context.state.activityID,
-                    accentColor: accentColor,
+                    accentColor: resolvedAccentColor,
                     postHogLabel: "duration_stop_button_liveActivity_lockScreen"
                 )
             }
