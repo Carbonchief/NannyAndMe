@@ -16,6 +16,7 @@ struct HomeView: View {
     @State private var editingAction: BabyActionSnapshot?
     @State private var pendingStartAction: PendingStartAction?
     @State private var categoryClearedForSheet: BabyActionCategory?
+    @State private var throttledCategories: Set<BabyActionCategory> = []
     private let onShowAllLogs: () -> Void
 
     init(onShowAllLogs: @escaping () -> Void = {}) {
@@ -36,8 +37,9 @@ struct HomeView: View {
                             category: category,
                             activeAction: state.activeAction(for: category),
                             lastCompleted: state.lastCompletedAction(for: category),
+                            isInteractionDisabled: throttledCategories.contains(category),
                             onStart: { handleStartTap(for: category) },
-                            onStop: { stopAction(for: category) }
+                            onStop: { handleStopTap(for: category) }
                         )
                     }
                 }
@@ -183,7 +185,7 @@ struct HomeView: View {
                         event: "home_stop_action_header",
                         properties: ["category": recent.category.rawValue]
                     ) {
-                        stopAction(for: recent.category)
+                        _ = handleStopTap(for: recent.category)
                     }
                     .postHogLabel("home.header.stop.\(recent.category.rawValue)")
                     .buttonStyle(.borderedProminent)
@@ -294,7 +296,10 @@ struct HomeView: View {
         return components.joined(separator: " • ")
     }
 
-    private func handleStartTap(for category: BabyActionCategory) {
+    @discardableResult
+    private func handleStartTap(for category: BabyActionCategory) -> Bool {
+        guard registerCardInteraction(for: category) else { return false }
+
         switch category {
         case .sleep:
             _ = requestStartAction(for: .sleep,
@@ -314,6 +319,8 @@ struct HomeView: View {
 
             presentedCategory = category
         }
+
+        return true
     }
 
     @discardableResult
@@ -355,12 +362,34 @@ struct HomeView: View {
         actionStore.stopAction(for: activeProfileID, category: category)
     }
 
+    @discardableResult
+    private func handleStopTap(for category: BabyActionCategory) -> Bool {
+        guard registerCardInteraction(for: category) else { return false }
+
+        stopAction(for: category)
+        return true
+    }
+
     private var activeProfileID: UUID {
         profileStore.activeProfile.id
     }
 
     private var currentState: ProfileActionState {
         actionStore.state(for: activeProfileID)
+    }
+
+    @MainActor
+    private func registerCardInteraction(for category: BabyActionCategory) -> Bool {
+        guard throttledCategories.contains(category) == false else { return false }
+
+        throttledCategories.insert(category)
+
+        Task { @MainActor [category] in
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            throttledCategories.remove(category)
+        }
+
+        return true
     }
 
     @ViewBuilder
@@ -463,8 +492,9 @@ private struct ActionCard: View {
     let category: BabyActionCategory
     let activeAction: BabyActionSnapshot?
     let lastCompleted: BabyActionSnapshot?
-    let onStart: () -> Void
-    let onStop: () -> Void
+    let isInteractionDisabled: Bool
+    let onStart: () -> Bool
+    let onStop: () -> Bool
 
     private var isActive: Bool { activeAction != nil }
 
@@ -485,18 +515,26 @@ private struct ActionCard: View {
 
     var body: some View {
         Button {
-            let event = isActive ? "home_stop_action_card" : "home_start_action_card"
-            Analytics.capture(
-                event,
-                properties: [
-                    "category": category.rawValue,
-                    "is_active": isActive ? "true" : "false"
-                ]
-            )
             if isActive {
-                onStop()
+                if onStop() {
+                    Analytics.capture(
+                        "home_stop_action_card",
+                        properties: [
+                            "category": category.rawValue,
+                            "is_active": "true"
+                        ]
+                    )
+                }
             } else {
-                onStart()
+                if onStart() {
+                    Analytics.capture(
+                        "home_start_action_card",
+                        properties: [
+                            "category": category.rawValue,
+                            "is_active": "false"
+                        ]
+                    )
+                }
             }
         } label: {
             ZStack {
@@ -543,6 +581,7 @@ private struct ActionCard: View {
         }
         .postHogLabel("home.actionCard.\(category.rawValue)")
         .buttonStyle(.plain)
+        .disabled(isInteractionDisabled)
         .frame(maxWidth: .infinity)
         .aspectRatio(1, contentMode: .fit)
         .contentShape(Rectangle())
