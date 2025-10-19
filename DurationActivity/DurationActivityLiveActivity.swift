@@ -159,15 +159,18 @@ private struct StopActionButton: View {
     let style: Style
     let postHogLabel: String
 
+    @ViewBuilder
     var body: some View {
-        Button(intent: StopRunningActionIntent(actionID: actionID)) {
-            label
+        if let stopURL {
+            Link(destination: stopURL) {
+                label
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .tint(.red)
+            .postHogLabel(postHogLabel)
+            .privacySensitive(false)
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.small)
-        .tint(.red)
-        .postHogLabel(postHogLabel)
-        .privacySensitive(false)
     }
 
     @ViewBuilder
@@ -186,5 +189,9 @@ private struct StopActionButton: View {
                 .symbolVariant(.fill)
                 .accessibilityLabel(WidgetL10n.Common.stop)
         }
+    }
+
+    private var stopURL: URL? {
+        URL(string: "nannyme://activity/\(actionID.uuidString)/stop")
     }
 }
