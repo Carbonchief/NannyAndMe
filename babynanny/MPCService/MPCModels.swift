@@ -74,7 +74,7 @@ struct MPCPeer: Identifiable, Hashable {
 
     var displayName: String {
         if let encoded = discoveryInfo["prettyName"],
-           let data = Data(base64Encoded: encoded),
+           let data = Data(base64Encoded: encoded, options: .ignoreUnknownCharacters),
            let decoded = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
            decoded.isEmpty == false {
             return decoded

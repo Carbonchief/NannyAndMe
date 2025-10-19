@@ -154,8 +154,15 @@ final class MPCManager: NSObject, ObservableObject {
         sessionController.updateLifecycleState(.connecting(peer: peer.peerID))
         browser.invitePeer(peer.peerID, to: currentSession, withContext: nil, timeout: configuration.invitationTimeout)
         invitationExpiryTask?.cancel()
+        let timeout = configuration.invitationTimeout
         invitationExpiryTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(configuration.invitationTimeout * 1_000_000_000))
+            let nanoseconds = UInt64(timeout * 1_000_000_000)
+            do {
+                try await Task.sleep(nanoseconds: nanoseconds)
+            } catch {
+                return
+            }
+            guard Task.isCancelled == false else { return }
             await self?.handleInvitationTimedOut(for: peer)
         }
     }
@@ -317,13 +324,18 @@ final class MPCManager: NSObject, ObservableObject {
 
     private func handleInvitationTimedOut(for peer: MPCPeer) {
         guard case .inviting(let target) = sessionState, target.id == peer.id else { return }
+        invitationExpiryTask = nil
         sessionState = .idle
         lastError = .timeout
     }
 
     private func updatePeerList(with peerID: MCPeerID, info: [String: String]?) {
+        var discoveryInfo = nearbyPeers.first(where: { $0.peerID == peerID })?.discoveryInfo ?? [:]
+        if let info {
+            discoveryInfo.merge(info) { _, new in new }
+        }
         let metadata = MPCPeer(peerID: peerID,
-                               discoveryInfo: info ?? [:],
+                               discoveryInfo: discoveryInfo,
                                lastSeen: Date())
         if let index = nearbyPeers.firstIndex(where: { $0.peerID == peerID }) {
             nearbyPeers[index] = metadata
@@ -483,12 +495,20 @@ extension MPCManager: MCNearbyServiceAdvertiserDelegate {
                 return
             }
 
-            let peer = MPCPeer(peerID: peerID, discoveryInfo: [:], lastSeen: Date())
+            let existingInfo = self.nearbyPeers.first(where: { $0.peerID == peerID })?.discoveryInfo ?? [:]
+            let peer = MPCPeer(peerID: peerID, discoveryInfo: existingInfo, lastSeen: Date())
             self.pendingInvitation = peer
             self.invitationHandler = invitationHandler
             self.invitationExpiryTask?.cancel()
+            let timeout = self.configuration.invitationTimeout
             self.invitationExpiryTask = Task { [weak self] in
-                try? await Task.sleep(nanoseconds: UInt64((self?.configuration.invitationTimeout ?? 15) * 1_000_000_000))
+                let nanoseconds = UInt64(timeout * 1_000_000_000)
+                do {
+                    try await Task.sleep(nanoseconds: nanoseconds)
+                } catch {
+                    return
+                }
+                guard Task.isCancelled == false else { return }
                 await self?.expirePendingInvitation()
             }
         }
@@ -503,6 +523,7 @@ extension MPCManager: MCNearbyServiceAdvertiserDelegate {
 
 private extension MPCManager {
     func expirePendingInvitation() {
+        invitationExpiryTask = nil
         pendingInvitation = nil
         invitationHandler?(false, nil)
         invitationHandler = nil
