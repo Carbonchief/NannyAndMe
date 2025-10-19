@@ -314,7 +314,7 @@ struct HomeView: View {
                     interruptedActionTitles: interruptedTitles,
                     nextStep: .presentCategorySheet
                 )
-                return
+                return false
             }
 
             presentedCategory = category
