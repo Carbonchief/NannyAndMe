@@ -41,23 +41,27 @@ struct DurationLiveActivityWidget: Widget {
 
         return DynamicIsland {
             DynamicIslandExpandedRegion(.leading) {
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 4) {
                     if let name = context.state.profileDisplayName, name.isEmpty == false {
                         Text(name)
                             .font(.headline)
                             .privacySensitive()
                     }
 
-                    Text(context.state.actionType)
-                        .font(.subheadline)
-                        .privacySensitive()
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(context.state.actionType)
+                            .font(.subheadline)
+                            .privacySensitive()
+
+                        Text(timerInterval: runningInterval, countsDown: false)
+                            .font(.title2.monospacedDigit())
+                            .privacySensitive()
+                    }
                 }
             }
 
             DynamicIslandExpandedRegion(.trailing) {
-                Text(timerInterval: runningInterval, countsDown: false)
-                    .font(.title2.monospacedDigit())
-                    .privacySensitive()
+                EmptyView()
             }
 
             DynamicIslandExpandedRegion(.bottom) {
@@ -102,14 +106,16 @@ private struct DurationLockScreenView: View {
                     .privacySensitive()
             }
 
-            Text(context.state.actionType)
-                .font(.title3.weight(.semibold))
-                .privacySensitive()
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(context.state.actionType)
+                    .font(.title3.weight(.semibold))
+                    .privacySensitive()
 
-            Text(timerInterval: runningInterval, countsDown: false)
-                .monospacedDigit()
-                .font(.title2)
-                .privacySensitive()
+                Text(timerInterval: runningInterval, countsDown: false)
+                    .monospacedDigit()
+                    .font(.title2)
+                    .privacySensitive()
+            }
 
             if let note = context.state.notePreview, note.isEmpty == false {
                 Text(note)
