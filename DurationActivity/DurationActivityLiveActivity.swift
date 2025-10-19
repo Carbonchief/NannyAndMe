@@ -36,6 +36,8 @@ struct DurationLiveActivityWidget: Widget {
     ) -> DynamicIsland {
         // Compact-only Dynamic Island: icon + relative duration, no expanded regions.
         DynamicIsland {
+            // Explicit empty view keeps the expanded region disabled while satisfying the initializer.
+            EmptyView()
         } compactLeading: {
             Text(icon(for: context.state.actionType))
                 .accessibilityLabel(context.state.actionType)
