@@ -10,7 +10,7 @@ enum DurationActivityController {
     /// SwiftData hierarchy consistent while we derive display values.
     @MainActor
     static func synchronizeActivity(for model: BabyActionModel) async {
-        guard ActivityAuthorizationInfo.areActivitiesEnabled else {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             await endActivities(excluding: [])
             return
         }
@@ -51,7 +51,7 @@ enum DurationActivityController {
     /// Activity tree reflects them.
     @MainActor
     static func syncAllActiveActivities(in context: ModelContext) async {
-        guard ActivityAuthorizationInfo.areActivitiesEnabled else {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             await endActivities(excluding: [])
             return
         }
@@ -79,12 +79,17 @@ private extension BabyActionModel {
     func makeContentState() -> DurationAttributes.ContentState {
         DurationAttributes.ContentState(
             activityID: id,
-            profileDisplayName: profile?.name?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+            profileDisplayName: sanitizedProfileName,
             actionType: category.title,
             startDate: startDate,
             endDate: endDate,
             notePreview: nil
         )
+    }
+
+    private var sanitizedProfileName: String? {
+        let trimmed = profile?.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.nilIfEmpty
     }
 }
 
