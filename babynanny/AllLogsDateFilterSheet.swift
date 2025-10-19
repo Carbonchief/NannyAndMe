@@ -68,15 +68,18 @@ struct AllLogsDateFilterSheet: View {
                 }
 
                 Section(L10n.Logs.filterCategorySection) {
-                    Picker(L10n.Logs.filterCategorySection, selection: $selectedCategory) {
+                    Picker(selection: $selectedCategory) {
                         Text(L10n.Logs.filterCategoryAll)
                             .tag(BabyActionCategory?.none)
                         ForEach(BabyActionCategory.allCases) { category in
                             Text(category.title)
                                 .tag(Optional(category))
                         }
+                    } label: {
+                        EmptyView()
                     }
                     .postHogLabel("logs.filter.category")
+                    .accessibilityLabel(L10n.Logs.filterCategorySection)
                     .pickerStyle(.inline)
                 }
 
