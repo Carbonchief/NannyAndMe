@@ -15,6 +15,7 @@ struct StatsView: View {
     @State private var selectedCategory: BabyActionCategory?
     @State private var shareItem: ChartShareItem?
     @State private var shareContentWidth: CGFloat = 0
+    @State private var highlightedTrendDay: Date?
 
     var body: some View {
         let state = currentState
@@ -40,6 +41,9 @@ struct StatsView: View {
         .phScreen("stats_screen_statsView", properties: ["tab": "stats"])
         .onChange(of: profileStore.activeProfile.id) { _, _ in
             selectedCategory = nil
+        }
+        .onChange(of: selectedCategory) { _, _ in
+            highlightedTrendDay = nil
         }
         .sheet(item: $shareItem) { item in
             ChartShareSheet(item: item) { outcome in
@@ -120,6 +124,8 @@ struct StatsView: View {
             let axisDays = recentDayStarts(count: windowDays)
             let subtypeTitle = L10n.Stats.subtypeLegend
             let subtypeScale = colorScale(for: metrics.map(\.subtype))
+            let aggregates = aggregateDailyTrendMetrics(metrics)
+            let valueFormatter = displayConfiguration.valueFormatter
 
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
@@ -156,7 +162,10 @@ struct StatsView: View {
                                      yAxisTitle: yAxisTitle,
                                      axisDays: axisDays,
                                      subtypeTitle: subtypeTitle,
-                                     subtypeScale: subtypeScale)
+                                     subtypeScale: subtypeScale,
+                                     aggregates: aggregates,
+                                     selectedDate: $highlightedTrendDay,
+                                     valueFormatter: valueFormatter)
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(L10n.Stats.emptyStateTitle(focusCategory.title.localizedLowercase))
@@ -277,15 +286,37 @@ struct StatsView: View {
                                  yAxisTitle: String,
                                  axisDays: [Date],
                                  subtypeTitle: String,
-                                 subtypeScale: (domain: [String], range: [Color])) -> some View
+                                 subtypeScale: (domain: [String], range: [Color]),
+                                 aggregates: [DailyTrendAggregate] = [],
+                                 selectedDate: Binding<Date?>? = nil,
+                                 valueFormatter: DailyTrendValueFormatter = .minutes) -> some View
     {
-        Chart(metrics) { metric in
-            BarMark(
-                x: .value(L10n.Stats.dayAxisLabel, metric.date, unit: .day),
-                y: .value(yAxisTitle, metric.value)
-            )
-            .foregroundStyle(by: .value(subtypeTitle, metric.subtype.legendLabel))
-            .cornerRadius(6)
+        let selectedDay = selectedDate?.wrappedValue
+
+        return Chart {
+            ForEach(metrics) { metric in
+                BarMark(
+                    x: .value(L10n.Stats.dayAxisLabel, metric.date, unit: .day),
+                    y: .value(yAxisTitle, metric.value)
+                )
+                .foregroundStyle(by: .value(subtypeTitle, metric.subtype.legendLabel))
+                .cornerRadius(6)
+                .opacity(opacityForTrendBar(date: metric.date, selectedDate: selectedDay))
+            }
+
+            if let selectedDay,
+               let aggregate = aggregates.first(where: { $0.date == selectedDay })
+            {
+                PointMark(
+                    x: .value(L10n.Stats.dayAxisLabel, aggregate.date, unit: .day),
+                    y: .value(yAxisTitle, aggregate.total)
+                )
+                .symbolSize(0)
+                .opacity(0)
+                .annotation(position: .top, alignment: .center) {
+                    DailyTrendValueCallout(label: valueFormatter.string(for: aggregate.total))
+                }
+            }
         }
         .chartForegroundStyleScale(domain: subtypeScale.domain, range: subtypeScale.range)
         .chartLegend(position: .bottom, alignment: .leading, spacing: 12)
@@ -300,6 +331,43 @@ struct StatsView: View {
                     if let dateValue = value.as(Date.self) {
                         Text(dateValue, format: .dateTime.weekday(.abbreviated))
                     }
+                }
+            }
+        }
+        .chartOverlay { proxy in
+            if let selectedDate {
+                GeometryReader { geo in
+                    let plotFrame = geo[proxy.plotAreaFrame]
+                    Rectangle()
+                        .fill(.clear)
+                        .contentShape(Rectangle())
+                        .gesture(
+                            SpatialTapGesture()
+                                .onEnded { value in
+                                    guard plotFrame.contains(value.location) else {
+                                        selectedDate.wrappedValue = nil
+                                        return
+                                    }
+
+                                    let locationX = value.location.x - plotFrame.origin.x
+                                    if let tappedDate: Date = proxy.value(atX: locationX, as: Date.self) {
+                                        let normalized = Calendar.current.startOfDay(for: tappedDate)
+                                        if let nearest = nearestTrendDay(to: normalized,
+                                                                         from: aggregates.map(\.date)) {
+                                            if nearest == selectedDate.wrappedValue {
+                                                selectedDate.wrappedValue = nil
+                                            } else {
+                                                selectedDate.wrappedValue = nearest
+                                            }
+                                        } else {
+                                            selectedDate.wrappedValue = nil
+                                        }
+                                    } else {
+                                        selectedDate.wrappedValue = nil
+                                    }
+                                }
+                        )
+                        .postHogLabel("stats.dailyTrend.columnTap")
                 }
             }
         }
@@ -519,20 +587,44 @@ struct StatsView: View {
         }
     }
 
+    private func aggregateDailyTrendMetrics(_ metrics: [DailyActionMetric]) -> [DailyTrendAggregate] {
+        let grouped = Dictionary(grouping: metrics, by: \.date)
+
+        return grouped
+            .map { entry in
+                DailyTrendAggregate(date: entry.key,
+                                    total: entry.value.reduce(0) { partial, metric in partial + metric.value })
+            }
+            .sorted { $0.date < $1.date }
+    }
+
+    private func opacityForTrendBar(date: Date, selectedDate: Date?) -> Double {
+        guard let selectedDate else { return 1 }
+        return date == selectedDate ? 1 : 0.35
+    }
+
+    private func nearestTrendDay(to date: Date, from candidates: [Date]) -> Date? {
+        guard !candidates.isEmpty else { return nil }
+
+        return candidates.min { lhs, rhs in
+            abs(lhs.timeIntervalSince(date)) < abs(rhs.timeIntervalSince(date))
+        }
+    }
+
     private func dailyTrendDisplayConfiguration(for metrics: [DailyActionMetric],
                                                 focusCategory: BabyActionCategory)
-        -> (metrics: [DailyActionMetric], yAxisTitle: String)
+        -> (metrics: [DailyActionMetric], yAxisTitle: String, valueFormatter: DailyTrendValueFormatter)
     {
         if focusCategory == .diaper {
-            return (metrics, L10n.Stats.diapersYAxis)
+            return (metrics, L10n.Stats.diapersYAxis, .count)
         }
 
         guard focusCategory == .sleep || focusCategory == .feeding else {
-            return (metrics, L10n.Stats.minutesYAxis)
+            return (metrics, L10n.Stats.minutesYAxis, .minutes)
         }
 
         guard let maxValue = metrics.map(\.value).max(), maxValue > 0 else {
-            return (metrics, L10n.Stats.minutesYAxis)
+            return (metrics, L10n.Stats.minutesYAxis, .minutes)
         }
 
         let unit: DailyTrendDurationUnit
@@ -551,7 +643,7 @@ struct StatsView: View {
             return metric
         }
 
-        return (scaledMetrics, unit.axisTitle)
+        return (scaledMetrics, unit.axisTitle, DailyTrendValueFormatter(unit: unit))
     }
 
     private func subtypes(for action: BabyActionSnapshot, focusCategory: BabyActionCategory) -> [ActionSubtype] {
@@ -936,6 +1028,68 @@ private enum DailyTrendDurationUnit {
     }
 }
 
+private enum DailyTrendValueFormatter {
+    case count
+    case seconds
+    case minutes
+    case hours
+
+    init(unit: DailyTrendDurationUnit) {
+        switch unit {
+        case .seconds:
+            self = .seconds
+        case .minutes:
+            self = .minutes
+        case .hours:
+            self = .hours
+        }
+    }
+
+    func string(for value: Double) -> String {
+        switch self {
+        case .count:
+            return DailyTrendValueFormatter.countFormatter.string(from: NSNumber(value: value))
+                ?? String(Int(round(value)))
+        case .seconds:
+            return DailyTrendValueFormatter.durationString(from: value, unit: .seconds)
+        case .minutes:
+            return DailyTrendValueFormatter.durationString(from: value, unit: .minutes)
+        case .hours:
+            return DailyTrendValueFormatter.durationString(from: value, unit: .hours)
+        }
+    }
+
+    private static func durationString(from value: Double, unit: DailyTrendDurationUnit) -> String {
+        let totalSecondsDouble: Double
+
+        switch unit {
+        case .seconds:
+            totalSecondsDouble = value
+        case .minutes:
+            totalSecondsDouble = value * 60
+        case .hours:
+            totalSecondsDouble = value * 3600
+        }
+
+        var totalSeconds = Int(round(totalSecondsDouble))
+
+        let hours = totalSeconds / 3600
+        totalSeconds %= 3600
+        let minutes = totalSeconds / 60
+        totalSeconds %= 60
+        let seconds = totalSeconds
+
+        return "\(hours)h \(minutes)m \(seconds)s"
+    }
+
+    private static let countFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+        return formatter
+    }()
+}
+
 private struct DailyActionMetric: Identifiable {
     let date: Date
     let subtype: ActionSubtype
@@ -943,6 +1097,36 @@ private struct DailyActionMetric: Identifiable {
 
     var id: String {
         "\(date.timeIntervalSinceReferenceDate)-\(subtype.id)"
+    }
+}
+
+private struct DailyTrendAggregate: Identifiable {
+    let date: Date
+    let total: Double
+
+    var id: Date { date }
+}
+
+private struct DailyTrendValueCallout: View {
+    let label: String
+
+    var body: some View {
+        Text(label)
+            .font(.caption)
+            .fontWeight(.semibold)
+            .foregroundStyle(Color(.label))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(Color(.systemBackground).opacity(0.92))
+                    .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
+            )
+            .overlay(
+                Capsule()
+                    .stroke(Color(.separator).opacity(0.6), lineWidth: 0.5)
+            )
+            .accessibilityLabel(label)
     }
 }
 
