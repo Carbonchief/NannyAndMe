@@ -89,13 +89,16 @@ struct DurationLiveActivityWidget: Widget {
 private struct DurationLockScreenView: View {
     let context: ActivityViewContext<DurationAttributes>
 
-    private var runningInterval: ClosedRange<Date> {
-        let end = context.state.endDate ?? .now
-        return context.state.startDate...end
-    }
-
     private var resolvedAccentColor: Color? {
         activityAccentColor(for: context)
+    }
+
+    private var durationText: Text {
+        if let endDate = context.state.endDate {
+            return Text(timerInterval: context.state.startDate...endDate, countsDown: false)
+        }
+
+        return Text(context.state.startDate, style: .timer)
     }
 
     var body: some View {
@@ -112,7 +115,7 @@ private struct DurationLockScreenView: View {
                         .font(.title3.weight(.semibold))
                         .privacySensitive()
 
-                    Text(timerInterval: runningInterval, countsDown: false)
+                    durationText
                         .monospacedDigit()
                         .font(.title2)
                         .privacySensitive()
