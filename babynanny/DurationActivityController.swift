@@ -85,6 +85,7 @@ private extension BabyActionModel {
             activityID: id,
             profileDisplayName: sanitizedProfileName,
             actionType: category.title,
+            actionSubtype: subtypeWord,
             actionIconSystemName: actionIconSystemName,
             actionAccentColorHex: actionAccentColorHex,
             startDate: startDate,

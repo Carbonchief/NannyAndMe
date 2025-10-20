@@ -13,6 +13,8 @@ struct DurationAttributes: ActivityAttributes, Sendable {
         var profileDisplayName: String?
         /// Raw action type string (`BabyActionCategory.title`).
         var actionType: String
+        /// Optional subtype string describing the action variant (e.g., diaper type).
+        var actionSubtype: String?
         /// SFSymbol name representing the category or subtype icon.
         var actionIconSystemName: String?
         /// Hex encoded accent color matching the action's category/subtype.

@@ -15,6 +15,7 @@
 //    datastore reads in the extension.
 
 import ActivityKit
+import Foundation
 import SwiftUI
 import WidgetKit
 
@@ -34,11 +35,43 @@ struct DurationLiveActivityWidget: Widget {
     private func dynamicIsland(
         for context: ActivityViewContext<DurationAttributes>
     ) -> DynamicIsland {
-        // Compact-only Dynamic Island: icon + relative duration, no expanded regions.
+        let accentColor = activityAccentColor(for: context)
+
         DynamicIsland(
             expanded: {
+                DynamicIslandExpandedRegion(.leading) {
+                    actionIconView(for: context)
+                }
+
                 DynamicIslandExpandedRegion(.center) {
-                    EmptyView()
+                    VStack(alignment: .leading, spacing: 6) {
+                        if let name = context.state.profileDisplayName, name.isEmpty == false {
+                            Text(name)
+                                .font(.footnote.weight(.semibold))
+                                .privacySensitive()
+                        }
+
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(resolvedActionLabel(for: context))
+                                .font(.subheadline.weight(.semibold))
+                                .privacySensitive()
+
+                            Spacer(minLength: 8)
+
+                            durationText(for: context)
+                                .font(.title3.monospacedDigit())
+                                .privacySensitive()
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                DynamicIslandExpandedRegion(.trailing) {
+                    StopActionButton(
+                        actionID: context.state.activityID,
+                        accentColor: accentColor,
+                        postHogLabel: "duration_stop_button_liveActivity_dynamicIsland"
+                    )
                 }
             },
             compactLeading: {
@@ -141,7 +174,7 @@ private struct DurationLockScreenView: View {
 
             HStack(alignment: .center, spacing: 12) {
                 HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text(context.state.actionType)
+                    Text(resolvedActionLabel(for: context))
                         .font(.title3.weight(.semibold))
                         .privacySensitive()
 
@@ -212,6 +245,17 @@ private struct StopActionButton: View {
     private var resolvedAccentColor: Color {
         accentColor ?? .accentColor
     }
+}
+
+private func resolvedActionLabel(
+    for context: ActivityViewContext<DurationAttributes>
+) -> String {
+    if let subtype = context.state.actionSubtype?.trimmingCharacters(in: .whitespacesAndNewlines),
+       subtype.isEmpty == false {
+        return subtype
+    }
+
+    return context.state.actionType
 }
 
 private func activityAccentColor(
