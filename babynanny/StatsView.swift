@@ -1069,6 +1069,16 @@ private enum DailyTrendValueFormatter {
         let formatter = MeasurementFormatter()
         formatter.unitOptions = .providedUnit
         formatter.unitStyle = .short
+        formatter.numberFormatter = measurementNumberFormatter
+        return formatter
+    }()
+
+    private static let measurementNumberFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 2
+        formatter.minimumFractionDigits = 0
+        formatter.roundingMode = .halfUp
         return formatter
     }()
 
