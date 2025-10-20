@@ -385,7 +385,7 @@ struct HomeView: View {
         throttledCategories.insert(category)
 
         Task { @MainActor [category] in
-            try? await Task.sleep(nanoseconds: 600_000_000)
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
             throttledCategories.remove(category)
         }
 
