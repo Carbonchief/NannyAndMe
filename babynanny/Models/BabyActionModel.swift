@@ -545,6 +545,23 @@ final class BabyAction {
 typealias BabyActionModel = BabyAction
 
 extension BabyAction {
+    var subtypeWord: String? {
+        switch category {
+        case .sleep:
+            return nil
+        case .diaper:
+            return diaperType?.title
+        case .feeding:
+            if let feedingType {
+                if feedingType == .bottle, let bottleType {
+                    return bottleType.title
+                }
+                return feedingType.title
+            }
+            return nil
+        }
+    }
+
     var diaperType: BabyActionSnapshot.DiaperType? {
         get {
             guard let rawValue = diaperTypeRawValue else { return nil }
