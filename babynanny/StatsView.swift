@@ -314,12 +314,7 @@ struct StatsView: View {
                 .symbolSize(0)
                 .opacity(0)
                 .annotation(position: .top, alignment: .center) {
-                    Text(valueFormatter.string(for: aggregate.total))
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(.ultraThinMaterial, in: Capsule())
+                    DailyTrendValueCallout(label: valueFormatter.string(for: aggregate.total))
                 }
             }
         }
@@ -1100,6 +1095,29 @@ private struct DailyTrendAggregate: Identifiable {
     let total: Double
 
     var id: Date { date }
+}
+
+private struct DailyTrendValueCallout: View {
+    let label: String
+
+    var body: some View {
+        Text(label)
+            .font(.caption)
+            .fontWeight(.semibold)
+            .foregroundStyle(Color(.label))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(Color(.systemBackground).opacity(0.92))
+                    .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
+            )
+            .overlay(
+                Capsule()
+                    .stroke(Color(.separator).opacity(0.6), lineWidth: 0.5)
+            )
+            .accessibilityLabel(label)
+    }
 }
 
 private enum ActionSubtype: Hashable {
