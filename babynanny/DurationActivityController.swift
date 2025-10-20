@@ -1,119 +1,151 @@
 #if canImport(ActivityKit)
 import ActivityKit
 import Foundation
+import SwiftData
+import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 @available(iOS 17.0, *)
-struct DurationActivityAttributes: ActivityAttributes {
-    struct ContentState: Codable, Hashable {
-        struct RunningAction: Codable, Hashable, Identifiable {
-            var id: UUID
-            var category: DurationActivityCategory
-            var title: String
-            var subtitle: String?
-            var subtypeWord: String?
-            var startDate: Date
-            var iconSystemName: String
-        }
-
-        var actions: [RunningAction]
-        var updatedAt: Date
-    }
-
-    var profileName: String?
-}
-
-@available(iOS 17.0, *)
-enum DurationActivityCategory: String, Codable, Hashable {
-    case sleep
-    case diaper
-    case feeding
-}
-
-@available(iOS 17.0, *)
-@MainActor
-final class DurationActivityController {
-    static let shared = DurationActivityController()
-
-    private var activity: Activity<DurationActivityAttributes>?
-
-    private init() {}
-
-    func update(for profileName: String?, actions: [BabyActionSnapshot]) {
-        let authorization = ActivityAuthorizationInfo()
-        guard authorization.areActivitiesEnabled else {
-            endActivity()
+enum DurationActivityController {
+    /// Requests or updates the live activity for the supplied action. The
+    /// caller must supply a `ModelContext` that owns the `model` to keep the
+    /// SwiftData hierarchy consistent while we derive display values.
+    @MainActor
+    static func synchronizeActivity(for model: BabyActionModel) async {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+            await endActivities(excluding: [])
             return
         }
 
-        let runningActions = actions
-            .filter { !$0.category.isInstant && $0.endDate == nil }
-            .sorted(by: { $0.startDate < $1.startDate })
-            .map(DurationActivityAttributes.ContentState.RunningAction.init)
+        let state = model.makeContentState()
 
-        guard runningActions.isEmpty == false else {
-            endActivity()
-            return
-        }
-
-        if let activity,
-           activity.attributes.profileName != profileName {
-            endActivity()
-        }
-
-        let contentState = DurationActivityAttributes.ContentState(
-            actions: runningActions,
-            updatedAt: Date()
-        )
-
-        let content = ActivityContent(
-            state: contentState,
-            staleDate: activity?.content.staleDate
-        )
-
-        if let activity {
-            Task {
-                await activity.update(content)
+        if let existing = existingActivity(for: model.id) {
+            await existing.update(using: state)
+            if state.endDate != nil {
+                await existing.end(using: state, dismissalPolicy: .immediate)
             }
-        } else {
-            let attributes = DurationActivityAttributes(profileName: profileName)
-
+        } else if state.endDate == nil {
             do {
-                activity = try Activity<DurationActivityAttributes>.request(
-                    attributes: attributes,
-                    content: content,
+                _ = try await Activity<DurationAttributes>.request(
+                    attributes: DurationAttributes(activityID: model.id),
+                    contentState: state,
                     pushType: nil
                 )
             } catch {
                 #if DEBUG
-                print("Failed to start DurationActivity: \(error.localizedDescription)")
+                print("Failed to start Duration live activity: \(error)")
                 #endif
             }
         }
     }
 
-    func endActivity() {
-        guard let activity else { return }
+    /// Ends all running activities whose identifiers are not present in the
+    /// provided set. Useful after reconciling SwiftData changes.
+    @MainActor
+    static func endActivities(excluding activeIDs: Set<UUID>) async {
+        for activity in Activity<DurationAttributes>.activities where activeIDs.contains(activity.attributes.activityID) == false {
+            await activity.end(using: activity.content.state, dismissalPolicy: .immediate)
+        }
+    }
 
-        Task {
-            await activity.end(activity.content, dismissalPolicy: .immediate)
+    /// Restores the Live Activity state from SwiftData when the app launches.
+    /// This scans for any active actions (endDate == nil) and ensures the Live
+    /// Activity tree reflects them.
+    @MainActor
+    static func syncAllActiveActivities(in context: ModelContext) async {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+            await endActivities(excluding: [])
+            return
         }
 
-        self.activity = nil
+        let descriptor = FetchDescriptor<BabyActionModel>()
+        let models = (try? context.fetch(descriptor)) ?? []
+        let running = models.filter { $0.endDate == nil && $0.category.isInstant == false }
+        let runningIDs = Set(running.map(\.id))
+
+        for model in running {
+            await synchronizeActivity(for: model)
+        }
+
+        await endActivities(excluding: runningIDs)
+    }
+
+    @MainActor
+    private static func existingActivity(for id: UUID) -> Activity<DurationAttributes>? {
+        Activity<DurationAttributes>.activities.first { $0.attributes.activityID == id }
     }
 }
 
 @available(iOS 17.0, *)
-private extension DurationActivityAttributes.ContentState.RunningAction {
-    init(action: BabyActionSnapshot) {
-        id = action.id
-        category = DurationActivityCategory(rawValue: action.category.rawValue) ?? .sleep
-        title = action.category.title
+private extension BabyActionModel {
+    func makeContentState() -> DurationAttributes.ContentState {
+        DurationAttributes.ContentState(
+            activityID: id,
+            profileDisplayName: sanitizedProfileName,
+            actionType: category.title,
+            actionIconSystemName: actionIconSystemName,
+            actionAccentColorHex: actionAccentColorHex,
+            startDate: startDate,
+            endDate: endDate,
+            notePreview: nil
+        )
+    }
 
-        let detail = action.detailDescription
-        subtitle = detail == action.category.title ? nil : detail
-        subtypeWord = action.subtypeWord
-        startDate = action.startDate
-        iconSystemName = action.icon
+    private var sanitizedProfileName: String? {
+        let trimmed = profile?.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.nilIfEmpty
+    }
+
+    private var actionIconSystemName: String {
+        if let diaperType {
+            return diaperType.icon
+        }
+
+        if let feedingType {
+            return feedingType.icon
+        }
+
+        return category.icon
+    }
+
+    private var actionAccentColorHex: String? {
+        category.accentColor.hexString()
     }
 }
+
+private extension Optional where Wrapped == String {
+    var nilIfEmpty: String? {
+        switch self?.trimmingCharacters(in: .whitespacesAndNewlines) {
+        case .some(let value) where value.isEmpty == false:
+            return value
+        default:
+            return nil
+        }
+    }
+}
+
+#if canImport(UIKit)
+private extension Color {
+    func hexString() -> String? {
+        let uiColor = UIColor(self)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+
+        guard uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) else {
+            return nil
+        }
+
+        let r = Int(round(red * 255))
+        let g = Int(round(green * 255))
+        let b = Int(round(blue * 255))
+        let a = Int(round(alpha * 255))
+
+        return String(format: "#%02X%02X%02X%02X", r, g, b, a)
+    }
+}
+#endif
 #endif
