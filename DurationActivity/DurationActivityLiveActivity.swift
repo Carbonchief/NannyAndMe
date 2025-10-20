@@ -37,7 +37,7 @@ struct DurationLiveActivityWidget: Widget {
     ) -> DynamicIsland {
         let accentColor = activityAccentColor(for: context)
 
-        DynamicIsland(
+        return DynamicIsland(
             expanded: {
                 DynamicIslandExpandedRegion(.leading) {
                     actionIconView(for: context)
