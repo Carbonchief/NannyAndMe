@@ -195,6 +195,7 @@ final class ActionLogStore: ObservableObject {
         profileState.activeActions[category] = action
 
         persist(profileState: profileState, for: profileID)
+        synchronizeDurationActivityIfNeeded(for: action)
         refreshDurationActivities()
     }
 
@@ -248,12 +249,14 @@ final class ActionLogStore: ObservableObject {
         var profileState = state(for: profileID)
         let sanitized = updatedAction.withValidatedDates()
         var didChange = false
+        var activeActionForDurationSync: BabyActionSnapshot?
 
         if let active = profileState.activeActions[sanitized.category], active.id == sanitized.id {
             guard active != sanitized else { return }
             var updated = sanitized
             updated.updatedAt = Date()
             profileState.activeActions[sanitized.category] = updated
+            activeActionForDurationSync = updated
             didChange = true
         } else if let historyIndex = profileState.history.firstIndex(where: { $0.id == sanitized.id }) {
             let existing = profileState.history[historyIndex]
@@ -269,6 +272,10 @@ final class ActionLogStore: ObservableObject {
         notifyChange()
         profileState.history.sort { $0.startDate > $1.startDate }
         persist(profileState: profileState, for: profileID)
+        if let activeActionForDurationSync,
+           activeActionForDurationSync.endDate == nil {
+            synchronizeDurationActivityIfNeeded(for: activeActionForDurationSync)
+        }
         refreshDurationActivities()
     }
 
@@ -284,6 +291,7 @@ final class ActionLogStore: ObservableObject {
             restarted.updatedAt = now
             profileState.activeActions[restarted.category] = restarted
             persist(profileState: profileState, for: profileID)
+            synchronizeDurationActivityIfNeeded(for: restarted)
             refreshDurationActivities()
         }
     }
@@ -665,6 +673,19 @@ private extension ActionLogStore {
         var descriptor = FetchDescriptor<BabyActionModel>(predicate: predicate)
         descriptor.fetchLimit = 1
         return try? modelContext.fetch(descriptor).first
+    }
+
+    func synchronizeDurationActivityIfNeeded(for action: BabyActionSnapshot) {
+#if canImport(ActivityKit)
+        guard #available(iOS 17.0, *), action.category.isInstant == false else { return }
+        let actionID = action.id
+
+        Task { @MainActor [weak self] in
+            guard let self,
+                  let model = self.existingAction(withID: actionID) else { return }
+            await DurationActivityController.synchronizeActivity(for: model)
+        }
+#endif
     }
 
     private static func makePersistentStoreContextIdentifiers(for context: ModelContext) -> PersistentStoreContextIdentifiers {
