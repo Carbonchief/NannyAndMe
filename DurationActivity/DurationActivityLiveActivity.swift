@@ -37,7 +37,7 @@ struct DurationLiveActivityWidget: Widget {
         // Compact-only Dynamic Island: icon + relative duration, no expanded regions.
         DynamicIsland(
             expanded: {
-                DynamicIslandExpandedContent<EmptyView> {
+                DynamicIslandExpandedRegion(.center) {
                     EmptyView()
                 }
             },
