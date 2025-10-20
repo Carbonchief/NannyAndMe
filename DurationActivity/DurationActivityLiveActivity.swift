@@ -35,22 +35,27 @@ struct DurationLiveActivityWidget: Widget {
         for context: ActivityViewContext<DurationAttributes>
     ) -> DynamicIsland {
         // Compact-only Dynamic Island: icon + relative duration, no expanded regions.
-        DynamicIsland {
-            DynamicIslandExpandedRegion(.center) {
-                EmptyView()
+        DynamicIsland(
+            expanded: { noExpanded() },
+            compactLeading: {
+                actionIconView(for: context)
+            },
+            compactTrailing: {
+                durationText(for: context)
+                    .font(.caption2.monospacedDigit())
+                    .privacySensitive()
+            },
+            minimal: {
+                actionIconView(for: context)
             }
-        } compactLeading: {
-            actionIconView(for: context)
-        } compactTrailing: {
-            durationText(for: context)
-                .font(.caption2.monospacedDigit())
-                .privacySensitive()
-        } minimal: {
-            actionIconView(for: context)
-        }
+        )
         .widgetURL(
             URL(string: "nannyme://activity/\(context.attributes.activityID.uuidString)")
         )
+    }
+
+    private func noExpanded() -> DynamicIslandExpandedContent {
+        DynamicIslandExpandedContent { }
     }
 
     private func durationText(
