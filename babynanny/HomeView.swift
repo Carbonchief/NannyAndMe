@@ -692,34 +692,32 @@ private struct HistoryRow: View {
                 let timeInformation = timeAgoDescription(asOf: context.date)
                 let durationText = durationDescription(asOf: context.date)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 6) {
                         Text(action.title)
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .lineLimit(1)
 
-                        Spacer(minLength: 8)
+                        if let detail = detailDescription(for: action) {
+                            Text(detail)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                    }
 
+                    Spacer(minLength: 12)
+
+                    VStack(alignment: .trailing, spacing: 6) {
                         Text(timeInformation.display)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .monospacedDigit()
-                    }
 
-                    if let detail = detailDescription(for: action) {
-                        Text(detail)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-
-                    if let durationText {
-                        HStack {
-                            Spacer()
-
+                        if let durationText {
                             Text(durationText)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
