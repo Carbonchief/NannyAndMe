@@ -1051,36 +1051,36 @@ private enum DailyTrendValueFormatter {
             return DailyTrendValueFormatter.countFormatter.string(from: NSNumber(value: value))
                 ?? String(Int(round(value)))
         case .seconds:
-            return DailyTrendValueFormatter.measurementFormatter.string(
-                from: Measurement(value: value, unit: UnitDuration.seconds)
-            )
+            return DailyTrendValueFormatter.durationString(from: value, unit: .seconds)
         case .minutes:
-            return DailyTrendValueFormatter.measurementFormatter.string(
-                from: Measurement(value: value, unit: UnitDuration.minutes)
-            )
+            return DailyTrendValueFormatter.durationString(from: value, unit: .minutes)
         case .hours:
-            return DailyTrendValueFormatter.measurementFormatter.string(
-                from: Measurement(value: value, unit: UnitDuration.hours)
-            )
+            return DailyTrendValueFormatter.durationString(from: value, unit: .hours)
         }
     }
 
-    private static let measurementFormatter: MeasurementFormatter = {
-        let formatter = MeasurementFormatter()
-        formatter.unitOptions = .providedUnit
-        formatter.unitStyle = .short
-        formatter.numberFormatter = measurementNumberFormatter
-        return formatter
-    }()
+    private static func durationString(from value: Double, unit: DailyTrendDurationUnit) -> String {
+        let totalSecondsDouble: Double
 
-    private static let measurementNumberFormatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = 2
-        formatter.minimumFractionDigits = 0
-        formatter.roundingMode = .halfUp
-        return formatter
-    }()
+        switch unit {
+        case .seconds:
+            totalSecondsDouble = value
+        case .minutes:
+            totalSecondsDouble = value * 60
+        case .hours:
+            totalSecondsDouble = value * 3600
+        }
+
+        var totalSeconds = Int(round(totalSecondsDouble))
+
+        let hours = totalSeconds / 3600
+        totalSeconds %= 3600
+        let minutes = totalSeconds / 60
+        totalSeconds %= 60
+        let seconds = totalSeconds
+
+        return "\(hours)h \(minutes)m \(seconds)s"
+    }
 
     private static let countFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
