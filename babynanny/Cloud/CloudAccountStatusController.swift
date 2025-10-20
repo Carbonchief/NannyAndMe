@@ -133,8 +133,8 @@ final class CloudAccountStatusController: ObservableObject {
     }
 }
 
-#if DEBUG
 extension CloudAccountStatusController {
+#if DEBUG
     static func previewController(status: Status = .available) -> CloudAccountStatusController {
         final class PreviewProvider: CloudAccountStatusProviding {
             let status: CKAccountStatus
@@ -178,5 +178,18 @@ extension CloudAccountStatusController {
 
         return controller
     }
-}
+#else
+    static func previewController(status: Status = .available) -> CloudAccountStatusController {
+        let controller = CloudAccountStatusController()
+        switch status {
+        case .localOnly:
+            controller.selectLocalOnly()
+        case .needsAccount:
+            controller.refreshAccountStatus(force: true)
+        case .available, .loading:
+            break
+        }
+        return controller
+    }
 #endif
+}
