@@ -97,31 +97,29 @@ struct DurationLiveActivityWidget: Widget {
     private func durationText(
         for context: ActivityViewContext<DurationAttributes>
     ) -> Text {
-        let start = context.state.startDate
-        let end = context.state.endDate ?? Date()
-        let elapsed = end.timeIntervalSince(start)
+        if let endDate = context.state.endDate {
+            let elapsed = endDate.timeIntervalSince(context.state.startDate)
+            return Text(formattedElapsedDuration(elapsed))
+        }
 
+        return Text(context.state.startDate, style: .timer)
+    }
+
+    private func formattedElapsedDuration(_ elapsed: TimeInterval) -> String {
         switch elapsed {
         case 0..<60:
-            // Less than 1 minute → show seconds (e.g., 00:12)
             let seconds = Int(elapsed)
-            return Text(String(format: "00:%02d", seconds))
-
+            return String(format: "00:%02d", seconds)
         case 60..<3600:
-            // Less than 1 hour → show minutes:seconds (e.g., 05:32)
             let minutes = Int(elapsed / 60)
             let seconds = Int(elapsed.truncatingRemainder(dividingBy: 60))
-            return Text(String(format: "%02d:%02d", minutes, seconds))
-
+            return String(format: "%02d:%02d", minutes, seconds)
         case 3600..<86400:
-            // Less than 24 hours → show hours only (e.g., 3h)
             let hours = Int(elapsed / 3600)
-            return Text("\(hours)h")
-
+            return "\(hours)h"
         default:
-            // More than 24 hours → show days (e.g., 1d)
             let days = Int(elapsed / 86400)
-            return Text("\(days)d")
+            return "\(days)d"
         }
     }
 
