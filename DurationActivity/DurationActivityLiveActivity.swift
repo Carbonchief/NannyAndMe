@@ -36,7 +36,11 @@ struct DurationLiveActivityWidget: Widget {
     ) -> DynamicIsland {
         // Compact-only Dynamic Island: icon + relative duration, no expanded regions.
         DynamicIsland(
-            expanded: { noExpanded() },
+            expanded: {
+                DynamicIslandExpandedContent<EmptyView> {
+                    EmptyView()
+                }
+            },
             compactLeading: {
                 actionIconView(for: context)
             },
@@ -52,10 +56,6 @@ struct DurationLiveActivityWidget: Widget {
         .widgetURL(
             URL(string: "nannyme://activity/\(context.attributes.activityID.uuidString)")
         )
-    }
-
-    private func noExpanded() -> DynamicIslandExpandedContent {
-        DynamicIslandExpandedContent { }
     }
 
     private func durationText(
