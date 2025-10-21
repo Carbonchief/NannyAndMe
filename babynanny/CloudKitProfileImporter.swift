@@ -5,6 +5,17 @@ struct CloudProfileSnapshot: Equatable {
     var profiles: [ChildProfile]
     var activeProfileID: UUID?
     var showRecentActivityOnHome: Bool
+    var profilesWithExplicitReminderStates: Set<UUID>
+
+    init(profiles: [ChildProfile],
+         activeProfileID: UUID?,
+         showRecentActivityOnHome: Bool,
+         profilesWithExplicitReminderStates: Set<UUID> = []) {
+        self.profiles = profiles
+        self.activeProfileID = activeProfileID
+        self.showRecentActivityOnHome = showRecentActivityOnHome
+        self.profilesWithExplicitReminderStates = profilesWithExplicitReminderStates
+    }
 }
 
 protocol ProfileCloudImporting {
@@ -246,7 +257,8 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
         return CloudProfileSnapshot(
             profiles: profiles,
             activeProfileID: profiles.first?.id,
-            showRecentActivityOnHome: true
+            showRecentActivityOnHome: true,
+            profilesWithExplicitReminderStates: Set<UUID>()
         )
     }
 
@@ -317,10 +329,16 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
             return nil
         }
 
+        let profiles = payload.profiles.map { $0.profile }
+        let explicitReminderIDs = Set(payload.profiles.compactMap { payload in
+            payload.didDecodeRemindersEnabled ? payload.profile.id : nil
+        })
+
         return CloudProfileSnapshot(
-            profiles: payload.profiles,
+            profiles: profiles,
             activeProfileID: payload.activeProfileID,
-            showRecentActivityOnHome: payload.showRecentActivityOnHome ?? true
+            showRecentActivityOnHome: payload.showRecentActivityOnHome ?? true,
+            profilesWithExplicitReminderStates: explicitReminderIDs
         )
     }
 
@@ -437,9 +455,24 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
 }
 
 private struct ProfileStatePayload: Decodable {
-    var profiles: [ChildProfile]
+    var profiles: [ChildProfilePayload]
     var activeProfileID: UUID?
     var showRecentActivityOnHome: Bool?
+}
+
+private struct ChildProfilePayload: Decodable {
+    var profile: ChildProfile
+    var didDecodeRemindersEnabled: Bool
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        didDecodeRemindersEnabled = container.contains(.remindersEnabled)
+        profile = try ChildProfile(from: decoder)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case remindersEnabled
+    }
 }
 
 private extension CKError {

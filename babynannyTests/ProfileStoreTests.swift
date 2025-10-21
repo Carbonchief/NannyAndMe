@@ -173,7 +173,8 @@ struct ProfileStoreTests {
         let snapshot = CloudProfileSnapshot(
             profiles: [profile],
             activeProfileID: profile.id,
-            showRecentActivityOnHome: false
+            showRecentActivityOnHome: false,
+            profilesWithExplicitReminderStates: Set([profile.id])
         )
         let importer = MockCloudImporter(result: .success(snapshot))
 
@@ -222,7 +223,8 @@ struct ProfileStoreTests {
         let snapshot = CloudProfileSnapshot(
             profiles: [profile],
             activeProfileID: profile.id,
-            showRecentActivityOnHome: true
+            showRecentActivityOnHome: true,
+            profilesWithExplicitReminderStates: Set([profile.id])
         )
 
         await importer.resume(with: .success(snapshot))
@@ -246,7 +248,8 @@ struct ProfileStoreTests {
         let snapshot = CloudProfileSnapshot(
             profiles: [profile],
             activeProfileID: profile.id,
-            showRecentActivityOnHome: false
+            showRecentActivityOnHome: false,
+            profilesWithExplicitReminderStates: Set([profile.id])
         )
 
         let importer = MockCloudImporter(results: [
@@ -293,7 +296,8 @@ struct ProfileStoreTests {
         let snapshot = CloudProfileSnapshot(
             profiles: [cloudProfile],
             activeProfileID: cloudProfile.id,
-            showRecentActivityOnHome: false
+            showRecentActivityOnHome: false,
+            profilesWithExplicitReminderStates: Set([cloudProfile.id])
         )
         let importer = MockCloudImporter(result: .success(snapshot))
 
@@ -338,7 +342,8 @@ struct ProfileStoreTests {
         let snapshot = CloudProfileSnapshot(
             profiles: [updatedProfile],
             activeProfileID: updatedProfile.id,
-            showRecentActivityOnHome: false
+            showRecentActivityOnHome: false,
+            profilesWithExplicitReminderStates: Set([updatedProfile.id])
         )
         let importer = MockCloudImporter(result: .success(snapshot))
 
@@ -382,7 +387,8 @@ struct ProfileStoreTests {
         let snapshot = CloudProfileSnapshot(
             profiles: [newProfile],
             activeProfileID: newProfile.id,
-            showRecentActivityOnHome: true
+            showRecentActivityOnHome: true,
+            profilesWithExplicitReminderStates: Set([newProfile.id])
         )
         let importer = MockCloudImporter(result: .success(snapshot))
 
@@ -399,6 +405,50 @@ struct ProfileStoreTests {
         let profiles = await store.profiles
         #expect(profiles.contains(localProfile))
         #expect(profiles.contains(newProfile))
+        #expect(await importer.fetchCount == 1)
+    }
+
+    @Test
+    func preservesLocalReminderToggleWhenCloudSnapshotOmitsField() async throws {
+        let scheduler = MockReminderScheduler(authorizationResult: true)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        var localProfile = ChildProfile(name: "Legacy", birthDate: Date(), remindersEnabled: true)
+        let profileID = localProfile.id
+        let localState = TestProfileState(
+            profiles: [localProfile],
+            activeProfileID: localProfile.id,
+            showRecentActivityOnHome: true
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let data = try encoder.encode(localState)
+        try data.write(to: directory.appendingPathComponent("profiles.json"))
+
+        let legacyCloudProfile = ChildProfile(id: profileID, name: localProfile.name, birthDate: localProfile.birthDate)
+        let snapshot = CloudProfileSnapshot(
+            profiles: [legacyCloudProfile],
+            activeProfileID: legacyCloudProfile.id,
+            showRecentActivityOnHome: true,
+            profilesWithExplicitReminderStates: Set<UUID>()
+        )
+        let importer = MockCloudImporter(result: .success(snapshot))
+
+        let store = await ProfileStore(
+            fileManager: .default,
+            directory: directory,
+            filename: "profiles.json",
+            reminderScheduler: scheduler,
+            cloudImporter: importer
+        )
+
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        let profiles = await store.profiles
+        let fetchedProfile = try #require(profiles.first(where: { $0.id == profileID }))
+        #expect(fetchedProfile.remindersEnabled)
         #expect(await importer.fetchCount == 1)
     }
 
