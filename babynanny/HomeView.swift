@@ -51,20 +51,6 @@ struct HomeView: View {
                 editingAction = nil
             }
         }
-        .sheet(item: $reminderPrompt) { prompt in
-            ActionReminderDelaySheet(
-                category: prompt.category,
-                initialDelay: prompt.initialDelay,
-                delayRange: ProfileStore.customReminderDelayRange
-            ) { selectedDelay in
-                scheduleReminder(for: prompt.category, delay: selectedDelay)
-            } onCancel: {
-                Analytics.capture(
-                    "home_cancel_custom_action_reminder",
-                    properties: ["category": prompt.category.rawValue]
-                )
-            }
-        }
         .alert(item: $pendingStartAction) { pending in
             let runningList = ListFormatter.localizedString(byJoining: pending.interruptedActionTitles)
             return Alert(
@@ -108,6 +94,23 @@ struct HomeView: View {
                 }
             )
         }
+        .disabled(reminderPrompt != nil)
+        .overlay {
+            ActionReminderDelayDialogOverlay(
+                prompt: $reminderPrompt,
+                delayRange: ProfileStore.customReminderDelayRange,
+                onConfirm: { prompt, selectedDelay in
+                    scheduleReminder(for: prompt.category, delay: selectedDelay)
+                },
+                onCancel: { prompt in
+                    Analytics.capture(
+                        "home_cancel_custom_action_reminder",
+                        properties: ["category": prompt.category.rawValue]
+                    )
+                }
+            )
+        }
+        .animation(.easeInOut(duration: 0.25), value: reminderPrompt != nil)
     }
 
     @ViewBuilder
@@ -436,14 +439,14 @@ struct HomeView: View {
         Task { @MainActor in
             let isAuthorized = await profileStore.ensureNotificationAuthorization()
             if isAuthorized {
-                showReminderSheet(for: category)
+                showReminderDialog(for: category)
             } else {
                 reminderAuthorizationAlert = ReminderAuthorizationAlert(category: category)
             }
         }
     }
 
-    private func showReminderSheet(for category: BabyActionCategory) {
+    private func showReminderDialog(for category: BabyActionCategory) {
         let initialDelay = defaultReminderDelay(for: category)
         reminderPrompt = ReminderPromptState(category: category,
                                              initialDelay: initialDelay)
@@ -612,13 +615,52 @@ private struct ReminderAuthorizationAlert: Identifiable {
     let category: BabyActionCategory
 }
 
-private struct ActionReminderDelaySheet: View {
+private struct ActionReminderDelayDialogOverlay: View {
+    @Binding var prompt: ReminderPromptState?
+    let delayRange: ClosedRange<TimeInterval>
+    let onConfirm: (ReminderPromptState, TimeInterval) -> Void
+    let onCancel: (ReminderPromptState) -> Void
+
+    var body: some View {
+        Group {
+            if let activePrompt = prompt {
+                ZStack {
+                    Color.black.opacity(0.4)
+                        .ignoresSafeArea()
+                        .transition(.opacity)
+
+                    ActionReminderDelayDialog(
+                        category: activePrompt.category,
+                        initialDelay: activePrompt.initialDelay,
+                        delayRange: delayRange
+                    ) { selectedDelay in
+                        onConfirm(activePrompt, selectedDelay)
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            prompt = nil
+                        }
+                    } onCancel: {
+                        onCancel(activePrompt)
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            prompt = nil
+                        }
+                    }
+                    .transition(.scale(scale: 0.94).combined(with: .opacity))
+                    .padding(.horizontal, 24)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .zIndex(1)
+            }
+        }
+        .accessibilityAddTraits(.isModal)
+    }
+}
+
+private struct ActionReminderDelayDialog: View {
     let category: BabyActionCategory
     let delayRange: ClosedRange<TimeInterval>
     let onConfirm: (TimeInterval) -> Void
     let onCancel: () -> Void
 
-    @Environment(\.dismiss) private var dismiss
     @State private var selectedDelay: TimeInterval
 
     init(category: BabyActionCategory,
@@ -634,20 +676,15 @@ private struct ActionReminderDelaySheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 24) {
-            Capsule()
-                .fill(Color.secondary.opacity(0.3))
-                .frame(width: 36, height: 4)
-                .padding(.top, 8)
-
-            VStack(spacing: 8) {
+        VStack(spacing: 20) {
+            VStack(spacing: 6) {
                 Text(L10n.Home.customReminderTitle)
                     .font(.headline)
 
                 Text(L10n.Home.customReminderMessage(category.title))
                     .font(.subheadline)
-                    .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
 
             VStack(spacing: 12) {
@@ -660,7 +697,7 @@ private struct ActionReminderDelaySheet: View {
                     .postHogLabel("home.customReminder.dialer")
 
                 Text(Self.formattedDuration(selectedDelay))
-                    .font(.title2.weight(.semibold))
+                    .font(.title3.weight(.semibold))
             }
 
             Text(L10n.Home.customReminderOnceHelp)
@@ -671,7 +708,6 @@ private struct ActionReminderDelaySheet: View {
             HStack(spacing: 16) {
                 Button(L10n.Common.cancel) {
                     onCancel()
-                    dismiss()
                 }
                 .buttonStyle(.bordered)
                 .postHogLabel("home.customReminder.cancel")
@@ -679,17 +715,23 @@ private struct ActionReminderDelaySheet: View {
                 Button(L10n.Home.customReminderSchedule) {
                     let selected = Self.normalizedDelay(selectedDelay, within: delayRange)
                     onConfirm(selected)
-                    dismiss()
                 }
                 .buttonStyle(.borderedProminent)
                 .postHogLabel("home.customReminder.schedule")
             }
-            .padding(.bottom, 12)
         }
         .padding(.horizontal, 24)
-        .padding(.bottom, 12)
-        .presentationDetents([.fraction(0.55), .large])
-        .presentationDragIndicator(.hidden)
+        .padding(.vertical, 28)
+        .frame(maxWidth: 360)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(uiColor: .systemBackground))
+                .shadow(color: Color.black.opacity(0.18), radius: 24, x: 0, y: 12)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.black.opacity(0.05), lineWidth: 1)
+        )
     }
 
     static func normalizedDelay(_ delay: TimeInterval,
@@ -727,8 +769,8 @@ private struct ActionReminderDelaySheet: View {
             let picker = UIDatePicker()
             picker.datePickerMode = .countDownTimer
             picker.minuteInterval = max(1, Int(customReminderDelayStep / 60))
-            picker.countDownDuration = ActionReminderDelaySheet.normalizedDelay(delay,
-                                                                                within: delayRange)
+            picker.countDownDuration = ActionReminderDelayDialog.normalizedDelay(delay,
+                                                                                  within: delayRange)
             picker.addTarget(context.coordinator,
                              action: #selector(Coordinator.valueChanged(_:)),
                              for: .valueChanged)
@@ -736,7 +778,7 @@ private struct ActionReminderDelaySheet: View {
         }
 
         func updateUIView(_ uiView: UIDatePicker, context: Context) {
-            let normalized = ActionReminderDelaySheet.normalizedDelay(delay, within: delayRange)
+            let normalized = ActionReminderDelayDialog.normalizedDelay(delay, within: delayRange)
             if abs(uiView.countDownDuration - normalized) > 0.5 {
                 uiView.countDownDuration = normalized
             }
@@ -755,8 +797,8 @@ private struct ActionReminderDelaySheet: View {
 
             @objc
             func valueChanged(_ sender: UIDatePicker) {
-                let normalized = ActionReminderDelaySheet.normalizedDelay(sender.countDownDuration,
-                                                                          within: parent.delayRange)
+                let normalized = ActionReminderDelayDialog.normalizedDelay(sender.countDownDuration,
+                                                                           within: parent.delayRange)
                 if abs(normalized - sender.countDownDuration) > 0.5 {
                     sender.countDownDuration = normalized
                 }
