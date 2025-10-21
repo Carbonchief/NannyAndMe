@@ -1111,17 +1111,60 @@ private extension HistoryRow {
             return TimeInformation(display: value, accessibility: value)
         }
 
-        let displayFormatter = RelativeDateTimeFormatter()
-        displayFormatter.unitsStyle = .full
-        displayFormatter.dateTimeStyle = .named
-        let display = displayFormatter.localizedString(for: eventDate, relativeTo: referenceDate)
+        guard interval >= 0 else {
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .full
+            formatter.dateTimeStyle = .named
+            let value = formatter.localizedString(for: eventDate, relativeTo: referenceDate)
+            return TimeInformation(display: value, accessibility: value)
+        }
 
-        let accessibilityFormatter = RelativeDateTimeFormatter()
+        let absInterval = abs(interval)
+        let allowedUnits: NSCalendar.Unit
+
+        if absInterval < 3600 {
+            allowedUnits = [.minute, .second]
+        } else if absInterval < 86_400 {
+            allowedUnits = [.hour, .minute]
+        } else {
+            allowedUnits = [.day, .hour]
+        }
+
+        let displayFormatter = DateComponentsFormatter()
+        displayFormatter.unitsStyle = .short
+        displayFormatter.allowedUnits = allowedUnits
+        displayFormatter.maximumUnitCount = 2
+        displayFormatter.zeroFormattingBehavior = [.dropAll]
+
+        let accessibilityFormatter = DateComponentsFormatter()
         accessibilityFormatter.unitsStyle = .full
-        accessibilityFormatter.dateTimeStyle = .named
-        let accessibility = accessibilityFormatter.localizedString(for: eventDate, relativeTo: referenceDate)
+        accessibilityFormatter.allowedUnits = allowedUnits
+        accessibilityFormatter.maximumUnitCount = 2
+        accessibilityFormatter.zeroFormattingBehavior = [.dropAll]
 
-        return TimeInformation(display: display, accessibility: accessibility)
+        let fallbackFormatter = RelativeDateTimeFormatter()
+        fallbackFormatter.unitsStyle = .full
+        fallbackFormatter.dateTimeStyle = .named
+
+        let displayComponents = displayFormatter.string(from: absInterval)
+        let accessibilityComponents = accessibilityFormatter.string(from: absInterval)
+
+        let displayValue: String
+        let accessibilityValue: String
+
+        if let displayComponents {
+            displayValue = L10n.Formatter.ago(displayComponents)
+        } else {
+            displayValue = fallbackFormatter.localizedString(for: eventDate, relativeTo: referenceDate)
+        }
+
+        if let accessibilityComponents {
+            accessibilityValue = L10n.Formatter.ago(accessibilityComponents)
+        } else {
+            accessibilityValue = fallbackFormatter.localizedString(for: eventDate, relativeTo: referenceDate)
+        }
+
+        return TimeInformation(display: displayValue, accessibility: accessibilityValue)
     }
 
     func durationDescription(asOf referenceDate: Date) -> String? {
