@@ -12,38 +12,60 @@ import UIKit
 struct ReportsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
-    @State private var selectedCategory: BabyActionCategory?
+    @State private var selectedTab: ReportsTab = .category(.sleep)
+    @State private var calendarSelectedDate = Date()
+    @State private var didInitializeTab = false
     @State private var shareItem: ChartShareItem?
     @State private var shareContentWidth: CGFloat = 0
     @State private var highlightedTrendDay: Date?
 
     var body: some View {
         let state = currentState
-        let today = todayActions(for: state)
+        let isCalendarTab = selectedTab.isCalendar
 
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                headerSection(for: state, todayActions: today)
+        VStack(spacing: 0) {
+            tabBar()
 
-                statsGrid(for: state, todayActions: today)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    if isCalendarTab {
+                        calendarSection(for: state)
+                    } else {
+                        let today = todayActions(for: state)
+                        headerSection(for: state,
+                                      todayActions: today,
+                                      focusCategory: resolvedCategory(for: state))
 
-                dailyTrendSection(for: state)
+                        statsGrid(for: state, todayActions: today)
 
-                actionPatternSection(for: state)
+                        dailyTrendSection(for: state)
+
+                        actionPatternSection(for: state)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(24)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(24)
         }
         .onPreferenceChange(ChartShareContentWidthPreferenceKey.self) { width in
             shareContentWidth = width
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .phScreen("reports_screen_reportsView", properties: ["tab": "reports"])
+        .onAppear(perform: initializeTabIfNeeded)
         .onChange(of: profileStore.activeProfile.id) { _, _ in
-            selectedCategory = nil
+            resetSelectionForActiveProfile()
         }
-        .onChange(of: selectedCategory) { _, _ in
-            highlightedTrendDay = nil
+        .onChange(of: selectedTab) { _, newValue in
+            if case .category = newValue {
+                highlightedTrendDay = nil
+            }
+        }
+        .onChange(of: calendarSelectedDate) { _, newValue in
+            Analytics.capture(
+                "reports_select_calendar_date",
+                properties: ["date": analyticsDateFormatter.string(from: newValue)]
+            )
         }
         .sheet(item: $shareItem) { item in
             ChartShareSheet(item: item) { outcome in
@@ -58,7 +80,10 @@ struct ReportsView: View {
         }
     }
 
-    private func headerSection(for state: ProfileActionState, todayActions: [BabyActionSnapshot]) -> some View {
+    private func headerSection(for state: ProfileActionState,
+                               todayActions: [BabyActionSnapshot],
+                               focusCategory: BabyActionCategory) -> some View
+    {
         HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(L10n.Stats.dailySnapshotTitle)
@@ -72,8 +97,97 @@ struct ReportsView: View {
 
             Spacer()
 
-            categoryPicker(for: state)
+            focusedCategoryBadge(for: focusCategory)
         }
+    }
+
+    private func focusedCategoryBadge(for category: BabyActionCategory) -> some View {
+        Label {
+            Text(category.title)
+                .font(.caption)
+                .fontWeight(.semibold)
+        } icon: {
+            Image(systemName: category.icon)
+                .font(.system(size: 14, weight: .semibold))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(category.accentColor.opacity(0.12), in: Capsule())
+        .foregroundStyle(category.accentColor)
+    }
+
+    private func tabBar() -> some View {
+        let tabs = ReportsTab.allTabs
+
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(tabs) { tab in
+                    let isSelected = tab == selectedTab
+
+                    Button {
+                        select(tab: tab)
+                    } label: {
+                        Image(systemName: tab.iconName)
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(isSelected ? Color.white : .primary)
+                            .frame(width: 52, height: 52)
+                            .background(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .fill(isSelected ? tab.accentColor : Color(.secondarySystemGroupedBackground))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(isSelected ? tab.accentColor.opacity(0.3) : Color.clear, lineWidth: 1)
+                            )
+                            .shadow(color: isSelected ? tab.accentColor.opacity(0.18) : Color.clear,
+                                    radius: isSelected ? 8 : 0,
+                                    x: 0,
+                                    y: isSelected ? 4 : 0)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 52, height: 52)
+                    .postHogLabel(tab.postHogLabel)
+                    .accessibilityLabel(tab.accessibilityLabel)
+                    .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+            .padding(.bottom, 12)
+        }
+        .background(Color(.systemGroupedBackground))
+    }
+
+    private func select(tab: ReportsTab) {
+        guard tab != selectedTab else { return }
+
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+            selectedTab = tab
+        }
+
+        Analytics.capture(
+            "reports_select_tab",
+            properties: ["tab": tab.analyticsValue]
+        )
+
+        if tab.isCalendar {
+            Analytics.capture("reports_open_calendar_tab")
+        }
+    }
+
+    private func initializeTabIfNeeded() {
+        guard !didInitializeTab else { return }
+
+        selectedTab = defaultTab(for: currentState)
+        calendarSelectedDate = Date()
+        didInitializeTab = true
+    }
+
+    private func resetSelectionForActiveProfile() {
+        didInitializeTab = false
+        highlightedTrendDay = nil
+        calendarSelectedDate = Date()
+        initializeTabIfNeeded()
     }
 
     private func statsGrid(for state: ProfileActionState, todayActions: [BabyActionSnapshot]) -> some View {
@@ -106,6 +220,178 @@ struct ReportsView: View {
                          tint: .purple)
             }
         }
+    }
+
+    private func calendarSection(for state: ProfileActionState) -> some View {
+        let summary = daySummary(for: calendarSelectedDate, state: state)
+        let formattedDate = calendarSelectedDate.formatted(date: .long, time: .omitted)
+
+        return VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L10n.Stats.calendarSummaryTitle(formattedDate))
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                Text(L10n.Stats.calendarSummaryCount(summary.totalActions))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            DatePicker(
+                L10n.Stats.calendarDatePickerLabel,
+                selection: $calendarSelectedDate,
+                displayedComponents: .date
+            )
+            .datePickerStyle(.graphical)
+            .labelsHidden()
+            .postHogLabel("reports.calendar.datePicker")
+
+            calendarSummaryCards(for: summary)
+
+            if summary.totalActions > 0 {
+                calendarTimeline(for: summary)
+            } else {
+                Text(L10n.Stats.calendarEmptyTitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
+        )
+    }
+
+    private func calendarSummaryCards(for summary: DaySummary) -> some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 16) {
+                StatCard(title: L10n.Actions.sleep,
+                         value: formattedSummaryDuration(summary.sleepDuration),
+                         subtitle: L10n.Stats.calendarSleepSubtitle(summary.sleepSessions),
+                         icon: BabyActionCategory.sleep.icon,
+                         tint: BabyActionCategory.sleep.accentColor)
+
+                StatCard(title: L10n.Actions.feeding,
+                         value: "\(summary.feedingCount)",
+                         subtitle: summary.feedingSubtitle,
+                         icon: BabyActionCategory.feeding.icon,
+                         tint: BabyActionCategory.feeding.accentColor)
+            }
+
+            HStack(spacing: 16) {
+                StatCard(title: L10n.Actions.diaper,
+                         value: "\(summary.diaperCount)",
+                         subtitle: L10n.Stats.calendarDiaperSubtitle,
+                         icon: BabyActionCategory.diaper.icon,
+                         tint: BabyActionCategory.diaper.accentColor)
+
+                StatCard(title: L10n.Stats.calendarTotalTitle,
+                         value: "\(summary.totalActions)",
+                         subtitle: L10n.Stats.calendarTotalSubtitle,
+                         icon: "chart.bar.fill",
+                         tint: .indigo)
+            }
+        }
+    }
+
+    private func calendarTimeline(for summary: DaySummary) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.Stats.calendarTimelineTitle)
+                .font(.headline)
+
+            ForEach(summary.actions) { action in
+                CalendarActionRow(action: action,
+                                  dayStart: summary.dayStart,
+                                  dayEnd: summary.dayEnd)
+            }
+        }
+    }
+
+    private func daySummary(for date: Date, state: ProfileActionState) -> DaySummary {
+        let calendar = Calendar.current
+        let dayStart = calendar.startOfDay(for: date)
+        guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else {
+            return DaySummary.empty(for: date)
+        }
+
+        var seen: Set<UUID> = []
+        var actions: [BabyActionSnapshot] = []
+
+        for action in state.history where actionIntersectsDay(action, dayStart: dayStart, dayEnd: dayEnd) {
+            if seen.insert(action.id).inserted {
+                actions.append(action)
+            }
+        }
+
+        for action in state.activeActions.values where actionIntersectsDay(action, dayStart: dayStart, dayEnd: dayEnd) {
+            if seen.insert(action.id).inserted {
+                actions.append(action)
+            }
+        }
+
+        actions.sort { $0.startDate < $1.startDate }
+
+        var sleepDuration: TimeInterval = 0
+        var sleepSessions = 0
+        var feedingCount = 0
+        var bottleVolume = 0
+        var diaperCount = 0
+
+        for action in actions {
+            switch action.category {
+            case .sleep:
+                sleepSessions += 1
+                sleepDuration += overlapDuration(for: action, dayStart: dayStart, dayEnd: dayEnd)
+            case .feeding:
+                feedingCount += 1
+                if let volume = action.bottleVolume {
+                    bottleVolume += volume
+                }
+            case .diaper:
+                diaperCount += 1
+            }
+        }
+
+        return DaySummary(date: date,
+                          dayStart: dayStart,
+                          dayEnd: dayEnd,
+                          actions: actions,
+                          sleepDuration: sleepDuration,
+                          sleepSessions: sleepSessions,
+                          feedingCount: feedingCount,
+                          bottleVolume: bottleVolume,
+                          diaperCount: diaperCount)
+    }
+
+    private func actionIntersectsDay(_ action: BabyActionSnapshot, dayStart: Date, dayEnd: Date) -> Bool {
+        let actionStart = action.startDate
+        let actionEnd = action.endDate ?? Date()
+
+        if actionStart >= dayStart && actionStart < dayEnd {
+            return true
+        }
+
+        if actionEnd > dayStart && actionEnd <= dayEnd {
+            return true
+        }
+
+        return actionStart < dayStart && actionEnd > dayStart
+    }
+
+    private func overlapDuration(for action: BabyActionSnapshot, dayStart: Date, dayEnd: Date) -> TimeInterval {
+        let actionEnd = action.endDate ?? Date()
+        let start = max(action.startDate, dayStart)
+        let end = min(actionEnd, dayEnd)
+        guard end > start else { return 0 }
+        return end.timeIntervalSince(start)
+    }
+
+    private func formattedSummaryDuration(_ duration: TimeInterval) -> String {
+        guard duration > 0 else { return L10n.Stats.calendarDurationZero }
+        return summaryDurationFormatter.string(from: duration) ?? L10n.Stats.calendarDurationZero
     }
 
     @ViewBuilder
@@ -469,46 +755,19 @@ struct ReportsView: View {
     }
 
     private func resolvedCategory(for state: ProfileActionState) -> BabyActionCategory {
-        selectedCategory ?? state.mostRecentAction?.category ?? .sleep
+        switch selectedTab {
+        case .category(let category):
+            return category
+        case .calendar:
+            return state.mostRecentAction?.category ?? .sleep
+        }
     }
 
-    // MARK: - FIXED: use @ViewBuilder + trailing-closure Picker label (no explicit `return`)
-    @ViewBuilder
-    private func categoryPicker(for state: ProfileActionState) -> some View {
-        let selection = resolvedCategory(for: state)
-        let binding = Binding<BabyActionCategory>(
-            get: { resolvedCategory(for: state) },
-            set: { newValue in
-                Analytics.capture(
-                    "reports_select_category_picker",
-                    properties: ["category": newValue.rawValue]
-                )
-                selectedCategory = newValue
-            }
-        )
-
-        Picker(selection: binding) {
-            ForEach(BabyActionCategory.allCases) { category in
-                Text(category.title).tag(category)
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: selection.icon)
-                    .font(.system(size: 14, weight: .semibold))
-
-                Text(selection.title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(selection.accentColor.opacity(0.12))
-            .foregroundStyle(selection.accentColor)
-            .clipShape(Capsule())
+    private func defaultTab(for state: ProfileActionState) -> ReportsTab {
+        if let category = state.mostRecentAction?.category {
+            return .category(category)
         }
-        .pickerStyle(.menu)
-        .postHogLabel("reports.categoryPicker")
-        .accessibilityLabel(L10n.Stats.actionPickerLabel)
+        return .category(.sleep)
     }
 
     private var currentState: ProfileActionState {
@@ -857,6 +1116,76 @@ private struct ActionPatternShareContext {
     let subtypeTitle: String
     let subtypeScale: (domain: [String], range: [Color])
     let focusCategory: BabyActionCategory
+}
+
+private enum ReportsTab: Hashable, Identifiable {
+    case category(BabyActionCategory)
+    case calendar
+
+    var id: String {
+        switch self {
+        case .category(let category):
+            return "category_\(category.rawValue)"
+        case .calendar:
+            return "calendar"
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .category(let category):
+            return category.icon
+        case .calendar:
+            return "calendar"
+        }
+    }
+
+    var accentColor: Color {
+        switch self {
+        case .category(let category):
+            return category.accentColor
+        case .calendar:
+            return Color.teal
+        }
+    }
+
+    var analyticsValue: String {
+        switch self {
+        case .category(let category):
+            return category.rawValue
+        case .calendar:
+            return "calendar"
+        }
+    }
+
+    var postHogLabel: String {
+        switch self {
+        case .category(let category):
+            return "reports.tab.\(category.rawValue)"
+        case .calendar:
+            return "reports.tab.calendar"
+        }
+    }
+
+    var accessibilityLabel: String {
+        switch self {
+        case .category(let category):
+            return category.title
+        case .calendar:
+            return L10n.Stats.calendarTabLabel
+        }
+    }
+
+    var isCalendar: Bool {
+        if case .calendar = self {
+            return true
+        }
+        return false
+    }
+
+    static var allTabs: [ReportsTab] {
+        BabyActionCategory.allCases.map { ReportsTab.category($0) } + [.calendar]
+    }
 }
 
 private struct ChartShareItem: Identifiable {
@@ -1213,6 +1542,43 @@ private struct ActionPatternSegment: Identifiable {
     let subtype: ActionSubtype
 }
 
+private struct DaySummary {
+    let date: Date
+    let dayStart: Date
+    let dayEnd: Date
+    let actions: [BabyActionSnapshot]
+    let sleepDuration: TimeInterval
+    let sleepSessions: Int
+    let feedingCount: Int
+    let bottleVolume: Int
+    let diaperCount: Int
+
+    var totalActions: Int { actions.count }
+
+    var feedingSubtitle: String {
+        if bottleVolume > 0 {
+            return L10n.Stats.calendarFeedingSubtitle(bottleVolume)
+        }
+        return L10n.Stats.calendarFeedingSubtitleNoBottle
+    }
+
+    static func empty(for date: Date) -> DaySummary {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: date)
+        let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start
+
+        return DaySummary(date: date,
+                   dayStart: start,
+                   dayEnd: end,
+                   actions: [],
+                   sleepDuration: 0,
+                   sleepSessions: 0,
+                   feedingCount: 0,
+                   bottleVolume: 0,
+                   diaperCount: 0)
+    }
+}
+
 private extension BabyActionSnapshot.DiaperType {
     var sortIndex: Int {
         switch self {
@@ -1239,6 +1605,58 @@ private extension BabyActionSnapshot.FeedingType {
             return 3
         }
     }
+}
+
+private struct CalendarActionRow: View {
+    let action: BabyActionSnapshot
+    let dayStart: Date
+    let dayEnd: Date
+
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(action.category.accentColor.opacity(0.12))
+                    .frame(width: 44, height: 44)
+
+                Image(systemName: action.icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(action.category.accentColor)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(action.detailDescription)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.primary)
+
+                Text(calendarTimeRange(for: action, dayStart: dayStart, dayEnd: dayEnd))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
+        )
+    }
+}
+
+private func calendarTimeRange(for action: BabyActionSnapshot, dayStart: Date, dayEnd: Date) -> String {
+    let intervalStart = max(action.startDate, dayStart)
+    let actionEnd = action.endDate ?? Date()
+    let intervalEnd = min(actionEnd, dayEnd)
+
+    if intervalEnd <= intervalStart {
+        return intervalStart.formatted(summaryTimeFormatStyle)
+    }
+
+    return summaryIntervalFormatter.format(intervalStart...intervalEnd)
 }
 
 private struct StatCard: View {
@@ -1316,3 +1734,21 @@ private struct StatCard: View {
         .environmentObject(profileStore)
         .environmentObject(actionStore)
 }
+
+private let summaryDurationFormatter: DateComponentsFormatter = {
+    let formatter = DateComponentsFormatter()
+    formatter.allowedUnits = [.hour, .minute]
+    formatter.unitsStyle = .abbreviated
+    formatter.zeroFormattingBehavior = [.dropLeading, .dropTrailing]
+    return formatter
+}()
+
+private let summaryIntervalFormatter = Date.IntervalFormatStyle(date: .omitted, time: .shortened)
+
+private let summaryTimeFormatStyle = Date.FormatStyle.dateTime.hour().minute()
+
+private let analyticsDateFormatter: ISO8601DateFormatter = {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter
+}()
