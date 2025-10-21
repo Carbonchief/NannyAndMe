@@ -1111,17 +1111,59 @@ private extension HistoryRow {
             return TimeInformation(display: value, accessibility: value)
         }
 
-        let displayFormatter = RelativeDateTimeFormatter()
-        displayFormatter.unitsStyle = .full
-        displayFormatter.dateTimeStyle = .named
-        let display = displayFormatter.localizedString(for: eventDate, relativeTo: referenceDate)
+        guard interval >= 0 else {
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .full
+            formatter.dateTimeStyle = .named
+            let value = formatter.localizedString(for: eventDate, relativeTo: referenceDate)
+            return TimeInformation(display: value, accessibility: value)
+        }
 
-        let accessibilityFormatter = RelativeDateTimeFormatter()
+        let absInterval = abs(interval)
+        let allowedUnits: NSCalendar.Unit
+        let allowedComponents: [Calendar.Component]
+
+        if absInterval < 3600 {
+            allowedUnits = [.minute, .second]
+            allowedComponents = [.minute, .second]
+        } else if absInterval < 86_400 {
+            allowedUnits = [.hour, .minute]
+            allowedComponents = [.hour, .minute]
+        } else {
+            allowedUnits = [.day, .hour]
+            allowedComponents = [.day, .hour]
+        }
+
+        let accessibilityFormatter = DateComponentsFormatter()
         accessibilityFormatter.unitsStyle = .full
-        accessibilityFormatter.dateTimeStyle = .named
-        let accessibility = accessibilityFormatter.localizedString(for: eventDate, relativeTo: referenceDate)
+        accessibilityFormatter.allowedUnits = allowedUnits
+        accessibilityFormatter.maximumUnitCount = 2
+        accessibilityFormatter.zeroFormattingBehavior = [.dropAll]
 
-        return TimeInformation(display: display, accessibility: accessibility)
+        let fallbackFormatter = RelativeDateTimeFormatter()
+        fallbackFormatter.unitsStyle = .full
+        fallbackFormatter.dateTimeStyle = .named
+
+        let displayComponents = compactDisplayComponents(for: absInterval,
+                                                         allowedComponents: allowedComponents)
+        let accessibilityComponents = accessibilityFormatter.string(from: absInterval)
+
+        let displayValue: String
+        let accessibilityValue: String
+
+        if let displayComponents {
+            displayValue = L10n.Formatter.ago(displayComponents)
+        } else {
+            displayValue = fallbackFormatter.localizedString(for: eventDate, relativeTo: referenceDate)
+        }
+
+        if let accessibilityComponents {
+            accessibilityValue = L10n.Formatter.ago(accessibilityComponents)
+        } else {
+            accessibilityValue = fallbackFormatter.localizedString(for: eventDate, relativeTo: referenceDate)
+        }
+
+        return TimeInformation(display: displayValue, accessibility: accessibilityValue)
     }
 
     func durationDescription(asOf referenceDate: Date) -> String? {
@@ -1132,6 +1174,68 @@ private extension HistoryRow {
     func accessibilityLabel(timeInformation: TimeInformation, durationText: String?) -> String {
         guard let durationText else { return timeInformation.accessibility }
         return "\(timeInformation.accessibility), \(durationText)"
+    }
+
+    func compactDisplayComponents(for interval: TimeInterval,
+                                  allowedComponents: [Calendar.Component]) -> String? {
+        guard !allowedComponents.isEmpty else { return nil }
+
+        var remaining = Int(interval.rounded(.down))
+        var formattedComponents: [String] = []
+
+        for (index, component) in allowedComponents.enumerated() {
+            guard let unitSeconds = seconds(for: component), unitSeconds > 0 else { continue }
+
+            let value: Int
+
+            if index == allowedComponents.count - 1 {
+                value = remaining / unitSeconds
+            } else {
+                value = remaining / unitSeconds
+                remaining -= value * unitSeconds
+            }
+
+            guard value > 0 else { continue }
+
+            formattedComponents.append("\(value)\(symbol(for: component))")
+
+            if formattedComponents.count == 2 {
+                break
+            }
+        }
+
+        guard !formattedComponents.isEmpty else { return nil }
+        return formattedComponents.joined(separator: " ")
+    }
+
+    func symbol(for component: Calendar.Component) -> String {
+        switch component {
+        case .day:
+            return "d"
+        case .hour:
+            return "h"
+        case .minute:
+            return "m"
+        case .second:
+            return "s"
+        default:
+            return ""
+        }
+    }
+
+    func seconds(for component: Calendar.Component) -> Int? {
+        switch component {
+        case .day:
+            return 86_400
+        case .hour:
+            return 3_600
+        case .minute:
+            return 60
+        case .second:
+            return 1
+        default:
+            return nil
+        }
     }
 }
 
