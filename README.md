@@ -35,7 +35,7 @@ NannyAndMe/
 │   ├── ProfileSwitcherView.swift
 │   ├── SettingsView.swift
 │   ├── SideMenu.swift
-│   ├── StatsView.swift
+│   ├── ReportsView.swift
 │   └── babynannyApp.swift
 ├── babynanny.xcodeproj       # Xcode project definition
 ├── babynannyTests/           # Unit test target (empty scaffold)

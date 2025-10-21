@@ -329,8 +329,8 @@ private struct AnimatedTabContent: View {
                 HomeView(onShowAllLogs: onShowAllLogs)
                     .transition(transition)
 
-            case .stats:
-                StatsView()
+            case .reports:
+                ReportsView()
                     .transition(transition)
             }
         }
@@ -349,14 +349,14 @@ private func shouldShowInitialProfilePrompt(for profile: ChildProfile,
 
 private enum Tab: Hashable, CaseIterable {
     case home
-    case stats
+    case reports
 
     var title: String {
         switch self {
         case .home:
             return L10n.Tab.home
-        case .stats:
-            return L10n.Tab.stats
+        case .reports:
+            return L10n.Tab.reports
         }
     }
 
@@ -364,7 +364,7 @@ private enum Tab: Hashable, CaseIterable {
         switch self {
         case .home:
             return "house"
-        case .stats:
+        case .reports:
             return "chart.bar"
         }
     }
@@ -373,7 +373,7 @@ private enum Tab: Hashable, CaseIterable {
         switch self {
         case .home:
             return 0
-        case .stats:
+        case .reports:
             return 1
         }
     }
@@ -382,8 +382,8 @@ private enum Tab: Hashable, CaseIterable {
         switch self {
         case .home:
             return "tab.home"
-        case .stats:
-            return "tab.stats"
+        case .reports:
+            return "tab.reports"
         }
     }
 
@@ -391,8 +391,8 @@ private enum Tab: Hashable, CaseIterable {
         switch self {
         case .home:
             return "home"
-        case .stats:
-            return "stats"
+        case .reports:
+            return "reports"
         }
     }
 

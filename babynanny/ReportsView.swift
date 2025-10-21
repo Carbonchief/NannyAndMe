@@ -1,5 +1,5 @@
 //
-//  StatsView.swift
+//  ReportsView.swift
 //  babynanny
 //
 //  Created by OpenAI Assistant on 2024/10/07.
@@ -9,7 +9,7 @@ import SwiftUI
 import Charts
 import UIKit
 
-struct StatsView: View {
+struct ReportsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
     @State private var selectedCategory: BabyActionCategory?
@@ -38,7 +38,7 @@ struct StatsView: View {
             shareContentWidth = width
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .phScreen("stats_screen_statsView", properties: ["tab": "stats"])
+        .phScreen("reports_screen_reportsView", properties: ["tab": "reports"])
         .onChange(of: profileStore.activeProfile.id) { _, _ in
             selectedCategory = nil
         }
@@ -49,7 +49,7 @@ struct StatsView: View {
             ChartShareSheet(item: item) { outcome in
                 if case .completed = outcome {
                     Analytics.capture(
-                        "stats_share_chart_completed",
+                        "reports_share_chart_completed",
                         properties: ["chart": item.chartIdentifier]
                     )
                 }
@@ -137,7 +137,7 @@ struct StatsView: View {
                     if hasData {
                         Button {
                             Analytics.capture(
-                                "stats_share_chart_button",
+                                "reports_share_chart_button",
                                 properties: ["chart": "daily_trend", "category": focusCategory.rawValue]
                             )
                             let context = DailyTrendShareContext(metrics: metrics,
@@ -152,7 +152,7 @@ struct StatsView: View {
                                 .font(.system(size: 16, weight: .semibold))
                         }
                         .buttonStyle(.bordered)
-                        .postHogLabel("stats.shareChartButton.dailyTrend")
+                        .postHogLabel("reports.shareChartButton.dailyTrend")
                         .accessibilityLabel(L10n.Stats.shareChartAccessibility)
                     }
                 }
@@ -234,7 +234,7 @@ struct StatsView: View {
                 if hasData {
                     Button {
                         Analytics.capture(
-                            "stats_share_chart_button",
+                            "reports_share_chart_button",
                             properties: ["chart": "daily_pattern", "category": focusCategory.rawValue]
                         )
                         let context = ActionPatternShareContext(segments: patternSegments,
@@ -248,7 +248,7 @@ struct StatsView: View {
                             .font(.system(size: 16, weight: .semibold))
                     }
                     .buttonStyle(.bordered)
-                    .postHogLabel("stats.shareChartButton.dailyPattern")
+                    .postHogLabel("reports.shareChartButton.dailyPattern")
                     .accessibilityLabel(L10n.Stats.shareChartAccessibility)
                 }
             }
@@ -367,7 +367,7 @@ struct StatsView: View {
                                     }
                                 }
                         )
-                        .postHogLabel("stats.dailyTrend.columnTap")
+                        .postHogLabel("reports.dailyTrend.columnTap")
                 }
             }
         }
@@ -480,7 +480,7 @@ struct StatsView: View {
             get: { resolvedCategory(for: state) },
             set: { newValue in
                 Analytics.capture(
-                    "stats_select_category_picker",
+                    "reports_select_category_picker",
                     properties: ["category": newValue.rawValue]
                 )
                 selectedCategory = newValue
@@ -507,7 +507,7 @@ struct StatsView: View {
             .clipShape(Capsule())
         }
         .pickerStyle(.menu)
-        .postHogLabel("stats.categoryPicker")
+        .postHogLabel("reports.categoryPicker")
         .accessibilityLabel(L10n.Stats.actionPickerLabel)
     }
 
@@ -981,7 +981,7 @@ private struct ChartShareSnapshot<Content: View>: View {
     }
 }
 
-private extension StatsView {
+private extension ReportsView {
     @ViewBuilder
     func widthTracker() -> some View {
         GeometryReader { proxy in
@@ -1312,7 +1312,7 @@ private struct StatCard: View {
 
     let actionStore = ActionLogStore.previewStore(profiles: [profile.id: state])
 
-    return StatsView()
+    return ReportsView()
         .environmentObject(profileStore)
         .environmentObject(actionStore)
 }
