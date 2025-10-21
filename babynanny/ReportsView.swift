@@ -119,42 +119,41 @@ struct ReportsView: View {
     private func tabBar() -> some View {
         let tabs = ReportsTab.allTabs
 
-        return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(tabs) { tab in
-                    let isSelected = tab == selectedTab
+        return HStack(spacing: 12) {
+            ForEach(tabs) { tab in
+                let isSelected = tab == selectedTab
 
-                    Button {
-                        select(tab: tab)
-                    } label: {
-                        Image(systemName: tab.iconName)
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(isSelected ? Color.white : .primary)
-                            .frame(width: 52, height: 52)
-                            .background(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .fill(isSelected ? tab.accentColor : Color(.secondarySystemGroupedBackground))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(isSelected ? tab.accentColor.opacity(0.3) : Color.clear, lineWidth: 1)
-                            )
-                            .shadow(color: isSelected ? tab.accentColor.opacity(0.18) : Color.clear,
-                                    radius: isSelected ? 8 : 0,
-                                    x: 0,
-                                    y: isSelected ? 4 : 0)
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: 52, height: 52)
-                    .postHogLabel(tab.postHogLabel)
-                    .accessibilityLabel(tab.accessibilityLabel)
-                    .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+                Button {
+                    select(tab: tab)
+                } label: {
+                    Image(systemName: tab.iconName)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(isSelected ? Color.white : .primary)
+                        .frame(width: 52, height: 52)
+                        .background(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .fill(isSelected ? tab.accentColor : Color(.secondarySystemGroupedBackground))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .stroke(isSelected ? tab.accentColor.opacity(0.3) : Color.clear, lineWidth: 1)
+                        )
+                        .shadow(color: isSelected ? tab.accentColor.opacity(0.18) : Color.clear,
+                                radius: isSelected ? 8 : 0,
+                                x: 0,
+                                y: isSelected ? 4 : 0)
                 }
+                .buttonStyle(.plain)
+                .frame(width: 52, height: 52)
+                .postHogLabel(tab.postHogLabel)
+                .accessibilityLabel(tab.accessibilityLabel)
+                .accessibilityAddTraits(isSelected ? [.isSelected] : [])
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 24)
-            .padding(.bottom, 12)
         }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.horizontal, 24)
+        .padding(.top, 24)
+        .padding(.bottom, 12)
         .background(Color(.systemGroupedBackground))
     }
 
