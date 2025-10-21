@@ -28,6 +28,7 @@ struct SettingsView: View {
     @State private var isUpdatingReminders = false
     @State private var actionReminderSummaries: [BabyActionCategory: ProfileStore.ActionReminderSummary] = [:]
     @State private var isLoadingActionReminders = false
+    @State private var loadingReminderCategories: Set<BabyActionCategory> = []
     @State private var reminderLoadTask: Task<Void, Never>?
     @State private var activeAlert: ActiveAlert?
     @State private var profilePendingDeletion: ChildProfile?
@@ -505,12 +506,14 @@ struct SettingsView: View {
         }
     }
 
+    @MainActor
     private func refreshActionReminderSummaries() {
         reminderLoadTask?.cancel()
 
         guard profileStore.activeProfile.remindersEnabled else {
             actionReminderSummaries = [:]
             isLoadingActionReminders = false
+            loadingReminderCategories = []
             reminderLoadTask = nil
             return
         }
@@ -518,6 +521,7 @@ struct SettingsView: View {
         let profileID = profileStore.activeProfile.id
         isLoadingActionReminders = true
         actionReminderSummaries = [:]
+        loadingReminderCategories = []
 
         reminderLoadTask = Task {
             let summaries = await profileStore.nextActionReminderSummaries(for: profileID)
@@ -537,6 +541,36 @@ struct SettingsView: View {
 
                 actionReminderSummaries = summaries
                 isLoadingActionReminders = false
+            }
+        }
+    }
+
+    @MainActor
+    private func updateActionReminderSummary(for category: BabyActionCategory) {
+        guard profileStore.activeProfile.remindersEnabled else {
+            actionReminderSummaries[category] = nil
+            loadingReminderCategories.remove(category)
+            return
+        }
+
+        let profileID = profileStore.activeProfile.id
+        loadingReminderCategories.insert(category)
+
+        Task {
+            let summary = await profileStore.nextActionReminderSummary(for: profileID, category: category)
+
+            await MainActor.run {
+                defer { loadingReminderCategories.remove(category) }
+
+                guard profileStore.activeProfile.id == profileID else { return }
+
+                guard profileStore.activeProfile.remindersEnabled,
+                      profileStore.activeProfile.isActionReminderEnabled(for: category) else {
+                    actionReminderSummaries[category] = nil
+                    return
+                }
+
+                actionReminderSummaries[category] = summary
             }
         }
     }
@@ -597,7 +631,7 @@ private extension SettingsView {
                 profileStore.updateActiveProfile { profile in
                     profile.setReminderInterval(interval, for: category)
                 }
-                refreshActionReminderSummaries()
+                updateActionReminderSummary(for: category)
             }
         )
     }
@@ -617,7 +651,13 @@ private extension SettingsView {
                 profileStore.updateActiveProfile { profile in
                     profile.setReminderEnabled(newValue, for: category)
                 }
-                refreshActionReminderSummaries()
+
+                if newValue {
+                    updateActionReminderSummary(for: category)
+                } else {
+                    actionReminderSummaries[category] = nil
+                    loadingReminderCategories.remove(category)
+                }
             }
         )
     }
@@ -653,6 +693,8 @@ private extension SettingsView {
 
     @ViewBuilder
     private func actionReminderStatus(for category: BabyActionCategory, isEnabled: Bool) -> some View {
+        let isCategoryLoading = isLoadingActionReminders || loadingReminderCategories.contains(category)
+
         VStack(alignment: .leading, spacing: 6) {
             Text(L10n.Settings.nextReminderLabel)
                 .font(.footnote)
@@ -663,7 +705,7 @@ private extension SettingsView {
                     Text(L10n.Settings.nextReminderDisabled)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                } else if isLoadingActionReminders {
+                } else if isCategoryLoading {
                     HStack(spacing: 8) {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle())
