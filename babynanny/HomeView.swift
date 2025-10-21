@@ -736,7 +736,7 @@ private struct ActionReminderDelayDialog: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.black.opacity(0.05), lineWidth: 1)
+                .stroke(category.accentColor, lineWidth: 1)
         )
     }
 
