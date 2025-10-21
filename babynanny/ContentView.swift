@@ -12,6 +12,7 @@ struct ContentView: View {
     @EnvironmentObject private var appDataStack: AppDataStack
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
+    @Environment(\.safeAreaInsets) private var safeAreaInsets
     @State private var selectedTab: Tab = .home
     @State private var previousTab: Tab = .home
     @State private var isMenuVisible = false
@@ -25,57 +26,116 @@ struct ContentView: View {
         cloudStatusController.status == .available && appDataStack.cloudSyncEnabled
     }
 
+    private var tabVerticalPadding: CGFloat {
+        10 + safeAreaInsets.bottom / 2
+    }
+
     var body: some View {
         ZStack(alignment: .leading) {
             NavigationStack {
-                VStack(spacing: 0) {
-                    AnimatedTabContent(
-                        selectedTab: selectedTab,
-                        previousTab: previousTab,
-                        onShowAllLogs: { showAllLogs = true }
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .postHogLabel("tab.swipeContent")
-                    .simultaneousGesture(
-                        DragGesture(minimumDistance: 30, coordinateSpace: .local)
-                            .onEnded { value in
-                                let horizontal = value.translation.width
-                                let vertical = value.translation.height
+                AnimatedTabContent(
+                    selectedTab: selectedTab,
+                    previousTab: previousTab,
+                    onShowAllLogs: { showAllLogs = true }
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .postHogLabel("tab.swipeContent")
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 30, coordinateSpace: .local)
+                        .onEnded { value in
+                            let horizontal = value.translation.width
+                            let vertical = value.translation.height
 
-                                guard abs(horizontal) > abs(vertical), abs(horizontal) > 40 else { return }
+                            guard abs(horizontal) > abs(vertical), abs(horizontal) > 40 else { return }
 
-                                if horizontal < 0, let nextTab = selectedTab.next {
-                                    Analytics.capture(
-                                        "navigation_swipe_tab_content",
-                                        properties: [
-                                            "direction": "left",
-                                            "target_tab": nextTab.analyticsIdentifier,
-                                            "previous_tab": selectedTab.analyticsIdentifier
-                                        ]
-                                    )
-                                    let oldValue = selectedTab
-                                    previousTab = oldValue
-                                    withAnimation(.easeInOut(duration: 0.3)) {
-                                        selectedTab = nextTab
-                                    }
-                                } else if horizontal > 0, let previous = selectedTab.previous {
-                                    Analytics.capture(
-                                        "navigation_swipe_tab_content",
-                                        properties: [
-                                            "direction": "right",
-                                            "target_tab": previous.analyticsIdentifier,
-                                            "previous_tab": selectedTab.analyticsIdentifier
-                                        ]
-                                    )
-                                    let oldValue = selectedTab
-                                    previousTab = oldValue
-                                    withAnimation(.easeInOut(duration: 0.3)) {
-                                        selectedTab = previous
-                                    }
+                            if horizontal < 0, let nextTab = selectedTab.next {
+                                Analytics.capture(
+                                    "navigation_swipe_tab_content",
+                                    properties: [
+                                        "direction": "left",
+                                        "target_tab": nextTab.analyticsIdentifier,
+                                        "previous_tab": selectedTab.analyticsIdentifier
+                                    ]
+                                )
+                                let oldValue = selectedTab
+                                previousTab = oldValue
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    selectedTab = nextTab
+                                }
+                            } else if horizontal > 0, let previous = selectedTab.previous {
+                                Analytics.capture(
+                                    "navigation_swipe_tab_content",
+                                    properties: [
+                                        "direction": "right",
+                                        "target_tab": previous.analyticsIdentifier,
+                                        "previous_tab": selectedTab.analyticsIdentifier
+                                    ]
+                                )
+                                let oldValue = selectedTab
+                                previousTab = oldValue
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    selectedTab = previous
                                 }
                             }
-                    )
+                        }
+                )
+                .disabled(isMenuVisible)
+            }
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text(profileStore.activeProfile.displayName)
+                        .font(.headline)
+                }
 
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        Analytics.capture(
+                            "navigation_toggle_menu_toolbar",
+                            properties: ["is_open": isMenuVisible ? "true" : "false"]
+                        )
+                        withAnimation(.easeInOut) {
+                            isMenuVisible.toggle()
+                        }
+                    } label: {
+                        Image(systemName: "line.3.horizontal")
+                    }
+                    .postHogLabel("toolbar.menu")
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 36)
+                        .phOnTapCapture(
+                            event: "profile_open_switcher_toolbar",
+                            properties: [
+                                "profile_id": profileStore.activeProfile.id.uuidString
+                            ]
+                        ) {
+                            isProfileSwitcherPresented = true
+                        }
+                    .postHogLabel("toolbar.profileSwitcher")
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $showSettings) {
+                SettingsView()
+            }
+            .navigationDestination(isPresented: $showAllLogs) {
+                AllLogsView()
+            }
+            .navigationDestination(isPresented: $showShareProfile) {
+                ShareProfilePage(profileID: profileStore.activeProfile.id)
+            }
+            .navigationDestination(
+                isPresented: Binding(
+                    get: { shareDataCoordinator.isShowingShareData },
+                    set: { shareDataCoordinator.isShowingShareData = $0 }
+                )
+            ) {
+                ShareDataView()
+            }
+            }
+            .safeAreaInset(edge: .bottom) {
+                VStack(spacing: 0) {
                     Divider()
 
                     HStack(spacing: 0) {
@@ -87,7 +147,7 @@ struct ContentView: View {
                                 Text(tab.title)
                                     .font(.footnote)
                             }
-                            .padding(.vertical, 10)
+                            .padding(.vertical, tabVerticalPadding)
                             .foregroundStyle(selectedTab == tab ? Color.accentColor : Color.secondary)
                             .frame(maxWidth: .infinity)
                             .contentShape(Rectangle())
@@ -106,64 +166,11 @@ struct ContentView: View {
                                 }
                             }
                             .postHogLabel(tab.postHogLabel)
-                            .frame(maxWidth: .infinity)
                         }
                     }
-                    .background(.ultraThinMaterial)
+                    .frame(maxWidth: .infinity)
                 }
-                .disabled(isMenuVisible)
-                .toolbar {
-                    ToolbarItem(placement: .principal) {
-                        Text(profileStore.activeProfile.displayName)
-                            .font(.headline)
-                    }
-
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            Analytics.capture(
-                                "navigation_toggle_menu_toolbar",
-                                properties: ["is_open": isMenuVisible ? "true" : "false"]
-                            )
-                            withAnimation(.easeInOut) {
-                                isMenuVisible.toggle()
-                            }
-                        } label: {
-                            Image(systemName: "line.3.horizontal")
-                        }
-                        .postHogLabel("toolbar.menu")
-                    }
-
-                    ToolbarItem(placement: .topBarTrailing) {
-                        ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 36)
-                            .phOnTapCapture(
-                                event: "profile_open_switcher_toolbar",
-                                properties: [
-                                    "profile_id": profileStore.activeProfile.id.uuidString
-                                ]
-                            ) {
-                                isProfileSwitcherPresented = true
-                            }
-                        .postHogLabel("toolbar.profileSwitcher")
-                    }
-                }
-                .navigationBarTitleDisplayMode(.inline)
-                .navigationDestination(isPresented: $showSettings) {
-                    SettingsView()
-                }
-                .navigationDestination(isPresented: $showAllLogs) {
-                    AllLogsView()
-                }
-                .navigationDestination(isPresented: $showShareProfile) {
-                    ShareProfilePage(profileID: profileStore.activeProfile.id)
-                }
-                .navigationDestination(
-                    isPresented: Binding(
-                        get: { shareDataCoordinator.isShowingShareData },
-                        set: { shareDataCoordinator.isShowingShareData = $0 }
-                    )
-                ) {
-                    ShareDataView()
-                }
+                .background(.ultraThinMaterial)
             }
             .sheet(isPresented: $isProfileSwitcherPresented) {
                 ProfileSwitcherView()
