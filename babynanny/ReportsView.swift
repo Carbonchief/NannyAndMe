@@ -151,7 +151,7 @@ struct ReportsView: View {
                             Image(systemName: "square.and.arrow.up")
                                 .font(.system(size: 16, weight: .semibold))
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.plain)
                         .postHogLabel("reports.shareChartButton.dailyTrend")
                         .accessibilityLabel(L10n.Stats.shareChartAccessibility)
                     }
@@ -247,7 +247,7 @@ struct ReportsView: View {
                         Image(systemName: "square.and.arrow.up")
                             .font(.system(size: 16, weight: .semibold))
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.plain)
                     .postHogLabel("reports.shareChartButton.dailyPattern")
                     .accessibilityLabel(L10n.Stats.shareChartAccessibility)
                 }
