@@ -614,13 +614,12 @@ private struct ReminderAuthorizationAlert: Identifiable {
 
 private struct ActionReminderDelaySheet: View {
     let category: BabyActionCategory
-    let initialDelay: TimeInterval
     let delayRange: ClosedRange<TimeInterval>
     let onConfirm: (TimeInterval) -> Void
     let onCancel: () -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var duration: Duration
+    @State private var selectedDelay: TimeInterval
 
     init(category: BabyActionCategory,
          initialDelay: TimeInterval,
@@ -628,60 +627,69 @@ private struct ActionReminderDelaySheet: View {
          onConfirm: @escaping (TimeInterval) -> Void,
          onCancel: @escaping () -> Void) {
         self.category = category
-        self.initialDelay = initialDelay
         self.delayRange = delayRange
         self.onConfirm = onConfirm
         self.onCancel = onCancel
-        _duration = State(initialValue: Self.duration(from: initialDelay, within: delayRange))
+        _selectedDelay = State(initialValue: Self.normalizedDelay(initialDelay, within: delayRange))
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    Text(L10n.Home.customReminderMessage(category.title))
-                        .multilineTextAlignment(.leading)
-                }
+        VStack(spacing: 24) {
+            Capsule()
+                .fill(Color.secondary.opacity(0.3))
+                .frame(width: 36, height: 4)
+                .padding(.top, 8)
 
-                Section(header: Text(L10n.Home.customReminderDelayLabel),
-                        footer: Text(L10n.Home.customReminderOnceHelp)) {
-                    ActionReminderDelayStepper(duration: $duration,
-                                                delayRange: delayRange)
-                }
-            }
-            .navigationTitle(L10n.Home.customReminderTitle)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.Common.cancel) {
-                        onCancel()
-                        dismiss()
-                    }
-                    .postHogLabel("home.customReminder.cancel")
-                }
+            VStack(spacing: 8) {
+                Text(L10n.Home.customReminderTitle)
+                    .font(.headline)
 
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.Home.customReminderSchedule) {
-                        let selectedDelay = Self.timeInterval(from: duration, within: delayRange)
-                        onConfirm(selectedDelay)
-                        dismiss()
-                    }
-                    .postHogLabel("home.customReminder.schedule")
-                }
+                Text(L10n.Home.customReminderMessage(category.title))
+                    .font(.subheadline)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
             }
+
+            VStack(spacing: 12) {
+                Text(L10n.Home.customReminderDelayLabel)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+
+                CountdownDialer(delay: $selectedDelay, delayRange: delayRange)
+                    .frame(height: 216)
+                    .postHogLabel("home.customReminder.dialer")
+
+                Text(Self.formattedDuration(selectedDelay))
+                    .font(.title2.weight(.semibold))
+            }
+
+            Text(L10n.Home.customReminderOnceHelp)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            HStack(spacing: 16) {
+                Button(L10n.Common.cancel) {
+                    onCancel()
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+                .postHogLabel("home.customReminder.cancel")
+
+                Button(L10n.Home.customReminderSchedule) {
+                    let selected = Self.normalizedDelay(selectedDelay, within: delayRange)
+                    onConfirm(selected)
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .postHogLabel("home.customReminder.schedule")
+            }
+            .padding(.bottom, 12)
         }
-    }
-
-    private static func duration(from delay: TimeInterval,
-                                 within range: ClosedRange<TimeInterval>) -> Duration {
-        let normalized = normalizedDelay(delay, within: range)
-        return .seconds(Int64(normalized))
-    }
-
-    static func timeInterval(from duration: Duration,
-                             within range: ClosedRange<TimeInterval>) -> TimeInterval {
-        let components = duration.components
-        let seconds = Double(components.seconds) + Double(components.attoseconds) / 1_000_000_000_000_000_000
-        return normalizedDelay(seconds, within: range)
+        .padding(.horizontal, 24)
+        .padding(.bottom, 12)
+        .presentationDetents([.fraction(0.55), .large])
+        .presentationDragIndicator(.hidden)
     }
 
     static func normalizedDelay(_ delay: TimeInterval,
@@ -690,45 +698,16 @@ private struct ActionReminderDelaySheet: View {
         let stepped = (clamped / customReminderDelayStep).rounded() * customReminderDelayStep
         return min(max(stepped, range.lowerBound), range.upperBound)
     }
-}
 
-private struct ActionReminderDelayStepper: View {
-    @Binding var duration: Duration
-    let delayRange: ClosedRange<TimeInterval>
-
-    private var secondsBinding: Binding<Int> {
-        Binding(
-            get: {
-                Int(ActionReminderDelaySheet.timeInterval(from: duration, within: delayRange))
-            },
-            set: { newValue in
-                let normalized = ActionReminderDelaySheet.normalizedDelay(TimeInterval(newValue),
-                                                                          within: delayRange)
-                duration = .seconds(Int64(normalized))
-            }
-        )
-    }
-
-    var body: some View {
-        Stepper(
-            value: secondsBinding,
-            in: Int(delayRange.lowerBound)...Int(delayRange.upperBound),
-            step: Int(customReminderDelayStep)
-        ) {
-            Text(Self.formattedLabel(for: secondsBinding.wrappedValue))
-        }
-        .postHogLabel("home.customReminder.duration")
-    }
-
-    private static func formattedLabel(for seconds: Int) -> String {
+    private static func formattedDuration(_ seconds: TimeInterval) -> String {
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = seconds >= 3600 ? [.hour, .minute] : [.minute]
-        formatter.unitsStyle = .short
+        formatter.unitsStyle = .full
         formatter.zeroFormattingBehavior = [.dropAll]
-        if let formatted = formatter.string(from: TimeInterval(seconds)), !formatted.isEmpty {
+        if let formatted = formatter.string(from: seconds), !formatted.isEmpty {
             return formatted
         }
-        let minutes = max(1, seconds / 60)
+        let minutes = max(1, Int(seconds / 60))
         let measurement = Measurement(value: Double(minutes), unit: UnitDuration.minutes)
         return measurementFormatter.string(from: measurement)
     }
@@ -736,9 +715,55 @@ private struct ActionReminderDelayStepper: View {
     private static let measurementFormatter: MeasurementFormatter = {
         let formatter = MeasurementFormatter()
         formatter.unitOptions = .providedUnit
-        formatter.unitStyle = .short
+        formatter.unitStyle = .long
         return formatter
     }()
+
+    private struct CountdownDialer: UIViewRepresentable {
+        @Binding var delay: TimeInterval
+        let delayRange: ClosedRange<TimeInterval>
+
+        func makeUIView(context: Context) -> UIDatePicker {
+            let picker = UIDatePicker()
+            picker.datePickerMode = .countDownTimer
+            picker.minuteInterval = max(1, Int(customReminderDelayStep / 60))
+            picker.countDownDuration = ActionReminderDelaySheet.normalizedDelay(delay,
+                                                                                within: delayRange)
+            picker.addTarget(context.coordinator,
+                             action: #selector(Coordinator.valueChanged(_:)),
+                             for: .valueChanged)
+            return picker
+        }
+
+        func updateUIView(_ uiView: UIDatePicker, context: Context) {
+            let normalized = ActionReminderDelaySheet.normalizedDelay(delay, within: delayRange)
+            if abs(uiView.countDownDuration - normalized) > 0.5 {
+                uiView.countDownDuration = normalized
+            }
+        }
+
+        func makeCoordinator() -> Coordinator {
+            Coordinator(parent: self)
+        }
+
+        final class Coordinator: NSObject {
+            private let parent: CountdownDialer
+
+            init(parent: CountdownDialer) {
+                self.parent = parent
+            }
+
+            @objc
+            func valueChanged(_ sender: UIDatePicker) {
+                let normalized = ActionReminderDelaySheet.normalizedDelay(sender.countDownDuration,
+                                                                          within: parent.delayRange)
+                if abs(normalized - sender.countDownDuration) > 0.5 {
+                    sender.countDownDuration = normalized
+                }
+                parent.delay = normalized
+            }
+        }
+    }
 }
 
 private struct ActionCard: View {
