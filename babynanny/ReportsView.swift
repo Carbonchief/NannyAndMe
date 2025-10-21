@@ -1656,7 +1656,7 @@ private func calendarTimeRange(for action: BabyActionSnapshot, dayStart: Date, d
         return intervalStart.formatted(summaryTimeFormatStyle)
     }
 
-    return summaryIntervalFormatter.format(intervalStart...intervalEnd)
+    return summaryIntervalFormatter.format(intervalStart..<intervalEnd)
 }
 
 private struct StatCard: View {
