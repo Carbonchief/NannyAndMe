@@ -868,6 +868,72 @@ enum L10n {
             )
             return String(format: format, locale: Locale.current, focus)
         }
+
+        static let calendarTabLabel = String(localized: "stats.calendar.tabLabel", defaultValue: "Calendar")
+
+        static func calendarSummaryTitle(_ date: String) -> String {
+            let format = String(localized: "stats.calendar.summary.title", defaultValue: "Summary for %@")
+            return String(format: format, locale: Locale.current, date)
+        }
+
+        static func calendarSummaryCount(_ count: Int) -> String {
+            if count == 1 {
+                return String(localized: "stats.calendar.summary.count.one", defaultValue: "1 log recorded")
+            }
+
+            let format = String(localized: "stats.calendar.summary.count", defaultValue: "%lld logs recorded")
+            return String(format: format, locale: Locale.current, count)
+        }
+
+        static let calendarEmptyTitle = String(
+            localized: "stats.calendar.summary.empty",
+            defaultValue: "No logs recorded for this day yet."
+        )
+
+        static func calendarSleepSubtitle(_ sessions: Int) -> String {
+            let format = String(localized: "stats.calendar.sleep.subtitle", defaultValue: "Across %lld sessions")
+            return String(format: format, locale: Locale.current, sessions)
+        }
+
+        static func calendarFeedingSubtitle(_ volume: Int) -> String {
+            let format = String(localized: "stats.calendar.feeding.subtitle", defaultValue: "Bottle total: %lld ml")
+            return String(format: format, locale: Locale.current, volume)
+        }
+
+        static let calendarFeedingSubtitleNoBottle = String(
+            localized: "stats.calendar.feeding.subtitle.noBottle",
+            defaultValue: "No bottle feeds logged"
+        )
+
+        static let calendarDiaperSubtitle = String(
+            localized: "stats.calendar.diaper.subtitle",
+            defaultValue: "Changes logged"
+        )
+
+        static let calendarTotalTitle = String(
+            localized: "stats.calendar.total.title",
+            defaultValue: "Total Logs"
+        )
+
+        static let calendarTotalSubtitle = String(
+            localized: "stats.calendar.total.subtitle",
+            defaultValue: "Across all activities"
+        )
+
+        static let calendarTimelineTitle = String(
+            localized: "stats.calendar.timeline.title",
+            defaultValue: "Logged actions"
+        )
+
+        static let calendarDurationZero = String(
+            localized: "stats.calendar.duration.zero",
+            defaultValue: "0m"
+        )
+
+        static let calendarDatePickerLabel = String(
+            localized: "stats.calendar.datePicker.label",
+            defaultValue: "Select a date"
+        )
     }
 
     enum Actions {
