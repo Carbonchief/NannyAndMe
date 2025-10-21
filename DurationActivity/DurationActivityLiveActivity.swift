@@ -51,7 +51,7 @@ struct DurationLiveActivityWidget: Widget {
                                 .privacySensitive()
                         }
 
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        HStack(alignment: .center, spacing: 8) {
                             Text(resolvedActionLabel(for: context))
                                 .font(.subheadline.weight(.semibold))
                                 .privacySensitive()
@@ -78,12 +78,7 @@ struct DurationLiveActivityWidget: Widget {
                 actionIconView(for: context)
             },
             compactTrailing: {
-                Text("00:00:").hidden().overlay(alignment: .leading) {
-                    durationText(for: context)
-                        .font(.caption2.monospacedDigit())
-                        .privacySensitive()
-                    
-                }
+                Text("00:00:00").hidden().overlay(alignment: .leading) { durationText(for: context) .font(.caption2.monospacedDigit()) .privacySensitive() }
             },
             minimal: {
                 actionIconView(for: context)
