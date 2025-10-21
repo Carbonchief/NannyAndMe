@@ -229,6 +229,7 @@
 "logs.filter.summary.categoryDetail" = "%@ logs";
 "logs.filter.summary.combined" = "%@ · %@";
 "logs.entry.title" = "%@. %@. %@";
+"logs.entry.title.noDuration" = "%@. %@";
 "logs.summary.sleep" = "sleep";
 "logs.summary.diaperWithType" = "diaper - %@";
 "logs.summary.diaper" = "diaper";
