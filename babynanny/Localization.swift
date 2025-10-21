@@ -83,6 +83,52 @@ enum L10n {
         static let recentActivityShowAll = String(localized: "home.recentActivity.showAll", defaultValue: "Show All")
         static let placeholder = String(localized: "home.header.placeholder", defaultValue: "Start an action below to begin tracking your baby's day.")
         static let noEntries = String(localized: "home.noEntries", defaultValue: "No entries yet")
+        static let customReminderTitle = String(localized: "home.customReminder.title", defaultValue: "Schedule reminder")
+
+        static func customReminderMessage(_ category: String) -> String {
+            let format = String(
+                localized: "home.customReminder.message",
+                defaultValue: "How long should we wait before reminding you about the next %@ action?"
+            )
+            return String(format: format, locale: Locale.current, category)
+        }
+
+        static let customReminderDelayLabel = String(
+            localized: "home.customReminder.delayLabel",
+            defaultValue: "Reminder delay"
+        )
+        static let customReminderHelp = String(
+            localized: "home.customReminder.help",
+            defaultValue: "Choose when the reminder should fire."
+        )
+        static let customReminderOnceHelp = String(
+            localized: "home.customReminder.onceHelp",
+            defaultValue: "This reminder will not update automatically after you log the next action."
+        )
+        static let customReminderSchedule = String(
+            localized: "home.customReminder.schedule",
+            defaultValue: "Schedule"
+        )
+        static let customReminderEnableTitle = String(
+            localized: "home.customReminder.enableTitle",
+            defaultValue: "Turn on reminders?"
+        )
+        static let customReminderEnableMessage = String(
+            localized: "home.customReminder.enableMessage",
+            defaultValue: "Reminders are currently turned off. Enable them to reuse your default schedule or schedule a one-off reminder."
+        )
+        static let customReminderEnableAction = String(
+            localized: "home.customReminder.enableAction",
+            defaultValue: "Enable reminders"
+        )
+        static let customReminderOnceAction = String(
+            localized: "home.customReminder.onceAction",
+            defaultValue: "Schedule once"
+        )
+        static let customReminderAuthorizationDenied = String(
+            localized: "home.customReminder.authorizationDenied",
+            defaultValue: "Notifications are currently turned off for Nanny & Me. Enable notifications in Settings to receive reminders."
+        )
         static let editActionButton = String(localized: "home.header.edit", defaultValue: "Edit")
         static let sleepInfo = String(localized: "home.sleep.info", defaultValue: "Start tracking a sleep session. Stop it when your little one wakes up to capture the total rest time.")
         static let diaperTypeSectionTitle = String(localized: "home.diaper.sectionTitle", defaultValue: "Diaper type")

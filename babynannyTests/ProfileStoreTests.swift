@@ -42,6 +42,24 @@ struct ProfileStoreTests {
     }
 
     @Test
+    func schedulingCustomReminderStoresOverride() async throws {
+        let scheduler = MockReminderScheduler(authorizationResult: true)
+        let profile = ChildProfile(name: "Ivy", birthDate: Date(), remindersEnabled: true)
+        let store = await ProfileStore(
+            initialProfiles: [profile],
+            activeProfileID: profile.id,
+            reminderScheduler: scheduler
+        )
+
+        await store.scheduleCustomActionReminder(for: .feeding, delay: 600, isOneOff: false)
+
+        let activeProfile = await store.activeProfile
+        let override = try #require(activeProfile.actionReminderOverride(for: .feeding))
+        #expect(override.isOneOff == false)
+        #expect(override.fireDate.timeIntervalSinceNow > 500)
+    }
+
+    @Test
     func addProfileStoresProvidedImage() async throws {
         let scheduler = MockReminderScheduler(authorizationResult: true)
         let store = await ProfileStore(
@@ -115,6 +133,33 @@ struct ProfileStoreTests {
         let removedState = await actionStore.state(for: profileA.id)
         #expect(removedState.history.isEmpty)
         #expect(removedState.activeActions.isEmpty)
+    }
+
+    @Test
+    func loggingActionClearsCustomReminderOverride() async throws {
+        let stack = await AppDataStack(modelContainer: AppDataStack.makeModelContainer(inMemory: true))
+        let actionStore = await ActionLogStore(modelContext: stack.mainContext, dataStack: stack)
+        let scheduler = MockReminderScheduler(authorizationResult: true)
+        let profile = ChildProfile(name: "Luca", birthDate: Date(), remindersEnabled: true)
+        let store = await ProfileStore(
+            initialProfiles: [profile],
+            activeProfileID: profile.id,
+            reminderScheduler: scheduler
+        )
+
+        await store.registerActionStore(actionStore)
+        await actionStore.registerProfileStore(store)
+
+        await store.scheduleCustomActionReminder(for: .feeding, delay: 600, isOneOff: false)
+        let scheduledOverride = await store.activeProfile.actionReminderOverride(for: .feeding)
+        #expect(scheduledOverride != nil)
+
+        await actionStore.startAction(for: profile.id, category: .feeding)
+        await actionStore.stopAction(for: profile.id, category: .feeding)
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        let updatedProfile = await store.activeProfile
+        #expect(updatedProfile.actionReminderOverride(for: .feeding) == nil)
     }
 
     @Test

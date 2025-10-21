@@ -17,6 +17,9 @@ struct HomeView: View {
     @State private var pendingStartAction: PendingStartAction?
     @State private var categoryClearedForSheet: BabyActionCategory?
     @State private var throttledCategories: Set<BabyActionCategory> = []
+    @State private var reminderPrompt: ReminderPromptState?
+    @State private var reminderPermissionCategory: BabyActionCategory?
+    @State private var reminderError: ReminderError?
     private let onShowAllLogs: () -> Void
 
     init(onShowAllLogs: @escaping () -> Void = {}) {
@@ -45,6 +48,23 @@ struct HomeView: View {
                 editingAction = nil
             }
         }
+        .sheet(item: $reminderPrompt) { prompt in
+            ActionReminderDelaySheet(
+                category: prompt.category,
+                isOneOff: prompt.isOneOff,
+                initialDelay: prompt.initialDelay,
+                delayRange: ProfileStore.customReminderDelayRange
+            ) { selectedDelay in
+                scheduleReminder(for: prompt.category,
+                                 delay: selectedDelay,
+                                 isOneOff: prompt.isOneOff)
+            } onCancel: {
+                Analytics.capture(
+                    "home_cancel_custom_action_reminder",
+                    properties: ["category": prompt.category.rawValue]
+                )
+            }
+        }
         .alert(item: $pendingStartAction) { pending in
             let runningList = ListFormatter.localizedString(byJoining: pending.interruptedActionTitles)
             return Alert(
@@ -67,6 +87,47 @@ struct HomeView: View {
                 }
             )
         }
+        .confirmationDialog(L10n.Home.customReminderEnableTitle,
+                            item: $reminderPermissionCategory,
+                            titleVisibility: .visible) { category in
+            Button(L10n.Home.customReminderEnableAction) {
+                reminderPermissionCategory = nil
+                Analytics.capture(
+                    "home_enable_reminders_prompt",
+                    properties: ["category": category.rawValue]
+                )
+                enableRemindersAndPrompt(for: category)
+            }
+            .postHogLabel("home.customReminder.enable")
+
+            Button(L10n.Home.customReminderOnceAction) {
+                reminderPermissionCategory = nil
+                Analytics.capture(
+                    "home_once_off_custom_action_reminder",
+                    properties: ["category": category.rawValue]
+                )
+                showReminderSheet(for: category, isOneOff: true)
+            }
+            .postHogLabel("home.customReminder.once")
+
+            Button(L10n.Common.cancel, role: .cancel) {
+                reminderPermissionCategory = nil
+                Analytics.capture(
+                    "home_cancel_enable_reminders_prompt",
+                    properties: ["category": category.rawValue]
+                )
+            }
+            .postHogLabel("home.customReminder.permissionCancel")
+        } message: { _ in
+            Text(L10n.Home.customReminderEnableMessage)
+        }
+        .alert(item: $reminderError) { error in
+            Alert(
+                title: Text(L10n.Home.customReminderTitle),
+                message: Text(error.message),
+                dismissButton: .default(Text(L10n.Common.close))
+            )
+        }
     }
 
     @ViewBuilder
@@ -86,7 +147,8 @@ struct HomeView: View {
                             lastCompleted: state.lastCompletedAction(for: category),
                             isInteractionDisabled: throttledCategories.contains(category),
                             onStart: { handleStartTap(for: category) },
-                            onStop: { handleStopTap(for: category) }
+                            onStop: { handleStopTap(for: category) },
+                            onLongPress: { handleReminderLongPress(for: category) }
                         )
                     }
                 }
@@ -385,6 +447,98 @@ struct HomeView: View {
         return true
     }
 
+    private func handleReminderLongPress(for category: BabyActionCategory) {
+        Analytics.capture(
+            "home_long_press_action_card",
+            properties: ["category": category.rawValue]
+        )
+
+        if profileStore.activeProfile.remindersEnabled {
+            showReminderSheet(for: category, isOneOff: false)
+        } else {
+            reminderPermissionCategory = category
+        }
+    }
+
+    private func showReminderSheet(for category: BabyActionCategory, isOneOff: Bool) {
+        let initialDelay = defaultReminderDelay(for: category)
+        reminderPrompt = ReminderPromptState(category: category,
+                                             isOneOff: isOneOff,
+                                             initialDelay: initialDelay)
+
+        Analytics.capture(
+            "home_open_custom_action_reminder",
+            properties: [
+                "category": category.rawValue,
+                "is_one_off": isOneOff
+            ]
+        )
+    }
+
+    private func enableRemindersAndPrompt(for category: BabyActionCategory) {
+        Task { @MainActor in
+            let result = await profileStore.setRemindersEnabled(true)
+
+            switch result {
+            case .enabled:
+                Analytics.capture(
+                    "home_enable_reminders_prompt_result",
+                    properties: [
+                        "category": category.rawValue,
+                        "result": "enabled"
+                    ]
+                )
+                showReminderSheet(for: category, isOneOff: false)
+            case .authorizationDenied:
+                Analytics.capture(
+                    "home_enable_reminders_prompt_result",
+                    properties: [
+                        "category": category.rawValue,
+                        "result": "denied"
+                    ]
+                )
+                reminderError = ReminderError(message: L10n.Home.customReminderAuthorizationDenied)
+                showReminderSheet(for: category, isOneOff: true)
+            case .disabled:
+                Analytics.capture(
+                    "home_enable_reminders_prompt_result",
+                    properties: [
+                        "category": category.rawValue,
+                        "result": "disabled"
+                    ]
+                )
+                showReminderSheet(for: category, isOneOff: true)
+            }
+        }
+    }
+
+    private func scheduleReminder(for category: BabyActionCategory,
+                                  delay: TimeInterval,
+                                  isOneOff: Bool) {
+        let clampedDelay = clampReminderDelay(delay)
+        profileStore.scheduleCustomActionReminder(for: category,
+                                                  delay: clampedDelay,
+                                                  isOneOff: isOneOff)
+
+        Analytics.capture(
+            "home_schedule_custom_action_reminder",
+            properties: [
+                "category": category.rawValue,
+                "delay_minutes": clampedDelay / 60,
+                "is_one_off": isOneOff
+            ]
+        )
+    }
+
+    private func defaultReminderDelay(for category: BabyActionCategory) -> TimeInterval {
+        clampReminderDelay(profileStore.activeProfile.reminderInterval(for: category))
+    }
+
+    private func clampReminderDelay(_ delay: TimeInterval) -> TimeInterval {
+        let range = ProfileStore.customReminderDelayRange
+        return min(max(delay, range.lowerBound), range.upperBound)
+    }
+
     private var activeProfileID: UUID {
         profileStore.activeProfile.id
     }
@@ -503,6 +657,97 @@ private extension HomeView {
     }
 }
 
+private struct ReminderPromptState: Identifiable {
+    let id = UUID()
+    let category: BabyActionCategory
+    let isOneOff: Bool
+    let initialDelay: TimeInterval
+}
+
+private struct ReminderError: Identifiable {
+    let id = UUID()
+    let message: String
+}
+
+private struct ActionReminderDelaySheet: View {
+    let category: BabyActionCategory
+    let isOneOff: Bool
+    let initialDelay: TimeInterval
+    let delayRange: ClosedRange<TimeInterval>
+    let onConfirm: (TimeInterval) -> Void
+    let onCancel: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var duration: Duration
+
+    init(category: BabyActionCategory,
+         isOneOff: Bool,
+         initialDelay: TimeInterval,
+         delayRange: ClosedRange<TimeInterval>,
+         onConfirm: @escaping (TimeInterval) -> Void,
+         onCancel: @escaping () -> Void) {
+        self.category = category
+        self.isOneOff = isOneOff
+        self.initialDelay = initialDelay
+        self.delayRange = delayRange
+        self.onConfirm = onConfirm
+        self.onCancel = onCancel
+        _duration = State(initialValue: Self.duration(from: initialDelay, within: delayRange))
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(L10n.Home.customReminderMessage(category.title))
+                        .multilineTextAlignment(.leading)
+                }
+
+                Section(header: Text(L10n.Home.customReminderDelayLabel),
+                        footer: Text(isOneOff ? L10n.Home.customReminderOnceHelp : L10n.Home.customReminderHelp)) {
+                    DurationPicker(L10n.Home.customReminderDelayLabel,
+                                   selection: $duration,
+                                   displayedComponents: [.hours, .minutes])
+                        .postHogLabel("home.customReminder.duration")
+                }
+            }
+            .navigationTitle(L10n.Home.customReminderTitle)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.Common.cancel) {
+                        onCancel()
+                        dismiss()
+                    }
+                    .postHogLabel("home.customReminder.cancel")
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.Home.customReminderSchedule) {
+                        let selectedDelay = Self.timeInterval(from: duration, within: delayRange)
+                        onConfirm(selectedDelay)
+                        dismiss()
+                    }
+                    .postHogLabel("home.customReminder.schedule")
+                }
+            }
+        }
+    }
+
+    private static func duration(from delay: TimeInterval,
+                                 within range: ClosedRange<TimeInterval>) -> Duration {
+        let clamped = min(max(delay, range.lowerBound), range.upperBound)
+        return .seconds(Int64(clamped.rounded()))
+    }
+
+    private static func timeInterval(from duration: Duration,
+                                     within range: ClosedRange<TimeInterval>) -> TimeInterval {
+        let components = duration.components
+        let seconds = Double(components.seconds) + Double(components.attoseconds) / 1_000_000_000_000_000_000
+        let clamped = min(max(seconds, range.lowerBound), range.upperBound)
+        return clamped
+    }
+}
+
 private struct ActionCard: View {
     let category: BabyActionCategory
     let activeAction: BabyActionSnapshot?
@@ -510,6 +755,9 @@ private struct ActionCard: View {
     let isInteractionDisabled: Bool
     let onStart: () -> Bool
     let onStop: () -> Bool
+    let onLongPress: () -> Void
+
+    @State private var didTriggerLongPress = false
 
     private var isActive: Bool { activeAction != nil }
 
@@ -530,6 +778,12 @@ private struct ActionCard: View {
 
     var body: some View {
         Button {
+            defer { didTriggerLongPress = false }
+
+            if didTriggerLongPress {
+                return
+            }
+
             if isActive {
                 if onStop() {
                     Analytics.capture(
@@ -597,6 +851,13 @@ private struct ActionCard: View {
         .postHogLabel("home.actionCard.\(category.rawValue)")
         .buttonStyle(.plain)
         .disabled(isInteractionDisabled)
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.6).onEnded { _ in
+                guard isInteractionDisabled == false else { return }
+                didTriggerLongPress = true
+                onLongPress()
+            }
+        )
         .frame(maxWidth: .infinity)
         .aspectRatio(1, contentMode: .fit)
         .contentShape(Rectangle())

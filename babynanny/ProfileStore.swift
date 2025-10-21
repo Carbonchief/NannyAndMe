@@ -7,8 +7,14 @@ struct ChildProfile: Codable, Identifiable, Equatable {
     var birthDate: Date
     var imageData: Data?
     var remindersEnabled: Bool
+    struct ActionReminderOverride: Codable, Equatable, Sendable {
+        var fireDate: Date
+        var isOneOff: Bool
+    }
+
     var actionReminderIntervals: [BabyActionCategory: TimeInterval]
     var actionRemindersEnabled: [BabyActionCategory: Bool]
+    var actionReminderOverrides: [BabyActionCategory: ActionReminderOverride]
 
     init(
         id: UUID = UUID(),
@@ -17,7 +23,8 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         imageData: Data? = nil,
         remindersEnabled: Bool = false,
         actionReminderIntervals: [BabyActionCategory: TimeInterval] = ChildProfile.defaultActionReminderIntervals(),
-        actionRemindersEnabled: [BabyActionCategory: Bool] = ChildProfile.defaultActionRemindersEnabled()
+        actionRemindersEnabled: [BabyActionCategory: Bool] = ChildProfile.defaultActionRemindersEnabled(),
+        actionReminderOverrides: [BabyActionCategory: ActionReminderOverride] = [:]
     ) {
         self.id = id
         self.name = name
@@ -26,6 +33,7 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         self.remindersEnabled = remindersEnabled
         self.actionReminderIntervals = actionReminderIntervals
         self.actionRemindersEnabled = actionRemindersEnabled
+        self.actionReminderOverrides = actionReminderOverrides
         normalizeReminderPreferences()
     }
 
@@ -76,6 +84,7 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         case remindersEnabled
         case actionReminderIntervals
         case actionRemindersEnabled
+        case actionReminderOverrides
     }
 
     init(from decoder: Decoder) throws {
@@ -107,6 +116,19 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         } else {
             actionRemindersEnabled = Self.defaultActionRemindersEnabled()
         }
+
+        if let rawOverrides = try container.decodeIfPresent([String: ActionReminderOverride].self,
+                                                            forKey: .actionReminderOverrides) {
+            let mapped = rawOverrides.reduce(into: [BabyActionCategory: ActionReminderOverride]()) { partialResult, element in
+                let (key, value) = element
+                if let category = BabyActionCategory(rawValue: key) {
+                    partialResult[category] = value
+                }
+            }
+            actionReminderOverrides = mapped
+        } else {
+            actionReminderOverrides = [:]
+        }
         normalizeReminderPreferences()
     }
 
@@ -121,6 +143,8 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         try container.encode(rawIntervals, forKey: .actionReminderIntervals)
         let rawEnabled = Dictionary(uniqueKeysWithValues: actionRemindersEnabled.map { ($0.key.rawValue, $0.value) })
         try container.encode(rawEnabled, forKey: .actionRemindersEnabled)
+        let rawOverrides = Dictionary(uniqueKeysWithValues: actionReminderOverrides.map { ($0.key.rawValue, $0.value) })
+        try container.encode(rawOverrides, forKey: .actionReminderOverrides)
     }
 
     func reminderInterval(for category: BabyActionCategory) -> TimeInterval {
@@ -155,6 +179,8 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         for category in BabyActionCategory.allCases where actionRemindersEnabled[category] == nil {
             actionRemindersEnabled[category] = true
         }
+
+        pruneActionReminderOverrides()
     }
 
     static var defaultActionReminderInterval: TimeInterval { 3 * 60 * 60 }
@@ -165,6 +191,33 @@ struct ChildProfile: Codable, Identifiable, Equatable {
 
     static func defaultActionRemindersEnabled() -> [BabyActionCategory: Bool] {
         Dictionary(uniqueKeysWithValues: BabyActionCategory.allCases.map { ($0, true) })
+    }
+}
+
+extension ChildProfile {
+    mutating func setActionReminderOverride(_ override: ActionReminderOverride?,
+                                            for category: BabyActionCategory,
+                                            referenceDate: Date = Date()) {
+        if let override {
+            actionReminderOverrides[category] = override
+        } else {
+            actionReminderOverrides.removeValue(forKey: category)
+        }
+        pruneActionReminderOverrides(referenceDate: referenceDate)
+    }
+
+    func actionReminderOverride(for category: BabyActionCategory) -> ActionReminderOverride? {
+        actionReminderOverrides[category]
+    }
+
+    mutating func pruneActionReminderOverrides(referenceDate: Date = Date()) {
+        actionReminderOverrides = actionReminderOverrides.filter { _, override in
+            override.fireDate > referenceDate
+        }
+    }
+
+    mutating func clearActionReminderOverride(for category: BabyActionCategory) {
+        actionReminderOverrides.removeValue(forKey: category)
     }
 }
 
@@ -210,6 +263,8 @@ final class ProfileStore: ObservableObject {
         let fireDate: Date
         let message: String
     }
+
+    static let customReminderDelayRange: ClosedRange<TimeInterval> = (5 * 60)...(24 * 60 * 60)
 
     struct ProfileMetadataUpdate: Equatable, Sendable {
         let id: UUID
@@ -333,6 +388,14 @@ final class ProfileStore: ObservableObject {
     func updateActiveProfile(_ updates: (inout ChildProfile) -> Void) {
         guard let activeID = state.activeProfileID,
               let index = state.profiles.firstIndex(where: { $0.id == activeID }) else { return }
+
+        var newState = state
+        updates(&newState.profiles[index])
+        state = Self.sanitized(state: newState, ensureProfileExists: true)
+    }
+
+    func updateProfile(withID id: UUID, updates: (inout ChildProfile) -> Void) {
+        guard let index = state.profiles.firstIndex(where: { $0.id == id }) else { return }
 
         var newState = state
         updates(&newState.profiles[index])
@@ -526,6 +589,36 @@ final class ProfileStore: ObservableObject {
         )
 
         return scheduled ? .scheduled : .authorizationDenied
+    }
+
+    func scheduleCustomActionReminder(for category: BabyActionCategory,
+                                      delay: TimeInterval,
+                                      isOneOff: Bool) {
+        let clampedDelay = Self.clampCustomReminderDelay(delay)
+        let fireDate = Date().addingTimeInterval(clampedDelay)
+
+        updateActiveProfile { profile in
+            profile.setActionReminderOverride(
+                ChildProfile.ActionReminderOverride(fireDate: fireDate, isOneOff: isOneOff),
+                for: category,
+                referenceDate: Date()
+            )
+        }
+    }
+
+    func clearActionReminderOverride(for profileID: UUID, category: BabyActionCategory) {
+        updateProfile(withID: profileID) { profile in
+            profile.clearActionReminderOverride(for: category)
+        }
+    }
+
+    func actionLogged(for profileID: UUID, category: BabyActionCategory) {
+        clearActionReminderOverride(for: profileID, category: category)
+    }
+
+    private static func clampCustomReminderDelay(_ delay: TimeInterval) -> TimeInterval {
+        let range = customReminderDelayRange
+        return min(max(delay, range.lowerBound), range.upperBound)
     }
 
     private func ensureValidState() {
