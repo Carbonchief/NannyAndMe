@@ -679,7 +679,7 @@ struct ReportsView: View {
                 }
             }
         }
-        .frame(height: 220)
+        .frame(height: 280)
     }
 
     private func shareDailyTrendChart(context: DailyTrendShareContext) {
