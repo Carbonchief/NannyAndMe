@@ -3,7 +3,7 @@ import Foundation
 enum L10n {
     enum Tab {
         static let home = String(localized: "tab.home.title", defaultValue: "Home")
-        static let stats = String(localized: "tab.stats.title", defaultValue: "Stats")
+        static let reports = String(localized: "tab.reports.title", defaultValue: "Reports")
     }
 
     enum Common {
