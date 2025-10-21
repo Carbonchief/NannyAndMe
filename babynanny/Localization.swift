@@ -85,12 +85,39 @@ enum L10n {
         static let noEntries = String(localized: "home.noEntries", defaultValue: "No entries yet")
         static let customReminderTitle = String(localized: "home.customReminder.title", defaultValue: "Schedule reminder")
 
-        static func customReminderMessage(for name: String, category: String) -> String {
+        static func customReminderMessage(for name: String, category: BabyActionCategory) -> String {
+            switch category {
+            case .sleep:
+                return customReminderSleepMessage(for: name)
+            case .feeding:
+                return customReminderFeedingMessage(for: name)
+            case .diaper:
+                return customReminderDiaperMessage(for: name)
+            }
+        }
+
+        private static func customReminderSleepMessage(for name: String) -> String {
             let format = String(
-                localized: "home.customReminder.message",
-                defaultValue: "How long should we wait before reminding you about %1$@'s next %2$@ action?"
+                localized: "home.customReminder.message.sleep",
+                defaultValue: "How long should we wait before reminding you that %1$@ needs to sleep?"
             )
-            return String(format: format, locale: Locale.current, name, category)
+            return String(format: format, locale: Locale.current, name)
+        }
+
+        private static func customReminderFeedingMessage(for name: String) -> String {
+            let format = String(
+                localized: "home.customReminder.message.feeding",
+                defaultValue: "How long should we wait before reminding you that %1$@ needs to eat?"
+            )
+            return String(format: format, locale: Locale.current, name)
+        }
+
+        private static func customReminderDiaperMessage(for name: String) -> String {
+            let format = String(
+                localized: "home.customReminder.message.diaper",
+                defaultValue: "How long should we wait before reminding you to change %1$@'s diaper?"
+            )
+            return String(format: format, locale: Locale.current, name)
         }
 
         static let customReminderDelayLabel = String(

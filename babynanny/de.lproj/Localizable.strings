@@ -23,7 +23,9 @@
 "home.header.placeholder" = "Starte unten eine Aktion, um den Tag deines Babys zu verfolgen.";
 "home.noEntries" = "Noch keine Einträge";
 "home.customReminder.title" = "Erinnerung planen";
-"home.customReminder.message" = "Wie lange sollen wir warten, bevor wir dich an %1$@s nächste %2$@-Aktion erinnern?";
+"home.customReminder.message.sleep" = "Wie lange sollen wir warten, bevor wir dich daran erinnern, dass %1$@ schlafen muss?";
+"home.customReminder.message.feeding" = "Wie lange sollen wir warten, bevor wir dich daran erinnern, dass %1$@ essen muss?";
+"home.customReminder.message.diaper" = "Wie lange sollen wir warten, bevor wir dich daran erinnern, %1$@s Windel zu wechseln?";
 "home.customReminder.delayLabel" = "Erinnerungszeit";
 "home.customReminder.schedule" = "Planen";
 "home.customReminder.notificationsDenied.title" = "Benachrichtigungen aktivieren";

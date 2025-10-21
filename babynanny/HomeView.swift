@@ -694,7 +694,7 @@ private struct ActionReminderDelayDialog: View {
                 Text(L10n.Home.customReminderTitle)
                     .font(.headline)
 
-                Text(L10n.Home.customReminderMessage(for: profileName, category: category.title))
+                Text(L10n.Home.customReminderMessage(for: profileName, category: category))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
