@@ -609,21 +609,31 @@ private extension ActionLogStore {
 
     private func handleModelContextChange(reloadFromPersistentStore: Bool) {
         if reloadFromPersistentStore {
-            reloadStateFromPersistentStore()
+            _ = reloadStateFromPersistentStore()
         } else {
             applyModelContextChanges(prefetchedStates: nil)
         }
     }
 
-    private func reloadStateFromPersistentStore() {
+    @discardableResult
+    private func reloadStateFromPersistentStore() -> Task<Void, Never> {
         stateReloadTask?.cancel()
-        stateReloadTask = Task { @MainActor [weak self] in
+        let task = Task { @MainActor [weak self] in
             guard let self else { return }
             defer { self.stateReloadTask = nil }
             let snapshot = await self.actionStatesSnapshot()
             guard Task.isCancelled == false else { return }
             self.applyModelContextChanges(prefetchedStates: snapshot)
         }
+        stateReloadTask = task
+        return task
+    }
+
+    func performUserInitiatedRefresh() async {
+        await dataStack.flushPendingSaves()
+        let reloadTask = reloadStateFromPersistentStore()
+        await reloadTask.value
+        dataStack.requestSyncIfNeeded(reason: .userInitiated)
     }
 
     fileprivate func applyModelContextChanges(prefetchedStates: [UUID: ProfileActionState]? = nil) {

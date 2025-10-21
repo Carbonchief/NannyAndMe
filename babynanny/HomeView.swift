@@ -77,6 +77,14 @@ struct HomeView: View {
             .padding(.top, 8)
             .padding(.bottom, 24)
         }
+        .postHogLabel("home.pullToRefresh")
+        .refreshable {
+            Analytics.capture(
+                "home_pullToRefresh",
+                properties: ["source": "home"]
+            )
+            await actionStore.performUserInitiatedRefresh()
+        }
         .safeAreaInset(edge: .bottom) {
             syncStatusFooter
         }
