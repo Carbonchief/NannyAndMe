@@ -23,9 +23,7 @@ struct AllLogsRowView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(L10n.Logs.entryTitle(timeFormatter.string(from: action.startDate),
-                                               durationDescription,
-                                               actionSummary))
+                    Text(titleText)
                         .font(.subheadline)
                         .foregroundStyle(.primary)
                     if let detail = detailDescription {
@@ -108,5 +106,13 @@ struct AllLogsRowView: View {
             return L10n.Logs.active
         }
         return nil
+    }
+
+    private var titleText: String {
+        let startTime = timeFormatter.string(from: action.startDate)
+        if action.category == .diaper {
+            return L10n.Logs.entryTitleNoDuration(startTime, actionSummary)
+        }
+        return L10n.Logs.entryTitle(startTime, durationDescription, actionSummary)
     }
 }

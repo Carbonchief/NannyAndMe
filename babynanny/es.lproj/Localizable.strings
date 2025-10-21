@@ -225,6 +225,7 @@
 "logs.filter.summary.categoryDetail" = "Registros de %@";
 "logs.filter.summary.combined" = "%@ · %@";
 "logs.entry.title" = "%@. %@. %@";
+"logs.entry.title.noDuration" = "%@. %@";
 "logs.summary.sleep" = "sueño";
 "logs.summary.diaperWithType" = "pañal – %@";
 "logs.summary.diaper" = "pañal";

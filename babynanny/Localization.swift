@@ -727,6 +727,11 @@ enum L10n {
             return String(format: format, locale: Locale.current, startTime, duration, summary)
         }
 
+        static func entryTitleNoDuration(_ startTime: String, _ summary: String) -> String {
+            let format = String(localized: "logs.entry.title.noDuration", defaultValue: "%@. %@")
+            return String(format: format, locale: Locale.current, startTime, summary)
+        }
+
         static func filterSummaryRange(_ start: String, _ end: String) -> String {
             let format = String(localized: "logs.filter.summary.range", defaultValue: "Showing %@ – %@")
             return String(format: format, locale: Locale.current, start, end)

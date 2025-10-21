@@ -225,6 +225,7 @@
 "logs.filter.summary.categoryDetail" = "%@-Einträge";
 "logs.filter.summary.combined" = "%@ · %@";
 "logs.entry.title" = "%@. %@. %@";
+"logs.entry.title.noDuration" = "%@. %@";
 "logs.summary.sleep" = "Schlaf";
 "logs.summary.diaperWithType" = "Windel – %@";
 "logs.summary.diaper" = "Windel";
