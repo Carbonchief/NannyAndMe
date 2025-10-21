@@ -8,6 +8,8 @@
 import Foundation
 import SwiftUI
 
+private let customReminderDelayStep: TimeInterval = 5 * 60
+
 struct HomeView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
@@ -87,9 +89,12 @@ struct HomeView: View {
                 }
             )
         }
-        .confirmationDialog(L10n.Home.customReminderEnableTitle,
-                            item: $reminderPermissionCategory,
-                            titleVisibility: .visible) { category in
+        .confirmationDialog(
+            L10n.Home.customReminderEnableTitle,
+            isPresented: reminderPermissionDialogBinding,
+            titleVisibility: .visible,
+            presenting: reminderPermissionCategory
+        ) { category in
             Button(L10n.Home.customReminderEnableAction) {
                 reminderPermissionCategory = nil
                 Analytics.capture(
@@ -128,6 +133,17 @@ struct HomeView: View {
                 dismissButton: .default(Text(L10n.Common.close))
             )
         }
+    }
+
+    private var reminderPermissionDialogBinding: Binding<Bool> {
+        Binding(
+            get: { reminderPermissionCategory != nil },
+            set: { isPresented in
+                if isPresented == false {
+                    reminderPermissionCategory = nil
+                }
+            }
+        )
     }
 
     @ViewBuilder
@@ -705,10 +721,8 @@ private struct ActionReminderDelaySheet: View {
 
                 Section(header: Text(L10n.Home.customReminderDelayLabel),
                         footer: Text(isOneOff ? L10n.Home.customReminderOnceHelp : L10n.Home.customReminderHelp)) {
-                    DurationPicker(L10n.Home.customReminderDelayLabel,
-                                   selection: $duration,
-                                   displayedComponents: [.hours, .minutes])
-                        .postHogLabel("home.customReminder.duration")
+                    ActionReminderDelayStepper(duration: $duration,
+                                                delayRange: delayRange)
                 }
             }
             .navigationTitle(L10n.Home.customReminderTitle)
@@ -735,17 +749,72 @@ private struct ActionReminderDelaySheet: View {
 
     private static func duration(from delay: TimeInterval,
                                  within range: ClosedRange<TimeInterval>) -> Duration {
-        let clamped = min(max(delay, range.lowerBound), range.upperBound)
-        return .seconds(Int64(clamped.rounded()))
+        let normalized = normalizedDelay(delay, within: range)
+        return .seconds(Int64(normalized))
     }
 
-    private static func timeInterval(from duration: Duration,
-                                     within range: ClosedRange<TimeInterval>) -> TimeInterval {
+    static func timeInterval(from duration: Duration,
+                             within range: ClosedRange<TimeInterval>) -> TimeInterval {
         let components = duration.components
         let seconds = Double(components.seconds) + Double(components.attoseconds) / 1_000_000_000_000_000_000
-        let clamped = min(max(seconds, range.lowerBound), range.upperBound)
-        return clamped
+        return normalizedDelay(seconds, within: range)
     }
+
+    static func normalizedDelay(_ delay: TimeInterval,
+                                within range: ClosedRange<TimeInterval>) -> TimeInterval {
+        let clamped = min(max(delay, range.lowerBound), range.upperBound)
+        let stepped = (clamped / customReminderDelayStep).rounded() * customReminderDelayStep
+        return min(max(stepped, range.lowerBound), range.upperBound)
+    }
+}
+
+private struct ActionReminderDelayStepper: View {
+    @Binding var duration: Duration
+    let delayRange: ClosedRange<TimeInterval>
+
+    private var secondsBinding: Binding<Int> {
+        Binding(
+            get: {
+                Int(ActionReminderDelaySheet.timeInterval(from: duration, within: delayRange))
+            },
+            set: { newValue in
+                let normalized = ActionReminderDelaySheet.normalizedDelay(TimeInterval(newValue),
+                                                                          within: delayRange)
+                duration = .seconds(Int64(normalized))
+            }
+        )
+    }
+
+    var body: some View {
+        Stepper(
+            value: secondsBinding,
+            in: Int(delayRange.lowerBound)...Int(delayRange.upperBound),
+            step: Int(customReminderDelayStep)
+        ) {
+            Text(Self.formattedLabel(for: secondsBinding.wrappedValue))
+        }
+        .postHogLabel("home.customReminder.duration")
+    }
+
+    private static func formattedLabel(for seconds: Int) -> String {
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = seconds >= 3600 ? [.hour, .minute] : [.minute]
+        formatter.unitsStyle = .short
+        formatter.zeroFormattingBehavior = [.dropAll]
+        if let formatted = formatter.string(from: TimeInterval(seconds)), !formatted.isEmpty {
+            return formatted
+        }
+        let minutes = max(1, seconds / 60)
+        let measurement = Measurement(value: Double(minutes), unit: UnitDuration.minutes)
+        return measurementFormatter.string(from: measurement)
+    }
+
+    private static let measurementFormatter: MeasurementFormatter = {
+        let formatter = MeasurementFormatter()
+        formatter.unitOptions = .providedUnit
+        formatter.unitStyle = .short
+        return formatter
+    }()
 }
 
 private struct ActionCard: View {
