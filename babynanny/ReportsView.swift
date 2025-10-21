@@ -80,63 +80,20 @@ struct ReportsView: View {
     }
 
     private func tabHeader() -> some View {
-        HStack {
-            Text(selectedTab.title)
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Spacer()
-        }
-        .padding(.horizontal, 24)
-        .padding(.top, 8)
-        .padding(.bottom, 12)
-        .background(Color(.systemGroupedBackground))
+        Text(selectedTab.title)
+            .font(.title2)
+            .fontWeight(.semibold)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.horizontal, 24)
+            .padding(.top, 8)
+            .padding(.bottom, 12)
+            .background(Color(.systemGroupedBackground))
     }
 
     @ViewBuilder
     private func dailySnapshotSection(for state: ProfileActionState) -> some View {
         let today = todayActions(for: state)
-        headerSection(for: state,
-                      todayActions: today,
-                      focusCategory: resolvedCategory(for: state))
-
         statsGrid(for: state, todayActions: today)
-    }
-
-    private func headerSection(for state: ProfileActionState,
-                               todayActions: [BabyActionSnapshot],
-                               focusCategory: BabyActionCategory) -> some View
-    {
-        HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(L10n.Stats.dailySnapshotTitle)
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Text(L10n.Stats.trackingActivities(todayActions.count, profileStore.activeProfile.displayName))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            focusedCategoryBadge(for: focusCategory)
-        }
-    }
-
-    private func focusedCategoryBadge(for category: BabyActionCategory) -> some View {
-        Label {
-            Text(category.title)
-                .font(.caption)
-                .fontWeight(.semibold)
-        } icon: {
-            Image(systemName: category.icon)
-                .font(.system(size: 14, weight: .semibold))
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(category.accentColor.opacity(0.12), in: Capsule())
-        .foregroundStyle(category.accentColor)
     }
 
     private func tabBar() -> some View {
@@ -249,6 +206,15 @@ struct ReportsView: View {
         let formattedDate = calendarSelectedDate.formatted(date: .long, time: .omitted)
 
         return VStack(alignment: .leading, spacing: 16) {
+            DatePicker(
+                L10n.Stats.calendarDatePickerLabel,
+                selection: $calendarSelectedDate,
+                displayedComponents: .date
+            )
+            .datePickerStyle(.graphical)
+            .labelsHidden()
+            .postHogLabel("reports.calendar.datePicker")
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(L10n.Stats.calendarSummaryTitle(formattedDate))
                     .font(.title2)
@@ -258,15 +224,6 @@ struct ReportsView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
-
-            DatePicker(
-                L10n.Stats.calendarDatePickerLabel,
-                selection: $calendarSelectedDate,
-                displayedComponents: .date
-            )
-            .datePickerStyle(.graphical)
-            .labelsHidden()
-            .postHogLabel("reports.calendar.datePicker")
 
             calendarSummaryCards(for: summary)
 
