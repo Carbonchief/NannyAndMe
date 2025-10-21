@@ -702,7 +702,11 @@ final class ProfileStore: ObservableObject {
 
                 guard importedState.profiles.isEmpty == false else { return }
 
-                let mergedState = merged(localState: currentState, remoteState: importedState)
+                let mergedState = merged(
+                    localState: currentState,
+                    remoteState: importedState,
+                    remoteProfilesWithExplicitReminderStates: snapshot.profilesWithExplicitReminderStates
+                )
 
                 guard mergedState != currentState else { return }
 
@@ -766,7 +770,9 @@ final class ProfileStore: ObservableObject {
         scheduleInitialCloudImport()
     }
 
-    private func merged(localState: ProfileState, remoteState: ProfileState) -> ProfileState {
+    private func merged(localState: ProfileState,
+                        remoteState: ProfileState,
+                        remoteProfilesWithExplicitReminderStates: Set<UUID>) -> ProfileState {
         if didLoadProfilesFromDisk == false && isBootstrapState(localState) {
             return Self.sanitized(state: remoteState, ensureProfileExists: true)
         }
@@ -775,10 +781,15 @@ final class ProfileStore: ObservableObject {
         let localIDs = Set(localState.profiles.map { $0.id })
 
         var combinedProfiles: [ChildProfile] = localState.profiles.map { profile in
-            if let remoteProfile = remoteProfilesByID[profile.id] {
-                return remoteProfile
+            guard var remoteProfile = remoteProfilesByID[profile.id] else {
+                return profile
             }
-            return profile
+
+            if remoteProfilesWithExplicitReminderStates.contains(profile.id) == false {
+                remoteProfile.remindersEnabled = profile.remindersEnabled
+            }
+
+            return remoteProfile
         }
 
         for profile in remoteState.profiles where localIDs.contains(profile.id) == false {
