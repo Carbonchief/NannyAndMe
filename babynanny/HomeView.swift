@@ -861,14 +861,35 @@ extension BabyActionSnapshot.FeedingType: ActionTypeOption {
     }
 }
 
+private extension BabyActionSnapshot.FeedingType {
+    var isBreast: Bool {
+        self == .leftBreast || self == .rightBreast
+    }
+}
+
 private struct ActionTypeSelectionGrid<Option: ActionTypeOption>: View {
     let options: [Option]
     @Binding var selection: Option
     let accentColor: Color
-    var onOptionActivated: ((Option) -> Void)? = nil
+    var onOptionActivated: ((Option) -> Void)?
     let postHogLabelPrefix: String
+    let highlightedOptions: [Option: Alignment]
 
     private let columns: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
+
+    init(options: [Option],
+         selection: Binding<Option>,
+         accentColor: Color,
+         onOptionActivated: ((Option) -> Void)? = nil,
+         postHogLabelPrefix: String,
+         highlightedOptions: [Option: Alignment] = [:]) {
+        self.options = options
+        self._selection = selection
+        self.accentColor = accentColor
+        self.onOptionActivated = onOptionActivated
+        self.postHogLabelPrefix = postHogLabelPrefix
+        self.highlightedOptions = highlightedOptions
+    }
 
     var body: some View {
         LazyVGrid(columns: columns, spacing: 16) {
@@ -901,6 +922,12 @@ private struct ActionTypeSelectionGrid<Option: ActionTypeOption>: View {
                             .multilineTextAlignment(.center)
                             .foregroundStyle(.primary)
                     }
+                    .overlay(alignment: .topLeading) {
+                        badgeView(for: option, alignment: .topLeading)
+                    }
+                    .overlay(alignment: .topTrailing) {
+                        badgeView(for: option, alignment: .topTrailing)
+                    }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 18)
                     .background(
@@ -919,6 +946,17 @@ private struct ActionTypeSelectionGrid<Option: ActionTypeOption>: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: selection)
+    }
+
+    @ViewBuilder
+    private func badgeView(for option: Option, alignment: Alignment) -> some View {
+        if highlightedOptions[option] == alignment {
+            Circle()
+                .fill(Color.orange)
+                .frame(width: 10, height: 10)
+                .padding(.top, 6)
+                .padding(alignment == .topLeading ? .leading : .trailing, 6)
+        }
     }
 }
 
@@ -1313,6 +1351,8 @@ private struct ActionDetailSheet: View {
     let onStart: (ActionConfiguration) -> Bool
 
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var profileStore: ProfileStore
+    @EnvironmentObject private var actionStore: ActionLogStore
 
     @State private var diaperSelection: BabyActionSnapshot.DiaperType = .pee
     @State private var feedingSelection: BabyActionSnapshot.FeedingType = .bottle
@@ -1356,7 +1396,8 @@ private struct ActionDetailSheet: View {
                             onOptionActivated: { _ in
                                 startIfReady()
                             },
-                            postHogLabelPrefix: "home.detail.feedingType"
+                            postHogLabelPrefix: "home.detail.feedingType",
+                            highlightedOptions: highlightedFeedingOptions
                         )
                     } header: {
                         Text(L10n.Home.feedingTypeSectionTitle)
@@ -1445,6 +1486,31 @@ private struct ActionDetailSheet: View {
             let bottleType = feedingSelection == .bottle ? bottleTypeSelection : nil
             return ActionConfiguration(diaperType: nil, feedingType: feedingSelection, bottleType: bottleType, bottleVolume: volume)
         }
+    }
+
+    private var highlightedFeedingOptions: [BabyActionSnapshot.FeedingType: Alignment] {
+        guard let lastBreastSide = lastBreastFeedingType else { return [:] }
+
+        switch lastBreastSide {
+        case .leftBreast:
+            return [.leftBreast: .topLeading]
+        case .rightBreast:
+            return [.rightBreast: .topTrailing]
+        default:
+            return [:]
+        }
+    }
+
+    private var lastBreastFeedingType: BabyActionSnapshot.FeedingType? {
+        let state = actionStore.state(for: profileStore.activeProfile.id)
+
+        if let active = state.activeAction(for: .feeding), let type = active.feedingType, type.isBreast {
+            return type
+        }
+
+        return state.history.first(where: { action in
+            action.category == .feeding && (action.feedingType?.isBreast ?? false)
+        })?.feedingType
     }
 
     private func startIfReady() {
