@@ -12,6 +12,7 @@ import UIKit
 struct ReportsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
+    @AppStorage("reports.lastSelectedTab") private var persistedTabIdentifier = ReportsTab.dailySnapshot.persistenceIdentifier
     @State private var selectedTab: ReportsTab = .dailySnapshot
     @State private var calendarSelectedDate = Date()
     @State private var didInitializeTab = false
@@ -144,6 +145,8 @@ struct ReportsView: View {
             selectedTab = tab
         }
 
+        persistedTabIdentifier = tab.persistenceIdentifier
+
         Analytics.capture(
             "reports_select_tab",
             properties: ["tab": tab.analyticsValue]
@@ -157,7 +160,12 @@ struct ReportsView: View {
     private func initializeTabIfNeeded() {
         guard !didInitializeTab else { return }
 
-        selectedTab = defaultTab(for: currentState)
+        if let restoredTab = ReportsTab(restoring: persistedTabIdentifier) {
+            selectedTab = restoredTab
+        } else {
+            selectedTab = defaultTab(for: currentState)
+            persistedTabIdentifier = selectedTab.persistenceIdentifier
+        }
         calendarSelectedDate = Date()
         didInitializeTab = true
     }
@@ -166,6 +174,7 @@ struct ReportsView: View {
         didInitializeTab = false
         highlightedTrendDay = nil
         calendarSelectedDate = Date()
+        persistedTabIdentifier = ReportsTab.dailySnapshot.persistenceIdentifier
         initializeTabIfNeeded()
     }
 
@@ -1187,6 +1196,33 @@ private enum ReportsTab: Hashable, Identifiable {
 
     static var allTabs: [ReportsTab] {
         [.dailySnapshot] + BabyActionCategory.allCases.map { ReportsTab.category($0) } + [.calendar]
+    }
+
+    var persistenceIdentifier: String {
+        id
+    }
+
+    init?(restoring identifier: String) {
+        if identifier == ReportsTab.dailySnapshot.persistenceIdentifier {
+            self = .dailySnapshot
+            return
+        }
+
+        if identifier == ReportsTab.calendar.persistenceIdentifier {
+            self = .calendar
+            return
+        }
+
+        let categoryPrefix = "category_"
+        if identifier.hasPrefix(categoryPrefix) {
+            let rawValue = String(identifier.dropFirst(categoryPrefix.count))
+            if let category = BabyActionCategory(rawValue: rawValue) {
+                self = .category(category)
+                return
+            }
+        }
+
+        return nil
     }
 }
 
