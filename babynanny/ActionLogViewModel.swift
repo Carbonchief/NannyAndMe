@@ -88,6 +88,13 @@ final class ActionLogStore: ObservableObject {
         }
     }
 
+    func performUserInitiatedRefresh() async {
+        await dataStack.flushPendingSaves()
+        let reloadTask = reloadStateFromPersistentStore()
+        await reloadTask.value
+        dataStack.requestSyncIfNeeded(reason: .userInitiated)
+    }
+
     func synchronizeProfileMetadata(_ profiles: [ChildProfile]) {
         let didMutate: Bool = performLocalMutation {
             var hasChanges = false
@@ -627,13 +634,6 @@ private extension ActionLogStore {
         }
         stateReloadTask = task
         return task
-    }
-
-    func performUserInitiatedRefresh() async {
-        await dataStack.flushPendingSaves()
-        let reloadTask = reloadStateFromPersistentStore()
-        await reloadTask.value
-        dataStack.requestSyncIfNeeded(reason: .userInitiated)
     }
 
     fileprivate func applyModelContextChanges(prefetchedStates: [UUID: ProfileActionState]? = nil) {
