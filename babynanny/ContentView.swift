@@ -12,7 +12,6 @@ struct ContentView: View {
     @EnvironmentObject private var appDataStack: AppDataStack
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
-    @Environment(\.safeAreaInsets) private var safeAreaInsets
     @State private var selectedTab: Tab = .home
     @State private var previousTab: Tab = .home
     @State private var isMenuVisible = false
@@ -21,13 +20,10 @@ struct ContentView: View {
     @State private var showShareProfile = false
     @State private var isProfileSwitcherPresented = false
     @State private var isInitialProfilePromptPresented = false
+    @State private var bottomSafeAreaInset: CGFloat = 0
 
     private var isCloudSharingAvailable: Bool {
         cloudStatusController.status == .available && appDataStack.cloudSyncEnabled
-    }
-
-    private var tabVerticalPadding: CGFloat {
-        10 + safeAreaInsets.bottom / 2
     }
 
     var body: some View {
@@ -79,8 +75,8 @@ struct ContentView: View {
                             }
                         }
                 )
-                .disabled(isMenuVisible)
             }
+            .disabled(isMenuVisible)
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Text(profileStore.activeProfile.displayName)
@@ -132,45 +128,6 @@ struct ContentView: View {
                 )
             ) {
                 ShareDataView()
-            }
-            }
-            .safeAreaInset(edge: .bottom) {
-                VStack(spacing: 0) {
-                    Divider()
-
-                    HStack(spacing: 0) {
-                        ForEach(Tab.allCases, id: \.self) { tab in
-                            VStack(spacing: 4) {
-                                Image(systemName: tab.icon)
-                                    .font(.system(size: 18, weight: .semibold))
-
-                                Text(tab.title)
-                                    .font(.footnote)
-                            }
-                            .padding(.vertical, tabVerticalPadding)
-                            .foregroundStyle(selectedTab == tab ? Color.accentColor : Color.secondary)
-                            .frame(maxWidth: .infinity)
-                            .contentShape(Rectangle())
-                            .phOnTapCapture(
-                                event: "navigation_select_tab_tabBar",
-                                properties: [
-                                    "target_tab": tab.analyticsIdentifier,
-                                    "previous_tab": selectedTab.analyticsIdentifier
-                                ]
-                            ) {
-                                guard tab != selectedTab else { return }
-                                let oldValue = selectedTab
-                                previousTab = oldValue
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    selectedTab = tab
-                                }
-                            }
-                            .postHogLabel(tab.postHogLabel)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .background(.ultraThinMaterial)
             }
             .sheet(isPresented: $isProfileSwitcherPresented) {
                 ProfileSwitcherView()
@@ -260,6 +217,23 @@ struct ContentView: View {
                 .zIndex(2)
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            BottomTabBar(
+                selectedTab: $selectedTab,
+                previousTab: $previousTab,
+                bottomSafeAreaInset: bottomSafeAreaInset
+            )
+            .allowsHitTesting(isMenuVisible == false)
+            .background(
+                GeometryReader { proxy in
+                    Color.clear
+                        .preference(key: BottomSafeAreaInsetPreferenceKey.self, value: proxy.safeAreaInsets.bottom)
+                }
+            )
+        }
+        .onPreferenceChange(BottomSafeAreaInsetPreferenceKey.self) { inset in
+            bottomSafeAreaInset = inset
+        }
         .sheet(isPresented: $isInitialProfilePromptPresented) {
             InitialProfileNamePromptView(
                 initialName: profileStore.activeProfile.name,
@@ -343,6 +317,62 @@ private struct AnimatedTabContent: View {
         }
         .animation(.easeInOut(duration: 0.3), value: selectedTab)
         .background(Color(.systemBackground))
+    }
+}
+
+private struct BottomTabBar: View {
+    @Binding var selectedTab: Tab
+    @Binding var previousTab: Tab
+    let bottomSafeAreaInset: CGFloat
+
+    private var tabVerticalPadding: CGFloat {
+        10 + bottomSafeAreaInset / 2
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+
+            HStack(spacing: 0) {
+                ForEach(Tab.allCases, id: \.self) { tab in
+                    VStack(spacing: 4) {
+                        Image(systemName: tab.icon)
+                            .font(.system(size: 18, weight: .semibold))
+
+                        Text(tab.title)
+                            .font(.footnote)
+                    }
+                    .padding(.vertical, tabVerticalPadding)
+                    .foregroundStyle(selectedTab == tab ? Color.accentColor : Color.secondary)
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+                    .phOnTapCapture(
+                        event: "navigation_select_tab_tabBar",
+                        properties: [
+                            "target_tab": tab.analyticsIdentifier,
+                            "previous_tab": selectedTab.analyticsIdentifier
+                        ]
+                    ) {
+                        guard tab != selectedTab else { return }
+                        let oldValue = selectedTab
+                        previousTab = oldValue
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            selectedTab = tab
+                        }
+                    }
+                    .postHogLabel(tab.postHogLabel)
+                }
+            }
+        }
+        .background(.ultraThinMaterial)
+    }
+}
+
+private struct BottomSafeAreaInsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat { 0 }
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
