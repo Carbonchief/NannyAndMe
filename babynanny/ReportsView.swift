@@ -12,7 +12,7 @@ import UIKit
 struct ReportsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
-    @State private var selectedTab: ReportsTab = .category(.sleep)
+    @State private var selectedTab: ReportsTab = .dailySnapshot
     @State private var calendarSelectedDate = Date()
     @State private var didInitializeTab = false
     @State private var shareItem: ChartShareItem?
@@ -21,27 +21,13 @@ struct ReportsView: View {
 
     var body: some View {
         let state = currentState
-        let isCalendarTab = selectedTab.isCalendar
-
         VStack(spacing: 0) {
             tabBar()
+            tabHeader()
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    if isCalendarTab {
-                        calendarSection(for: state)
-                    } else {
-                        let today = todayActions(for: state)
-                        headerSection(for: state,
-                                      todayActions: today,
-                                      focusCategory: resolvedCategory(for: state))
-
-                        statsGrid(for: state, todayActions: today)
-
-                        dailyTrendSection(for: state)
-
-                        actionPatternSection(for: state)
-                    }
+                    tabContent(for: state)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(24)
@@ -78,6 +64,43 @@ struct ReportsView: View {
                 shareItem = nil
             }
         }
+    }
+
+    @ViewBuilder
+    private func tabContent(for state: ProfileActionState) -> some View {
+        switch selectedTab {
+        case .dailySnapshot:
+            dailySnapshotSection(for: state)
+        case .category(_):
+            dailyTrendSection(for: state)
+            actionPatternSection(for: state)
+        case .calendar:
+            calendarSection(for: state)
+        }
+    }
+
+    private func tabHeader() -> some View {
+        HStack {
+            Text(selectedTab.title)
+                .font(.title2)
+                .fontWeight(.semibold)
+
+            Spacer()
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
+        .background(Color(.systemGroupedBackground))
+    }
+
+    @ViewBuilder
+    private func dailySnapshotSection(for state: ProfileActionState) -> some View {
+        let today = todayActions(for: state)
+        headerSection(for: state,
+                      todayActions: today,
+                      focusCategory: resolvedCategory(for: state))
+
+        statsGrid(for: state, todayActions: today)
     }
 
     private func headerSection(for state: ProfileActionState,
@@ -755,6 +778,8 @@ struct ReportsView: View {
 
     private func resolvedCategory(for state: ProfileActionState) -> BabyActionCategory {
         switch selectedTab {
+        case .dailySnapshot:
+            return state.mostRecentAction?.category ?? .sleep
         case .category(let category):
             return category
         case .calendar:
@@ -762,11 +787,8 @@ struct ReportsView: View {
         }
     }
 
-    private func defaultTab(for state: ProfileActionState) -> ReportsTab {
-        if let category = state.mostRecentAction?.category {
-            return .category(category)
-        }
-        return .category(.sleep)
+    private func defaultTab(for _: ProfileActionState) -> ReportsTab {
+        .dailySnapshot
     }
 
     private var currentState: ProfileActionState {
@@ -1118,11 +1140,14 @@ private struct ActionPatternShareContext {
 }
 
 private enum ReportsTab: Hashable, Identifiable {
+    case dailySnapshot
     case category(BabyActionCategory)
     case calendar
 
     var id: String {
         switch self {
+        case .dailySnapshot:
+            return "daily_snapshot"
         case .category(let category):
             return "category_\(category.rawValue)"
         case .calendar:
@@ -1132,6 +1157,8 @@ private enum ReportsTab: Hashable, Identifiable {
 
     var iconName: String {
         switch self {
+        case .dailySnapshot:
+            return "chart.bar.doc.horizontal.fill"
         case .category(let category):
             return category.icon
         case .calendar:
@@ -1141,6 +1168,8 @@ private enum ReportsTab: Hashable, Identifiable {
 
     var accentColor: Color {
         switch self {
+        case .dailySnapshot:
+            return Color.indigo
         case .category(let category):
             return category.accentColor
         case .calendar:
@@ -1150,6 +1179,8 @@ private enum ReportsTab: Hashable, Identifiable {
 
     var analyticsValue: String {
         switch self {
+        case .dailySnapshot:
+            return "daily_snapshot"
         case .category(let category):
             return category.rawValue
         case .calendar:
@@ -1159,6 +1190,8 @@ private enum ReportsTab: Hashable, Identifiable {
 
     var postHogLabel: String {
         switch self {
+        case .dailySnapshot:
+            return "reports.tab.dailySnapshot"
         case .category(let category):
             return "reports.tab.\(category.rawValue)"
         case .calendar:
@@ -1168,6 +1201,19 @@ private enum ReportsTab: Hashable, Identifiable {
 
     var accessibilityLabel: String {
         switch self {
+        case .dailySnapshot:
+            return L10n.Stats.dailySnapshotTitle
+        case .category(let category):
+            return category.title
+        case .calendar:
+            return L10n.Stats.calendarTabLabel
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .dailySnapshot:
+            return L10n.Stats.dailySnapshotTitle
         case .category(let category):
             return category.title
         case .calendar:
@@ -1183,7 +1229,7 @@ private enum ReportsTab: Hashable, Identifiable {
     }
 
     static var allTabs: [ReportsTab] {
-        BabyActionCategory.allCases.map { ReportsTab.category($0) } + [.calendar]
+        [.dailySnapshot] + BabyActionCategory.allCases.map { ReportsTab.category($0) } + [.calendar]
     }
 }
 
