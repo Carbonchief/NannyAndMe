@@ -657,16 +657,22 @@ private extension SettingsView {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .padding(.vertical, 4)
-        } else if isLoadingActionReminders {
-            HStack(spacing: 8) {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle())
-                Text(L10n.Settings.nextReminderLoading)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+        } else {
+            ZStack(alignment: .leading) {
+                actionReminderSummaryContent(for: category)
+                    .opacity(isLoadingActionReminders ? 0 : 1)
+
+                actionReminderLoadingContent()
+                    .opacity(isLoadingActionReminders ? 1 : 0)
             }
             .padding(.vertical, 4)
-        } else if let summary = actionReminderSummaries[category] {
+            .animation(.easeInOut(duration: 0.2), value: isLoadingActionReminders)
+        }
+    }
+
+    @ViewBuilder
+    private func actionReminderSummaryContent(for category: BabyActionCategory) -> some View {
+        if let summary = actionReminderSummaries[category] {
             VStack(alignment: .leading, spacing: 4) {
                 Text(L10n.Settings.nextReminderLabel)
                     .font(.footnote)
@@ -681,7 +687,33 @@ private extension SettingsView {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             }
-            .padding(.vertical, 4)
+        } else {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L10n.Settings.nextReminderLabel)
+                    .font(.footnote)
+                    .fontWeight(.semibold)
+
+                Text(" ")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .hidden()
+            }
+        }
+    }
+
+    private func actionReminderLoadingContent() -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.Settings.nextReminderLabel)
+                .font(.footnote)
+                .fontWeight(.semibold)
+
+            HStack(spacing: 8) {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle())
+                Text(L10n.Settings.nextReminderLoading)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
