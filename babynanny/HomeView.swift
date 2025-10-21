@@ -1013,15 +1013,17 @@ private struct HistoryRow: View {
             TimelineView(.periodic(from: .now, by: 60)) { context in
                 let timeInformation = timeAgoDescription(asOf: context.date)
                 let durationText = durationDescription(asOf: context.date)
+                let detail = detailDescription(for: action)
+                let verticalAlignment: VerticalAlignment = detail == nil ? .center : .top
 
-                HStack(alignment: .top, spacing: 12) {
+                HStack(alignment: verticalAlignment, spacing: 12) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(action.title)
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .lineLimit(1)
 
-                        if let detail = detailDescription(for: action) {
+                        if let detail {
                             Text(detail)
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
@@ -1029,6 +1031,7 @@ private struct HistoryRow: View {
                                 .truncationMode(.tail)
                         }
                     }
+                    .frame(maxHeight: .infinity, alignment: detail == nil ? .center : .topLeading)
 
                     Spacer(minLength: 12)
 
@@ -1047,6 +1050,7 @@ private struct HistoryRow: View {
                                 .monospacedDigit()
                         }
                     }
+                    .frame(maxHeight: .infinity, alignment: detail == nil ? .center : .topTrailing)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityElement(children: .ignore)
