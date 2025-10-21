@@ -24,6 +24,53 @@ struct HomeView: View {
     }
 
     var body: some View {
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            content(referenceDate: context.date)
+        }
+        .animation(.easeInOut(duration: 0.25), value: syncStatusViewModel.state)
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .phScreen("home_screen_homeView", properties: ["tab": "home"])
+        .sheet(item: $presentedCategory, onDismiss: {
+            categoryClearedForSheet = nil
+        }) { category in
+            ActionDetailSheet(category: category) { configuration in
+                requestStartAction(for: category,
+                                   configuration: configuration,
+                                   dismissingSheet: true)
+            }
+        }
+        .sheet(item: $editingAction) { action in
+            ActionEditSheet(action: action) { updatedAction in
+                actionStore.updateAction(for: activeProfileID, action: updatedAction)
+                editingAction = nil
+            }
+        }
+        .alert(item: $pendingStartAction) { pending in
+            let runningList = ListFormatter.localizedString(byJoining: pending.interruptedActionTitles)
+            return Alert(
+                title: Text(L10n.Home.interruptionAlertTitle),
+                message: Text(L10n.Home.interruptionAlertMessage(pending.category.title, runningList)),
+                primaryButton: .destructive(Text(L10n.Home.interruptionAlertConfirm)) {
+                    Analytics.capture(
+                        "home_confirm_interruption_alert",
+                        properties: ["category": pending.category.rawValue]
+                    )
+                    completePendingStartAction(pending)
+                    pendingStartAction = nil
+                },
+                secondaryButton: .cancel {
+                    Analytics.capture(
+                        "home_cancel_interruption_alert",
+                        properties: ["category": pending.category.rawValue]
+                    )
+                    pendingStartAction = nil
+                }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func content(referenceDate: Date) -> some View {
         let state = currentState
         let recentHistory = state.latestHistoryEntriesPerCategory()
 
@@ -87,46 +134,6 @@ struct HomeView: View {
         }
         .safeAreaInset(edge: .bottom) {
             syncStatusFooter
-        }
-        .animation(.easeInOut(duration: 0.25), value: syncStatusViewModel.state)
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .phScreen("home_screen_homeView", properties: ["tab": "home"])
-        .sheet(item: $presentedCategory, onDismiss: {
-            categoryClearedForSheet = nil
-        }) { category in
-            ActionDetailSheet(category: category) { configuration in
-                requestStartAction(for: category,
-                                   configuration: configuration,
-                                   dismissingSheet: true)
-            }
-        }
-        .sheet(item: $editingAction) { action in
-            ActionEditSheet(action: action) { updatedAction in
-                actionStore.updateAction(for: activeProfileID, action: updatedAction)
-                editingAction = nil
-            }
-        }
-        .alert(item: $pendingStartAction) { pending in
-            let runningList = ListFormatter.localizedString(byJoining: pending.interruptedActionTitles)
-            return Alert(
-                title: Text(L10n.Home.interruptionAlertTitle),
-                message: Text(L10n.Home.interruptionAlertMessage(pending.category.title, runningList)),
-                primaryButton: .destructive(Text(L10n.Home.interruptionAlertConfirm)) {
-                    Analytics.capture(
-                        "home_confirm_interruption_alert",
-                        properties: ["category": pending.category.rawValue]
-                    )
-                    completePendingStartAction(pending)
-                    pendingStartAction = nil
-                },
-                secondaryButton: .cancel {
-                    Analytics.capture(
-                        "home_cancel_interruption_alert",
-                        properties: ["category": pending.category.rawValue]
-                    )
-                    pendingStartAction = nil
-                }
-            )
         }
     }
 
