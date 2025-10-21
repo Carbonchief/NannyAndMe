@@ -950,13 +950,13 @@ private struct ActionTypeSelectionGrid<Option: ActionTypeOption>: View {
 
     @ViewBuilder
     private func badgeView(for option: Option, alignment: Alignment) -> some View {
-        guard highlightedOptions[option] == alignment else { return }
-
-        Circle()
-            .fill(Color.orange)
-            .frame(width: 10, height: 10)
-            .padding(.top, 6)
-            .padding(alignment == .topLeading ? .leading : .trailing, 6)
+        if highlightedOptions[option] == alignment {
+            Circle()
+                .fill(Color.orange)
+                .frame(width: 10, height: 10)
+                .padding(.top, 6)
+                .padding(alignment == .topLeading ? .leading : .trailing, 6)
+        }
     }
 }
 
