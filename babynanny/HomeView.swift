@@ -24,6 +24,53 @@ struct HomeView: View {
     }
 
     var body: some View {
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            content(referenceDate: context.date)
+        }
+        .animation(.easeInOut(duration: 0.25), value: syncStatusViewModel.state)
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .phScreen("home_screen_homeView", properties: ["tab": "home"])
+        .sheet(item: $presentedCategory, onDismiss: {
+            categoryClearedForSheet = nil
+        }) { category in
+            ActionDetailSheet(category: category) { configuration in
+                requestStartAction(for: category,
+                                   configuration: configuration,
+                                   dismissingSheet: true)
+            }
+        }
+        .sheet(item: $editingAction) { action in
+            ActionEditSheet(action: action) { updatedAction in
+                actionStore.updateAction(for: activeProfileID, action: updatedAction)
+                editingAction = nil
+            }
+        }
+        .alert(item: $pendingStartAction) { pending in
+            let runningList = ListFormatter.localizedString(byJoining: pending.interruptedActionTitles)
+            return Alert(
+                title: Text(L10n.Home.interruptionAlertTitle),
+                message: Text(L10n.Home.interruptionAlertMessage(pending.category.title, runningList)),
+                primaryButton: .destructive(Text(L10n.Home.interruptionAlertConfirm)) {
+                    Analytics.capture(
+                        "home_confirm_interruption_alert",
+                        properties: ["category": pending.category.rawValue]
+                    )
+                    completePendingStartAction(pending)
+                    pendingStartAction = nil
+                },
+                secondaryButton: .cancel {
+                    Analytics.capture(
+                        "home_cancel_interruption_alert",
+                        properties: ["category": pending.category.rawValue]
+                    )
+                    pendingStartAction = nil
+                }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func content(referenceDate: Date) -> some View {
         let state = currentState
         let recentHistory = state.latestHistoryEntriesPerCategory()
 
@@ -37,6 +84,7 @@ struct HomeView: View {
                             category: category,
                             activeAction: state.activeAction(for: category),
                             lastCompleted: state.lastCompletedAction(for: category),
+                            referenceDate: referenceDate,
                             isInteractionDisabled: throttledCategories.contains(category),
                             onStart: { handleStartTap(for: category) },
                             onStop: { handleStopTap(for: category) }
@@ -87,46 +135,6 @@ struct HomeView: View {
         }
         .safeAreaInset(edge: .bottom) {
             syncStatusFooter
-        }
-        .animation(.easeInOut(duration: 0.25), value: syncStatusViewModel.state)
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .phScreen("home_screen_homeView", properties: ["tab": "home"])
-        .sheet(item: $presentedCategory, onDismiss: {
-            categoryClearedForSheet = nil
-        }) { category in
-            ActionDetailSheet(category: category) { configuration in
-                requestStartAction(for: category,
-                                   configuration: configuration,
-                                   dismissingSheet: true)
-            }
-        }
-        .sheet(item: $editingAction) { action in
-            ActionEditSheet(action: action) { updatedAction in
-                actionStore.updateAction(for: activeProfileID, action: updatedAction)
-                editingAction = nil
-            }
-        }
-        .alert(item: $pendingStartAction) { pending in
-            let runningList = ListFormatter.localizedString(byJoining: pending.interruptedActionTitles)
-            return Alert(
-                title: Text(L10n.Home.interruptionAlertTitle),
-                message: Text(L10n.Home.interruptionAlertMessage(pending.category.title, runningList)),
-                primaryButton: .destructive(Text(L10n.Home.interruptionAlertConfirm)) {
-                    Analytics.capture(
-                        "home_confirm_interruption_alert",
-                        properties: ["category": pending.category.rawValue]
-                    )
-                    completePendingStartAction(pending)
-                    pendingStartAction = nil
-                },
-                secondaryButton: .cancel {
-                    Analytics.capture(
-                        "home_cancel_interruption_alert",
-                        properties: ["category": pending.category.rawValue]
-                    )
-                    pendingStartAction = nil
-                }
-            )
         }
     }
 
@@ -500,6 +508,7 @@ private struct ActionCard: View {
     let category: BabyActionCategory
     let activeAction: BabyActionSnapshot?
     let lastCompleted: BabyActionSnapshot?
+    let referenceDate: Date
     let isInteractionDisabled: Bool
     let onStart: () -> Bool
     let onStop: () -> Bool
@@ -628,6 +637,10 @@ private struct ActionCard: View {
                 activeDetailView(for: activeAction)
                     .id(activeAction.id)
                     .transition(cardContentTransition)
+            } else if let lastCompleted {
+                inactiveDetailView(for: lastCompleted, referenceDate: referenceDate)
+                    .id(lastCompleted.id)
+                    .transition(cardContentTransition)
             } else {
                 Color.clear
                     .frame(height: 0)
@@ -661,6 +674,64 @@ private struct ActionCard: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(L10n.Home.startedAt(action.startTimeDescription()))
         }
+    }
+
+    private func inactiveDetailView(for action: BabyActionSnapshot, referenceDate: Date) -> some View {
+        let timeSince = action.timeSinceCompletionDescription(asOf: referenceDate)
+        let duration = action.category.isInstant ? nil : action.durationDescription(asOf: referenceDate)
+        let lastRunText = lastRunDescription(timeSince: timeSince, duration: duration)
+
+        return VStack(spacing: 6) {
+            if let lastRunText {
+                Text(lastRunText)
+                    .font(.footnote)
+                    .fontWeight(.semibold)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .frame(maxWidth: .infinity)
+            }
+
+            Text(L10n.Home.loggedAt(action.loggedTimestampDescription(relativeTo: referenceDate)))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .accessibilityHidden(lastRunText == nil)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityDescription(for: action, timeSince: timeSince, duration: duration, referenceDate: referenceDate))
+    }
+
+    private func lastRunDescription(timeSince: String?, duration: String?) -> String? {
+        guard let timeSince else { return nil }
+
+        if let duration, duration.isEmpty == false {
+            return L10n.Home.lastRunWithDuration(timeSince, duration)
+        }
+
+        return L10n.Home.lastRun(timeSince)
+    }
+
+    private func accessibilityDescription(for action: BabyActionSnapshot,
+                                          timeSince: String?,
+                                          duration: String?,
+                                          referenceDate: Date) -> String {
+        var components: [String] = []
+
+        if let accessibilityTime = action.timeSinceCompletionAccessibilityDescription(asOf: referenceDate) {
+            components.append(accessibilityTime)
+        } else if let timeSince {
+            components.append(timeSince)
+        }
+
+        if let duration, duration.isEmpty == false {
+            components.append(L10n.Home.historyDuration(duration))
+        }
+
+        components.append(action.loggedTimestampDescription(relativeTo: referenceDate))
+
+        return components.joined(separator: ", ")
     }
 }
 
