@@ -22,6 +22,16 @@
 "home.header.edit" = "Editar";
 "home.header.placeholder" = "Inicia una acción abajo para comenzar a registrar el día de tu bebé.";
 "home.noEntries" = "Aún no hay registros";
+"home.customReminder.title" = "Programar recordatorio";
+"home.customReminder.message.sleep" = "¿Cuánto tiempo debemos esperar antes de recordarte que %1$@ necesita dormir?";
+"home.customReminder.message.feeding" = "¿Cuánto tiempo debemos esperar antes de recordarte que %1$@ necesita comer?";
+"home.customReminder.message.diaper" = "¿Cuánto tiempo debemos esperar antes de recordarte que cambies el pañal de %1$@?";
+"home.customReminder.delayLabel" = "Tiempo del recordatorio";
+"home.customReminder.schedule" = "Programar";
+"home.customReminder.notificationsDenied.title" = "Activar notificaciones";
+"home.customReminder.notificationsDenied.message" = "Las notificaciones están desactivadas para Nanny & Me. Actívalas en Configuración para recibir recordatorios.";
+"home.customReminder.notificationsDenied.settings" = "Abrir Ajustes";
+"home.customReminder.notificationsDenied.cancel" = "Ahora no";
 "home.sleep.info" = "Inicia una sesión de sueño. Detenla cuando tu pequeño despierte para capturar el tiempo total de descanso.";
 "home.diaper.sectionTitle" = "Tipo de pañal";
 "home.diaper.pickerLabel" = "Tipo de pañal";

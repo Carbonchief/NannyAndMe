@@ -83,6 +83,67 @@ enum L10n {
         static let recentActivityShowAll = String(localized: "home.recentActivity.showAll", defaultValue: "Show All")
         static let placeholder = String(localized: "home.header.placeholder", defaultValue: "Start an action below to begin tracking your baby's day.")
         static let noEntries = String(localized: "home.noEntries", defaultValue: "No entries yet")
+        static let customReminderTitle = String(localized: "home.customReminder.title", defaultValue: "Schedule reminder")
+
+        static func customReminderMessage(for name: String, category: BabyActionCategory) -> String {
+            switch category {
+            case .sleep:
+                return customReminderSleepMessage(for: name)
+            case .feeding:
+                return customReminderFeedingMessage(for: name)
+            case .diaper:
+                return customReminderDiaperMessage(for: name)
+            }
+        }
+
+        private static func customReminderSleepMessage(for name: String) -> String {
+            let format = String(
+                localized: "home.customReminder.message.sleep",
+                defaultValue: "How long should we wait before reminding you that %1$@ needs to sleep?"
+            )
+            return String(format: format, locale: Locale.current, name)
+        }
+
+        private static func customReminderFeedingMessage(for name: String) -> String {
+            let format = String(
+                localized: "home.customReminder.message.feeding",
+                defaultValue: "How long should we wait before reminding you that %1$@ needs to eat?"
+            )
+            return String(format: format, locale: Locale.current, name)
+        }
+
+        private static func customReminderDiaperMessage(for name: String) -> String {
+            let format = String(
+                localized: "home.customReminder.message.diaper",
+                defaultValue: "How long should we wait before reminding you to change %1$@'s diaper?"
+            )
+            return String(format: format, locale: Locale.current, name)
+        }
+
+        static let customReminderDelayLabel = String(
+            localized: "home.customReminder.delayLabel",
+            defaultValue: "Reminder delay"
+        )
+        static let customReminderSchedule = String(
+            localized: "home.customReminder.schedule",
+            defaultValue: "Schedule"
+        )
+        static let customReminderNotificationsDeniedTitle = String(
+            localized: "home.customReminder.notificationsDenied.title",
+            defaultValue: "Enable notifications"
+        )
+        static let customReminderNotificationsDeniedMessage = String(
+            localized: "home.customReminder.notificationsDenied.message",
+            defaultValue: "Notifications are currently turned off for Nanny & Me. Enable notifications in Settings to receive reminders."
+        )
+        static let customReminderNotificationsDeniedSettings = String(
+            localized: "home.customReminder.notificationsDenied.settings",
+            defaultValue: "Open Settings"
+        )
+        static let customReminderNotificationsDeniedCancel = String(
+            localized: "home.customReminder.notificationsDenied.cancel",
+            defaultValue: "Not now"
+        )
         static let editActionButton = String(localized: "home.header.edit", defaultValue: "Edit")
         static let sleepInfo = String(localized: "home.sleep.info", defaultValue: "Start tracking a sleep session. Stop it when your little one wakes up to capture the total rest time.")
         static let diaperTypeSectionTitle = String(localized: "home.diaper.sectionTitle", defaultValue: "Diaper type")

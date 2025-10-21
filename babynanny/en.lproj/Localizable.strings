@@ -22,6 +22,16 @@
 "home.header.edit" = "Edit";
 "home.header.placeholder" = "Start an action below to begin tracking your baby's day.";
 "home.noEntries" = "No entries yet";
+"home.customReminder.title" = "Schedule reminder";
+"home.customReminder.message.sleep" = "How long should we wait before reminding you that %1$@ needs to sleep?";
+"home.customReminder.message.feeding" = "How long should we wait before reminding you that %1$@ needs to eat?";
+"home.customReminder.message.diaper" = "How long should we wait before reminding you to change %1$@'s diaper?";
+"home.customReminder.delayLabel" = "Reminder delay";
+"home.customReminder.schedule" = "Schedule";
+"home.customReminder.notificationsDenied.title" = "Enable notifications";
+"home.customReminder.notificationsDenied.message" = "Notifications are currently turned off for Nanny & Me. Enable notifications in Settings to receive reminders.";
+"home.customReminder.notificationsDenied.settings" = "Open Settings";
+"home.customReminder.notificationsDenied.cancel" = "Not now";
 "home.sleep.info" = "Start tracking a sleep session. Stop it when your little one wakes up to capture the total rest time.";
 "home.diaper.sectionTitle" = "Diaper type";
 "home.diaper.pickerLabel" = "Diaper type";

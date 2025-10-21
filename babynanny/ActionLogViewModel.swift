@@ -152,12 +152,14 @@ final class ActionLogStore: ObservableObject {
         notifyChange()
         var profileState = state(for: profileID)
         let now = Date()
+        var loggedCategories = Set<BabyActionCategory>()
 
         if category.isInstant {
             if var existing = profileState.activeActions.removeValue(forKey: category) {
                 existing.endDate = now
                 existing.updatedAt = Date()
                 profileState.history.insert(existing, at: 0)
+                loggedCategories.insert(category)
             }
 
             let action = BabyActionSnapshot(category: category,
@@ -170,6 +172,8 @@ final class ActionLogStore: ObservableObject {
             profileState.history.insert(action, at: 0)
             persist(profileState: profileState, for: profileID)
             refreshDurationActivities()
+            loggedCategories.insert(category)
+            notifyActionLogged(for: loggedCategories, profileID: profileID)
             return
         }
 
@@ -182,6 +186,7 @@ final class ActionLogStore: ObservableObject {
                 running.endDate = now
                 running.updatedAt = Date()
                 profileState.history.insert(running, at: 0)
+                loggedCategories.insert(conflict)
             }
         }
 
@@ -189,6 +194,7 @@ final class ActionLogStore: ObservableObject {
             existing.endDate = now
             existing.updatedAt = Date()
             profileState.history.insert(existing, at: 0)
+            loggedCategories.insert(category)
         }
 
         var action = BabyActionSnapshot(category: category,
@@ -204,6 +210,7 @@ final class ActionLogStore: ObservableObject {
         persist(profileState: profileState, for: profileID)
         synchronizeDurationActivityIfNeeded(for: action)
         refreshDurationActivities()
+        notifyActionLogged(for: loggedCategories, profileID: profileID)
     }
 
     func stopAction(for profileID: UUID, category: BabyActionCategory) {
@@ -215,6 +222,7 @@ final class ActionLogStore: ObservableObject {
         profileState.history.insert(running, at: 0)
         persist(profileState: profileState, for: profileID)
         refreshDurationActivities()
+        notifyActionLogged(for: [category], profileID: profileID)
     }
 
     func stopAction(withID actionID: UUID) {
@@ -226,6 +234,7 @@ final class ActionLogStore: ObservableObject {
         let profileID = profileModel.resolvedProfileID
         notifyChange()
         var profileState = state(for: profileID)
+        var loggedCategories = Set<BabyActionCategory>()
 
         let now = Date()
         actionModel.endDate = now
@@ -236,6 +245,7 @@ final class ActionLogStore: ObservableObject {
             running.updatedAt = now
             profileState.activeActions.removeValue(forKey: actionModel.category)
             profileState.history.insert(running, at: 0)
+            loggedCategories.insert(actionModel.category)
         } else {
             var snapshot = actionModel.asSnapshot().withValidatedDates()
             snapshot.endDate = now
@@ -246,10 +256,12 @@ final class ActionLogStore: ObservableObject {
             } else {
                 profileState.history.insert(snapshot, at: 0)
             }
+            loggedCategories.insert(actionModel.category)
         }
 
         persist(profileState: profileState, for: profileID)
         refreshDurationActivities()
+        notifyActionLogged(for: loggedCategories, profileID: profileID)
     }
 
     func updateAction(for profileID: UUID, action updatedAction: BabyActionSnapshot) {
@@ -683,6 +695,17 @@ private extension ActionLogStore {
         var descriptor = FetchDescriptor<BabyActionModel>(predicate: predicate)
         descriptor.fetchLimit = 1
         return try? modelContext.fetch(descriptor).first
+    }
+
+    func notifyActionLogged(for categories: Set<BabyActionCategory>, profileID: UUID) {
+        guard categories.isEmpty == false else { return }
+
+        Task { @MainActor [weak profileStore] in
+            guard let profileStore else { return }
+            for category in categories {
+                profileStore.actionLogged(for: profileID, category: category)
+            }
+        }
     }
 
     func synchronizeDurationActivityIfNeeded(for action: BabyActionSnapshot) {

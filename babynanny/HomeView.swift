@@ -7,16 +7,22 @@
 
 import Foundation
 import SwiftUI
+import UIKit
+
+private let customReminderDelayStep: TimeInterval = 5 * 60
 
 struct HomeView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
     @EnvironmentObject private var syncStatusViewModel: SyncStatusViewModel
+    @Environment(\.openURL) private var openURL
     @State private var presentedCategory: BabyActionCategory?
     @State private var editingAction: BabyActionSnapshot?
     @State private var pendingStartAction: PendingStartAction?
     @State private var categoryClearedForSheet: BabyActionCategory?
     @State private var throttledCategories: Set<BabyActionCategory> = []
+    @State private var reminderPrompt: ReminderPromptState?
+    @State private var reminderAuthorizationAlert: ReminderAuthorizationAlert?
     private let onShowAllLogs: () -> Void
 
     init(onShowAllLogs: @escaping () -> Void = {}) {
@@ -67,6 +73,44 @@ struct HomeView: View {
                 }
             )
         }
+        .alert(item: $reminderAuthorizationAlert) { alert in
+            Alert(
+                title: Text(L10n.Home.customReminderNotificationsDeniedTitle),
+                message: Text(L10n.Home.customReminderNotificationsDeniedMessage),
+                primaryButton: .default(Text(L10n.Home.customReminderNotificationsDeniedSettings)) {
+                    Analytics.capture(
+                        "home_open_notification_settings_alert",
+                        properties: ["category": alert.category.rawValue]
+                    )
+                    if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                        openURL(settingsURL)
+                    }
+                },
+                secondaryButton: .cancel(Text(L10n.Home.customReminderNotificationsDeniedCancel)) {
+                    Analytics.capture(
+                        "home_dismiss_notification_settings_alert",
+                        properties: ["category": alert.category.rawValue]
+                    )
+                }
+            )
+        }
+        .disabled(reminderPrompt != nil)
+        .overlay {
+            ActionReminderDelayDialogOverlay(
+                prompt: $reminderPrompt,
+                delayRange: ProfileStore.customReminderDelayRange,
+                onConfirm: { prompt, selectedDelay in
+                    scheduleReminder(for: prompt, delay: selectedDelay)
+                },
+                onCancel: { prompt in
+                    Analytics.capture(
+                        "home_cancel_custom_action_reminder",
+                        properties: ["category": prompt.category.rawValue]
+                    )
+                }
+            )
+        }
+        .animation(.easeInOut(duration: 0.25), value: reminderPrompt != nil)
     }
 
     @ViewBuilder
@@ -86,7 +130,8 @@ struct HomeView: View {
                             lastCompleted: state.lastCompletedAction(for: category),
                             isInteractionDisabled: throttledCategories.contains(category),
                             onStart: { handleStartTap(for: category) },
-                            onStop: { handleStopTap(for: category) }
+                            onStop: { handleStopTap(for: category) },
+                            onLongPress: { handleReminderLongPress(for: category) }
                         )
                     }
                 }
@@ -385,6 +430,69 @@ struct HomeView: View {
         return true
     }
 
+    private func handleReminderLongPress(for category: BabyActionCategory) {
+        Analytics.capture(
+            "home_long_press_action_card",
+            properties: ["category": category.rawValue]
+        )
+
+        Task { @MainActor in
+            let isAuthorized = await profileStore.ensureNotificationAuthorization()
+            if isAuthorized {
+                showReminderDialog(for: category)
+            } else {
+                reminderAuthorizationAlert = ReminderAuthorizationAlert(category: category)
+            }
+        }
+    }
+
+    private func showReminderDialog(for category: BabyActionCategory) {
+        let activeProfile = profileStore.activeProfile
+        let initialDelay = defaultReminderDelay(for: category)
+        reminderPrompt = ReminderPromptState(
+            profileID: activeProfile.id,
+            profileName: activeProfile.displayName,
+            category: category,
+            initialDelay: initialDelay
+        )
+
+        Analytics.capture(
+            "home_open_custom_action_reminder",
+            properties: [
+                "category": category.rawValue,
+                "is_one_off": true
+            ]
+        )
+    }
+
+    private func scheduleReminder(for prompt: ReminderPromptState,
+                                  delay: TimeInterval) {
+        let clampedDelay = clampReminderDelay(delay)
+        profileStore.scheduleCustomActionReminder(for: prompt.profileID,
+                                                  category: prompt.category,
+                                                  delay: clampedDelay,
+                                                  isOneOff: true)
+
+        Analytics.capture(
+            "home_schedule_custom_action_reminder",
+            properties: [
+                "profile_id": prompt.profileID.uuidString,
+                "category": prompt.category.rawValue,
+                "delay_minutes": clampedDelay / 60,
+                "is_one_off": true
+            ]
+        )
+    }
+
+    private func defaultReminderDelay(for category: BabyActionCategory) -> TimeInterval {
+        clampReminderDelay(profileStore.activeProfile.reminderInterval(for: category))
+    }
+
+    private func clampReminderDelay(_ delay: TimeInterval) -> TimeInterval {
+        let range = ProfileStore.customReminderDelayRange
+        return min(max(delay, range.lowerBound), range.upperBound)
+    }
+
     private var activeProfileID: UUID {
         profileStore.activeProfile.id
     }
@@ -503,6 +611,189 @@ private extension HomeView {
     }
 }
 
+private struct ReminderPromptState: Identifiable {
+    let id = UUID()
+    let profileID: UUID
+    let profileName: String
+    let category: BabyActionCategory
+    let initialDelay: TimeInterval
+}
+
+private struct ReminderAuthorizationAlert: Identifiable {
+    let id = UUID()
+    let category: BabyActionCategory
+}
+
+private struct ActionReminderDelayDialogOverlay: View {
+    @Binding var prompt: ReminderPromptState?
+    let delayRange: ClosedRange<TimeInterval>
+    let onConfirm: (ReminderPromptState, TimeInterval) -> Void
+    let onCancel: (ReminderPromptState) -> Void
+
+    var body: some View {
+        Group {
+            if let activePrompt = prompt {
+                ZStack {
+                    Color.black.opacity(0.4)
+                        .ignoresSafeArea()
+                        .transition(.opacity)
+
+                    ActionReminderDelayDialog(
+                        profileName: activePrompt.profileName,
+                        category: activePrompt.category,
+                        initialDelay: activePrompt.initialDelay,
+                        delayRange: delayRange
+                    ) { selectedDelay in
+                        onConfirm(activePrompt, selectedDelay)
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            prompt = nil
+                        }
+                    } onCancel: {
+                        onCancel(activePrompt)
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            prompt = nil
+                        }
+                    }
+                    .transition(.scale(scale: 0.94).combined(with: .opacity))
+                    .padding(.horizontal, 24)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .zIndex(1)
+            }
+        }
+        .accessibilityAddTraits(.isModal)
+    }
+}
+
+private struct ActionReminderDelayDialog: View {
+    let profileName: String
+    let category: BabyActionCategory
+    let delayRange: ClosedRange<TimeInterval>
+    let onConfirm: (TimeInterval) -> Void
+    let onCancel: () -> Void
+
+    @State private var selectedDelay: TimeInterval
+
+    init(profileName: String,
+         category: BabyActionCategory,
+         initialDelay: TimeInterval,
+         delayRange: ClosedRange<TimeInterval>,
+         onConfirm: @escaping (TimeInterval) -> Void,
+         onCancel: @escaping () -> Void) {
+        self.profileName = profileName
+        self.category = category
+        self.delayRange = delayRange
+        self.onConfirm = onConfirm
+        self.onCancel = onCancel
+        _selectedDelay = State(initialValue: Self.normalizedDelay(initialDelay, within: delayRange))
+    }
+
+    var body: some View {
+        VStack(spacing: 20) {
+            VStack(spacing: 6) {
+                Text(L10n.Home.customReminderTitle)
+                    .font(.headline)
+
+                Text(L10n.Home.customReminderMessage(for: profileName, category: category))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            VStack(spacing: 12) {
+                Text(L10n.Home.customReminderDelayLabel)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+
+                CountdownDialer(delay: $selectedDelay, delayRange: delayRange)
+                    .frame(height: 216)
+                    .postHogLabel("home.customReminder.dialer")
+            }
+
+            HStack(spacing: 16) {
+                Button(L10n.Common.cancel) {
+                    onCancel()
+                }
+                .buttonStyle(.bordered)
+                .postHogLabel("home.customReminder.cancel")
+
+                Button(L10n.Home.customReminderSchedule) {
+                    let selected = Self.normalizedDelay(selectedDelay, within: delayRange)
+                    onConfirm(selected)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(category.accentColor)
+                .postHogLabel("home.customReminder.schedule")
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 28)
+        .frame(maxWidth: 360)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(uiColor: .systemBackground))
+                .shadow(color: Color.black.opacity(0.18), radius: 24, x: 0, y: 12)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(category.accentColor, lineWidth: 1)
+        )
+    }
+
+    static func normalizedDelay(_ delay: TimeInterval,
+                                within range: ClosedRange<TimeInterval>) -> TimeInterval {
+        let clamped = min(max(delay, range.lowerBound), range.upperBound)
+        let stepped = (clamped / customReminderDelayStep).rounded() * customReminderDelayStep
+        return min(max(stepped, range.lowerBound), range.upperBound)
+    }
+
+    private struct CountdownDialer: UIViewRepresentable {
+        @Binding var delay: TimeInterval
+        let delayRange: ClosedRange<TimeInterval>
+
+        func makeUIView(context: Context) -> UIDatePicker {
+            let picker = UIDatePicker()
+            picker.datePickerMode = .countDownTimer
+            picker.minuteInterval = max(1, Int(customReminderDelayStep / 60))
+            picker.countDownDuration = ActionReminderDelayDialog.normalizedDelay(delay,
+                                                                                  within: delayRange)
+            picker.addTarget(context.coordinator,
+                             action: #selector(Coordinator.valueChanged(_:)),
+                             for: .valueChanged)
+            return picker
+        }
+
+        func updateUIView(_ uiView: UIDatePicker, context: Context) {
+            let normalized = ActionReminderDelayDialog.normalizedDelay(delay, within: delayRange)
+            if abs(uiView.countDownDuration - normalized) > 0.5 {
+                uiView.countDownDuration = normalized
+            }
+        }
+
+        func makeCoordinator() -> Coordinator {
+            Coordinator(parent: self)
+        }
+
+        final class Coordinator: NSObject {
+            private let parent: CountdownDialer
+
+            init(parent: CountdownDialer) {
+                self.parent = parent
+            }
+
+            @objc
+            func valueChanged(_ sender: UIDatePicker) {
+                let normalized = ActionReminderDelayDialog.normalizedDelay(sender.countDownDuration,
+                                                                           within: parent.delayRange)
+                if abs(normalized - sender.countDownDuration) > 0.5 {
+                    sender.countDownDuration = normalized
+                }
+                parent.delay = normalized
+            }
+        }
+    }
+}
+
 private struct ActionCard: View {
     let category: BabyActionCategory
     let activeAction: BabyActionSnapshot?
@@ -510,6 +801,9 @@ private struct ActionCard: View {
     let isInteractionDisabled: Bool
     let onStart: () -> Bool
     let onStop: () -> Bool
+    let onLongPress: () -> Void
+
+    @State private var didTriggerLongPress = false
 
     private var isActive: Bool { activeAction != nil }
 
@@ -530,6 +824,12 @@ private struct ActionCard: View {
 
     var body: some View {
         Button {
+            defer { didTriggerLongPress = false }
+
+            if didTriggerLongPress {
+                return
+            }
+
             if isActive {
                 if onStop() {
                     Analytics.capture(
@@ -597,6 +897,13 @@ private struct ActionCard: View {
         .postHogLabel("home.actionCard.\(category.rawValue)")
         .buttonStyle(.plain)
         .disabled(isInteractionDisabled)
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.6).onEnded { _ in
+                guard isInteractionDisabled == false else { return }
+                didTriggerLongPress = true
+                onLongPress()
+            }
+        )
         .frame(maxWidth: .infinity)
         .aspectRatio(1, contentMode: .fit)
         .contentShape(Rectangle())
