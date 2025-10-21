@@ -491,6 +491,30 @@ final class ProfileStore: ObservableObject {
         return summaries
     }
 
+    func nextActionReminderSummary(for profileID: UUID, category targetCategory: BabyActionCategory) async -> ActionReminderSummary? {
+        let profiles = state.profiles
+        let actionStates = await actionStore?.actionStatesSnapshot() ?? [:]
+        let reminders = await reminderScheduler.upcomingReminders(for: profiles, actionStates: actionStates, reference: Date())
+
+        var bestSummary: ActionReminderSummary?
+
+        for overview in reminders {
+            guard case let .action(category) = overview.category, category == targetCategory else { continue }
+            guard overview.includes(profileID: profileID) else { continue }
+            guard let message = overview.message(for: profileID) else { continue }
+
+            let summary = ActionReminderSummary(fireDate: overview.fireDate, message: message)
+
+            if let existing = bestSummary, existing.fireDate <= summary.fireDate {
+                continue
+            }
+
+            bestSummary = summary
+        }
+
+        return bestSummary
+    }
+
     func scheduleActionReminderPreview(for category: BabyActionCategory, delay: TimeInterval = 60) async -> ReminderPreviewResult {
         guard let profile = state.activeProfile else { return .disabled }
         guard profile.remindersEnabled, profile.isActionReminderEnabled(for: category) else { return .disabled }
