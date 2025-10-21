@@ -100,7 +100,7 @@ struct HomeView: View {
                 prompt: $reminderPrompt,
                 delayRange: ProfileStore.customReminderDelayRange,
                 onConfirm: { prompt, selectedDelay in
-                    scheduleReminder(for: prompt.category, delay: selectedDelay)
+                    scheduleReminder(for: prompt, delay: selectedDelay)
                 },
                 onCancel: { prompt in
                     Analytics.capture(
@@ -447,9 +447,14 @@ struct HomeView: View {
     }
 
     private func showReminderDialog(for category: BabyActionCategory) {
+        let activeProfile = profileStore.activeProfile
         let initialDelay = defaultReminderDelay(for: category)
-        reminderPrompt = ReminderPromptState(category: category,
-                                             initialDelay: initialDelay)
+        reminderPrompt = ReminderPromptState(
+            profileID: activeProfile.id,
+            profileName: activeProfile.displayName,
+            category: category,
+            initialDelay: initialDelay
+        )
 
         Analytics.capture(
             "home_open_custom_action_reminder",
@@ -460,17 +465,19 @@ struct HomeView: View {
         )
     }
 
-    private func scheduleReminder(for category: BabyActionCategory,
+    private func scheduleReminder(for prompt: ReminderPromptState,
                                   delay: TimeInterval) {
         let clampedDelay = clampReminderDelay(delay)
-        profileStore.scheduleCustomActionReminder(for: category,
+        profileStore.scheduleCustomActionReminder(for: prompt.profileID,
+                                                  category: prompt.category,
                                                   delay: clampedDelay,
                                                   isOneOff: true)
 
         Analytics.capture(
             "home_schedule_custom_action_reminder",
             properties: [
-                "category": category.rawValue,
+                "profile_id": prompt.profileID.uuidString,
+                "category": prompt.category.rawValue,
                 "delay_minutes": clampedDelay / 60,
                 "is_one_off": true
             ]
@@ -606,6 +613,8 @@ private extension HomeView {
 
 private struct ReminderPromptState: Identifiable {
     let id = UUID()
+    let profileID: UUID
+    let profileName: String
     let category: BabyActionCategory
     let initialDelay: TimeInterval
 }
@@ -630,6 +639,7 @@ private struct ActionReminderDelayDialogOverlay: View {
                         .transition(.opacity)
 
                     ActionReminderDelayDialog(
+                        profileName: activePrompt.profileName,
                         category: activePrompt.category,
                         initialDelay: activePrompt.initialDelay,
                         delayRange: delayRange
@@ -656,6 +666,7 @@ private struct ActionReminderDelayDialogOverlay: View {
 }
 
 private struct ActionReminderDelayDialog: View {
+    let profileName: String
     let category: BabyActionCategory
     let delayRange: ClosedRange<TimeInterval>
     let onConfirm: (TimeInterval) -> Void
@@ -663,11 +674,13 @@ private struct ActionReminderDelayDialog: View {
 
     @State private var selectedDelay: TimeInterval
 
-    init(category: BabyActionCategory,
+    init(profileName: String,
+         category: BabyActionCategory,
          initialDelay: TimeInterval,
          delayRange: ClosedRange<TimeInterval>,
          onConfirm: @escaping (TimeInterval) -> Void,
          onCancel: @escaping () -> Void) {
+        self.profileName = profileName
         self.category = category
         self.delayRange = delayRange
         self.onConfirm = onConfirm
@@ -681,7 +694,7 @@ private struct ActionReminderDelayDialog: View {
                 Text(L10n.Home.customReminderTitle)
                     .font(.headline)
 
-                Text(L10n.Home.customReminderMessage(category.title))
+                Text(L10n.Home.customReminderMessage(for: profileName, category: category.title))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -695,15 +708,7 @@ private struct ActionReminderDelayDialog: View {
                 CountdownDialer(delay: $selectedDelay, delayRange: delayRange)
                     .frame(height: 216)
                     .postHogLabel("home.customReminder.dialer")
-
-                Text(Self.formattedDuration(selectedDelay))
-                    .font(.title3.weight(.semibold))
             }
-
-            Text(L10n.Home.customReminderOnceHelp)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
 
             HStack(spacing: 16) {
                 Button(L10n.Common.cancel) {
@@ -740,26 +745,6 @@ private struct ActionReminderDelayDialog: View {
         let stepped = (clamped / customReminderDelayStep).rounded() * customReminderDelayStep
         return min(max(stepped, range.lowerBound), range.upperBound)
     }
-
-    private static func formattedDuration(_ seconds: TimeInterval) -> String {
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = seconds >= 3600 ? [.hour, .minute] : [.minute]
-        formatter.unitsStyle = .full
-        formatter.zeroFormattingBehavior = [.dropAll]
-        if let formatted = formatter.string(from: seconds), !formatted.isEmpty {
-            return formatted
-        }
-        let minutes = max(1, Int(seconds / 60))
-        let measurement = Measurement(value: Double(minutes), unit: UnitDuration.minutes)
-        return measurementFormatter.string(from: measurement)
-    }
-
-    private static let measurementFormatter: MeasurementFormatter = {
-        let formatter = MeasurementFormatter()
-        formatter.unitOptions = .providedUnit
-        formatter.unitStyle = .long
-        return formatter
-    }()
 
     private struct CountdownDialer: UIViewRepresentable {
         @Binding var delay: TimeInterval

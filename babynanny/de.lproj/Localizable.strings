@@ -23,9 +23,8 @@
 "home.header.placeholder" = "Starte unten eine Aktion, um den Tag deines Babys zu verfolgen.";
 "home.noEntries" = "Noch keine Einträge";
 "home.customReminder.title" = "Erinnerung planen";
-"home.customReminder.message" = "Wie lange sollen wir warten, bevor wir dich an die nächste %@-Aktion erinnern?";
+"home.customReminder.message" = "Wie lange sollen wir warten, bevor wir dich an %1$@s nächste %2$@-Aktion erinnern?";
 "home.customReminder.delayLabel" = "Erinnerungszeit";
-"home.customReminder.onceHelp" = "Diese Erinnerung wird nach der nächsten protokollierten Aktion nicht automatisch aktualisiert.";
 "home.customReminder.schedule" = "Planen";
 "home.customReminder.notificationsDenied.title" = "Benachrichtigungen aktivieren";
 "home.customReminder.notificationsDenied.message" = "Benachrichtigungen sind derzeit für Nanny & Me deaktiviert. Aktiviere sie in den Einstellungen, um Erinnerungen zu erhalten.";

@@ -85,21 +85,17 @@ enum L10n {
         static let noEntries = String(localized: "home.noEntries", defaultValue: "No entries yet")
         static let customReminderTitle = String(localized: "home.customReminder.title", defaultValue: "Schedule reminder")
 
-        static func customReminderMessage(_ category: String) -> String {
+        static func customReminderMessage(for name: String, category: String) -> String {
             let format = String(
                 localized: "home.customReminder.message",
-                defaultValue: "How long should we wait before reminding you about the next %@ action?"
+                defaultValue: "How long should we wait before reminding you about %1$@'s next %2$@ action?"
             )
-            return String(format: format, locale: Locale.current, category)
+            return String(format: format, locale: Locale.current, name, category)
         }
 
         static let customReminderDelayLabel = String(
             localized: "home.customReminder.delayLabel",
             defaultValue: "Reminder delay"
-        )
-        static let customReminderOnceHelp = String(
-            localized: "home.customReminder.onceHelp",
-            defaultValue: "This reminder will not update automatically after you log the next action."
         )
         static let customReminderSchedule = String(
             localized: "home.customReminder.schedule",

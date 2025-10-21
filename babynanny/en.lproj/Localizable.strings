@@ -23,9 +23,8 @@
 "home.header.placeholder" = "Start an action below to begin tracking your baby's day.";
 "home.noEntries" = "No entries yet";
 "home.customReminder.title" = "Schedule reminder";
-"home.customReminder.message" = "How long should we wait before reminding you about the next %@ action?";
+"home.customReminder.message" = "How long should we wait before reminding you about %1$@'s next %2$@ action?";
 "home.customReminder.delayLabel" = "Reminder delay";
-"home.customReminder.onceHelp" = "This reminder will not update automatically after you log the next action.";
 "home.customReminder.schedule" = "Schedule";
 "home.customReminder.notificationsDenied.title" = "Enable notifications";
 "home.customReminder.notificationsDenied.message" = "Notifications are currently turned off for Nanny & Me. Enable notifications in Settings to receive reminders.";

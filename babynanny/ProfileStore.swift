@@ -595,13 +595,14 @@ final class ProfileStore: ObservableObject {
         return scheduled ? .scheduled : .authorizationDenied
     }
 
-    func scheduleCustomActionReminder(for category: BabyActionCategory,
+    func scheduleCustomActionReminder(for profileID: UUID,
+                                      category: BabyActionCategory,
                                       delay: TimeInterval,
                                       isOneOff: Bool) {
         let clampedDelay = Self.clampCustomReminderDelay(delay)
         let fireDate = Date().addingTimeInterval(clampedDelay)
 
-        updateActiveProfile { profile in
+        updateProfile(withID: profileID) { profile in
             profile.setActionReminderOverride(
                 ChildProfile.ActionReminderOverride(fireDate: fireDate, isOneOff: isOneOff),
                 for: category,

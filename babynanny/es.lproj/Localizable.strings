@@ -23,9 +23,8 @@
 "home.header.placeholder" = "Inicia una acción abajo para comenzar a registrar el día de tu bebé.";
 "home.noEntries" = "Aún no hay registros";
 "home.customReminder.title" = "Programar recordatorio";
-"home.customReminder.message" = "¿Cuánto tiempo debemos esperar antes de recordarte la próxima acción de %@?";
+"home.customReminder.message" = "¿Cuánto tiempo debemos esperar antes de recordarte la próxima acción de %2$@ para %1$@?";
 "home.customReminder.delayLabel" = "Tiempo del recordatorio";
-"home.customReminder.onceHelp" = "Este recordatorio no se actualizará automáticamente después de registrar la próxima acción.";
 "home.customReminder.schedule" = "Programar";
 "home.customReminder.notificationsDenied.title" = "Activar notificaciones";
 "home.customReminder.notificationsDenied.message" = "Las notificaciones están desactivadas para Nanny & Me. Actívalas en Configuración para recibir recordatorios.";

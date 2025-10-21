@@ -51,7 +51,7 @@ struct ProfileStoreTests {
             reminderScheduler: scheduler
         )
 
-        await store.scheduleCustomActionReminder(for: .feeding, delay: 600, isOneOff: false)
+        await store.scheduleCustomActionReminder(for: profile.id, category: .feeding, delay: 600, isOneOff: false)
 
         let activeProfile = await store.activeProfile
         let override = try #require(activeProfile.actionReminderOverride(for: .feeding))
@@ -150,7 +150,7 @@ struct ProfileStoreTests {
         await store.registerActionStore(actionStore)
         await actionStore.registerProfileStore(store)
 
-        await store.scheduleCustomActionReminder(for: .feeding, delay: 600, isOneOff: false)
+        await store.scheduleCustomActionReminder(for: profile.id, category: .feeding, delay: 600, isOneOff: false)
         let scheduledOverride = await store.activeProfile.actionReminderOverride(for: .feeding)
         #expect(scheduledOverride != nil)
 
