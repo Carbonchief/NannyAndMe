@@ -524,6 +524,10 @@ final class ProfileStore: ObservableObject {
         return result
     }
 
+    func ensureNotificationAuthorization() async -> Bool {
+        await reminderScheduler.ensureAuthorization()
+    }
+
     func nextReminder(for profileID: UUID) async -> ReminderOverview? {
         let profiles = state.profiles
         let actionStates = await actionStore?.actionStatesSnapshot() ?? [:]

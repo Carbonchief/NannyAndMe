@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import UIKit
 
 private let customReminderDelayStep: TimeInterval = 5 * 60
 
@@ -14,14 +15,14 @@ struct HomeView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
     @EnvironmentObject private var syncStatusViewModel: SyncStatusViewModel
+    @Environment(\.openURL) private var openURL
     @State private var presentedCategory: BabyActionCategory?
     @State private var editingAction: BabyActionSnapshot?
     @State private var pendingStartAction: PendingStartAction?
     @State private var categoryClearedForSheet: BabyActionCategory?
     @State private var throttledCategories: Set<BabyActionCategory> = []
     @State private var reminderPrompt: ReminderPromptState?
-    @State private var reminderPermissionCategory: BabyActionCategory?
-    @State private var reminderError: ReminderError?
+    @State private var reminderAuthorizationAlert: ReminderAuthorizationAlert?
     private let onShowAllLogs: () -> Void
 
     init(onShowAllLogs: @escaping () -> Void = {}) {
@@ -53,13 +54,10 @@ struct HomeView: View {
         .sheet(item: $reminderPrompt) { prompt in
             ActionReminderDelaySheet(
                 category: prompt.category,
-                isOneOff: prompt.isOneOff,
                 initialDelay: prompt.initialDelay,
                 delayRange: ProfileStore.customReminderDelayRange
             ) { selectedDelay in
-                scheduleReminder(for: prompt.category,
-                                 delay: selectedDelay,
-                                 isOneOff: prompt.isOneOff)
+                scheduleReminder(for: prompt.category, delay: selectedDelay)
             } onCancel: {
                 Analytics.capture(
                     "home_cancel_custom_action_reminder",
@@ -89,61 +87,27 @@ struct HomeView: View {
                 }
             )
         }
-        .confirmationDialog(
-            L10n.Home.customReminderEnableTitle,
-            isPresented: reminderPermissionDialogBinding,
-            titleVisibility: .visible,
-            presenting: reminderPermissionCategory
-        ) { category in
-            Button(L10n.Home.customReminderEnableAction) {
-                reminderPermissionCategory = nil
-                Analytics.capture(
-                    "home_enable_reminders_prompt",
-                    properties: ["category": category.rawValue]
-                )
-                enableRemindersAndPrompt(for: category)
-            }
-            .postHogLabel("home.customReminder.enable")
-
-            Button(L10n.Home.customReminderOnceAction) {
-                reminderPermissionCategory = nil
-                Analytics.capture(
-                    "home_once_off_custom_action_reminder",
-                    properties: ["category": category.rawValue]
-                )
-                showReminderSheet(for: category, isOneOff: true)
-            }
-            .postHogLabel("home.customReminder.once")
-
-            Button(L10n.Common.cancel, role: .cancel) {
-                reminderPermissionCategory = nil
-                Analytics.capture(
-                    "home_cancel_enable_reminders_prompt",
-                    properties: ["category": category.rawValue]
-                )
-            }
-            .postHogLabel("home.customReminder.permissionCancel")
-        } message: { _ in
-            Text(L10n.Home.customReminderEnableMessage)
-        }
-        .alert(item: $reminderError) { error in
+        .alert(item: $reminderAuthorizationAlert) { alert in
             Alert(
-                title: Text(L10n.Home.customReminderTitle),
-                message: Text(error.message),
-                dismissButton: .default(Text(L10n.Common.close))
+                title: Text(L10n.Home.customReminderNotificationsDeniedTitle),
+                message: Text(L10n.Home.customReminderNotificationsDeniedMessage),
+                primaryButton: .default(Text(L10n.Home.customReminderNotificationsDeniedSettings)) {
+                    Analytics.capture(
+                        "home_open_notification_settings_alert",
+                        properties: ["category": alert.category.rawValue]
+                    )
+                    if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                        openURL(settingsURL)
+                    }
+                },
+                secondaryButton: .cancel(Text(L10n.Home.customReminderNotificationsDeniedCancel)) {
+                    Analytics.capture(
+                        "home_dismiss_notification_settings_alert",
+                        properties: ["category": alert.category.rawValue]
+                    )
+                }
             )
         }
-    }
-
-    private var reminderPermissionDialogBinding: Binding<Bool> {
-        Binding(
-            get: { reminderPermissionCategory != nil },
-            set: { isPresented in
-                if isPresented == false {
-                    reminderPermissionCategory = nil
-                }
-            }
-        )
     }
 
     @ViewBuilder
@@ -469,79 +433,43 @@ struct HomeView: View {
             properties: ["category": category.rawValue]
         )
 
-        if profileStore.activeProfile.remindersEnabled {
-            showReminderSheet(for: category, isOneOff: false)
-        } else {
-            reminderPermissionCategory = category
+        Task { @MainActor in
+            let isAuthorized = await profileStore.ensureNotificationAuthorization()
+            if isAuthorized {
+                showReminderSheet(for: category)
+            } else {
+                reminderAuthorizationAlert = ReminderAuthorizationAlert(category: category)
+            }
         }
     }
 
-    private func showReminderSheet(for category: BabyActionCategory, isOneOff: Bool) {
+    private func showReminderSheet(for category: BabyActionCategory) {
         let initialDelay = defaultReminderDelay(for: category)
         reminderPrompt = ReminderPromptState(category: category,
-                                             isOneOff: isOneOff,
                                              initialDelay: initialDelay)
 
         Analytics.capture(
             "home_open_custom_action_reminder",
             properties: [
                 "category": category.rawValue,
-                "is_one_off": isOneOff
+                "is_one_off": true
             ]
         )
     }
 
-    private func enableRemindersAndPrompt(for category: BabyActionCategory) {
-        Task { @MainActor in
-            let result = await profileStore.setRemindersEnabled(true)
-
-            switch result {
-            case .enabled:
-                Analytics.capture(
-                    "home_enable_reminders_prompt_result",
-                    properties: [
-                        "category": category.rawValue,
-                        "result": "enabled"
-                    ]
-                )
-                showReminderSheet(for: category, isOneOff: false)
-            case .authorizationDenied:
-                Analytics.capture(
-                    "home_enable_reminders_prompt_result",
-                    properties: [
-                        "category": category.rawValue,
-                        "result": "denied"
-                    ]
-                )
-                reminderError = ReminderError(message: L10n.Home.customReminderAuthorizationDenied)
-                showReminderSheet(for: category, isOneOff: true)
-            case .disabled:
-                Analytics.capture(
-                    "home_enable_reminders_prompt_result",
-                    properties: [
-                        "category": category.rawValue,
-                        "result": "disabled"
-                    ]
-                )
-                showReminderSheet(for: category, isOneOff: true)
-            }
-        }
-    }
-
     private func scheduleReminder(for category: BabyActionCategory,
-                                  delay: TimeInterval,
-                                  isOneOff: Bool) {
+                                  delay: TimeInterval) {
         let clampedDelay = clampReminderDelay(delay)
         profileStore.scheduleCustomActionReminder(for: category,
                                                   delay: clampedDelay,
-                                                  isOneOff: isOneOff)
+                                                  isOneOff: true)
 
         Analytics.capture(
             "home_schedule_custom_action_reminder",
             properties: [
                 "category": category.rawValue,
                 "delay_minutes": clampedDelay / 60,
-                "is_one_off": isOneOff
+                "is_one_off": true
             ]
         )
     }
@@ -676,18 +604,16 @@ private extension HomeView {
 private struct ReminderPromptState: Identifiable {
     let id = UUID()
     let category: BabyActionCategory
-    let isOneOff: Bool
     let initialDelay: TimeInterval
 }
 
-private struct ReminderError: Identifiable {
+private struct ReminderAuthorizationAlert: Identifiable {
     let id = UUID()
-    let message: String
+    let category: BabyActionCategory
 }
 
 private struct ActionReminderDelaySheet: View {
     let category: BabyActionCategory
-    let isOneOff: Bool
     let initialDelay: TimeInterval
     let delayRange: ClosedRange<TimeInterval>
     let onConfirm: (TimeInterval) -> Void
@@ -697,13 +623,11 @@ private struct ActionReminderDelaySheet: View {
     @State private var duration: Duration
 
     init(category: BabyActionCategory,
-         isOneOff: Bool,
          initialDelay: TimeInterval,
          delayRange: ClosedRange<TimeInterval>,
          onConfirm: @escaping (TimeInterval) -> Void,
          onCancel: @escaping () -> Void) {
         self.category = category
-        self.isOneOff = isOneOff
         self.initialDelay = initialDelay
         self.delayRange = delayRange
         self.onConfirm = onConfirm
@@ -720,7 +644,7 @@ private struct ActionReminderDelaySheet: View {
                 }
 
                 Section(header: Text(L10n.Home.customReminderDelayLabel),
-                        footer: Text(isOneOff ? L10n.Home.customReminderOnceHelp : L10n.Home.customReminderHelp)) {
+                        footer: Text(L10n.Home.customReminderOnceHelp)) {
                     ActionReminderDelayStepper(duration: $duration,
                                                 delayRange: delayRange)
                 }

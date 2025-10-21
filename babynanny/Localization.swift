@@ -97,10 +97,6 @@ enum L10n {
             localized: "home.customReminder.delayLabel",
             defaultValue: "Reminder delay"
         )
-        static let customReminderHelp = String(
-            localized: "home.customReminder.help",
-            defaultValue: "Choose when the reminder should fire."
-        )
         static let customReminderOnceHelp = String(
             localized: "home.customReminder.onceHelp",
             defaultValue: "This reminder will not update automatically after you log the next action."
@@ -109,25 +105,21 @@ enum L10n {
             localized: "home.customReminder.schedule",
             defaultValue: "Schedule"
         )
-        static let customReminderEnableTitle = String(
-            localized: "home.customReminder.enableTitle",
-            defaultValue: "Turn on reminders?"
+        static let customReminderNotificationsDeniedTitle = String(
+            localized: "home.customReminder.notificationsDenied.title",
+            defaultValue: "Enable notifications"
         )
-        static let customReminderEnableMessage = String(
-            localized: "home.customReminder.enableMessage",
-            defaultValue: "Reminders are currently turned off. Enable them to reuse your default schedule or schedule a one-off reminder."
-        )
-        static let customReminderEnableAction = String(
-            localized: "home.customReminder.enableAction",
-            defaultValue: "Enable reminders"
-        )
-        static let customReminderOnceAction = String(
-            localized: "home.customReminder.onceAction",
-            defaultValue: "Schedule once"
-        )
-        static let customReminderAuthorizationDenied = String(
-            localized: "home.customReminder.authorizationDenied",
+        static let customReminderNotificationsDeniedMessage = String(
+            localized: "home.customReminder.notificationsDenied.message",
             defaultValue: "Notifications are currently turned off for Nanny & Me. Enable notifications in Settings to receive reminders."
+        )
+        static let customReminderNotificationsDeniedSettings = String(
+            localized: "home.customReminder.notificationsDenied.settings",
+            defaultValue: "Open Settings"
+        )
+        static let customReminderNotificationsDeniedCancel = String(
+            localized: "home.customReminder.notificationsDenied.cancel",
+            defaultValue: "Not now"
         )
         static let editActionButton = String(localized: "home.header.edit", defaultValue: "Edit")
         static let sleepInfo = String(localized: "home.sleep.info", defaultValue: "Start tracking a sleep session. Stop it when your little one wakes up to capture the total rest time.")
