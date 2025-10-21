@@ -722,6 +722,7 @@ private struct ActionReminderDelayDialog: View {
                     onConfirm(selected)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(category.accentColor)
                 .postHogLabel("home.customReminder.schedule")
             }
         }
