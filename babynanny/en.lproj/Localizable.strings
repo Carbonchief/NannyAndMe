@@ -213,6 +213,9 @@
 "map.filter.endDate" = "End date";
 "map.filter.allActions" = "All actions";
 "map.emptyState" = "No actions match your filters.";
+"map.annotation.type" = "Type";
+"map.annotation.subtype" = "Subtype";
+"map.annotation.loggedAt" = "Logged on %@";
 "map.annotation.accessibility" = "%@ logged at %@ on %@";
 "shareData.sharing.stopSharingConfirmTitle" = "Stop sharing this profile?";
 "shareData.sharing.stopSharingMessage" = "All participants will immediately lose access.";

@@ -11,6 +11,7 @@ struct ActionsMapView: View {
     @State private var startDate: Date = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
     @State private var endDate: Date = Date()
     @State private var isShowingDateFilters = false
+    @State private var selectedAnnotation: ActionAnnotation?
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 37.3349, longitude: -122.0090),
         span: MKCoordinateSpan(latitudeDelta: 0.25, longitudeDelta: 0.25)
@@ -65,7 +66,25 @@ struct ActionsMapView: View {
 
             Map(coordinateRegion: $region, annotationItems: filteredAnnotations) { annotation in
                 MapAnnotation(coordinate: annotation.coordinate) {
-                    AnnotationView(annotation: annotation)
+                    AnnotationView(annotation: annotation,
+                                   isSelected: selectedAnnotation?.id == annotation.id)
+                        .phOnTapCapture(
+                            event: "map_select_annotation",
+                            properties: [
+                                "action_id": annotation.id.uuidString,
+                                "category": annotation.category.rawValue,
+                                "has_placename": annotation.placename != nil
+                            ]
+                        ) {
+                            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                                if selectedAnnotation?.id == annotation.id {
+                                    selectedAnnotation = nil
+                                } else {
+                                    selectedAnnotation = annotation
+                                }
+                            }
+                        }
+                        .postHogLabel(annotation.postHogLabel)
                 }
             }
             .mapStyle(.standard)
@@ -82,6 +101,11 @@ struct ActionsMapView: View {
         .background(Color(.systemBackground))
         .onChange(of: filteredAnnotations, initial: true) { _, newValue in
             updateRegion(for: newValue)
+            if let selection = selectedAnnotation, newValue.contains(selection) == false {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    selectedAnnotation = nil
+                }
+            }
         }
         .onChange(of: startDate) { _, newValue in
             if newValue > endDate {
@@ -96,6 +120,19 @@ struct ActionsMapView: View {
         .sheet(isPresented: $isShowingDateFilters) {
             DateFilterSheet(startDate: $startDate, endDate: $endDate, isPresented: $isShowingDateFilters)
         }
+        .safeAreaInset(edge: .bottom) {
+            if let selection = selectedAnnotation {
+                AnnotationDetailCard(annotation: selection) {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        selectedAnnotation = nil
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 16)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: selectedAnnotation)
     }
 
     private func updateRegion(for annotations: [ActionAnnotation]) {
@@ -128,12 +165,20 @@ private extension ActionsMapView {
         return formatter
     }()
 
+    private static let annotationTimestampFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
+
     struct ActionAnnotation: Identifiable, Equatable {
         let id: UUID
         let coordinate: CLLocationCoordinate2D
         let category: BabyActionCategory
         let placename: String?
         let timestamp: Date
+        let subtypeTitle: String?
 
         init(action: BabyAction, coordinate: CLLocationCoordinate2D) {
             id = action.id
@@ -141,12 +186,14 @@ private extension ActionsMapView {
             category = action.category
             placename = action.placename
             timestamp = action.startDate
+            subtypeTitle = action.subtypeWord
         }
 
         static func == (lhs: ActionAnnotation, rhs: ActionAnnotation) -> Bool {
             lhs.id == rhs.id &&
                 lhs.category == rhs.category &&
                 lhs.placename == rhs.placename &&
+                lhs.subtypeTitle == rhs.subtypeTitle &&
                 lhs.timestamp == rhs.timestamp &&
                 lhs.coordinate.latitude == rhs.coordinate.latitude &&
                 lhs.coordinate.longitude == rhs.coordinate.longitude
@@ -154,6 +201,18 @@ private extension ActionsMapView {
 
         var iconName: String {
             category.icon
+        }
+
+        var accentColor: Color {
+            category.accentColor
+        }
+
+        var categoryTitle: String {
+            category.title
+        }
+
+        var timestampSummary: String {
+            ActionsMapView.annotationTimestampFormatter.string(from: timestamp)
         }
 
         var title: String {
@@ -167,10 +226,15 @@ private extension ActionsMapView {
             let dateString = formatter.string(from: timestamp)
             return L10n.Map.annotationAccessibility(category.title, title, dateString)
         }
+
+        var postHogLabel: String {
+            "map.annotation.pin.\(category.rawValue)"
+        }
     }
 
     struct AnnotationView: View {
         let annotation: ActionAnnotation
+        let isSelected: Bool
 
         var body: some View {
             VStack(spacing: 6) {
@@ -178,7 +242,16 @@ private extension ActionsMapView {
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(Color.white)
                     .padding(10)
-                    .background(Circle().fill(Color.accentColor))
+                    .background(
+                        Circle()
+                            .fill(annotation.accentColor.gradient)
+                    )
+                    .overlay {
+                        Circle()
+                            .strokeBorder(Color.white.opacity(isSelected ? 0.85 : 0), lineWidth: isSelected ? 3 : 0)
+                    }
+                    .shadow(color: annotation.accentColor.opacity(isSelected ? 0.35 : 0.2), radius: isSelected ? 8 : 4, y: 3)
+                    .scaleEffect(isSelected ? 1.08 : 1.0)
                 Text(annotation.title)
                     .font(.caption2)
                     .padding(.horizontal, 8)
@@ -187,6 +260,94 @@ private extension ActionsMapView {
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(annotation.accessibilityLabel)
+        }
+    }
+
+    struct AnnotationDetailCard: View {
+        let annotation: ActionAnnotation
+        let onClose: () -> Void
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top, spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(annotation.accentColor.gradient)
+                            .frame(width: 44, height: 44)
+
+                        Image(systemName: annotation.iconName)
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(Color.white)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(annotation.title)
+                            .font(.headline)
+                            .lineLimit(2)
+
+                        Text(L10n.Map.annotationLoggedAt(annotation.timestampSummary))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer(minLength: 12)
+
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            onClose()
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(Color.secondary)
+                    }
+                    .postHogLabel("map.annotationDetail.close")
+                    .phCaptureTap(
+                        event: "map_close_annotation_detail",
+                        properties: [
+                            "action_id": annotation.id.uuidString,
+                            "category": annotation.category.rawValue
+                        ]
+                    )
+                    .accessibilityLabel(L10n.Common.close)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    InfoRow(label: L10n.Map.annotationTypeLabel, value: annotation.categoryTitle)
+
+                    if let subtype = annotation.subtypeTitle, subtype.isEmpty == false {
+                        InfoRow(label: L10n.Map.annotationSubtypeLabel, value: subtype)
+                    }
+                }
+            }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(.ultraThinMaterial)
+            )
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06))
+            )
+            .shadow(color: Color.black.opacity(0.1), radius: 14, y: 6)
+            .accessibilityElement(children: .combine)
+        }
+
+        private struct InfoRow: View {
+            let label: String
+            let value: String
+
+            var body: some View {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label.uppercased())
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+
+                    Text(value)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                }
+            }
         }
     }
 

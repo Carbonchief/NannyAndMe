@@ -209,6 +209,9 @@
 "map.filter.endDate" = "Fecha de finalización";
 "map.filter.allActions" = "Todas las acciones";
 "map.emptyState" = "No hay acciones que coincidan con estos filtros.";
+"map.annotation.type" = "Tipo";
+"map.annotation.subtype" = "Subtipo";
+"map.annotation.loggedAt" = "Registrado el %@";
 "map.annotation.accessibility" = "%@ registrado en %@ el %@";
 "shareData.sharing.stopSharingConfirmTitle" = "¿Dejar de compartir este perfil?";
 "shareData.sharing.stopSharingMessage" = "Todos los participantes perderán el acceso de inmediato.";

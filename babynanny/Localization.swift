@@ -447,6 +447,14 @@ enum L10n {
         static let allActions = String(localized: "map.filter.allActions", defaultValue: "All actions")
         static let emptyState = String(localized: "map.emptyState", defaultValue: "No actions match your filters.")
 
+        static let annotationTypeLabel = String(localized: "map.annotation.type", defaultValue: "Type")
+        static let annotationSubtypeLabel = String(localized: "map.annotation.subtype", defaultValue: "Subtype")
+
+        static func annotationLoggedAt(_ value: String) -> String {
+            let format = String(localized: "map.annotation.loggedAt", defaultValue: "Logged on %@")
+            return String(format: format, locale: Locale.current, value)
+        }
+
         static func annotationAccessibility(_ category: String, _ location: String, _ date: String) -> String {
             let format = String(
                 localized: "map.annotation.accessibility",

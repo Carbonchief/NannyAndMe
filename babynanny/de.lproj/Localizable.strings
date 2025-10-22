@@ -209,6 +209,9 @@
 "map.filter.endDate" = "Enddatum";
 "map.filter.allActions" = "Alle Aktionen";
 "map.emptyState" = "Keine Aktionen passen zu diesen Filtern.";
+"map.annotation.type" = "Typ";
+"map.annotation.subtype" = "Untertyp";
+"map.annotation.loggedAt" = "Protokolliert am %@";
 "map.annotation.accessibility" = "%@ protokolliert in %@ am %@";
 "shareData.sharing.stopSharingConfirmTitle" = "Freigabe für dieses Profil beenden?";
 "shareData.sharing.stopSharingMessage" = "Alle Teilnehmenden verlieren sofort den Zugriff.";
