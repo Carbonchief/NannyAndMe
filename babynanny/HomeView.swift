@@ -23,6 +23,7 @@ struct HomeView: View {
     @State private var throttledCategories: Set<BabyActionCategory> = []
     @State private var reminderPrompt: ReminderPromptState?
     @State private var reminderAuthorizationAlert: ReminderAuthorizationAlert?
+    @State private var recentActionDetail: RecentActionDetailState?
     private let onShowAllLogs: () -> Void
 
     init(onShowAllLogs: @escaping () -> Void = {}) {
@@ -94,7 +95,7 @@ struct HomeView: View {
                 }
             )
         }
-        .disabled(reminderPrompt != nil)
+        .disabled(reminderPrompt != nil || recentActionDetail != nil)
         .overlay {
             ActionReminderDelayDialogOverlay(
                 prompt: $reminderPrompt,
@@ -110,7 +111,13 @@ struct HomeView: View {
                 }
             )
         }
+        .overlay {
+            RecentActionDetailDialogOverlay(detailState: $recentActionDetail) { actionToEdit in
+                editingAction = actionToEdit
+            }
+        }
         .animation(.easeInOut(duration: 0.25), value: reminderPrompt != nil)
+        .animation(.easeInOut(duration: 0.25), value: recentActionDetail != nil)
     }
 
     @ViewBuilder
@@ -157,9 +164,15 @@ struct HomeView: View {
 
                         VStack(spacing: 12) {
                             ForEach(recentHistory) { action in
-                                HistoryRow(action: action) { actionToEdit in
-                                    editingAction = actionToEdit
-                                }
+                                HistoryRow(
+                                    action: action,
+                                    onEdit: { actionToEdit in
+                                        editingAction = actionToEdit
+                                    },
+                                    onLongPress: { pressedAction in
+                                        handleHistoryLongPress(for: pressedAction)
+                                    }
+                                )
                             }
                         }
                     }
@@ -465,6 +478,33 @@ struct HomeView: View {
         )
     }
 
+    private func handleHistoryLongPress(for action: BabyActionSnapshot) {
+        guard recentActionDetail == nil,
+              let completedAction = mostRecentCompletedAction(from: action) else { return }
+
+        Analytics.capture(
+            "home_open_recentAction_detail",
+            properties: [
+                "action_id": completedAction.id.uuidString,
+                "category": completedAction.category.rawValue
+            ]
+        )
+
+        withAnimation(.easeInOut(duration: 0.2)) {
+            recentActionDetail = RecentActionDetailState(action: completedAction)
+        }
+    }
+
+    private func mostRecentCompletedAction(from action: BabyActionSnapshot) -> BabyActionSnapshot? {
+        if action.endDate != nil {
+            return action
+        }
+
+        return currentState.history.first { snapshot in
+            snapshot.category == action.category && snapshot.endDate != nil
+        }
+    }
+
     private func scheduleReminder(for prompt: ReminderPromptState,
                                   delay: TimeInterval) {
         let clampedDelay = clampReminderDelay(delay)
@@ -622,6 +662,11 @@ private struct ReminderPromptState: Identifiable {
 private struct ReminderAuthorizationAlert: Identifiable {
     let id = UUID()
     let category: BabyActionCategory
+}
+
+private struct RecentActionDetailState: Identifiable {
+    let id = UUID()
+    let action: BabyActionSnapshot
 }
 
 private struct ActionReminderDelayDialogOverlay: View {
@@ -978,6 +1023,235 @@ private struct ActionCard: View {
     }
 }
 
+private struct RecentActionDetailDialogOverlay: View {
+    @Binding var detailState: RecentActionDetailState?
+    let onEdit: (BabyActionSnapshot) -> Void
+
+    var body: some View {
+        Group {
+            if let detailState {
+                let action = detailState.action
+
+                ZStack {
+                    Color.black.opacity(0.4)
+                        .ignoresSafeArea()
+                        .transition(.opacity)
+
+                    RecentActionDetailDialog(
+                        action: action,
+                        onDone: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                self.detailState = nil
+                            }
+                        },
+                        onEdit: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                self.detailState = nil
+                            }
+                            onEdit(action)
+                        }
+                    )
+                    .transition(.scale(scale: 0.94).combined(with: .opacity))
+                    .padding(.horizontal, 24)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .zIndex(1)
+            }
+        }
+        .accessibilityAddTraits(.isModal)
+    }
+}
+
+private struct RecentActionDetailDialog: View {
+    let action: BabyActionSnapshot
+    let onDone: () -> Void
+    let onEdit: () -> Void
+
+    var body: some View {
+        VStack(spacing: 24) {
+            VStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(action.category.accentColor.opacity(0.15))
+                        .frame(width: 60, height: 60)
+
+                    Image(systemName: action.icon)
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundStyle(action.category.accentColor)
+                }
+
+                Text(action.title)
+                    .font(.headline)
+
+                if let detailText = detailText {
+                    Text(detailText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 16) {
+                ForEach(detailRows) { row in
+                    RecentActionDetailRow(label: row.label, value: row.value)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: 16) {
+                Button(L10n.Common.done) {
+                    Analytics.capture(
+                        "home_close_recentAction_detail",
+                        properties: [
+                            "action_id": action.id.uuidString,
+                            "category": action.category.rawValue
+                        ]
+                    )
+                    onDone()
+                }
+                .buttonStyle(.bordered)
+                .postHogLabel("home.recentActionDetail.done")
+
+                Button(L10n.Logs.editAction) {
+                    Analytics.capture(
+                        "home_edit_recentAction_longPress",
+                        properties: [
+                            "action_id": action.id.uuidString,
+                            "category": action.category.rawValue
+                        ]
+                    )
+                    onEdit()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(action.category.accentColor)
+                .postHogLabel("home.recentActionDetail.edit")
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 28)
+        .frame(maxWidth: 360)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(uiColor: .systemBackground))
+                .shadow(color: Color.black.opacity(0.18), radius: 24, x: 0, y: 12)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(action.category.accentColor, lineWidth: 1)
+        )
+    }
+
+    private var detailText: String? {
+        let description = action.detailDescription
+        return description == action.title ? nil : description
+    }
+
+    private var detailRows: [DetailRowData] {
+        var rows: [DetailRowData] = []
+        rows.append(
+            DetailRowData(
+                label: L10n.Home.historyStartedLabel,
+                value: formattedDateTime(for: action.startDate)
+            )
+        )
+
+        if let endDate = action.endDate {
+            rows.append(
+                DetailRowData(
+                    label: L10n.Home.historyStoppedLabel,
+                    value: formattedDateTime(for: endDate)
+                )
+            )
+        }
+
+        if action.category != .diaper {
+            rows.append(
+                DetailRowData(
+                    label: L10n.Home.historyDurationLabel,
+                    value: action.durationDescription()
+                )
+            )
+        }
+
+        switch action.category {
+        case .sleep:
+            break
+        case .diaper:
+            if let diaperType = action.diaperType {
+                rows.append(
+                    DetailRowData(
+                        label: L10n.Home.diaperTypeSectionTitle,
+                        value: diaperType.title
+                    )
+                )
+            }
+        case .feeding:
+            if let feedingType = action.feedingType {
+                rows.append(
+                    DetailRowData(
+                        label: L10n.Home.feedingTypeSectionTitle,
+                        value: feedingType.title
+                    )
+                )
+
+                if feedingType == .bottle {
+                    if let bottleType = action.bottleType {
+                        rows.append(
+                            DetailRowData(
+                                label: L10n.Home.bottleTypeSectionTitle,
+                                value: bottleType.title
+                            )
+                        )
+                    }
+
+                    if let bottleVolume = action.bottleVolume {
+                        rows.append(
+                            DetailRowData(
+                                label: L10n.Home.bottleVolumeSectionTitle,
+                                value: L10n.Home.bottlePresetLabel(bottleVolume)
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        return rows
+    }
+
+    private func formattedDateTime(for date: Date) -> String {
+        if Calendar.current.isDateInToday(date) {
+            return BabyActionFormatter.shared.format(time24Hour: date)
+        }
+
+        return BabyActionFormatter.shared.format(dateTime: date)
+    }
+
+    private struct DetailRowData: Identifiable {
+        let id = UUID()
+        let label: String
+        let value: String
+    }
+}
+
+private struct RecentActionDetailRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Text(value)
+                .font(.body)
+                .foregroundStyle(.primary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 private struct AnimatedActionIcon: View {
     let systemName: String
     let color: Color
@@ -997,6 +1271,7 @@ private struct AnimatedActionIcon: View {
 private struct HistoryRow: View {
     let action: BabyActionSnapshot
     let onEdit: (BabyActionSnapshot) -> Void
+    let onLongPress: (BabyActionSnapshot) -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -1067,6 +1342,9 @@ private struct HistoryRow: View {
                 .fill(Color(.tertiarySystemBackground))
         )
         .contentShape(Rectangle())
+        .onLongPressGesture(minimumDuration: 0.6) {
+            onLongPress(action)
+        }
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
             Button {
                 onEdit(action)
@@ -1089,6 +1367,7 @@ private struct HistoryRow: View {
             .tint(.accentColor)
             .postHogLabel("home.historyRow.edit.trailing.\(action.category.rawValue)")
         }
+        .postHogLabel("home.recentActivity.card.\(action.category.rawValue)")
     }
 }
 

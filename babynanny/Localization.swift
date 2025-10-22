@@ -245,6 +245,11 @@ enum L10n {
             return String(format: format, locale: Locale.current, value)
         }
 
+        static let historyDurationLabel = String(
+            localized: "home.history.durationLabel",
+            defaultValue: "Duration"
+        )
+
         static let interruptionAlertTitle = String(
             localized: "home.interruptionAlert.title",
             defaultValue: "Stop current action?"

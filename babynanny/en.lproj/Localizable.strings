@@ -65,6 +65,7 @@
 "home.history.startedLabel" = "Started";
 "home.history.stoppedLabel" = "Stopped";
 "home.history.duration" = "For: %@";
+"home.history.durationLabel" = "Duration";
 "home.interruptionAlert.title" = "Stop current action?";
 "home.interruptionAlert.message" = "Starting a new %@ action will stop %@ that's currently running.";
 "home.interruptionAlert.confirm" = "Continue";
