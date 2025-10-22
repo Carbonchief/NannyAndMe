@@ -825,6 +825,16 @@ enum L10n {
         static let bottleFeedSubtitle = String(localized: "stats.card.bottleFeed.subtitle", defaultValue: "Total today")
         static let sleepSessionsTitle = String(localized: "stats.card.sleepSessions.title", defaultValue: "Sleep Sessions")
         static let sleepSessionsSubtitle = String(localized: "stats.card.sleepSessions.subtitle", defaultValue: "Today")
+        static let sleepDurationTitle = String(localized: "stats.card.sleepDuration.title", defaultValue: "Sleep Duration")
+        static let sleepDurationSubtitle = String(
+            localized: "stats.card.sleepDuration.subtitle",
+            defaultValue: "Total rest today"
+        )
+        static let diaperChangesTitle = String(localized: "stats.card.diaperChanges.title", defaultValue: "Diaper Changes")
+        static let diaperChangesSubtitle = String(
+            localized: "stats.card.diaperChanges.subtitle",
+            defaultValue: "Logged today"
+        )
         static let diapersYAxis = String(localized: "stats.chart.yAxis.diapers", defaultValue: "Diapers")
         static let minutesYAxis = String(localized: "stats.chart.yAxis.minutes", defaultValue: "Minutes")
         static let secondsYAxis = String(localized: "stats.chart.yAxis.seconds", defaultValue: "Seconds")
