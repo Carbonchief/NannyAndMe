@@ -224,6 +224,7 @@ private extension ActionsMapView {
     }
 }
 
+@MainActor
 private enum ActionsMapViewPreviewData {
     static let profile = Profile(name: "Luna")
 
