@@ -15,7 +15,9 @@ struct HomeView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
     @EnvironmentObject private var syncStatusViewModel: SyncStatusViewModel
+    @EnvironmentObject private var locationManager: LocationManager
     @Environment(\.openURL) private var openURL
+    @AppStorage("trackActionLocations") private var trackActionLocations = false
     @State private var presentedCategory: BabyActionCategory?
     @State private var editingAction: BabyActionSnapshot?
     @State private var pendingStartAction: PendingStartAction?
@@ -410,12 +412,43 @@ struct HomeView: View {
     }
 
     private func startAction(for category: BabyActionCategory, configuration: ActionConfiguration) {
-        actionStore.startAction(for: activeProfileID,
-                                category: category,
-                                diaperType: configuration.diaperType,
-                                feedingType: configuration.feedingType,
-                                bottleType: configuration.bottleType,
-                                bottleVolume: configuration.bottleVolume)
+        let shouldCaptureLocation = trackActionLocations && locationManager.isAuthorizedForUse
+
+        let start = {
+            actionStore.startAction(for: activeProfileID,
+                                    category: category,
+                                    diaperType: configuration.diaperType,
+                                    feedingType: configuration.feedingType,
+                                    bottleType: configuration.bottleType,
+                                    bottleVolume: configuration.bottleVolume,
+                                    location: nil)
+        }
+
+        guard shouldCaptureLocation else {
+            start()
+            return
+        }
+
+        Task {
+            let capturedLocation = await locationManager.captureCurrentLocation()
+            let loggedLocation = capturedLocation.map { capture in
+                ActionLogStore.LoggedLocation(
+                    latitude: capture.coordinate.latitude,
+                    longitude: capture.coordinate.longitude,
+                    placename: capture.placename
+                )
+            }
+
+            await MainActor.run {
+                actionStore.startAction(for: activeProfileID,
+                                        category: category,
+                                        diaperType: configuration.diaperType,
+                                        feedingType: configuration.feedingType,
+                                        bottleType: configuration.bottleType,
+                                        bottleVolume: configuration.bottleVolume,
+                                        location: loggedLocation)
+            }
+        }
     }
 
     private func stopAction(for category: BabyActionCategory) {
@@ -1973,4 +2006,5 @@ private struct ActionDetailSheet: View {
     return HomeView()
         .environmentObject(profileStore)
         .environmentObject(actionStore)
+        .environmentObject(LocationManager.shared)
 }

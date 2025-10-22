@@ -1,4 +1,5 @@
 "tab.home.title" = "Inicio";
+"tab.map.title" = "Mapa";
 "tab.reports.title" = "Informes";
 "common.stop" = "Detener";
 "common.start" = "Iniciar";
@@ -114,6 +115,11 @@
 "settings.notifications.actionReminder.frequency.one" = "Cada hora";
 "settings.notifications.actionReminder.frequency.other" = "Cada %lld horas";
 "settings.notifications.actionReminder.disabled" = "Los recordatorios están desactivados para esta acción.";
+"settings.privacy.section" = "Privacidad";
+"settings.privacy.trackLocations" = "Guardar ubicación de las acciones";
+"settings.privacy.trackLocations.description" = "Cuando está activado, la app guarda tu ubicación actual con cada acción registrada. Puedes desactivarlo en cualquier momento.";
+"settings.privacy.trackLocations.denied" = "Acceso a la ubicación denegado: toca para abrir Configuración.";
+"settings.privacy.openSettings" = "Abrir Ajustes";
 "settings.about.section" = "Acerca de";
 "settings.about.appVersion" = "Versión de la app";
 "settings.title" = "Configuración";
@@ -194,6 +200,14 @@
 "shareData.sharing.manageParticipantMenu" = "Gestionar participante";
 "shareData.sharing.stopSharingButton" = "Dejar de compartir…";
 "shareData.sharing.stopSharingFooter" = "Deja de compartir para revocar el acceso a todos.";
+"map.title" = "Mapa de acciones";
+"map.filter.actionType" = "Tipo de acción";
+"map.filter.dateRange" = "Intervalo de fechas";
+"map.filter.startDate" = "Fecha de inicio";
+"map.filter.endDate" = "Fecha de finalización";
+"map.filter.allActions" = "Todas las acciones";
+"map.emptyState" = "No hay acciones que coincidan con estos filtros.";
+"map.annotation.accessibility" = "%@ registrado en %@ el %@";
 "shareData.sharing.stopSharingConfirmTitle" = "¿Dejar de compartir este perfil?";
 "shareData.sharing.stopSharingMessage" = "Todos los participantes perderán el acceso de inmediato.";
 "shareData.sharing.errorTitle" = "Error al compartir";

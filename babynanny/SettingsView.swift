@@ -14,12 +14,14 @@ struct SettingsView: View {
     @EnvironmentObject private var appDataStack: AppDataStack
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
+    @EnvironmentObject private var locationManager: LocationManager
 #if DEBUG
     @EnvironmentObject private var syncCoordinator: SyncCoordinator
     @EnvironmentObject private var syncStatusViewModel: SyncStatusViewModel
     private let cloudKitContainerIdentifier = "iCloud.com.prioritybit.babynanny"
 #endif
     @Environment(\.openURL) private var openURL
+    @AppStorage("trackActionLocations") private var trackActionLocations = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var pendingCrop: PendingCropImage?
     @State private var isProcessingPhoto = false
@@ -39,6 +41,7 @@ struct SettingsView: View {
             profilesSection
             activeProfileSection
             homeSection
+            privacySection
             cloudSection
             notificationsSection
             aboutSection
@@ -150,6 +153,45 @@ struct SettingsView: View {
                     Text(L10n.Settings.Cloud.enable)
                 }
                 .postHogLabel("settings.cloud.enable")
+            }
+        }
+    }
+
+    private var privacySection: some View {
+        Section(header: Text(L10n.Settings.Privacy.sectionTitle)) {
+            Toggle(isOn: $trackActionLocations) {
+                Label(L10n.Settings.Privacy.trackActionLocations, systemImage: "location.fill")
+            }
+            .postHogLabel("settings.privacy.trackLocations")
+            .onChange(of: trackActionLocations) { _, newValue in
+                Analytics.capture(
+                    "settings_toggle_track_locations",
+                    properties: ["is_enabled": newValue ? "true" : "false"]
+                )
+                if newValue {
+                    locationManager.requestPermissionIfNeeded()
+                }
+            }
+
+            Text(L10n.Settings.Privacy.trackActionLocationsDescription)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            if trackActionLocations,
+               locationManager.authorizationStatus == .denied ||
+               locationManager.authorizationStatus == .restricted {
+                Button {
+                    Analytics.capture("settings_open_location_settings_button")
+                    if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                        openURL(settingsURL)
+                    }
+                } label: {
+                    Label(L10n.Settings.Privacy.permissionDenied, systemImage: "exclamationmark.triangle.fill")
+                        .labelStyle(.titleAndIcon)
+                        .foregroundStyle(.orange)
+                }
+                .buttonStyle(.borderless)
+                .postHogLabel("settings.privacy.openSystemSettings")
             }
         }
     }
@@ -749,6 +791,7 @@ private enum Layout {
         SettingsView()
             .environmentObject(ProfileStore.preview)
             .environmentObject(ActionLogStore.previewStore(profiles: [:]))
+            .environmentObject(LocationManager.shared)
 
     }
 }

@@ -18,8 +18,10 @@
 		</dict>
 	</array>
 	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-	</array>
+        <array>
+                <string>remote-notification</string>
+        </array>
+        <key>NSLocationWhenInUseUsageDescription</key>
+        <string>We use your location to show where your baby's actions were logged on the map.</string>
 </dict>
 </plist>
