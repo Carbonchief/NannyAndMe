@@ -467,6 +467,22 @@ enum L10n {
             )
             return String(format: format, locale: Locale.current, category, location, date)
         }
+
+        static func clusterDetailTitle(_ count: Int) -> String {
+            let format = String(
+                localized: "map.cluster.detailTitle",
+                defaultValue: "%lld nearby actions"
+            )
+            return String(format: format, locale: Locale.current, count)
+        }
+
+        static func clusterAccessibility(_ count: Int, _ location: String) -> String {
+            let format = String(
+                localized: "map.cluster.accessibility",
+                defaultValue: "%lld actions near %@"
+            )
+            return String(format: format, locale: Locale.current, count, location)
+        }
     }
 
     enum Notifications {

@@ -11,7 +11,7 @@ struct ActionsMapView: View {
     @State private var startDate: Date = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
     @State private var endDate: Date = Date()
     @State private var isShowingDateFilters = false
-    @State private var selectedAnnotation: ActionAnnotation?
+    @State private var selection: AnnotationSelection?
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 37.3349, longitude: -122.0090),
         span: MKCoordinateSpan(latitudeDelta: 0.25, longitudeDelta: 0.25)
@@ -21,6 +21,20 @@ struct ActionsMapView: View {
 
     private var activeProfileID: UUID? {
         profileStore.activeProfileID
+    }
+
+    private var selectedAnnotationID: UUID? {
+        if case let .single(annotation) = selection {
+            return annotation.id
+        }
+        return nil
+    }
+
+    private var selectedClusterID: String? {
+        if case let .cluster(cluster) = selection {
+            return cluster.id
+        }
+        return nil
     }
 
     private var dateRangeSummary: String {
@@ -38,7 +52,7 @@ struct ActionsMapView: View {
         return "\(start) – \(end)"
     }
 
-    private var filteredAnnotations: [ActionAnnotation] {
+    private var filteredActionAnnotations: [ActionAnnotation] {
         guard let activeProfileID else { return [] }
         let windowStart = calendar.startOfDay(for: startDate)
         let windowEnd = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: endDate) ?? endDate
@@ -56,6 +70,10 @@ struct ActionsMapView: View {
             }
     }
 
+    private var clusteredAnnotations: [ClusteredActionAnnotation] {
+        clusterAnnotations(from: filteredActionAnnotations)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             FilterBar(selectedCategory: $selectedCategory,
@@ -64,33 +82,15 @@ struct ActionsMapView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
 
-            Map(coordinateRegion: $region, annotationItems: filteredAnnotations) { annotation in
-                MapAnnotation(coordinate: annotation.coordinate) {
-                    AnnotationView(annotation: annotation,
-                                   isSelected: selectedAnnotation?.id == annotation.id)
-                        .phOnTapCapture(
-                            event: "map_select_annotation",
-                            properties: [
-                                "action_id": annotation.id.uuidString,
-                                "category": annotation.category.rawValue,
-                                "has_placename": annotation.placename != nil
-                            ]
-                        ) {
-                            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
-                                if selectedAnnotation?.id == annotation.id {
-                                    selectedAnnotation = nil
-                                } else {
-                                    selectedAnnotation = annotation
-                                }
-                            }
-                        }
-                        .postHogLabel(annotation.postHogLabel)
+            Map(coordinateRegion: $region, annotationItems: clusteredAnnotations) { cluster in
+                MapAnnotation(coordinate: cluster.coordinate) {
+                    annotationContent(for: cluster)
                 }
             }
             .mapStyle(.standard)
             .postHogLabel("map.canvas")
             .overlay(alignment: .top) {
-                if filteredAnnotations.isEmpty {
+                if filteredActionAnnotations.isEmpty {
                     EmptyStateView()
                         .padding(.top, 48)
                 }
@@ -99,13 +99,10 @@ struct ActionsMapView: View {
         }
         .navigationTitle(L10n.Map.title)
         .background(Color(.systemBackground))
-        .onChange(of: filteredAnnotations, initial: true) { _, newValue in
+        .onChange(of: filteredActionAnnotations, initial: true) { _, newValue in
             updateRegion(for: newValue)
-            if let selection = selectedAnnotation, newValue.contains(selection) == false {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    selectedAnnotation = nil
-                }
-            }
+            let updatedClusters = clusterAnnotations(from: newValue)
+            syncSelection(with: updatedClusters, annotations: newValue)
         }
         .onChange(of: startDate) { _, newValue in
             if newValue > endDate {
@@ -121,18 +118,158 @@ struct ActionsMapView: View {
             DateFilterSheet(startDate: $startDate, endDate: $endDate, isPresented: $isShowingDateFilters)
         }
         .safeAreaInset(edge: .bottom) {
-            if let selection = selectedAnnotation {
-                AnnotationDetailCard(annotation: selection) {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        selectedAnnotation = nil
+            if let currentSelection = selection {
+                switch currentSelection {
+                case let .single(annotation):
+                    AnnotationDetailCard(annotation: annotation) {
+                        selection = nil
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 16)
+                case let .cluster(cluster):
+                    ClusterDetailCard(cluster: cluster,
+                                      onSelectAction: { action in
+                                          selection = .single(action)
+                                      },
+                                      onClose: {
+                                          selection = nil
+                                      })
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .padding(.bottom, 16)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 16)
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: selectedAnnotation)
+        .animation(.easeInOut(duration: 0.25), value: selection)
+    }
+
+    @ViewBuilder
+    private func annotationContent(for cluster: ClusteredActionAnnotation) -> some View {
+        if let annotation = cluster.singleAnnotation {
+            singleAnnotationContent(for: annotation)
+        } else {
+            clusteredAnnotationContent(for: cluster)
+        }
+    }
+
+    @ViewBuilder
+    private func singleAnnotationContent(for annotation: ActionAnnotation) -> some View {
+        AnnotationView(
+            annotation: annotation,
+            isSelected: selectedAnnotationID == annotation.id
+        )
+            .phOnTapCapture(
+                event: "map_select_annotation",
+                properties: [
+                    "action_id": annotation.id.uuidString,
+                    "category": annotation.category.rawValue,
+                    "has_placename": annotation.placename != nil
+                ]
+            ) {
+                handleSingleSelection(annotation)
+            }
+            .postHogLabel(annotation.postHogLabel)
+    }
+
+    @ViewBuilder
+    private func clusteredAnnotationContent(for cluster: ClusteredActionAnnotation) -> some View {
+        ClusterAnnotationView(
+            cluster: cluster,
+            isSelected: selectedClusterID == cluster.id
+        )
+            .phOnTapCapture(
+                event: "map_select_cluster",
+                properties: [
+                    "action_ids": cluster.actionIDs.map(\.uuidString),
+                    "count": cluster.count,
+                    "categories": cluster.categoryIdentifiers
+                ]
+            ) {
+                handleClusterSelection(cluster)
+            }
+            .postHogLabel(cluster.postHogLabel)
+    }
+
+    private func handleSingleSelection(_ annotation: ActionAnnotation) {
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+            if selectedAnnotationID == annotation.id {
+                selection = nil
+            } else {
+                selection = .single(annotation)
+            }
+        }
+    }
+
+    private func handleClusterSelection(_ cluster: ClusteredActionAnnotation) {
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+            if selectedClusterID == cluster.id {
+                selection = nil
+            } else if cluster.count == 1, let annotation = cluster.singleAnnotation {
+                selection = .single(annotation)
+            } else {
+                selection = .cluster(cluster)
+            }
+        }
+    }
+
+    private func syncSelection(with clusters: [ClusteredActionAnnotation], annotations: [ActionAnnotation]) {
+        guard let currentSelection = selection else { return }
+        switch currentSelection {
+        case let .single(annotation):
+            if annotations.contains(annotation) == false {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    selection = nil
+                }
+            }
+        case let .cluster(cluster):
+            guard let updatedCluster = clusters.first(where: { $0.actionIDs == cluster.actionIDs }) else {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    selection = nil
+                }
+                return
+            }
+
+            if updatedCluster.count == 1, let single = updatedCluster.singleAnnotation {
+                selection = .single(single)
+            } else if updatedCluster != cluster {
+                selection = .cluster(updatedCluster)
+            }
+        }
+    }
+
+    private func clusterAnnotations(from annotations: [ActionAnnotation]) -> [ClusteredActionAnnotation] {
+        guard annotations.isEmpty == false else { return [] }
+
+        var clusters: [ClusteredActionAnnotation] = []
+        var visited = Set<UUID>()
+
+        for annotation in annotations {
+            guard visited.contains(annotation.id) == false else { continue }
+
+            var group: [ActionAnnotation] = [annotation]
+            visited.insert(annotation.id)
+
+            var index = 0
+            while index < group.count {
+                let baseAnnotation = group[index]
+                let basePoint = MKMapPoint(baseAnnotation.coordinate)
+
+                for other in annotations where visited.contains(other.id) == false {
+                    let otherPoint = MKMapPoint(other.coordinate)
+                    if basePoint.distance(to: otherPoint) <= ActionsMapView.clusterDistanceThreshold {
+                        group.append(other)
+                        visited.insert(other.id)
+                    }
+                }
+
+                index += 1
+            }
+
+            clusters.append(ClusteredActionAnnotation(actions: group))
+        }
+
+        return clusters
     }
 
     private func updateRegion(for annotations: [ActionAnnotation]) {
@@ -164,6 +301,8 @@ private extension ActionsMapView {
         formatter.timeStyle = .none
         return formatter
     }()
+
+    private static let clusterDistanceThreshold: CLLocationDistance = 50
 
     private static let annotationTimestampFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -232,6 +371,75 @@ private extension ActionsMapView {
         }
     }
 
+    struct ClusteredActionAnnotation: Identifiable, Equatable {
+        let id: String
+        let coordinate: CLLocationCoordinate2D
+        let actions: [ActionAnnotation]
+        let actionIDs: [UUID]
+
+        init(actions: [ActionAnnotation]) {
+            let ordered = actions.sorted { $0.timestamp > $1.timestamp }
+            self.actions = ordered
+            actionIDs = ordered.map(\.id).sorted { $0.uuidString < $1.uuidString }
+
+            let latitudeSum = ordered.reduce(0.0) { partial, annotation in
+                partial + annotation.coordinate.latitude
+            }
+            let longitudeSum = ordered.reduce(0.0) { partial, annotation in
+                partial + annotation.coordinate.longitude
+            }
+            let latitude = latitudeSum / Double(max(ordered.count, 1))
+            let longitude = longitudeSum / Double(max(ordered.count, 1))
+            coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+            id = actionIDs.map(\.uuidString).joined(separator: "-")
+        }
+
+        var count: Int { actions.count }
+
+        var singleAnnotation: ActionAnnotation? {
+            count == 1 ? actions.first : nil
+        }
+
+        var primaryAnnotation: ActionAnnotation? {
+            actions.first
+        }
+
+        var representativeTitle: String {
+            primaryAnnotation?.title ?? L10n.Map.allActions
+        }
+
+        var accentColor: Color {
+            primaryAnnotation?.accentColor ?? .accentColor
+        }
+
+        var categoryIdentifiers: [String] {
+            actions.map { $0.category.rawValue }
+        }
+
+        var accessibilityLabel: String {
+            L10n.Map.clusterAccessibility(count, representativeTitle)
+        }
+
+        var postHogLabel: String {
+            "map.annotation.cluster"
+        }
+
+        func contains(actionID: UUID) -> Bool {
+            actionIDs.contains(actionID)
+        }
+
+        static func == (lhs: ClusteredActionAnnotation, rhs: ClusteredActionAnnotation) -> Bool {
+            lhs.id == rhs.id &&
+                lhs.coordinate.latitude == rhs.coordinate.latitude &&
+                lhs.coordinate.longitude == rhs.coordinate.longitude
+        }
+    }
+
+    enum AnnotationSelection: Equatable {
+        case single(ActionAnnotation)
+        case cluster(ClusteredActionAnnotation)
+    }
+
     struct AnnotationView: View {
         let annotation: ActionAnnotation
         let isSelected: Bool
@@ -260,6 +468,49 @@ private extension ActionsMapView {
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(annotation.accessibilityLabel)
+        }
+    }
+
+    struct ClusterAnnotationView: View {
+        let cluster: ClusteredActionAnnotation
+        let isSelected: Bool
+
+        var body: some View {
+            VStack(spacing: 6) {
+                ZStack {
+                    Circle()
+                        .fill(cluster.accentColor.gradient)
+                        .frame(width: 44, height: 44)
+                        .overlay {
+                            Circle()
+                                .strokeBorder(
+                                    Color.white.opacity(isSelected ? 0.9 : 0.85),
+                                    lineWidth: isSelected ? 3 : 2
+                                )
+                        }
+
+                    Text("\(cluster.count)")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color.white)
+                }
+                .shadow(
+                    color: cluster.accentColor.opacity(isSelected ? 0.35 : 0.2),
+                    radius: isSelected ? 10 : 6,
+                    y: 3
+                )
+                .scaleEffect(isSelected ? 1.08 : 1.0)
+
+                let title = cluster.representativeTitle
+                if title.isEmpty == false {
+                    Text(title)
+                        .font(.caption2)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.thinMaterial, in: Capsule())
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(cluster.accessibilityLabel)
         }
     }
 
@@ -347,6 +598,126 @@ private extension ActionsMapView {
                         .font(.subheadline)
                         .foregroundStyle(.primary)
                 }
+            }
+        }
+    }
+
+    struct ClusterDetailCard: View {
+        let cluster: ClusteredActionAnnotation
+        let onSelectAction: (ActionAnnotation) -> Void
+        let onClose: () -> Void
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top, spacing: 12) {
+                    ClusterAnnotationView(cluster: cluster, isSelected: false)
+                        .allowsHitTesting(false)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(cluster.representativeTitle)
+                            .font(.headline)
+                            .lineLimit(2)
+
+                        Text(L10n.Map.clusterDetailTitle(cluster.count))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer(minLength: 12)
+
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            onClose()
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(Color.secondary)
+                    }
+                    .postHogLabel("map.clusterDetail.close")
+                    .phCaptureTap(
+                        event: "map_close_cluster_detail",
+                        properties: [
+                            "count": cluster.count,
+                            "action_ids": cluster.actionIDs.map(\.uuidString)
+                        ]
+                    )
+                    .accessibilityLabel(L10n.Common.close)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(cluster.actions) { action in
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                onSelectAction(action)
+                            }
+                        }) {
+                            ClusterActionRow(annotation: action)
+                        }
+                        .buttonStyle(.plain)
+                        .postHogLabel("map.clusterDetail.action.\(action.category.rawValue)")
+                        .phCaptureTap(
+                            event: "map_select_cluster_action",
+                            properties: [
+                                "action_id": action.id.uuidString,
+                                "category": action.category.rawValue
+                            ]
+                        )
+                        .accessibilityLabel(action.accessibilityLabel)
+                    }
+                }
+            }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(.ultraThinMaterial)
+            )
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06))
+            )
+            .shadow(color: Color.black.opacity(0.1), radius: 14, y: 6)
+            .accessibilityElement(children: .combine)
+        }
+
+        private struct ClusterActionRow: View {
+            let annotation: ActionAnnotation
+
+            var body: some View {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(annotation.accentColor.gradient)
+                            .frame(width: 36, height: 36)
+
+                        Image(systemName: annotation.iconName)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color.white)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(annotation.title)
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+
+                        Text(annotation.timestampSummary)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    Image(systemName: "chevron.forward")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color(.systemBackground).opacity(0.85))
+                )
             }
         }
     }
