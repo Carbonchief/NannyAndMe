@@ -32,11 +32,10 @@ struct ContentView: View {
     }
 
     private var visibleTabs: [Tab] {
-        var tabs: [Tab] = [.home]
+        var tabs: [Tab] = [.home, .reports]
         if shouldShowMapTab {
             tabs.append(.map)
         }
-        tabs.append(.reports)
         return tabs
     }
 
@@ -56,6 +55,8 @@ struct ContentView: View {
                     .simultaneousGesture(
                         DragGesture(minimumDistance: 30, coordinateSpace: .local)
                             .onEnded { value in
+                                guard selectedTab != .map else { return }
+
                                 let horizontal = value.translation.width
                                 let vertical = value.translation.height
 
@@ -352,12 +353,12 @@ private struct AnimatedTabContent: View {
                 HomeView(onShowAllLogs: onShowAllLogs)
                     .transition(transition)
 
-            case .map:
-                ActionsMapView()
-                    .transition(transition)
-
             case .reports:
                 ReportsView()
+                    .transition(transition)
+
+            case .map:
+                ActionsMapView()
                     .transition(transition)
             }
         }
@@ -376,8 +377,8 @@ private func shouldShowInitialProfilePrompt(for profile: ChildProfile,
 
 private enum Tab: Hashable, CaseIterable {
     case home
-    case map
     case reports
+    case map
 
     var title: String {
         switch self {
@@ -394,10 +395,10 @@ private enum Tab: Hashable, CaseIterable {
         switch self {
         case .home:
             return "house"
-        case .map:
-            return "map"
         case .reports:
             return "chart.bar"
+        case .map:
+            return "map"
         }
     }
 
@@ -405,9 +406,9 @@ private enum Tab: Hashable, CaseIterable {
         switch self {
         case .home:
             return 0
-        case .map:
-            return 1
         case .reports:
+            return 1
+        case .map:
             return 2
         }
     }
@@ -416,10 +417,10 @@ private enum Tab: Hashable, CaseIterable {
         switch self {
         case .home:
             return "tab.home"
-        case .map:
-            return "tab.map"
         case .reports:
             return "tab.reports"
+        case .map:
+            return "tab.map"
         }
     }
 
@@ -427,10 +428,10 @@ private enum Tab: Hashable, CaseIterable {
         switch self {
         case .home:
             return "home"
-        case .map:
-            return "map"
         case .reports:
             return "reports"
+        case .map:
+            return "map"
         }
     }
 }

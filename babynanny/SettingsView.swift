@@ -170,6 +170,7 @@ struct SettingsView: View {
                 )
                 if newValue {
                     locationManager.requestPermissionIfNeeded()
+                    locationManager.ensurePreciseAccuracyIfNeeded()
                 }
             }
 

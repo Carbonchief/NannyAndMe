@@ -117,7 +117,7 @@
 "settings.notifications.actionReminder.disabled" = "Reminders are turned off for this action.";
 "settings.privacy.section" = "Privacy";
 "settings.privacy.trackLocations" = "Track Action Locations";
-"settings.privacy.trackLocations.description" = "When enabled, the app saves your current location with each logged action. You can turn this off anytime.";
+"settings.privacy.trackLocations.description" = "When enabled, the app saves your precise location (within about 50 meters) with each logged action. You can turn this off anytime.";
 "settings.privacy.trackLocations.denied" = "Location access denied — tap to open Settings.";
 "settings.privacy.openSettings" = "Open Settings";
 "settings.about.section" = "About";
@@ -207,6 +207,8 @@
 "map.title" = "Action Map";
 "map.filter.actionType" = "Action type";
 "map.filter.dateRange" = "Date range";
+"map.filter.dateRange.button" = "Date filters";
+"map.filter.dateRange.title" = "Filter by date";
 "map.filter.startDate" = "Start date";
 "map.filter.endDate" = "End date";
 "map.filter.allActions" = "All actions";

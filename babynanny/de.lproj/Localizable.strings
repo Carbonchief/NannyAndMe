@@ -117,7 +117,7 @@
 "settings.notifications.actionReminder.disabled" = "Erinnerungen für diese Aktion sind deaktiviert.";
 "settings.privacy.section" = "Datenschutz";
 "settings.privacy.trackLocations" = "Standort bei Aktionen speichern";
-"settings.privacy.trackLocations.description" = "Wenn aktiviert, speichert die App deinen aktuellen Standort bei jedem Eintrag. Du kannst dies jederzeit deaktivieren.";
+"settings.privacy.trackLocations.description" = "Wenn aktiviert, speichert die App deinen genauen Standort (innerhalb von etwa 50 Metern) bei jedem Eintrag. Du kannst dies jederzeit deaktivieren.";
 "settings.privacy.trackLocations.denied" = "Standortzugriff verweigert – tippe, um Einstellungen zu öffnen.";
 "settings.privacy.openSettings" = "Einstellungen öffnen";
 "settings.about.section" = "Info";
@@ -203,6 +203,8 @@
 "map.title" = "Aktionskarte";
 "map.filter.actionType" = "Aktionstyp";
 "map.filter.dateRange" = "Datumsbereich";
+"map.filter.dateRange.button" = "Datumsfilter";
+"map.filter.dateRange.title" = "Nach Datum filtern";
 "map.filter.startDate" = "Startdatum";
 "map.filter.endDate" = "Enddatum";
 "map.filter.allActions" = "Alle Aktionen";

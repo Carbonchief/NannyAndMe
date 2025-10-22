@@ -9,9 +9,12 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         var placename: String?
     }
 
+    private static let preciseAccuracyPurposeKey = "ActionLoggingPreciseAccuracy"
+
     static let shared = LocationManager()
 
     @Published private(set) var authorizationStatus: CLAuthorizationStatus
+    @Published private(set) var accuracyAuthorization: CLAccuracyAuthorization
     @Published private(set) var lastKnownLocation: CLLocation?
 
     private let manager: CLLocationManager
@@ -20,15 +23,16 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
     private override init() {
         manager = CLLocationManager()
         authorizationStatus = manager.authorizationStatus
+        if #available(iOS 14.0, *) {
+            accuracyAuthorization = manager.accuracyAuthorization
+        } else {
+            accuracyAuthorization = .fullAccuracy
+        }
         lastKnownLocation = nil
         super.init()
         manager.delegate = self
-        if #available(iOS 14.0, *) {
-            manager.desiredAccuracy = kCLLocationAccuracyReduced
-        } else {
-            manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
-        }
-        manager.distanceFilter = 50
+        manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+        manager.distanceFilter = kCLDistanceFilterNone
         manager.pausesLocationUpdatesAutomatically = true
         manager.allowsBackgroundLocationUpdates = false
     }
@@ -45,10 +49,13 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
     func requestPermissionIfNeeded() {
         guard authorizationStatus == .notDetermined else { return }
         manager.requestWhenInUseAuthorization()
+        ensurePreciseAccuracyIfNeeded()
     }
 
     func captureCurrentLocation() async -> CapturedLocation? {
         guard isAuthorizedForUse else { return nil }
+
+        await requestPreciseAccuracyIfNeeded()
 
         if let lastKnownLocation {
             return await geocodeIfNeeded(for: lastKnownLocation)
@@ -62,6 +69,13 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         }
     }
 
+    /// Requests temporary full-accuracy authorization when the system only allows reduced accuracy.
+    func ensurePreciseAccuracyIfNeeded() {
+        Task { [weak self] in
+            await self?.requestPreciseAccuracyIfNeeded()
+        }
+    }
+
     private func requestLocation() async throws -> CLLocation {
         try await withCheckedThrowingContinuation { continuation in
             if let existing = self.continuation {
@@ -69,6 +83,23 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
             }
             self.continuation = continuation
             self.manager.requestLocation()
+        }
+    }
+
+    /// Performs the async temporary-precision request and updates accuracy publications.
+    private func requestPreciseAccuracyIfNeeded() async {
+        guard #available(iOS 14.0, *) else { return }
+        let currentAccuracy = manager.accuracyAuthorization
+        accuracyAuthorization = currentAccuracy
+        guard currentAccuracy == .reducedAccuracy else { return }
+
+        if #available(iOS 15.0, *) {
+            let granted = await manager.requestTemporaryFullAccuracyAuthorization(
+                withPurposeKey: Self.preciseAccuracyPurposeKey
+            )
+            if granted {
+                accuracyAuthorization = manager.accuracyAuthorization
+            }
         }
     }
 
@@ -92,9 +123,15 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authorizationStatus = manager.authorizationStatus
+        if #available(iOS 14.0, *) {
+            accuracyAuthorization = manager.accuracyAuthorization
+        }
         if manager.authorizationStatus == .denied {
             continuation?.resume(throwing: CLError(.denied))
             continuation = nil
+        }
+        if manager.authorizationStatus == .authorizedWhenInUse || manager.authorizationStatus == .authorizedAlways {
+            ensurePreciseAccuracyIfNeeded()
         }
     }
 
@@ -106,6 +143,9 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         }
 
         lastKnownLocation = location
+        if #available(iOS 14.0, *) {
+            accuracyAuthorization = manager.accuracyAuthorization
+        }
         continuation?.resume(returning: location)
         continuation = nil
     }

@@ -10,6 +10,7 @@ struct ActionsMapView: View {
     @State private var selectedCategory: BabyActionCategory?
     @State private var startDate: Date = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
     @State private var endDate: Date = Date()
+    @State private var isShowingDateFilters = false
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 37.3349, longitude: -122.0090),
         span: MKCoordinateSpan(latitudeDelta: 0.25, longitudeDelta: 0.25)
@@ -19,6 +20,20 @@ struct ActionsMapView: View {
 
     private var activeProfileID: UUID? {
         profileStore.activeProfileID
+    }
+
+    private var dateRangeSummary: String {
+        let formatter = ActionsMapView.dateIntervalFormatter
+        if let summary = formatter.string(from: startDate, to: endDate) {
+            return summary
+        }
+
+        let fallbackFormatter = DateFormatter()
+        fallbackFormatter.dateStyle = .medium
+        fallbackFormatter.timeStyle = .none
+        let start = fallbackFormatter.string(from: startDate)
+        let end = fallbackFormatter.string(from: endDate)
+        return "\(start) – \(end)"
     }
 
     private var filteredAnnotations: [ActionAnnotation] {
@@ -42,8 +57,8 @@ struct ActionsMapView: View {
     var body: some View {
         VStack(spacing: 0) {
             FilterBar(selectedCategory: $selectedCategory,
-                      startDate: $startDate,
-                      endDate: $endDate)
+                      dateSummary: dateRangeSummary,
+                      onShowDateFilters: { isShowingDateFilters = true })
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
 
@@ -77,6 +92,9 @@ struct ActionsMapView: View {
                 startDate = calendar.date(byAdding: .day, value: -1, to: newValue) ?? newValue
             }
         }
+        .sheet(isPresented: $isShowingDateFilters) {
+            DateFilterSheet(startDate: $startDate, endDate: $endDate, isPresented: $isShowingDateFilters)
+        }
     }
 
     private func updateRegion(for annotations: [ActionAnnotation]) {
@@ -102,6 +120,13 @@ struct ActionsMapView: View {
 }
 
 private extension ActionsMapView {
+    private static let dateIntervalFormatter: DateIntervalFormatter = {
+        let formatter = DateIntervalFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter
+    }()
+
     struct ActionAnnotation: Identifiable, Equatable {
         let id: UUID
         let coordinate: CLLocationCoordinate2D
@@ -166,50 +191,123 @@ private extension ActionsMapView {
 
     struct FilterBar: View {
         @Binding var selectedCategory: BabyActionCategory?
-        @Binding var startDate: Date
-        @Binding var endDate: Date
+        let dateSummary: String
+        let onShowDateFilters: () -> Void
 
         var body: some View {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(L10n.Map.actionTypeFilter)
                         .font(.subheadline)
                         .fontWeight(.medium)
-                    Picker(L10n.Map.actionTypeFilter, selection: $selectedCategory) {
-                        Text(L10n.Map.allActions)
-                            .tag(BabyActionCategory?.none)
-                        ForEach(BabyActionCategory.allCases) { category in
-                            Text(category.title)
-                                .tag(BabyActionCategory?.some(category))
+                    Menu {
+                        Picker(L10n.Map.actionTypeFilter, selection: $selectedCategory) {
+                            Text(L10n.Map.allActions)
+                                .tag(BabyActionCategory?.none)
+                            ForEach(BabyActionCategory.allCases) { category in
+                                Text(category.title)
+                                    .tag(BabyActionCategory?.some(category))
+                            }
                         }
+                        .pickerStyle(.inline)
+                    } label: {
+                        HStack {
+                            Text(selectedCategoryTitle)
+                                .font(.callout)
+                            Spacer()
+                            Image(systemName: "chevron.down")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color(.tertiarySystemBackground))
+                        )
                     }
-                    .pickerStyle(.segmented)
+                    .buttonStyle(.plain)
                     .postHogLabel("map.filter.actionType")
                 }
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(L10n.Map.dateRangeFilter)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    HStack(spacing: 12) {
-                        DatePicker(L10n.Map.startDate,
-                                   selection: $startDate,
-                                   displayedComponents: .date)
-                            .datePickerStyle(.compact)
-                            .postHogLabel("map.filter.startDate")
-                        DatePicker(L10n.Map.endDate,
-                                   selection: $endDate,
-                                   displayedComponents: .date)
-                            .datePickerStyle(.compact)
-                            .postHogLabel("map.filter.endDate")
+                Button(action: onShowDateFilters) {
+                    HStack(alignment: .center, spacing: 12) {
+                        Label(L10n.Map.dateRangeFilterButton, systemImage: "calendar.badge.clock")
+                            .labelStyle(.titleAndIcon)
+                            .font(.subheadline)
+                        Spacer()
+                        Text(dateSummary)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .multilineTextAlignment(.trailing)
                     }
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color(.tertiarySystemBackground))
+                    )
                 }
+                .buttonStyle(.plain)
+                .postHogLabel("map.filter.dateButton")
             }
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(Color(.secondarySystemBackground))
             )
+        }
+
+        private var selectedCategoryTitle: String {
+            selectedCategory?.title ?? L10n.Map.allActions
+        }
+    }
+
+    struct DateFilterSheet: View {
+        @Binding var startDate: Date
+        @Binding var endDate: Date
+        @Binding var isPresented: Bool
+
+        private var calendar: Calendar { Calendar.current }
+
+        var body: some View {
+            NavigationStack {
+                Form {
+                    Section(L10n.Map.dateRangeFilter) {
+                        DatePicker(L10n.Map.startDate,
+                                   selection: $startDate,
+                                   displayedComponents: .date)
+                            .datePickerStyle(.graphical)
+                            .postHogLabel("map.filterSheet.startDate")
+
+                        DatePicker(L10n.Map.endDate,
+                                   selection: $endDate,
+                                   in: startDate...,
+                                   displayedComponents: .date)
+                            .datePickerStyle(.graphical)
+                            .postHogLabel("map.filterSheet.endDate")
+                    }
+                }
+                .navigationTitle(L10n.Map.dateRangeFilterTitle)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(L10n.Common.cancel) {
+                            isPresented = false
+                        }
+                        .postHogLabel("map.filterSheet.cancel")
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(L10n.Common.done) {
+                            if endDate < startDate {
+                                endDate = calendar.date(byAdding: .day, value: 1, to: startDate) ?? startDate
+                            }
+                            isPresented = false
+                        }
+                        .postHogLabel("map.filterSheet.done")
+                    }
+                }
+            }
         }
     }
 

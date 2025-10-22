@@ -420,12 +420,12 @@ enum L10n {
         enum Privacy {
             static let sectionTitle = String(localized: "settings.privacy.section", defaultValue: "Privacy")
             static let trackActionLocations = String(
-                localized: "settings.privacy.trackLocations", 
+                localized: "settings.privacy.trackLocations",
                 defaultValue: "Track Action Locations"
             )
             static let trackActionLocationsDescription = String(
                 localized: "settings.privacy.trackLocations.description",
-                defaultValue: "When enabled, the app saves your current location with each logged action. You can turn this off anytime."
+                defaultValue: "When enabled, the app saves your precise location (within about 50 meters) with each logged action. You can turn this off anytime."
             )
             static let permissionDenied = String(
                 localized: "settings.privacy.trackLocations.denied",
@@ -440,6 +440,8 @@ enum L10n {
         static let title = String(localized: "map.title", defaultValue: "Action Map")
         static let actionTypeFilter = String(localized: "map.filter.actionType", defaultValue: "Action type")
         static let dateRangeFilter = String(localized: "map.filter.dateRange", defaultValue: "Date range")
+        static let dateRangeFilterButton = String(localized: "map.filter.dateRange.button", defaultValue: "Date filters")
+        static let dateRangeFilterTitle = String(localized: "map.filter.dateRange.title", defaultValue: "Filter by date")
         static let startDate = String(localized: "map.filter.startDate", defaultValue: "Start date")
         static let endDate = String(localized: "map.filter.endDate", defaultValue: "End date")
         static let allActions = String(localized: "map.filter.allActions", defaultValue: "All actions")
