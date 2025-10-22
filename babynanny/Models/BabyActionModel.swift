@@ -619,7 +619,7 @@ extension BabyAction {
     }
 }
 
-private final class BabyActionFormatter {
+final class BabyActionFormatter {
     static let shared = BabyActionFormatter()
 
     private let timeFormatter: DateFormatter
