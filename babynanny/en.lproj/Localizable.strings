@@ -250,6 +250,10 @@
 "stats.card.bottleFeed.subtitle" = "Total today";
 "stats.card.sleepSessions.title" = "Sleep Sessions";
 "stats.card.sleepSessions.subtitle" = "Today";
+"stats.card.sleepDuration.title" = "Sleep Duration";
+"stats.card.sleepDuration.subtitle" = "Total rest today";
+"stats.card.diaperChanges.title" = "Diaper Changes";
+"stats.card.diaperChanges.subtitle" = "Logged today";
 "stats.pattern.title" = "Daily Pattern";
 "stats.pattern.subtitle" = "Typical activity times over the last week.";
 "stats.chart.yAxis.diapers" = "Diapers";

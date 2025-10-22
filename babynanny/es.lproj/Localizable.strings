@@ -246,6 +246,10 @@
 "stats.card.bottleFeed.subtitle" = "Total de hoy";
 "stats.card.sleepSessions.title" = "Sesiones de sueño";
 "stats.card.sleepSessions.subtitle" = "Hoy";
+"stats.card.sleepDuration.title" = "Duración del sueño";
+"stats.card.sleepDuration.subtitle" = "Descanso total de hoy";
+"stats.card.diaperChanges.title" = "Cambios de pañal";
+"stats.card.diaperChanges.subtitle" = "Registrados hoy";
 "stats.pattern.title" = "Patrón diario";
 "stats.pattern.subtitle" = "Horarios típicos de la actividad en la última semana.";
 "stats.chart.yAxis.diapers" = "Pañales";

@@ -246,6 +246,10 @@
 "stats.card.bottleFeed.subtitle" = "Summe heute";
 "stats.card.sleepSessions.title" = "Schlafphasen";
 "stats.card.sleepSessions.subtitle" = "Heute";
+"stats.card.sleepDuration.title" = "Schlafdauer";
+"stats.card.sleepDuration.subtitle" = "Gesamte Ruhezeit heute";
+"stats.card.diaperChanges.title" = "Windelwechsel";
+"stats.card.diaperChanges.subtitle" = "Heute protokolliert";
 "stats.pattern.title" = "Tagesmuster";
 "stats.pattern.subtitle" = "Typische Aktivitätszeiten der letzten Woche.";
 "stats.chart.yAxis.diapers" = "Windeln";

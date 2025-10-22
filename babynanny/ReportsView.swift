@@ -94,7 +94,8 @@ struct ReportsView: View {
     @ViewBuilder
     private func dailySnapshotSection(for state: ProfileActionState) -> some View {
         let today = todayActions(for: state)
-        statsGrid(for: state, todayActions: today)
+        let todaySummary = daySummary(for: Date(), state: state)
+        statsGrid(for: state, todayActions: today, todaySummary: todaySummary)
     }
 
     private func tabBar() -> some View {
@@ -178,7 +179,10 @@ struct ReportsView: View {
         initializeTabIfNeeded()
     }
 
-    private func statsGrid(for state: ProfileActionState, todayActions: [BabyActionSnapshot]) -> some View {
+    private func statsGrid(for state: ProfileActionState,
+                           todayActions: [BabyActionSnapshot],
+                           todaySummary: DaySummary) -> some View
+    {
         VStack(spacing: 16) {
             HStack(spacing: 16) {
                 StatCard(title: L10n.Stats.activeActionsTitle,
@@ -206,6 +210,20 @@ struct ReportsView: View {
                          subtitle: L10n.Stats.sleepSessionsSubtitle,
                          icon: "moon.zzz.fill",
                          tint: .purple)
+            }
+
+            HStack(spacing: 16) {
+                StatCard(title: L10n.Stats.sleepDurationTitle,
+                         value: formattedSummaryDuration(todaySummary.sleepDuration),
+                         subtitle: L10n.Stats.sleepDurationSubtitle,
+                         icon: "clock.fill",
+                         tint: .indigo)
+
+                StatCard(title: L10n.Stats.diaperChangesTitle,
+                         value: "\(todaySummary.diaperCount)",
+                         subtitle: L10n.Stats.diaperChangesSubtitle,
+                         icon: BabyActionCategory.diaper.icon,
+                         tint: BabyActionCategory.diaper.accentColor)
             }
         }
     }
