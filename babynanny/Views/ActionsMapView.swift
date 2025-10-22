@@ -61,7 +61,7 @@ struct ActionsMapView: View {
                       dateSummary: dateRangeSummary,
                       onShowDateFilters: { isShowingDateFilters = true })
                 .padding(.horizontal, 16)
-                .padding(.top, 16)
+                .padding(.top, 12)
 
             Map(coordinateRegion: $region, annotationItems: filteredAnnotations) { annotation in
                 MapAnnotation(coordinate: annotation.coordinate) {
@@ -196,72 +196,102 @@ private extension ActionsMapView {
         let onShowDateFilters: () -> Void
 
         var body: some View {
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(L10n.Map.actionTypeFilter)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    Menu {
-                        Picker(L10n.Map.actionTypeFilter, selection: $selectedCategory) {
-                            Text(L10n.Map.allActions)
-                                .tag(BabyActionCategory?.none)
-                            ForEach(BabyActionCategory.allCases) { category in
-                                Text(category.title)
-                                    .tag(BabyActionCategory?.some(category))
-                            }
+            HStack(spacing: 12) {
+                Menu {
+                    Picker(L10n.Map.actionTypeFilter, selection: $selectedCategory) {
+                        Text(L10n.Map.allActions)
+                            .tag(BabyActionCategory?.none)
+                        ForEach(BabyActionCategory.allCases) { category in
+                            Text(category.title)
+                                .tag(BabyActionCategory?.some(category))
                         }
-                        .pickerStyle(.inline)
-                    } label: {
-                        HStack {
-                            Text(selectedCategoryTitle)
-                                .font(.callout)
-                            Spacer()
-                            Image(systemName: "chevron.down")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color(.tertiarySystemBackground))
-                        )
                     }
-                    .buttonStyle(.plain)
-                    .postHogLabel("map.filter.actionType")
+                    .pickerStyle(.inline)
+                } label: {
+                    FilterChip(iconName: "line.3.horizontal.decrease.circle",
+                               title: L10n.Map.actionTypeFilter,
+                               detail: selectedCategoryTitle,
+                               accessory: .chevronDown)
                 }
+                .buttonStyle(.plain)
+                .postHogLabel("map.filter.actionType")
 
                 Button(action: onShowDateFilters) {
-                    HStack(alignment: .center, spacing: 12) {
-                        Label(L10n.Map.dateRangeFilterButton, systemImage: "calendar.badge.clock")
-                            .labelStyle(.titleAndIcon)
-                            .font(.subheadline)
-                        Spacer()
-                        Text(dateSummary)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .multilineTextAlignment(.trailing)
-                    }
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color(.tertiarySystemBackground))
-                    )
+                    FilterChip(iconName: "calendar.badge.clock",
+                               title: L10n.Map.dateRangeFilterButton,
+                               detail: dateSummary,
+                               accessory: .chevronForward)
                 }
                 .buttonStyle(.plain)
                 .postHogLabel("map.filter.dateButton")
             }
-            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(Color(.secondarySystemBackground))
             )
+            .padding(.bottom, 8)
         }
 
         private var selectedCategoryTitle: String {
             selectedCategory?.title ?? L10n.Map.allActions
+        }
+
+        private struct FilterChip: View {
+            enum Accessory {
+                case chevronDown
+                case chevronForward
+            }
+
+            let iconName: String
+            let title: String
+            let detail: String
+            let accessory: Accessory
+
+            var body: some View {
+                HStack(alignment: .center, spacing: 10) {
+                    Image(systemName: iconName)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Color.accentColor)
+                        .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(detail)
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    Spacer(minLength: 4)
+
+                    Image(systemName: accessorySymbol)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Color.secondary)
+                        .accessibilityHidden(true)
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color(.tertiarySystemBackground))
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+
+            private var accessorySymbol: String {
+                switch accessory {
+                case .chevronDown:
+                    return "chevron.down"
+                case .chevronForward:
+                    return "chevron.right"
+                }
+            }
         }
     }
 
