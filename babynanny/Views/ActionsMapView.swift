@@ -118,8 +118,8 @@ struct ActionsMapView: View {
             DateFilterSheet(startDate: $startDate, endDate: $endDate, isPresented: $isShowingDateFilters)
         }
         .safeAreaInset(edge: .bottom) {
-            if let selection {
-                switch selection {
+            if let currentSelection = selection {
+                switch currentSelection {
                 case let .single(annotation):
                     AnnotationDetailCard(annotation: annotation) {
                         selection = nil
