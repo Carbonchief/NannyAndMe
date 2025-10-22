@@ -6,6 +6,12 @@ import os
 
 @MainActor
 final class ActionLogStore: ObservableObject {
+    struct LoggedLocation: Equatable {
+        var latitude: Double
+        var longitude: Double
+        var placename: String?
+    }
+
     private let modelContext: ModelContext
     private let reminderScheduler: ReminderScheduling?
     private weak var profileStore: ProfileStore?
@@ -148,7 +154,8 @@ final class ActionLogStore: ObservableObject {
                      diaperType: BabyActionSnapshot.DiaperType? = nil,
                      feedingType: BabyActionSnapshot.FeedingType? = nil,
                      bottleType: BabyActionSnapshot.BottleType? = nil,
-                     bottleVolume: Int? = nil) {
+                     bottleVolume: Int? = nil,
+                     location: LoggedLocation? = nil) {
         notifyChange()
         var profileState = state(for: profileID)
         let now = Date()
@@ -162,13 +169,18 @@ final class ActionLogStore: ObservableObject {
                 loggedCategories.insert(category)
             }
 
-            let action = BabyActionSnapshot(category: category,
+            var action = BabyActionSnapshot(category: category,
                                             startDate: now,
                                             endDate: now,
                                             diaperType: diaperType,
                                             feedingType: feedingType,
                                             bottleType: bottleType,
                                             bottleVolume: bottleVolume)
+            if let location {
+                action.latitude = location.latitude
+                action.longitude = location.longitude
+                action.placename = location.placename
+            }
             profileState.history.insert(action, at: 0)
             persist(profileState: profileState, for: profileID)
             refreshDurationActivities()
@@ -204,6 +216,11 @@ final class ActionLogStore: ObservableObject {
                                         feedingType: feedingType,
                                         bottleType: bottleType,
                                         bottleVolume: bottleVolume)
+        if let location {
+            action.latitude = location.latitude
+            action.longitude = location.longitude
+            action.placename = location.placename
+        }
         action = Self.clamp(action, avoiding: profileState.history)
         profileState.activeActions[category] = action
 
@@ -500,6 +517,9 @@ private extension ActionLogStore {
                                                     feedingType: action.feedingType,
                                                     bottleType: action.bottleType,
                                                     bottleVolume: action.bottleVolume,
+                                                    latitude: action.latitude,
+                                                    longitude: action.longitude,
+                                                    placename: action.placename,
                                                     updatedAt: action.updatedAt,
                                                     profile: model)
                     modelContext.insert(newAction)

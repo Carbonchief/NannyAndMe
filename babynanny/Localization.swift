@@ -3,6 +3,7 @@ import Foundation
 enum L10n {
     enum Tab {
         static let home = String(localized: "tab.home.title", defaultValue: "Home")
+        static let map = String(localized: "tab.map.title", defaultValue: "Map")
         static let reports = String(localized: "tab.reports.title", defaultValue: "Reports")
     }
 
@@ -421,6 +422,51 @@ enum L10n {
             defaultValue: "Reminders are turned off for this action."
         )
 
+        enum Privacy {
+            static let sectionTitle = String(localized: "settings.privacy.section", defaultValue: "Privacy")
+            static let trackActionLocations = String(
+                localized: "settings.privacy.trackLocations",
+                defaultValue: "Track Action Locations"
+            )
+            static let trackActionLocationsDescription = String(
+                localized: "settings.privacy.trackLocations.description",
+                defaultValue: "When enabled, the app saves your precise location (within about 50 meters) with each logged action. You can turn this off anytime."
+            )
+            static let permissionDenied = String(
+                localized: "settings.privacy.trackLocations.denied",
+                defaultValue: "Location access denied — tap to open Settings."
+            )
+            static let openSettings = String(localized: "settings.privacy.openSettings", defaultValue: "Open Settings")
+        }
+
+    }
+
+    enum Map {
+        static let title = String(localized: "map.title", defaultValue: "Action Map")
+        static let actionTypeFilter = String(localized: "map.filter.actionType", defaultValue: "Action type")
+        static let dateRangeFilter = String(localized: "map.filter.dateRange", defaultValue: "Date range")
+        static let dateRangeFilterButton = String(localized: "map.filter.dateRange.button", defaultValue: "Date filters")
+        static let dateRangeFilterTitle = String(localized: "map.filter.dateRange.title", defaultValue: "Filter by date")
+        static let startDate = String(localized: "map.filter.startDate", defaultValue: "Start date")
+        static let endDate = String(localized: "map.filter.endDate", defaultValue: "End date")
+        static let allActions = String(localized: "map.filter.allActions", defaultValue: "All actions")
+        static let emptyState = String(localized: "map.emptyState", defaultValue: "No actions match your filters.")
+
+        static let annotationTypeLabel = String(localized: "map.annotation.type", defaultValue: "Type")
+        static let annotationSubtypeLabel = String(localized: "map.annotation.subtype", defaultValue: "Subtype")
+
+        static func annotationLoggedAt(_ value: String) -> String {
+            let format = String(localized: "map.annotation.loggedAt", defaultValue: "Logged on %@")
+            return String(format: format, locale: Locale.current, value)
+        }
+
+        static func annotationAccessibility(_ category: String, _ location: String, _ date: String) -> String {
+            let format = String(
+                localized: "map.annotation.accessibility",
+                defaultValue: "%@ logged at %@ on %@"
+            )
+            return String(format: format, locale: Locale.current, category, location, date)
+        }
     }
 
     enum Notifications {

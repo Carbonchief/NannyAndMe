@@ -304,6 +304,35 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
             model.bottleVolume = nil
             mutated = true
         }
+        if let latitudeNumber = record["latitude"] as? NSNumber {
+            let latitude = latitudeNumber.doubleValue
+            if model.latitude != latitude {
+                model.latitude = latitude
+                mutated = true
+            }
+        } else if model.latitude != nil {
+            model.latitude = nil
+            mutated = true
+        }
+        if let longitudeNumber = record["longitude"] as? NSNumber {
+            let longitude = longitudeNumber.doubleValue
+            if model.longitude != longitude {
+                model.longitude = longitude
+                mutated = true
+            }
+        } else if model.longitude != nil {
+            model.longitude = nil
+            mutated = true
+        }
+        if let placename = record["placename"] as? String {
+            if model.placename != placename {
+                model.placename = placename
+                mutated = true
+            }
+        } else if model.placename != nil {
+            model.placename = nil
+            mutated = true
+        }
         if let updatedAt = record["updatedAt"] as? Date, model.updatedAt != updatedAt {
             model.updatedAt = updatedAt
             mutated = true

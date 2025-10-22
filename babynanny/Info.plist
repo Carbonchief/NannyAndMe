@@ -18,8 +18,15 @@
 		</dict>
 	</array>
 	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-	</array>
+        <array>
+                <string>remote-notification</string>
+        </array>
+        <key>NSLocationWhenInUseUsageDescription</key>
+        <string>We use your location to show where your baby's actions were logged on the map.</string>
+        <key>NSLocationTemporaryUsageDescriptionDictionary</key>
+        <dict>
+                <key>ActionLoggingPreciseAccuracy</key>
+                <string>We request precise location temporarily so action pins are accurate within about 50 meters.</string>
+        </dict>
 </dict>
 </plist>

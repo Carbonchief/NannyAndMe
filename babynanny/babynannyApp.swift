@@ -41,6 +41,7 @@ struct babynannyApp: App {
                         .environmentObject(shareDataCoordinator)
                         .environmentObject(appDataStack.syncCoordinator)
                         .environmentObject(syncStatusViewModel)
+                        .environmentObject(LocationManager.shared)
                         .onOpenURL { url in
                             if handleDurationActivityURL(url) {
                                 return

@@ -12,6 +12,8 @@ struct ContentView: View {
     @EnvironmentObject private var appDataStack: AppDataStack
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
+    @EnvironmentObject private var locationManager: LocationManager
+    @AppStorage("trackActionLocations") private var trackActionLocations = false
     @State private var selectedTab: Tab = .home
     @State private var previousTab: Tab = .home
     @State private var isMenuVisible = false
@@ -25,8 +27,22 @@ struct ContentView: View {
         cloudStatusController.status == .available && appDataStack.cloudSyncEnabled
     }
 
+    private var shouldShowMapTab: Bool {
+        trackActionLocations && locationManager.isAuthorizedForUse
+    }
+
+    private var visibleTabs: [Tab] {
+        var tabs: [Tab] = [.home, .reports]
+        if shouldShowMapTab {
+            tabs.append(.map)
+        }
+        return tabs
+    }
+
     var body: some View {
-        ZStack(alignment: .leading) {
+        let tabs = visibleTabs
+
+        return ZStack(alignment: .leading) {
             NavigationStack {
                 VStack(spacing: 0) {
                     AnimatedTabContent(
@@ -39,12 +55,14 @@ struct ContentView: View {
                     .simultaneousGesture(
                         DragGesture(minimumDistance: 30, coordinateSpace: .local)
                             .onEnded { value in
+                                guard selectedTab != .map else { return }
+
                                 let horizontal = value.translation.width
                                 let vertical = value.translation.height
 
                                 guard abs(horizontal) > abs(vertical), abs(horizontal) > 40 else { return }
 
-                                if horizontal < 0, let nextTab = selectedTab.next {
+                                if horizontal < 0, let nextTab = nextTab(after: selectedTab, in: tabs) {
                                     Analytics.capture(
                                         "navigation_swipe_tab_content",
                                         properties: [
@@ -58,7 +76,7 @@ struct ContentView: View {
                                     withAnimation(.easeInOut(duration: 0.3)) {
                                         selectedTab = nextTab
                                     }
-                                } else if horizontal > 0, let previous = selectedTab.previous {
+                                } else if horizontal > 0, let previous = previousTab(before: selectedTab, in: tabs) {
                                     Analytics.capture(
                                         "navigation_swipe_tab_content",
                                         properties: [
@@ -79,7 +97,7 @@ struct ContentView: View {
                     Divider()
 
                     HStack(spacing: 0) {
-                        ForEach(Tab.allCases, id: \.self) { tab in
+                        ForEach(tabs, id: \.self) { tab in
                             VStack(spacing: 4) {
                                 Image(systemName: tab.icon)
                                     .font(.system(size: 18, weight: .semibold))
@@ -301,6 +319,12 @@ struct ContentView: View {
                 showShareProfile = false
             }
         }
+        .onChange(of: shouldShowMapTab) { _, isVisible in
+            if isVisible == false && selectedTab == .map {
+                previousTab = .home
+                selectedTab = .home
+            }
+        }
     }
 }
 
@@ -332,6 +356,10 @@ private struct AnimatedTabContent: View {
             case .reports:
                 ReportsView()
                     .transition(transition)
+
+            case .map:
+                ActionsMapView()
+                    .transition(transition)
             }
         }
         .animation(.easeInOut(duration: 0.3), value: selectedTab)
@@ -350,11 +378,14 @@ private func shouldShowInitialProfilePrompt(for profile: ChildProfile,
 private enum Tab: Hashable, CaseIterable {
     case home
     case reports
+    case map
 
     var title: String {
         switch self {
         case .home:
             return L10n.Tab.home
+        case .map:
+            return L10n.Tab.map
         case .reports:
             return L10n.Tab.reports
         }
@@ -366,6 +397,8 @@ private enum Tab: Hashable, CaseIterable {
             return "house"
         case .reports:
             return "chart.bar"
+        case .map:
+            return "map"
         }
     }
 
@@ -375,6 +408,8 @@ private enum Tab: Hashable, CaseIterable {
             return 0
         case .reports:
             return 1
+        case .map:
+            return 2
         }
     }
 
@@ -384,6 +419,8 @@ private enum Tab: Hashable, CaseIterable {
             return "tab.home"
         case .reports:
             return "tab.reports"
+        case .map:
+            return "tab.map"
         }
     }
 
@@ -393,21 +430,21 @@ private enum Tab: Hashable, CaseIterable {
             return "home"
         case .reports:
             return "reports"
+        case .map:
+            return "map"
         }
     }
+}
 
-    var next: Tab? {
-        guard let index = Self.allCases.firstIndex(of: self), index < Self.allCases.count - 1 else {
-            return nil
-        }
-        return Self.allCases[index + 1]
+private extension ContentView {
+    func nextTab(after tab: Tab, in tabs: [Tab]) -> Tab? {
+        guard let index = tabs.firstIndex(of: tab), index < tabs.count - 1 else { return nil }
+        return tabs[index + 1]
     }
 
-    var previous: Tab? {
-        guard let index = Self.allCases.firstIndex(of: self), index > 0 else {
-            return nil
-        }
-        return Self.allCases[index - 1]
+    func previousTab(before tab: Tab, in tabs: [Tab]) -> Tab? {
+        guard let index = tabs.firstIndex(of: tab), index > 0 else { return nil }
+        return tabs[index - 1]
     }
 }
 
@@ -426,4 +463,5 @@ private enum Tab: Hashable, CaseIterable {
         .environmentObject(profileStore)
         .environmentObject(actionStore)
         .environmentObject(ShareDataCoordinator())
+        .environmentObject(LocationManager.shared)
 }

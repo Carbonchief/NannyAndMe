@@ -150,6 +150,9 @@ struct BabyActionSnapshot: Identifiable, Codable, Equatable, Sendable {
     var feedingType: FeedingType?
     var bottleType: BottleType?
     var bottleVolume: Int?
+    var latitude: Double?
+    var longitude: Double?
+    var placename: String?
     var updatedAt: Date
 
     init(id: UUID = UUID(),
@@ -160,6 +163,9 @@ struct BabyActionSnapshot: Identifiable, Codable, Equatable, Sendable {
          feedingType: FeedingType? = nil,
          bottleType: BottleType? = nil,
          bottleVolume: Int? = nil,
+         latitude: Double? = nil,
+         longitude: Double? = nil,
+         placename: String? = nil,
          updatedAt: Date = Date()) {
         self.id = id
         self.category = category
@@ -169,6 +175,9 @@ struct BabyActionSnapshot: Identifiable, Codable, Equatable, Sendable {
         self.feedingType = feedingType
         self.bottleType = bottleType
         self.bottleVolume = bottleVolume
+        self.latitude = latitude
+        self.longitude = longitude
+        self.placename = placename
         self.updatedAt = updatedAt
     }
 
@@ -308,6 +317,9 @@ extension BabyActionSnapshot {
         case bottleType
         case bottleVolume
         case updatedAt
+        case latitude
+        case longitude
+        case placename
     }
 
     init(from decoder: Decoder) throws {
@@ -322,6 +334,9 @@ extension BabyActionSnapshot {
         feedingType = try container.decodeIfPresent(FeedingType.self, forKey: .feedingType)
         bottleType = try container.decodeIfPresent(BottleType.self, forKey: .bottleType)
         bottleVolume = try container.decodeIfPresent(Int.self, forKey: .bottleVolume)
+        latitude = try container.decodeIfPresent(Double.self, forKey: .latitude)
+        longitude = try container.decodeIfPresent(Double.self, forKey: .longitude)
+        placename = try container.decodeIfPresent(String.self, forKey: .placename)
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
     }
 
@@ -335,6 +350,9 @@ extension BabyActionSnapshot {
         try container.encodeIfPresent(feedingType, forKey: .feedingType)
         try container.encodeIfPresent(bottleType, forKey: .bottleType)
         try container.encodeIfPresent(bottleVolume, forKey: .bottleVolume)
+        try container.encodeIfPresent(latitude, forKey: .latitude)
+        try container.encodeIfPresent(longitude, forKey: .longitude)
+        try container.encodeIfPresent(placename, forKey: .placename)
         try container.encode(updatedAt, forKey: .updatedAt)
     }
 }
@@ -496,6 +514,9 @@ final class BabyAction {
     var bottleTypeRawValue: String?
     var bottleVolume: Int?
     private var updatedAtRawValue: Date = Date()
+    var latitude: Double?
+    var longitude: Double?
+    var placename: String?
     @Relationship(deleteRule: .nullify, inverse: \Profile.storedActions)
     var profile: Profile?
 
@@ -507,6 +528,9 @@ final class BabyAction {
          feedingType: BabyActionSnapshot.FeedingType? = nil,
          bottleType: BabyActionSnapshot.BottleType? = nil,
          bottleVolume: Int? = nil,
+         latitude: Double? = nil,
+         longitude: Double? = nil,
+         placename: String? = nil,
          updatedAt: Date = Date(),
          profile: Profile? = nil) {
         self.id = id
@@ -517,6 +541,9 @@ final class BabyAction {
         self.feedingTypeRawValue = feedingType?.rawValue
         self.bottleTypeRawValue = bottleType?.rawValue
         self.bottleVolume = bottleVolume
+        self.latitude = latitude
+        self.longitude = longitude
+        self.placename = placename
         self.updatedAtRawValue = updatedAt
         self.profile = profile
     }
@@ -602,6 +629,9 @@ extension BabyAction {
             feedingType: feedingType,
             bottleType: bottleType,
             bottleVolume: bottleVolume,
+            latitude: latitude,
+            longitude: longitude,
+            placename: placename,
             updatedAt: updatedAt
         )
     }
@@ -615,6 +645,9 @@ extension BabyAction {
         feedingType = action.feedingType
         bottleType = action.bottleType
         bottleVolume = action.bottleVolume
+        latitude = action.latitude
+        longitude = action.longitude
+        placename = action.placename
         updatedAt = action.updatedAt
     }
 }
