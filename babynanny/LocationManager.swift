@@ -95,12 +95,10 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
 
         if #available(iOS 15.0, *) {
             do {
-                let granted = try await manager.requestTemporaryFullAccuracyAuthorization(
+                try await manager.requestTemporaryFullAccuracyAuthorization(
                     withPurposeKey: Self.preciseAccuracyPurposeKey
                 )
-                if granted {
-                    accuracyAuthorization = manager.accuracyAuthorization
-                }
+                accuracyAuthorization = manager.accuracyAuthorization
             } catch {
                 // Ignore errors and continue using the current accuracy authorization state.
             }
