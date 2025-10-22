@@ -24,7 +24,8 @@ struct ActionsMapView: View {
 
     private var dateRangeSummary: String {
         let formatter = ActionsMapView.dateIntervalFormatter
-        if let summary = formatter.string(from: startDate, to: endDate) {
+        let summary = formatter.string(from: startDate, to: endDate)
+        if summary.isEmpty == false {
             return summary
         }
 
