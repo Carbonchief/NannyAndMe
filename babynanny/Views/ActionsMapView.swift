@@ -84,35 +84,7 @@ struct ActionsMapView: View {
 
             Map(coordinateRegion: $region, annotationItems: clusteredAnnotations) { cluster in
                 MapAnnotation(coordinate: cluster.coordinate) {
-                    if let annotation = cluster.singleAnnotation {
-                        AnnotationView(annotation: annotation,
-                                       isSelected: selectedAnnotationID == annotation.id)
-                            .phOnTapCapture(
-                                event: "map_select_annotation",
-                                properties: [
-                                    "action_id": annotation.id.uuidString,
-                                    "category": annotation.category.rawValue,
-                                    "has_placename": annotation.placename != nil
-                                ]
-                            ) {
-                                handleSingleSelection(annotation)
-                            }
-                            .postHogLabel(annotation.postHogLabel)
-                    } else {
-                        ClusterAnnotationView(cluster: cluster,
-                                               isSelected: selectedClusterID == cluster.id)
-                            .phOnTapCapture(
-                                event: "map_select_cluster",
-                                properties: [
-                                    "action_ids": cluster.actionIDs.map(\.uuidString),
-                                    "count": cluster.count,
-                                    "categories": cluster.categoryIdentifiers
-                                ]
-                            ) {
-                                handleClusterSelection(cluster)
-                            }
-                            .postHogLabel(cluster.postHogLabel)
-                    }
+                    annotationContent(for: cluster)
                 }
             }
             .mapStyle(.standard)
@@ -170,6 +142,53 @@ struct ActionsMapView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: selection)
+    }
+
+    @ViewBuilder
+    private func annotationContent(for cluster: ClusteredActionAnnotation) -> some View {
+        if let annotation = cluster.singleAnnotation {
+            singleAnnotationContent(for: annotation)
+        } else {
+            clusteredAnnotationContent(for: cluster)
+        }
+    }
+
+    @ViewBuilder
+    private func singleAnnotationContent(for annotation: ActionAnnotation) -> some View {
+        AnnotationView(
+            annotation: annotation,
+            isSelected: selectedAnnotationID == annotation.id
+        )
+            .phOnTapCapture(
+                event: "map_select_annotation",
+                properties: [
+                    "action_id": annotation.id.uuidString,
+                    "category": annotation.category.rawValue,
+                    "has_placename": annotation.placename != nil
+                ]
+            ) {
+                handleSingleSelection(annotation)
+            }
+            .postHogLabel(annotation.postHogLabel)
+    }
+
+    @ViewBuilder
+    private func clusteredAnnotationContent(for cluster: ClusteredActionAnnotation) -> some View {
+        ClusterAnnotationView(
+            cluster: cluster,
+            isSelected: selectedClusterID == cluster.id
+        )
+            .phOnTapCapture(
+                event: "map_select_cluster",
+                properties: [
+                    "action_ids": cluster.actionIDs.map(\.uuidString),
+                    "count": cluster.count,
+                    "categories": cluster.categoryIdentifiers
+                ]
+            ) {
+                handleClusterSelection(cluster)
+            }
+            .postHogLabel(cluster.postHogLabel)
     }
 
     private func handleSingleSelection(_ annotation: ActionAnnotation) {
