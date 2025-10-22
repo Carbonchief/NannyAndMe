@@ -626,6 +626,7 @@ private final class BabyActionFormatter {
     private let dateTimeFormatter: DateFormatter
     private let durationFormatter: DateComponentsFormatter
     private let timeSinceFormatter: DateComponentsFormatter
+    private let twentyFourHourFormatter: DateFormatter
 
     private init() {
         timeFormatter = DateFormatter()
@@ -648,6 +649,11 @@ private final class BabyActionFormatter {
         timeSinceFormatter.unitsStyle = .abbreviated
         timeSinceFormatter.maximumUnitCount = 1
         timeSinceFormatter.zeroFormattingBehavior = [.dropLeading, .dropTrailing]
+
+        twentyFourHourFormatter = DateFormatter()
+        twentyFourHourFormatter.locale = Locale(identifier: "en_US_POSIX")
+        twentyFourHourFormatter.dateFormat = "HH:mm"
+        twentyFourHourFormatter.timeZone = .current
     }
 
     func format(time: Date) -> String {
@@ -656,6 +662,10 @@ private final class BabyActionFormatter {
 
     func format(dateTime: Date) -> String {
         dateTimeFormatter.string(from: dateTime)
+    }
+
+    func format(time24Hour date: Date) -> String {
+        twentyFourHourFormatter.string(from: date)
     }
 
     func format(duration: TimeInterval) -> String {

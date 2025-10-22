@@ -1151,25 +1151,27 @@ private struct RecentActionDetailDialog: View {
         rows.append(
             DetailRowData(
                 label: L10n.Home.historyStartedLabel,
-                value: action.startDateTimeDescription()
+                value: formattedDateTime(for: action.startDate)
             )
         )
 
-        if let endDescription = action.endDateTimeDescription() {
+        if let endDate = action.endDate {
             rows.append(
                 DetailRowData(
                     label: L10n.Home.historyStoppedLabel,
-                    value: endDescription
+                    value: formattedDateTime(for: endDate)
                 )
             )
         }
 
-        rows.append(
-            DetailRowData(
-                label: L10n.Home.historyDurationLabel,
-                value: action.durationDescription()
+        if action.category != .diaper {
+            rows.append(
+                DetailRowData(
+                    label: L10n.Home.historyDurationLabel,
+                    value: action.durationDescription()
+                )
             )
-        )
+        }
 
         switch action.category {
         case .sleep:
@@ -1215,6 +1217,14 @@ private struct RecentActionDetailDialog: View {
         }
 
         return rows
+    }
+
+    private func formattedDateTime(for date: Date) -> String {
+        if Calendar.current.isDateInToday(date) {
+            return BabyActionFormatter.shared.format(time24Hour: date)
+        }
+
+        return BabyActionFormatter.shared.format(dateTime: date)
     }
 
     private struct DetailRowData: Identifiable {
