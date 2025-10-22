@@ -27,18 +27,15 @@ struct ActionsMapView: View {
         let windowEnd = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: endDate) ?? endDate
 
         return actions
-            .filter { action in
-                guard action.profile?.resolvedProfileID == activeProfileID else { return false }
-                guard let latitude = action.latitude, let longitude = action.longitude else { return false }
-                guard selectedCategory == nil || action.category == selectedCategory else { return false }
+            .compactMap { action -> ActionAnnotation? in
+                guard action.profile?.resolvedProfileID == activeProfileID else { return nil }
+                guard let latitude = action.latitude, let longitude = action.longitude else { return nil }
+                guard selectedCategory == nil || action.category == selectedCategory else { return nil }
                 let timestamp = action.startDate
-                guard timestamp >= windowStart && timestamp <= windowEnd else { return false }
+                guard timestamp >= windowStart && timestamp <= windowEnd else { return nil }
                 let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-                guard CLLocationCoordinate2DIsValid(coordinate) else { return false }
-                return true
-            }
-            .map { action in
-                ActionAnnotation(action: action)
+                guard CLLocationCoordinate2DIsValid(coordinate) else { return nil }
+                return ActionAnnotation(action: action, coordinate: coordinate)
             }
     }
 
@@ -67,11 +64,8 @@ struct ActionsMapView: View {
         }
         .navigationTitle(L10n.Map.title)
         .background(Color(.systemBackground))
-        .onAppear {
-            updateRegion(for: filteredAnnotations)
-        }
-        .onChange(of: filteredAnnotations.map { ($0.id, $0.coordinate.latitude, $0.coordinate.longitude) }) { _, _ in
-            updateRegion(for: filteredAnnotations)
+        .onChange(of: filteredAnnotations, initial: true) { _, newValue in
+            updateRegion(for: newValue)
         }
         .onChange(of: startDate) { _, newValue in
             if newValue > endDate {
@@ -108,19 +102,28 @@ struct ActionsMapView: View {
 }
 
 private extension ActionsMapView {
-    struct ActionAnnotation: Identifiable {
+    struct ActionAnnotation: Identifiable, Equatable {
         let id: UUID
         let coordinate: CLLocationCoordinate2D
         let category: BabyActionCategory
         let placename: String?
         let timestamp: Date
 
-        init(action: BabyAction) {
+        init(action: BabyAction, coordinate: CLLocationCoordinate2D) {
             id = action.id
-            coordinate = CLLocationCoordinate2D(latitude: action.latitude ?? 0, longitude: action.longitude ?? 0)
+            self.coordinate = coordinate
             category = action.category
             placename = action.placename
             timestamp = action.startDate
+        }
+
+        static func == (lhs: ActionAnnotation, rhs: ActionAnnotation) -> Bool {
+            lhs.id == rhs.id &&
+                lhs.category == rhs.category &&
+                lhs.placename == rhs.placename &&
+                lhs.timestamp == rhs.timestamp &&
+                lhs.coordinate.latitude == rhs.coordinate.latitude &&
+                lhs.coordinate.longitude == rhs.coordinate.longitude
         }
 
         var iconName: String {
@@ -221,35 +224,48 @@ private extension ActionsMapView {
     }
 }
 
-#Preview {
-    let container = AppDataStack.makeModelContainer(inMemory: true)
-    let context = ModelContext(container)
-    let profile = Profile(name: "Luna")
-    let action = BabyAction(category: .sleep,
-                            startDate: Date().addingTimeInterval(-3600),
-                            endDate: Date().addingTimeInterval(-1800),
-                            latitude: 37.3349,
-                            longitude: -122.0090,
-                            placename: "Apple Park",
-                            profile: profile)
-    context.insert(profile)
-    context.insert(action)
-    try? context.save()
+private enum ActionsMapViewPreviewData {
+    static let profile = Profile(name: "Luna")
 
-    let previewProfile = ChildProfile(id: profile.profileID,
-                                      name: "Luna",
-                                      birthDate: Date().addingTimeInterval(-120 * 24 * 60 * 60))
-    let profileStore = ProfileStore(initialProfiles: [previewProfile],
-                                    activeProfileID: profile.profileID,
-                                    directory: FileManager.default.temporaryDirectory,
-                                    filename: "mapPreviewProfiles.json")
-    profileStore.updateActiveProfile { child in
-        child.name = "Luna"
+    static let container: ModelContainer = {
+        let container = AppDataStack.makeModelContainer(inMemory: true)
+        let context = ModelContext(container)
+        seedData(in: context)
+        return container
+    }()
+
+    static let profileStore: ProfileStore = {
+        let previewProfile = ChildProfile(id: profile.profileID,
+                                          name: "Luna",
+                                          birthDate: Date().addingTimeInterval(-120 * 24 * 60 * 60))
+        let store = ProfileStore(initialProfiles: [previewProfile],
+                                 activeProfileID: profile.profileID,
+                                 directory: FileManager.default.temporaryDirectory,
+                                 filename: "mapPreviewProfiles.json")
+        store.updateActiveProfile { child in
+            child.name = "Luna"
+        }
+        return store
+    }()
+
+    private static func seedData(in context: ModelContext) {
+        let action = BabyAction(category: .sleep,
+                                startDate: Date().addingTimeInterval(-3600),
+                                endDate: Date().addingTimeInterval(-1800),
+                                latitude: 37.3349,
+                                longitude: -122.0090,
+                                placename: "Apple Park",
+                                profile: profile)
+        context.insert(profile)
+        context.insert(action)
+        try? context.save()
     }
+}
 
+#Preview {
     NavigationStack {
         ActionsMapView()
-            .environmentObject(profileStore)
+            .environmentObject(ActionsMapViewPreviewData.profileStore)
     }
-    .modelContainer(container)
+    .modelContainer(ActionsMapViewPreviewData.container)
 }
