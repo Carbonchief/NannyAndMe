@@ -215,42 +215,40 @@ struct ReportsView: View {
         let formattedDate = calendarSelectedDate.formatted(date: .long, time: .omitted)
 
         return VStack(alignment: .leading, spacing: 16) {
-            DatePicker(
-                L10n.Stats.calendarDatePickerLabel,
-                selection: $calendarSelectedDate,
-                displayedComponents: .date
-            )
-            .datePickerStyle(.graphical)
-            .labelsHidden()
-            .postHogLabel("reports.calendar.datePicker")
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(L10n.Stats.calendarSummaryTitle(formattedDate))
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Text(L10n.Stats.calendarSummaryCount(summary.totalActions))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            reportsCard(spacing: 12) {
+                DatePicker(
+                    L10n.Stats.calendarDatePickerLabel,
+                    selection: $calendarSelectedDate,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.graphical)
+                .labelsHidden()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .postHogLabel("reports.calendar.datePicker")
             }
 
-            calendarSummaryCards(for: summary)
+            reportsCard(spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L10n.Stats.calendarSummaryTitle(formattedDate))
+                        .font(.title2)
+                        .fontWeight(.semibold)
 
-            if summary.totalActions > 0 {
-                calendarTimeline(for: summary)
-            } else {
-                Text(L10n.Stats.calendarEmptyTitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    Text(L10n.Stats.calendarSummaryCount(summary.totalActions))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                calendarSummaryCards(for: summary)
+
+                if summary.totalActions > 0 {
+                    calendarTimeline(for: summary)
+                } else {
+                    Text(L10n.Stats.calendarEmptyTitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.systemBackground))
-                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
-        )
     }
 
     private func calendarSummaryCards(for summary: DaySummary) -> some View {
@@ -296,6 +294,19 @@ struct ReportsView: View {
                                   dayEnd: summary.dayEnd)
             }
         }
+    }
+
+    private func reportsCard<Content: View>(spacing: CGFloat = 16, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: spacing) {
+            content()
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
+        )
     }
 
     private func daySummary(for date: Date, state: ProfileActionState) -> DaySummary {
