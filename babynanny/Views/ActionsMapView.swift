@@ -5,7 +5,7 @@ import SwiftUI
 /// Displays logged baby actions on a map with filtering by action type and date range.
 struct ActionsMapView: View {
     @EnvironmentObject private var profileStore: ProfileStore
-    @Query(sort: [SortDescriptor(\.startDateRawValue, order: .reverse)])
+    @Query(sort: [SortDescriptor(\BabyAction.startDateRawValue, order: .reverse)])
     private var actions: [BabyAction]
     @State private var selectedCategory: BabyActionCategory?
     @State private var startDate: Date = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
@@ -56,6 +56,7 @@ struct ActionsMapView: View {
                 }
             }
             .mapStyle(.standard)
+            .postHogLabel("map.canvas")
             .overlay(alignment: .top) {
                 if filteredAnnotations.isEmpty {
                     EmptyStateView()
@@ -66,9 +67,11 @@ struct ActionsMapView: View {
         }
         .navigationTitle(L10n.Map.title)
         .background(Color(.systemBackground))
-        .onAppear(perform: updateRegion)
-        .onChange(of: filteredAnnotations) { _ in
-            updateRegion()
+        .onAppear {
+            updateRegion(for: filteredAnnotations)
+        }
+        .onChange(of: filteredAnnotations.map { ($0.id, $0.coordinate.latitude, $0.coordinate.longitude) }) { _, _ in
+            updateRegion(for: filteredAnnotations)
         }
         .onChange(of: startDate) { _, newValue in
             if newValue > endDate {
@@ -82,9 +85,9 @@ struct ActionsMapView: View {
         }
     }
 
-    private func updateRegion() {
-        guard filteredAnnotations.isEmpty == false else { return }
-        let coordinates = filteredAnnotations.map(\.coordinate)
+    private func updateRegion(for annotations: [ActionAnnotation]) {
+        guard annotations.isEmpty == false else { return }
+        let coordinates = annotations.map(\.coordinate)
         let minLatitude = coordinates.map(\.latitude).min() ?? region.center.latitude
         let maxLatitude = coordinates.map(\.latitude).max() ?? region.center.latitude
         let minLongitude = coordinates.map(\.longitude).min() ?? region.center.longitude
@@ -244,7 +247,7 @@ private extension ActionsMapView {
         child.name = "Luna"
     }
 
-    return NavigationStack {
+    NavigationStack {
         ActionsMapView()
             .environmentObject(profileStore)
     }
