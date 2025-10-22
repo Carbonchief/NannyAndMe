@@ -214,6 +214,8 @@
 "map.annotation.subtype" = "Untertyp";
 "map.annotation.loggedAt" = "Protokolliert am %@";
 "map.annotation.accessibility" = "%@ protokolliert in %@ am %@";
+"map.cluster.detailTitle" = "%lld Aktionen in der Nähe";
+"map.cluster.accessibility" = "%lld Aktionen in der Nähe von %@";
 "shareData.sharing.stopSharingConfirmTitle" = "Freigabe für dieses Profil beenden?";
 "shareData.sharing.stopSharingMessage" = "Alle Teilnehmenden verlieren sofort den Zugriff.";
 "shareData.sharing.errorTitle" = "Freigabefehler";

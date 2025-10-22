@@ -214,6 +214,8 @@
 "map.annotation.subtype" = "Subtipo";
 "map.annotation.loggedAt" = "Registrado el %@";
 "map.annotation.accessibility" = "%@ registrado en %@ el %@";
+"map.cluster.detailTitle" = "%lld acciones cercanas";
+"map.cluster.accessibility" = "%lld acciones cerca de %@";
 "shareData.sharing.stopSharingConfirmTitle" = "¿Dejar de compartir este perfil?";
 "shareData.sharing.stopSharingMessage" = "Todos los participantes perderán el acceso de inmediato.";
 "shareData.sharing.errorTitle" = "Error al compartir";

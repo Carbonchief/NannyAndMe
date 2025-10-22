@@ -218,6 +218,8 @@
 "map.annotation.subtype" = "Subtype";
 "map.annotation.loggedAt" = "Logged on %@";
 "map.annotation.accessibility" = "%@ logged at %@ on %@";
+"map.cluster.detailTitle" = "%lld nearby actions";
+"map.cluster.accessibility" = "%lld actions near %@";
 "shareData.sharing.stopSharingConfirmTitle" = "Stop sharing this profile?";
 "shareData.sharing.stopSharingMessage" = "All participants will immediately lose access.";
 "shareData.sharing.errorTitle" = "Sharing error";
