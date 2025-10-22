@@ -4,7 +4,7 @@ import Foundation
 /// Handles while-in-use location authorization and one-shot location capture for action logging.
 @MainActor
 final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
-    struct CapturedLocation: Equatable {
+    struct CapturedLocation {
         var coordinate: CLLocationCoordinate2D
         var placename: String?
     }
