@@ -27,8 +27,8 @@ struct ContentView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            NavigationStack {
+        NavigationStack {
+            ZStack(alignment: .leading) {
                 AnimatedTabContent(
                     selectedTab: selectedTab,
                     previousTab: previousTab,
@@ -75,164 +75,164 @@ struct ContentView: View {
                             }
                         }
                 )
-            }
-            .disabled(isMenuVisible)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text(profileStore.activeProfile.displayName)
-                        .font(.headline)
-                }
+                .allowsHitTesting(isMenuVisible == false)
 
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        Analytics.capture(
-                            "navigation_toggle_menu_toolbar",
-                            properties: ["is_open": isMenuVisible ? "true" : "false"]
-                        )
-                        withAnimation(.easeInOut) {
-                            isMenuVisible.toggle()
-                        }
-                    } label: {
-                        Image(systemName: "line.3.horizontal")
-                    }
-                    .postHogLabel("toolbar.menu")
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 36)
-                        .phOnTapCapture(
-                            event: "profile_open_switcher_toolbar",
-                            properties: [
-                                "profile_id": profileStore.activeProfile.id.uuidString
-                            ]
-                        ) {
-                            isProfileSwitcherPresented = true
-                        }
-                    .postHogLabel("toolbar.profileSwitcher")
-                }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationDestination(isPresented: $showSettings) {
-                SettingsView()
-            }
-            .navigationDestination(isPresented: $showAllLogs) {
-                AllLogsView()
-            }
-            .navigationDestination(isPresented: $showShareProfile) {
-                ShareProfilePage(profileID: profileStore.activeProfile.id)
-            }
-            .navigationDestination(
-                isPresented: Binding(
-                    get: { shareDataCoordinator.isShowingShareData },
-                    set: { shareDataCoordinator.isShowingShareData = $0 }
-                )
-            ) {
-                ShareDataView()
-            }
-            .sheet(isPresented: $isProfileSwitcherPresented) {
-                ProfileSwitcherView()
-                    .environmentObject(profileStore)
-            }
-
-            if isMenuVisible == false {
-                Color.clear
-                    .frame(width: 24)
-                    .contentShape(Rectangle())
-                    .ignoresSafeArea(edges: .vertical)
-                    .postHogLabel("sideMenu.edgeSwipe")
-                    .highPriorityGesture(
-                        DragGesture(minimumDistance: 20, coordinateSpace: .local)
-                            .onEnded { value in
-                                let horizontal = value.translation.width
-                                let vertical = value.translation.height
-
-                                guard horizontal > 40, abs(horizontal) > abs(vertical) else { return }
-
-                                Analytics.capture(
-                                    "navigation_open_menu_edgeSwipe",
-                                    properties: [
-                                        "source": "edge_swipe"
-                                    ]
-                                )
-
-                                withAnimation(.easeInOut) {
-                                    isMenuVisible = true
-                                }
-                            }
-                    )
-                    .zIndex(3)
-            }
-
-            if isMenuVisible {
-                Color.black.opacity(0.25)
-                    .ignoresSafeArea()
-                    .postHogLabel("sideMenu.dismissOverlay")
-                    .onTapGesture {
-                        Analytics.capture(
-                            "navigation_close_menu_overlay",
-                            properties: ["was_open": isMenuVisible ? "true" : "false"]
-                        )
-                        withAnimation(.easeInOut) {
-                            isMenuVisible = false
-                        }
-                    }
-                    .zIndex(1)
-
-                SideMenu(
-                    isCloudSharingAvailable: isCloudSharingAvailable,
-                    onSelectAllLogs: {
-                        Analytics.capture("navigation_open_allLogs_menu", properties: ["source": "side_menu"])
-                        withAnimation(.easeInOut) {
-                            isMenuVisible = false
-                            showAllLogs = true
-                        }
-                    },
-                    onSelectShareProfile: {
-                        guard isCloudSharingAvailable else {
-                            Analytics.capture("navigation_open_shareProfile_menu_blocked", properties: ["source": "side_menu"])
-                            return
-                        }
-                        Analytics.capture("navigation_open_shareProfile_menu", properties: ["source": "side_menu"])
-                        withAnimation(.easeInOut) {
-                            isMenuVisible = false
-                            showShareProfile = true
-                        }
-                    },
-                    onSelectSettings: {
-                        Analytics.capture("navigation_open_settings_menu", properties: ["source": "side_menu"])
-                        withAnimation(.easeInOut) {
-                            isMenuVisible = false
-                            showSettings = true
-                        }
-                    },
-                    onSelectShareData: {
-                        Analytics.capture("navigation_open_shareData_menu", properties: ["source": "side_menu"])
-                        withAnimation(.easeInOut) {
-                            isMenuVisible = false
-                            shareDataCoordinator.presentShareData()
-                        }
-                    }
-                )
-                .transition(.move(edge: .leading))
-                .zIndex(2)
-            }
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            BottomTabBar(
-                selectedTab: $selectedTab,
-                previousTab: $previousTab,
-                bottomSafeAreaInset: bottomSafeAreaInset
-            )
-            .allowsHitTesting(isMenuVisible == false)
-            .background(
-                GeometryReader { proxy in
+                if isMenuVisible == false {
                     Color.clear
-                        .preference(key: BottomSafeAreaInsetPreferenceKey.self, value: proxy.safeAreaInsets.bottom)
+                        .frame(width: 24)
+                        .contentShape(Rectangle())
+                        .ignoresSafeArea(edges: .vertical)
+                        .postHogLabel("sideMenu.edgeSwipe")
+                        .highPriorityGesture(
+                            DragGesture(minimumDistance: 20, coordinateSpace: .local)
+                                .onEnded { value in
+                                    let horizontal = value.translation.width
+                                    let vertical = value.translation.height
+
+                                    guard horizontal > 40, abs(horizontal) > abs(vertical) else { return }
+
+                                    Analytics.capture(
+                                        "navigation_open_menu_edgeSwipe",
+                                        properties: [
+                                            "source": "edge_swipe"
+                                        ]
+                                    )
+
+                                    withAnimation(.easeInOut) {
+                                        isMenuVisible = true
+                                    }
+                                }
+                        )
+                        .zIndex(3)
                 }
-            )
+
+                if isMenuVisible {
+                    Color.black.opacity(0.25)
+                        .ignoresSafeArea()
+                        .postHogLabel("sideMenu.dismissOverlay")
+                        .onTapGesture {
+                            Analytics.capture(
+                                "navigation_close_menu_overlay",
+                                properties: ["was_open": isMenuVisible ? "true" : "false"]
+                            )
+                            withAnimation(.easeInOut) {
+                                isMenuVisible = false
+                            }
+                        }
+                        .zIndex(1)
+
+                    SideMenu(
+                        isCloudSharingAvailable: isCloudSharingAvailable,
+                        onSelectAllLogs: {
+                            Analytics.capture("navigation_open_allLogs_menu", properties: ["source": "side_menu"])
+                            withAnimation(.easeInOut) {
+                                isMenuVisible = false
+                                showAllLogs = true
+                            }
+                        },
+                        onSelectShareProfile: {
+                            guard isCloudSharingAvailable else {
+                                Analytics.capture("navigation_open_shareProfile_menu_blocked", properties: ["source": "side_menu"])
+                                return
+                            }
+                            Analytics.capture("navigation_open_shareProfile_menu", properties: ["source": "side_menu"])
+                            withAnimation(.easeInOut) {
+                                isMenuVisible = false
+                                showShareProfile = true
+                            }
+                        },
+                        onSelectSettings: {
+                            Analytics.capture("navigation_open_settings_menu", properties: ["source": "side_menu"])
+                            withAnimation(.easeInOut) {
+                                isMenuVisible = false
+                                showSettings = true
+                            }
+                        },
+                        onSelectShareData: {
+                            Analytics.capture("navigation_open_shareData_menu", properties: ["source": "side_menu"])
+                            withAnimation(.easeInOut) {
+                                isMenuVisible = false
+                                shareDataCoordinator.presentShareData()
+                            }
+                        }
+                    )
+                    .transition(.move(edge: .leading))
+                    .zIndex(2)
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                BottomTabBar(
+                    selectedTab: $selectedTab,
+                    previousTab: $previousTab,
+                    bottomSafeAreaInset: bottomSafeAreaInset
+                )
+                .allowsHitTesting(isMenuVisible == false)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .preference(key: BottomSafeAreaInsetPreferenceKey.self, value: proxy.safeAreaInsets.bottom)
+                    }
+                )
+            }
+            .onPreferenceChange(BottomSafeAreaInsetPreferenceKey.self) { inset in
+                bottomSafeAreaInset = inset
+            }
         }
-        .onPreferenceChange(BottomSafeAreaInsetPreferenceKey.self) { inset in
-            bottomSafeAreaInset = inset
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text(profileStore.activeProfile.displayName)
+                    .font(.headline)
+            }
+
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    Analytics.capture(
+                        "navigation_toggle_menu_toolbar",
+                        properties: ["is_open": isMenuVisible ? "true" : "false"]
+                    )
+                    withAnimation(.easeInOut) {
+                        isMenuVisible.toggle()
+                    }
+                } label: {
+                    Image(systemName: "line.3.horizontal")
+                }
+                .postHogLabel("toolbar.menu")
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 36)
+                    .phOnTapCapture(
+                        event: "profile_open_switcher_toolbar",
+                        properties: [
+                            "profile_id": profileStore.activeProfile.id.uuidString
+                        ]
+                    ) {
+                        isProfileSwitcherPresented = true
+                    }
+                .postHogLabel("toolbar.profileSwitcher")
+            }
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(isPresented: $showSettings) {
+            SettingsView()
+        }
+        .navigationDestination(isPresented: $showAllLogs) {
+            AllLogsView()
+        }
+        .navigationDestination(isPresented: $showShareProfile) {
+            ShareProfilePage(profileID: profileStore.activeProfile.id)
+        }
+        .navigationDestination(
+            isPresented: Binding(
+                get: { shareDataCoordinator.isShowingShareData },
+                set: { shareDataCoordinator.isShowingShareData = $0 }
+            )
+        ) {
+            ShareDataView()
+        }
+        .sheet(isPresented: $isProfileSwitcherPresented) {
+            ProfileSwitcherView()
+                .environmentObject(profileStore)
         }
         .sheet(isPresented: $isInitialProfilePromptPresented) {
             InitialProfileNamePromptView(
