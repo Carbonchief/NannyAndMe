@@ -100,7 +100,7 @@
 "settings.cloud.status.needsAccount" = "Inicia sesión en iCloud";
 "settings.cloud.status.localOnly" = "Solo local";
 "settings.cloud.status.loading" = "Comprobando…";
-"settings.cloud.recheck" = "Comprobar de nuevo";
+"settings.cloud.refresh" = "Actualizar";
 "settings.cloud.enable" = "Activar sincronización con iCloud";
 "settings.notifications.nextReminder.label" = "Próximo recordatorio";
 "settings.notifications.nextReminder.disabled" = "Los recordatorios están desactivados.";

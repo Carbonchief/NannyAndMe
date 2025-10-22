@@ -349,7 +349,7 @@ enum L10n {
             static let statusNeedsAccount = String(localized: "settings.cloud.status.needsAccount", defaultValue: "Sign in to iCloud")
             static let statusLocalOnly = String(localized: "settings.cloud.status.localOnly", defaultValue: "Local Only")
             static let statusLoading = String(localized: "settings.cloud.status.loading", defaultValue: "Checking…")
-            static let recheck = String(localized: "settings.cloud.recheck", defaultValue: "Check Again")
+            static let refresh = String(localized: "settings.cloud.refresh", defaultValue: "Refresh")
             static let enable = String(localized: "settings.cloud.enable", defaultValue: "Enable iCloud Sync")
         }
         static let nextReminderLabel = String(

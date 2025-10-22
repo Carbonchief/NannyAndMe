@@ -127,20 +127,23 @@ struct SettingsView: View {
 
     private var cloudSection: some View {
         Section(header: Text(L10n.Settings.Cloud.sectionTitle)) {
-            HStack {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Label(L10n.Settings.Cloud.statusLabel, systemImage: "icloud")
                 Spacer()
                 Text(cloudStatusDescription)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Button {
+                    Analytics.capture("settings_cloud_refresh_button", properties: ["status": cloudStatusController.status.analyticsValue])
+                    cloudStatusController.refreshAccountStatus(force: true)
+                } label: {
+                    Label(L10n.Settings.Cloud.refresh, systemImage: "arrow.clockwise")
+                        .labelStyle(.titleAndIcon)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .postHogLabel("settings.cloud.refresh")
             }
-
-            Button {
-                Analytics.capture("settings_cloud_recheck_button", properties: ["status": cloudStatusController.status.analyticsValue])
-                cloudStatusController.refreshAccountStatus(force: true)
-            } label: {
-                Text(L10n.Settings.Cloud.recheck)
-            }
-            .postHogLabel("settings.cloud.recheck")
 
             if appDataStack.cloudSyncEnabled == false {
                 Button {

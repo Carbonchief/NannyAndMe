@@ -100,7 +100,7 @@
 "settings.cloud.status.needsAccount" = "Sign in to iCloud";
 "settings.cloud.status.localOnly" = "Local Only";
 "settings.cloud.status.loading" = "Checking…";
-"settings.cloud.recheck" = "Check Again";
+"settings.cloud.refresh" = "Refresh";
 "settings.cloud.enable" = "Enable iCloud Sync";
 "settings.notifications.nextReminder.label" = "Next reminder";
 "settings.notifications.nextReminder.disabled" = "Reminders are turned off.";
