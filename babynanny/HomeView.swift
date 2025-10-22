@@ -1289,9 +1289,8 @@ private struct HistoryRow: View {
                 let timeInformation = timeAgoDescription(asOf: context.date)
                 let durationText = durationDescription(asOf: context.date)
                 let detail = detailDescription(for: action)
-                let verticalAlignment: VerticalAlignment = detail == nil ? .center : .top
 
-                HStack(alignment: verticalAlignment, spacing: 12) {
+                HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(action.title)
                             .font(.subheadline)
@@ -1306,7 +1305,7 @@ private struct HistoryRow: View {
                                 .truncationMode(.tail)
                         }
                     }
-                    .frame(maxHeight: .infinity, alignment: detail == nil ? .center : .topLeading)
+                    .frame(maxHeight: .infinity, alignment: .center)
 
                     Spacer(minLength: 12)
 
@@ -1325,7 +1324,7 @@ private struct HistoryRow: View {
                                 .monospacedDigit()
                         }
                     }
-                    .frame(maxHeight: .infinity, alignment: detail == nil ? .center : .topTrailing)
+                    .frame(maxHeight: .infinity, alignment: .center)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityElement(children: .ignore)
