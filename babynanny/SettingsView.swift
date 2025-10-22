@@ -137,11 +137,11 @@ struct SettingsView: View {
                     Analytics.capture("settings_cloud_refresh_button", properties: ["status": cloudStatusController.status.analyticsValue])
                     cloudStatusController.refreshAccountStatus(force: true)
                 } label: {
-                    Label(L10n.Settings.Cloud.refresh, systemImage: "arrow.clockwise")
-                        .labelStyle(.titleAndIcon)
+                    Image(systemName: "arrow.clockwise")
+                        .imageScale(.medium)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.Settings.Cloud.refresh)
                 .postHogLabel("settings.cloud.refresh")
             }
 
