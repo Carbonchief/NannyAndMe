@@ -152,16 +152,29 @@ struct ContentView: View {
                     }
 
                     ToolbarItem(placement: .topBarTrailing) {
-                        ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 36)
-                            .phOnTapCapture(
-                                event: "profile_open_switcher_toolbar",
-                                properties: [
-                                    "profile_id": profileStore.activeProfile.id.uuidString
-                                ]
-                            ) {
+                        let doubleTap = TapGesture(count: 2)
+                            .onEnded {
+                                handleProfileCycle(direction: .next, analyticsSource: "toolbar_doubleTap")
+                            }
+
+                        let singleTap = TapGesture()
+                            .onEnded {
+                                Analytics.capture(
+                                    "profile_open_switcher_toolbar",
+                                    properties: [
+                                        "profile_id": profileStore.activeProfile.id.uuidString,
+                                        "profile_count": "\(profileStore.profiles.count)"
+                                    ]
+                                )
                                 isProfileSwitcherPresented = true
                             }
-                        .postHogLabel("toolbar.profileSwitcher")
+
+                        ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 36)
+                            .contentShape(Rectangle())
+                            .gesture(doubleTap.exclusively(before: singleTap))
+                            .accessibilityLabel(L10n.Profiles.title)
+                            .accessibilityAddTraits(.isButton)
+                            .postHogLabel("toolbar.profileSwitcher")
                     }
                 }
                 .navigationBarTitleDisplayMode(.inline)
@@ -325,6 +338,23 @@ struct ContentView: View {
                 selectedTab = .home
             }
         }
+    }
+
+    private func handleProfileCycle(direction: ProfileNavigationDirection,
+                                    analyticsSource: String)
+    {
+        let previousProfileID = profileStore.activeProfile.id
+        guard let newProfile = profileStore.cycleActiveProfile(direction: direction) else { return }
+
+        Analytics.capture(
+            "profileSwitcher_cycle_\(analyticsSource)",
+            properties: [
+                "direction": direction.analyticsValue,
+                "previous_profile_id": previousProfileID.uuidString,
+                "new_profile_id": newProfile.id.uuidString,
+                "profile_count": "\(profileStore.profiles.count)"
+            ]
+        )
     }
 }
 
