@@ -24,6 +24,7 @@ private struct TwoFingerSwipeRecognizerView: UIViewRepresentable {
     func makeUIView(context: Context) -> UIView {
         let view = UIView()
         view.backgroundColor = .clear
+        view.isMultipleTouchEnabled = true
 
         let leftSwipe = UISwipeGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleSwipe(_:)))
         leftSwipe.direction = .left
