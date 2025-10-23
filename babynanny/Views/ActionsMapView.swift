@@ -142,6 +142,24 @@ struct ActionsMapView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: selection)
+        .twoFingerProfileSwitchGesture(label: "map.profileSwipeGesture") { direction in
+            handleProfileSwipe(direction: direction)
+        }
+    }
+
+    private func handleProfileSwipe(direction: ProfileNavigationDirection) {
+        let previousProfileID = profileStore.activeProfile.id
+        guard let newProfile = profileStore.cycleActiveProfile(direction: direction) else { return }
+
+        Analytics.capture(
+            "profileSwitcher_cycle_twoFinger_mapView",
+            properties: [
+                "direction": direction.analyticsValue,
+                "previous_profile_id": previousProfileID.uuidString,
+                "new_profile_id": newProfile.id.uuidString,
+                "profile_count": "\(profileStore.profiles.count)"
+            ]
+        )
     }
 
     @ViewBuilder

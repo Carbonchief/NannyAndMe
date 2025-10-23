@@ -1,6 +1,11 @@
 import Foundation
 import SwiftUI
 
+enum ProfileNavigationDirection: Sendable {
+    case next
+    case previous
+}
+
 struct ChildProfile: Codable, Identifiable, Equatable {
     var id: UUID
     var name: String
@@ -348,6 +353,32 @@ final class ProfileStore: ObservableObject {
         state = Self.sanitized(state: newState, ensureProfileExists: true)
     }
 
+    @discardableResult
+    func cycleActiveProfile(direction: ProfileNavigationDirection) -> ChildProfile? {
+        guard state.profiles.count > 1 else { return nil }
+
+        guard let activeID = state.activeProfileID,
+              let currentIndex = state.profiles.firstIndex(where: { $0.id == activeID }) else {
+            if let first = state.profiles.first {
+                setActiveProfile(first)
+                return first
+            }
+            return nil
+        }
+
+        let nextIndex: Int
+        switch direction {
+        case .next:
+            nextIndex = (currentIndex + 1) % state.profiles.count
+        case .previous:
+            nextIndex = (currentIndex - 1 + state.profiles.count) % state.profiles.count
+        }
+
+        let targetProfile = state.profiles[nextIndex]
+        setActiveProfile(targetProfile)
+        return targetProfile
+    }
+
     func addProfile(name: String, imageData: Data? = nil) {
         var newState = state
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -402,7 +433,7 @@ final class ProfileStore: ObservableObject {
         state = Self.sanitized(state: newState, ensureProfileExists: true)
     }
 
-    func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
+func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
         guard updates.isEmpty == false else { return }
 
         var newState = state
@@ -871,6 +902,17 @@ final class ProfileStore: ObservableObject {
         }
 
         return fileManager.temporaryDirectory.appendingPathComponent(filename)
+    }
+}
+
+extension ProfileNavigationDirection {
+    var analyticsValue: String {
+        switch self {
+        case .next:
+            return "next"
+        case .previous:
+            return "previous"
+        }
     }
 }
 
