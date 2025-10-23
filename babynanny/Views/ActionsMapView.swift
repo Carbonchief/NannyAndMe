@@ -376,7 +376,10 @@ private extension ActionsMapView {
         }
 
         var title: String {
-            placename ?? category.title
+            if let subtype = subtypeTitle, subtype.isEmpty == false {
+                return subtype
+            }
+            return category.title
         }
 
         var accessibilityLabel: String {
@@ -426,7 +429,10 @@ private extension ActionsMapView {
         }
 
         var representativeTitle: String {
-            primaryAnnotation?.title ?? L10n.Map.allActions
+            if let placename = primaryAnnotation?.placename, placename.isEmpty == false {
+                return placename
+            }
+            return L10n.Map.allActions
         }
 
         var accentColor: Color {
