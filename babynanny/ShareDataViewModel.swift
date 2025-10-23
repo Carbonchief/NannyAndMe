@@ -39,11 +39,6 @@ final class ShareDataViewModel: ObservableObject {
         bindManager()
     }
 
-    deinit {
-        manager.onProfileExport = nil
-        manager.onActionsDelta = nil
-    }
-
     convenience init(manager: MPCManager) {
         self.init(manager: manager, profileProvider: { fatalError("Profile provider not configured") }, actionStateProvider: { _ in fatalError("Action provider not configured") })
         profileProvider = nil
