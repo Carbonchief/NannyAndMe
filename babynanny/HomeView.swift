@@ -192,9 +192,6 @@ struct HomeView: View {
             )
             await actionStore.performUserInitiatedRefresh()
         }
-        .twoFingerProfileSwitchGesture(label: "home.profileSwipeGesture") { direction in
-            handleProfileSwipe(direction: direction, source: "homeView")
-        }
         .safeAreaInset(edge: .bottom) {
             syncStatusFooter
         }
@@ -372,21 +369,6 @@ struct HomeView: View {
         guard components.isEmpty == false else { return nil }
 
         return components.joined(separator: " • ")
-    }
-
-    private func handleProfileSwipe(direction: ProfileNavigationDirection, source: String) {
-        let previousProfileID = profileStore.activeProfile.id
-        guard let newProfile = profileStore.cycleActiveProfile(direction: direction) else { return }
-
-        Analytics.capture(
-            "profileSwitcher_cycle_twoFinger_\(source)",
-            properties: [
-                "direction": direction.analyticsValue,
-                "previous_profile_id": previousProfileID.uuidString,
-                "new_profile_id": newProfile.id.uuidString,
-                "profile_count": "\(profileStore.profiles.count)"
-            ]
-        )
     }
 
     @discardableResult

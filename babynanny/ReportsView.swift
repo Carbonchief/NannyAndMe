@@ -34,9 +34,6 @@ struct ReportsView: View {
                 .padding(24)
             }
         }
-        .twoFingerProfileSwitchGesture(label: "reports.profileSwipeGesture") { direction in
-            handleProfileSwipe(direction: direction)
-        }
         .onPreferenceChange(ChartShareContentWidthPreferenceKey.self) { width in
             shareContentWidth = width
         }
@@ -180,21 +177,6 @@ struct ReportsView: View {
         calendarSelectedDate = Date()
         persistedTabIdentifier = ReportsTab.dailySnapshot.persistenceIdentifier
         initializeTabIfNeeded()
-    }
-
-    private func handleProfileSwipe(direction: ProfileNavigationDirection) {
-        let previousProfileID = profileStore.activeProfile.id
-        guard let newProfile = profileStore.cycleActiveProfile(direction: direction) else { return }
-
-        Analytics.capture(
-            "profileSwitcher_cycle_twoFinger_reportsView",
-            properties: [
-                "direction": direction.analyticsValue,
-                "previous_profile_id": previousProfileID.uuidString,
-                "new_profile_id": newProfile.id.uuidString,
-                "profile_count": "\(profileStore.profiles.count)"
-            ]
-        )
     }
 
     private func statsGrid(for state: ProfileActionState,
