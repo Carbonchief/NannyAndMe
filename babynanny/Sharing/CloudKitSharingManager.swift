@@ -183,11 +183,9 @@ final class CloudKitSharingManager {
     }
 
     private func fetchRootRecord(for profileID: UUID) async throws -> CKRecord {
-        let recordName = "profile-\(profileID.uuidString)"
         let zones = try await fetchAllZones()
         for zone in zones {
-            let recordID = CKRecord.ID(recordName: recordName, zoneID: zone.zoneID)
-            if let record = try? await fetchRecord(with: recordID) {
+            if let record = try await queryProfileRecord(profileID: profileID, in: zone.zoneID) {
                 return record
             }
         }
@@ -211,19 +209,36 @@ final class CloudKitSharingManager {
         }
     }
 
-    private func fetchRecord(with recordID: CKRecord.ID) async throws -> CKRecord {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKRecord, Error>) in
-            privateDatabase.fetch(withRecordID: recordID) { record, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                if let record {
-                    continuation.resume(returning: record)
-                } else {
-                    continuation.resume(throwing: SharingError.profileNotFound)
+    private func queryProfileRecord(profileID: UUID,
+                                    in zoneID: CKRecordZone.ID) async throws -> CKRecord? {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKRecord?, Error>) in
+            let logger = self.logger
+            let predicate = NSPredicate(format: "%K == %@", "profileID", profileID.uuidString)
+            let query = CKQuery(recordType: RecordType.profile.rawValue, predicate: predicate)
+            let operation = CKQueryOperation(query: query)
+            operation.zoneID = zoneID
+            operation.resultsLimit = 1
+
+            var matchedRecord: CKRecord?
+            operation.recordMatchedBlock = { _, result in
+                switch result {
+                case .success(let record):
+                    matchedRecord = record
+                case .failure(let error):
+                    logger.error("Failed to match profile record: \(error.localizedDescription, privacy: .public)")
                 }
             }
+
+            operation.queryResultBlock = { result in
+                switch result {
+                case .success:
+                    continuation.resume(returning: matchedRecord)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+
+            self.privateDatabase.add(operation)
         }
     }
 
