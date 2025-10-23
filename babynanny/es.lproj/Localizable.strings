@@ -208,6 +208,8 @@
 "map.filter.dateRange.title" = "Filtrar por fecha";
 "map.filter.startDate" = "Fecha de inicio";
 "map.filter.endDate" = "Fecha de finalización";
+"map.filter.allDates" = "Todas las fechas";
+"map.filter.dateRange.toggle" = "Filtrar por intervalo de fechas";
 "map.filter.allActions" = "Todas las acciones";
 "map.emptyState" = "No hay acciones que coincidan con estos filtros.";
 "map.annotation.type" = "Tipo";

@@ -449,6 +449,11 @@ enum L10n {
         static let dateRangeFilterTitle = String(localized: "map.filter.dateRange.title", defaultValue: "Filter by date")
         static let startDate = String(localized: "map.filter.startDate", defaultValue: "Start date")
         static let endDate = String(localized: "map.filter.endDate", defaultValue: "End date")
+        static let allDates = String(localized: "map.filter.allDates", defaultValue: "All dates")
+        static let dateRangeFilterToggle = String(
+            localized: "map.filter.dateRange.toggle",
+            defaultValue: "Filter by date range"
+        )
         static let allActions = String(localized: "map.filter.allActions", defaultValue: "All actions")
         static let emptyState = String(localized: "map.emptyState", defaultValue: "No actions match your filters.")
 
