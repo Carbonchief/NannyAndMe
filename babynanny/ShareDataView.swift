@@ -13,9 +13,6 @@ struct ShareDataView: View {
     @State private var lastImportSummary: ActionLogStore.MergeSummary?
     @State private var didUpdateProfile = false
     @State private var alert: ShareDataAlert?
-    @StateObject private var nearbyShareController = NearbyShareController()
-    @State private var isPresentingNearbyBrowser = false
-    @State private var pendingNearbyAlert: ShareDataAlert?
     @State private var airDropShareItem: AirDropShareItem?
     @State private var isPreparingAirDropShare = false
     @State private var processedExternalImportID: ShareDataCoordinator.ExternalImportRequest.ID?
@@ -45,7 +42,7 @@ struct ShareDataView: View {
                         "profile_id": profileStore.activeProfile.id.uuidString
                     ]
                 )
-                .disabled(nearbyShareController.isBusy || isPreparingAirDropShare)
+                .disabled(isPreparingAirDropShare)
             } header: {
                 Text(L10n.ShareData.AirDrop.sectionTitle)
             } footer: {
@@ -92,27 +89,6 @@ struct ShareDataView: View {
                 importFooter
             }
 
-            Section {
-                ShareDataActionButton(
-                    title: L10n.ShareData.Nearby.shareButton,
-                    systemImage: "antenna.radiowaves.left.and.right",
-                    tint: .indigo,
-                    action: startNearbyShare
-                )
-                .postHogLabel("shareData.nearbyShare")
-                .phCaptureTap(
-                    event: "shareData_nearby_share_button",
-                    properties: [
-                        "profile_id": profileStore.activeProfile.id.uuidString,
-                        "is_busy": nearbyShareController.isBusy ? "true" : "false"
-                    ]
-                )
-                .disabled(nearbyShareController.isBusy)
-            } header: {
-                Text(L10n.ShareData.Nearby.sectionTitle)
-            } footer: {
-                nearbyFooter
-            }
         }
         .shareDataFormStyling()
         .navigationTitle(L10n.ShareData.title)
@@ -139,15 +115,6 @@ struct ShareDataView: View {
                 dismissButton: .default(Text(L10n.Common.done))
             )
         }
-        .sheet(isPresented: $isPresentingNearbyBrowser, onDismiss: {
-            nearbyShareController.cancelSharing()
-            if let pendingAlert = pendingNearbyAlert {
-                alert = pendingAlert
-                pendingNearbyAlert = nil
-            }
-        }) {
-            NearbyShareBrowserView(controller: nearbyShareController)
-        }
         .sheet(item: $airDropShareItem) { item in
             AirDropShareSheet(item: item) { outcome in
                 let shareItem = item
@@ -170,36 +137,6 @@ struct ShareDataView: View {
                     isPreparingAirDropShare = false
                 }
             }
-        }
-        .onReceive(nearbyShareController.resultPublisher) { result in
-            let wasPresentingBrowser = isPresentingNearbyBrowser
-            isPresentingNearbyBrowser = false
-
-            let pendingAlert: ShareDataAlert?
-            switch result.outcome {
-            case let .success(peer, filename):
-                pendingAlert = ShareDataAlert(
-                    title: L10n.ShareData.Alert.nearbySuccessTitle,
-                    message: L10n.ShareData.Alert.nearbySuccessMessage(filename, peer)
-                )
-            case let .failure(message):
-                pendingAlert = ShareDataAlert(
-                    title: L10n.ShareData.Alert.nearbyFailureTitle,
-                    message: message
-                )
-            case .cancelled:
-                pendingAlert = nil
-            }
-
-            if let pendingAlert {
-                if wasPresentingBrowser {
-                    pendingNearbyAlert = pendingAlert
-                } else {
-                    alert = pendingAlert
-                }
-            }
-
-            nearbyShareController.clearLatestResult()
         }
         .onAppear {
             processPendingExternalImportIfNeeded()
@@ -242,21 +179,6 @@ struct ShareDataView: View {
         }
     }
 
-    @ViewBuilder
-    private var nearbyFooter: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(L10n.ShareData.Nearby.footer)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            if let status = nearbyStatusDescription {
-                Text(status)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
     private func startExport() {
         let profile = profileStore.activeProfile
         let state = actionStore.state(for: profile.id)
@@ -293,21 +215,6 @@ struct ShareDataView: View {
             alert = ShareDataAlert(
                 title: L10n.ShareData.Alert.airDropFailureTitle,
                 message: L10n.ShareData.Alert.airDropFailureMessage(error.localizedDescription)
-            )
-        }
-    }
-
-    private func startNearbyShare() {
-        do {
-            let data = try makeExportData()
-            let filename = "\(defaultExportFilename).json"
-            nearbyShareController.prepareShare(data: data, filename: filename)
-            nearbyShareController.beginPresentingBrowser()
-            isPresentingNearbyBrowser = true
-        } catch {
-            alert = ShareDataAlert(
-                title: L10n.ShareData.Alert.nearbyFailureTitle,
-                message: L10n.ShareData.Alert.nearbyFailureMessage(error.localizedDescription)
             )
         }
     }
@@ -422,18 +329,6 @@ struct ShareDataView: View {
         return "\(base)-share"
     }
 
-    private var nearbyStatusDescription: String? {
-        switch nearbyShareController.phase {
-        case .idle:
-            return nil
-        case .preparing:
-            return L10n.ShareData.Nearby.statusPreparing
-        case .presenting:
-            return L10n.ShareData.Nearby.statusWaiting
-        case let .sending(peer):
-            return L10n.ShareData.Nearby.statusSending(peer)
-        }
-    }
 }
 
 private struct AirDropShareItem: Identifiable {
