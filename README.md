@@ -17,7 +17,6 @@ NannyAndMe is a SwiftUI-based iOS application that helps caregivers keep track o
 - **Optional location logging** – Capture where each action was recorded and review entries spatially on a dedicated Map tab when location tracking is enabled in Settings.
 - **Data sharing** – Export the active profile's logs to JSON and merge imports that include new or updated entries.
 - **iCloud profile restore** – Automatically pull existing child profiles from your private CloudKit database the first time you install the app on a device.
-- **Nearby sharing** – Beam the latest export to nearby iOS devices with Multipeer Connectivity support.
 - **Cloud sync visibility** – Monitor SwiftData's CloudKit mirroring progress with an in-app overlay and debug diagnostics panel (Debug build).
 - **Localized experience** – Navigate the interface in English, German, or Spanish with fully translated caregiver-facing text.
 
