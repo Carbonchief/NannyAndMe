@@ -212,6 +212,8 @@
 "map.filter.dateRange.title" = "Filter by date";
 "map.filter.startDate" = "Start date";
 "map.filter.endDate" = "End date";
+"map.filter.allDates" = "All dates";
+"map.filter.dateRange.toggle" = "Filter by date range";
 "map.filter.allActions" = "All actions";
 "map.emptyState" = "No actions match your filters.";
 "map.annotation.type" = "Type";

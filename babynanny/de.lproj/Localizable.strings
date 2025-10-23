@@ -208,6 +208,8 @@
 "map.filter.dateRange.title" = "Nach Datum filtern";
 "map.filter.startDate" = "Startdatum";
 "map.filter.endDate" = "Enddatum";
+"map.filter.allDates" = "Alle Daten";
+"map.filter.dateRange.toggle" = "Nach Datumsbereich filtern";
 "map.filter.allActions" = "Alle Aktionen";
 "map.emptyState" = "Keine Aktionen passen zu diesen Filtern.";
 "map.annotation.type" = "Typ";

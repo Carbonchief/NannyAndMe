@@ -8,8 +8,9 @@ struct ActionsMapView: View {
     @Query(sort: [SortDescriptor(\BabyAction.startDateRawValue, order: .reverse)])
     private var actions: [BabyAction]
     @State private var selectedCategory: BabyActionCategory?
-    @State private var startDate: Date = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-    @State private var endDate: Date = Date()
+    @State private var startDate: Date = Calendar.current.startOfDay(for: Date())
+    @State private var endDate: Date = Calendar.current.startOfDay(for: Date())
+    @State private var isDateFilterEnabled = true
     @State private var isShowingDateFilters = false
     @State private var selection: AnnotationSelection?
     @State private var region = MKCoordinateRegion(
@@ -38,6 +39,10 @@ struct ActionsMapView: View {
     }
 
     private var dateRangeSummary: String {
+        guard isDateFilterEnabled else {
+            return L10n.Map.allDates
+        }
+
         let formatter = ActionsMapView.dateIntervalFormatter
         let summary = formatter.string(from: startDate, to: endDate)
         if summary.isEmpty == false {
@@ -49,6 +54,9 @@ struct ActionsMapView: View {
         fallbackFormatter.timeStyle = .none
         let start = fallbackFormatter.string(from: startDate)
         let end = fallbackFormatter.string(from: endDate)
+        if start == end {
+            return start
+        }
         return "\(start) – \(end)"
     }
 
@@ -62,8 +70,10 @@ struct ActionsMapView: View {
                 guard action.profile?.resolvedProfileID == activeProfileID else { return nil }
                 guard let latitude = action.latitude, let longitude = action.longitude else { return nil }
                 guard selectedCategory == nil || action.category == selectedCategory else { return nil }
-                let timestamp = action.startDate
-                guard timestamp >= windowStart && timestamp <= windowEnd else { return nil }
+                if isDateFilterEnabled {
+                    let timestamp = action.startDate
+                    guard timestamp >= windowStart && timestamp <= windowEnd else { return nil }
+                }
                 let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
                 guard CLLocationCoordinate2DIsValid(coordinate) else { return nil }
                 return ActionAnnotation(action: action, coordinate: coordinate)
@@ -78,6 +88,7 @@ struct ActionsMapView: View {
         VStack(spacing: 0) {
             FilterBar(selectedCategory: $selectedCategory,
                       dateSummary: dateRangeSummary,
+                      isDateFilterEnabled: isDateFilterEnabled,
                       onShowDateFilters: { isShowingDateFilters = true })
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
@@ -105,17 +116,27 @@ struct ActionsMapView: View {
             syncSelection(with: updatedClusters, annotations: newValue)
         }
         .onChange(of: startDate) { _, newValue in
+            guard isDateFilterEnabled else { return }
             if newValue > endDate {
                 endDate = calendar.date(byAdding: .day, value: 1, to: newValue) ?? newValue
             }
         }
         .onChange(of: endDate) { _, newValue in
+            guard isDateFilterEnabled else { return }
             if newValue < startDate {
                 startDate = calendar.date(byAdding: .day, value: -1, to: newValue) ?? newValue
             }
         }
+        .onChange(of: isDateFilterEnabled) { _, isEnabled in
+            if isEnabled == false {
+                selection = nil
+            }
+        }
         .sheet(isPresented: $isShowingDateFilters) {
-            DateFilterSheet(startDate: $startDate, endDate: $endDate, isPresented: $isShowingDateFilters)
+            DateFilterSheet(startDate: $startDate,
+                            endDate: $endDate,
+                            isFilterEnabled: $isDateFilterEnabled,
+                            isPresented: $isShowingDateFilters)
         }
         .safeAreaInset(edge: .bottom) {
             if let currentSelection = selection {
@@ -725,6 +746,7 @@ private extension ActionsMapView {
     struct FilterBar: View {
         @Binding var selectedCategory: BabyActionCategory?
         let dateSummary: String
+        let isDateFilterEnabled: Bool
         let onShowDateFilters: () -> Void
 
         var body: some View {
@@ -752,7 +774,8 @@ private extension ActionsMapView {
                     FilterChip(iconName: "calendar.badge.clock",
                                title: L10n.Map.dateRangeFilterButton,
                                detail: dateSummary,
-                               accessory: .chevronForward)
+                               accessory: .chevronForward,
+                               isActive: isDateFilterEnabled)
                 }
                 .buttonStyle(.plain)
                 .postHogLabel("map.filter.dateButton")
@@ -781,6 +804,7 @@ private extension ActionsMapView {
             let title: String
             let detail: String
             let accessory: Accessory
+            var isActive: Bool = true
 
             var body: some View {
                 HStack(alignment: .center, spacing: 10) {
@@ -795,7 +819,7 @@ private extension ActionsMapView {
                             .foregroundStyle(.secondary)
                         Text(detail)
                             .font(.subheadline)
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(isActive ? .primary : .secondary)
                             .lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -830,6 +854,7 @@ private extension ActionsMapView {
     struct DateFilterSheet: View {
         @Binding var startDate: Date
         @Binding var endDate: Date
+        @Binding var isFilterEnabled: Bool
         @Binding var isPresented: Bool
 
         private var calendar: Calendar { Calendar.current }
@@ -837,12 +862,19 @@ private extension ActionsMapView {
         var body: some View {
             NavigationStack {
                 Form {
+                    Section {
+                        Toggle(L10n.Map.dateRangeFilterToggle,
+                               isOn: $isFilterEnabled.animation())
+                            .postHogLabel("map.filterSheet.toggle")
+                    }
+
                     Section(L10n.Map.dateRangeFilter) {
                         DatePicker(L10n.Map.startDate,
                                    selection: $startDate,
                                    displayedComponents: .date)
                             .datePickerStyle(.graphical)
                             .postHogLabel("map.filterSheet.startDate")
+                            .disabled(isFilterEnabled == false)
 
                         DatePicker(L10n.Map.endDate,
                                    selection: $endDate,
@@ -850,6 +882,7 @@ private extension ActionsMapView {
                                    displayedComponents: .date)
                             .datePickerStyle(.graphical)
                             .postHogLabel("map.filterSheet.endDate")
+                            .disabled(isFilterEnabled == false)
                     }
                 }
                 .navigationTitle(L10n.Map.dateRangeFilterTitle)
@@ -862,7 +895,7 @@ private extension ActionsMapView {
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button(L10n.Common.done) {
-                            if endDate < startDate {
+                            if isFilterEnabled && endDate < startDate {
                                 endDate = calendar.date(byAdding: .day, value: 1, to: startDate) ?? startDate
                             }
                             isPresented = false
