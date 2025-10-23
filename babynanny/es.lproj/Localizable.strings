@@ -322,6 +322,8 @@
 "shareData.nearby.toast.noChanges" = "No hay cambios recientes para enviar.";
 "shareData.nearby.toast.sentChanges" = "Se enviaron los cambios recientes";
 "shareData.nearby.toast.sendingFile" = "Enviando %@";
+"shareData.nearby.toast.receivedSnapshot" = "%@ recibido (%d nuevo(s), %d actualizado(s))";
+"shareData.nearby.toast.receivedSnapshotNoChanges" = "%@ recibido (ya está actualizado)";
 "shareData.nearby.message.hello" = "Hola";
 "shareData.nearby.message.capabilities" = "Capacidades";
 "shareData.nearby.message.snapshot" = "Instantánea";

@@ -48,4 +48,29 @@ final class MPCTests: XCTestCase {
         XCTAssertEqual(updated.kind, .resource(name: "file.json"))
         XCTAssertNotNil(updated.estimatedRemainingTime)
     }
+
+    @MainActor
+    func testIncomingSnapshotTriggersMergeHandler() throws {
+        let manager = MPCManager()
+        let viewModel = ShareDataViewModel(manager: manager)
+        let profile = ChildProfile(name: "Test", birthDate: Date())
+        let state = ProfileActionState()
+        var mergeCalled = false
+
+        viewModel.configure(
+            profileProvider: { profile },
+            actionStateProvider: { _ in state },
+            snapshotMergeHandler: { payload in
+                mergeCalled = true
+                XCTAssertEqual(payload.profile.id, profile.id)
+                return ShareDataViewModel.ImportResult(added: 1, updated: 0, didUpdateProfile: true)
+            }
+        )
+
+        manager.onProfileExport?(ProfileExportV1(profile: profile, actions: state), MCPeerID(displayName: "Peer"))
+
+        XCTAssertTrue(mergeCalled)
+        XCTAssertEqual(viewModel.toastMessage,
+                       L10n.ShareData.Nearby.receivedSnapshot(profile.displayName, 1, 0))
+    }
 }

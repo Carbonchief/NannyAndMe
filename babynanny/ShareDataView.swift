@@ -402,7 +402,14 @@ struct ShareDataView: View {
         guard didConfigureViewModel == false else { return }
         viewModel.configure(
             profileProvider: { profileStore.activeProfile },
-            actionStateProvider: { actionStore.state(for: $0) }
+            actionStateProvider: { actionStore.state(for: $0) },
+            snapshotMergeHandler: { payload in
+                let profileUpdated = try profileStore.mergeActiveProfile(with: payload.profile)
+                let summary = actionStore.mergeProfileState(payload.actions, for: payload.profile.id)
+                return ShareDataViewModel.ImportResult(added: summary.added,
+                                                       updated: summary.updated,
+                                                       didUpdateProfile: profileUpdated)
+            }
         )
         didConfigureViewModel = true
     }

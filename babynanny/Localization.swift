@@ -712,6 +712,20 @@ enum L10n {
                 )
                 return String(format: format, locale: Locale.current, filename)
             }
+            static func receivedSnapshot(_ name: String, _ added: Int, _ updated: Int) -> String {
+                let format = String(
+                    localized: "shareData.nearby.toast.receivedSnapshot",
+                    defaultValue: "Received %@ (%d new, %d updated)"
+                )
+                return String(format: format, locale: Locale.current, name, added, updated)
+            }
+            static func receivedSnapshotNoChanges(_ name: String) -> String {
+                let format = String(
+                    localized: "shareData.nearby.toast.receivedSnapshotNoChanges",
+                    defaultValue: "Received %@ (already up to date)"
+                )
+                return String(format: format, locale: Locale.current, name)
+            }
             static let messageHello = String(
                 localized: "shareData.nearby.message.hello",
                 defaultValue: "Hello"

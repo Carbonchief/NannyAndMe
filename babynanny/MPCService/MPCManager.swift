@@ -48,6 +48,9 @@ final class MPCManager: NSObject, ObservableObject {
     @Published private(set) var lastError: MPCError?
     @Published private(set) var lastReceivedEnvelopeAt: Date?
 
+    var onProfileExport: ((ProfileExportV1, MCPeerID) -> Void)?
+    var onActionsDelta: ((ActionsDeltaMessage, MCPeerID) -> Void)?
+
     private let configuration: Configuration
     private let peerID: MCPeerID
     private var localShortName: String
@@ -253,13 +256,15 @@ final class MPCManager: NSObject, ObservableObject {
             guard let self else { return }
             self.updateConnectedPeer(peerID: peer, displayName: message.displayName)
         }
-        transfer.onProfileExport = { [weak self] _, _ in
+        transfer.onProfileExport = { [weak self] payload, peer in
             guard let self else { return }
             self.lastReceivedEnvelopeAt = Date()
+            self.onProfileExport?(payload, peer)
         }
-        transfer.onActionsDelta = { [weak self] _, _ in
+        transfer.onActionsDelta = { [weak self] payload, peer in
             guard let self else { return }
             self.lastReceivedEnvelopeAt = Date()
+            self.onActionsDelta?(payload, peer)
         }
         transfer.onIncompatibleEnvelope = { [weak self] _, error, _ in
             guard let self else { return }

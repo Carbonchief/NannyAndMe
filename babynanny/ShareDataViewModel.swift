@@ -16,10 +16,19 @@ final class ShareDataViewModel: ObservableObject {
     private let manager: MPCManager
     private var profileProvider: (() -> ChildProfile)?
     private var actionStateProvider: ((UUID) -> ProfileActionState)?
+    private var snapshotMergeHandler: ((ProfileExportV1) throws -> ImportResult)?
     private var cancellables: Set<AnyCancellable> = []
     private var lastDeltaSentAt: Date?
     private var browsingRequested = true
     private var advertisingRequested = true
+
+    struct ImportResult: Equatable {
+        let added: Int
+        let updated: Int
+        let didUpdateProfile: Bool
+
+        static let empty = ImportResult(added: 0, updated: 0, didUpdateProfile: false)
+    }
 
     init(manager: MPCManager,
          profileProvider: @escaping () -> ChildProfile,
@@ -30,6 +39,11 @@ final class ShareDataViewModel: ObservableObject {
         bindManager()
     }
 
+    deinit {
+        manager.onProfileExport = nil
+        manager.onActionsDelta = nil
+    }
+
     convenience init(manager: MPCManager) {
         self.init(manager: manager, profileProvider: { fatalError("Profile provider not configured") }, actionStateProvider: { _ in fatalError("Action provider not configured") })
         profileProvider = nil
@@ -37,9 +51,11 @@ final class ShareDataViewModel: ObservableObject {
     }
 
     func configure(profileProvider: @escaping () -> ChildProfile,
-                   actionStateProvider: @escaping (UUID) -> ProfileActionState) {
+                   actionStateProvider: @escaping (UUID) -> ProfileActionState,
+                   snapshotMergeHandler: @escaping (ProfileExportV1) throws -> ImportResult) {
         self.profileProvider = profileProvider
         self.actionStateProvider = actionStateProvider
+        self.snapshotMergeHandler = snapshotMergeHandler
     }
 
     func startBrowsing() {
@@ -214,6 +230,10 @@ final class ShareDataViewModel: ObservableObject {
                 self?.lastReceivedAt = date
             }
             .store(in: &cancellables)
+
+        manager.onProfileExport = { [weak self] payload, _ in
+            self?.handleIncomingSnapshot(payload)
+        }
     }
 
     private func emitToast(_ message: String) {
@@ -228,6 +248,8 @@ final class ShareDataViewModel: ObservableObject {
         if let mpcError = error as? MPCError {
             lastError = mpcError
             emitToast(errorMessage(for: mpcError))
+        } else if let localized = error as? LocalizedError, let description = localized.errorDescription {
+            emitToast(description)
         } else {
             emitToast(L10n.ShareData.Nearby.unknownError)
         }
@@ -251,6 +273,25 @@ final class ShareDataViewModel: ObservableObject {
             return L10n.ShareData.Nearby.transferCancelled
         case .resourceNotFound:
             return L10n.ShareData.Nearby.resourceMissing
+        }
+    }
+
+    private func handleIncomingSnapshot(_ payload: ProfileExportV1) {
+        do {
+            if let handler = snapshotMergeHandler {
+                let result = try handler(payload)
+                if result.added > 0 || result.updated > 0 || result.didUpdateProfile {
+                    emitToast(L10n.ShareData.Nearby.receivedSnapshot(payload.profile.displayName,
+                                                                     result.added,
+                                                                     result.updated))
+                } else {
+                    emitToast(L10n.ShareData.Nearby.receivedSnapshotNoChanges(payload.profile.displayName))
+                }
+            } else {
+                emitToast(L10n.ShareData.Nearby.receivedSnapshotNoChanges(payload.profile.displayName))
+            }
+        } catch {
+            handle(error: error)
         }
     }
 }
