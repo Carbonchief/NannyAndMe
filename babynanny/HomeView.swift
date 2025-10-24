@@ -1307,7 +1307,7 @@ private struct HistoryRow: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(action.category.accentColor.opacity(0.15))
-                    .frame(width: 44, height: 44)
+                    .frame(width: 40, height: 40)
 
                 Image(systemName: action.icon)
                     .font(.system(size: 20, weight: .semibold))
@@ -1363,7 +1363,7 @@ private struct HistoryRow: View {
             .frame(maxHeight: .infinity, alignment: .center)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(minHeight: 68, alignment: .center)
+        .frame(minHeight: 60, alignment: .center)
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
