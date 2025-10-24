@@ -5,6 +5,7 @@ import SwiftUI
 /// Displays logged baby actions on a map with filtering by action type and date range.
 struct ActionsMapView: View {
     @EnvironmentObject private var profileStore: ProfileStore
+    @EnvironmentObject private var locationManager: LocationManager
     @Query(sort: [SortDescriptor(\BabyAction.startDateRawValue, order: .reverse)])
     private var actions: [BabyAction]
     @State private var selectedCategory: BabyActionCategory?
@@ -19,6 +20,18 @@ struct ActionsMapView: View {
     )
 
     private var calendar: Calendar { Calendar.current }
+
+    private var userCoordinate: UserCoordinate? {
+        guard let coordinate = locationManager.lastKnownLocation?.coordinate,
+              CLLocationCoordinate2DIsValid(coordinate) else {
+            return nil
+        }
+        return UserCoordinate(latitude: coordinate.latitude, longitude: coordinate.longitude)
+    }
+
+    private var locationAuthorizationStatus: CLAuthorizationStatus {
+        locationManager.authorizationStatus
+    }
 
     private var activeProfileID: UUID? {
         profileStore.activeProfileID
@@ -115,6 +128,19 @@ struct ActionsMapView: View {
             let updatedClusters = clusterAnnotations(from: newValue)
             syncSelection(with: updatedClusters, annotations: newValue)
         }
+        .onChange(of: userCoordinate, initial: true) { _, coordinate in
+            guard let coordinate else { return }
+            guard filteredActionAnnotations.isEmpty else { return }
+            updateRegion(to: coordinate)
+        }
+        .onChange(of: locationAuthorizationStatus) { _, newStatus in
+            guard filteredActionAnnotations.isEmpty else { return }
+            guard userCoordinate == nil else { return }
+            guard newStatus == .authorizedWhenInUse || newStatus == .authorizedAlways else { return }
+            Task {
+                _ = await locationManager.captureCurrentLocation()
+            }
+        }
         .onChange(of: startDate) { _, newValue in
             guard isDateFilterEnabled else { return }
             if newValue > endDate {
@@ -163,6 +189,16 @@ struct ActionsMapView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: selection)
+        .task(id: filteredActionAnnotations.isEmpty) { isEmpty in
+            guard isEmpty else { return }
+            let shouldCapture = await MainActor.run { () -> Bool in
+                guard locationManager.lastKnownLocation == nil else { return false }
+                locationManager.requestPermissionIfNeeded()
+                return true
+            }
+            guard shouldCapture else { return }
+            _ = await locationManager.captureCurrentLocation()
+        }
     }
 
     @ViewBuilder
@@ -294,7 +330,11 @@ struct ActionsMapView: View {
     }
 
     private func updateRegion(for annotations: [ActionAnnotation]) {
-        guard annotations.isEmpty == false else { return }
+        guard annotations.isEmpty == false else {
+            guard let coordinate = userCoordinate else { return }
+            updateRegion(to: coordinate)
+            return
+        }
         let coordinates = annotations.map(\.coordinate)
         let minLatitude = coordinates.map(\.latitude).min() ?? region.center.latitude
         let maxLatitude = coordinates.map(\.latitude).max() ?? region.center.latitude
@@ -313,6 +353,12 @@ struct ActionsMapView: View {
             region = MKCoordinateRegion(center: center, span: span)
         }
     }
+
+    private func updateRegion(to coordinate: UserCoordinate) {
+        let center = CLLocationCoordinate2D(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        guard CLLocationCoordinate2DIsValid(center) else { return }
+        region = MKCoordinateRegion(center: center, span: ActionsMapView.userLocationSpan)
+    }
 }
 
 private extension ActionsMapView {
@@ -324,6 +370,8 @@ private extension ActionsMapView {
     }()
 
     private static let clusterDistanceThreshold: CLLocationDistance = 50
+
+    private static let userLocationSpan = MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
 
     private static let annotationTimestampFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -922,6 +970,11 @@ private extension ActionsMapView {
                 .background(.ultraThinMaterial, in: Capsule())
         }
     }
+
+    struct UserCoordinate: Equatable {
+        let latitude: CLLocationDegrees
+        let longitude: CLLocationDegrees
+    }
 }
 
 @MainActor
@@ -967,6 +1020,7 @@ private enum ActionsMapViewPreviewData {
     NavigationStack {
         ActionsMapView()
             .environmentObject(ActionsMapViewPreviewData.profileStore)
+            .environmentObject(LocationManager.shared)
     }
     .modelContainer(ActionsMapViewPreviewData.container)
 }
