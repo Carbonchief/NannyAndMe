@@ -21,41 +21,6 @@ enum L10n {
         static let loading = String(localized: "splash.loading", defaultValue: "Loading")
     }
 
-    enum CloudPrompt {
-        static let title = String(localized: "cloudPrompt.title", defaultValue: "Enable iCloud Sync")
-        static let message = String(
-            localized: "cloudPrompt.message",
-            defaultValue: "Sign in to iCloud to keep your data backed up and available on all your devices."
-        )
-        static let openSettings = String(localized: "cloudPrompt.openSettings", defaultValue: "Open Settings")
-        static let keepLocal = String(localized: "cloudPrompt.keepLocal", defaultValue: "Keep Data On This Device")
-    }
-
-    enum Sync {
-        static let loadingInitialData = String(
-            localized: "sync.loadingInitialData",
-            defaultValue: "Syncing your data…"
-        )
-
-        static func progressPercentage(_ value: Double) -> String {
-            let format = String(
-                localized: "sync.progressPercentage",
-                defaultValue: "%.0f%% complete"
-            )
-            return String(format: format, locale: Locale.current, value)
-        }
-
-        static let preparingUpdates = String(
-            localized: "sync.preparingUpdates",
-            defaultValue: "Preparing your latest updates…"
-        )
-
-        static let initialSyncFailed = String(
-            localized: "sync.initialSyncFailed",
-            defaultValue: "We couldn't finish downloading your data. We'll keep trying in the background."
-        )
-    }
-
     enum Onboarding {
         static let profilePromptTitle = String(
             localized: "onboarding.profilePrompt.title",
@@ -343,16 +308,6 @@ enum L10n {
         static let aboutSection = String(localized: "settings.about.section", defaultValue: "About")
         static let appVersion = String(localized: "settings.about.appVersion", defaultValue: "App Version")
         static let title = String(localized: "settings.title", defaultValue: "Settings")
-        enum Cloud {
-            static let sectionTitle = String(localized: "settings.cloud.section", defaultValue: "Cloud")
-            static let statusLabel = String(localized: "settings.cloud.status", defaultValue: "Status")
-            static let statusAvailable = String(localized: "settings.cloud.status.available", defaultValue: "Syncing with iCloud")
-            static let statusNeedsAccount = String(localized: "settings.cloud.status.needsAccount", defaultValue: "Sign in to iCloud")
-            static let statusLocalOnly = String(localized: "settings.cloud.status.localOnly", defaultValue: "Local Only")
-            static let statusLoading = String(localized: "settings.cloud.status.loading", defaultValue: "Checking…")
-            static let refresh = String(localized: "settings.cloud.refresh", defaultValue: "Refresh")
-            static let enable = String(localized: "settings.cloud.enable", defaultValue: "Enable iCloud Sync")
-        }
         static let nextReminderLabel = String(
             localized: "settings.notifications.nextReminder.label",
             defaultValue: "Next reminder"
@@ -562,7 +517,6 @@ enum L10n {
         static let title = String(localized: "menu.title", defaultValue: "Nanny & Me")
         static let subtitle = String(localized: "menu.subtitle", defaultValue: "Quick actions")
         static let allLogs = String(localized: "menu.allLogs", defaultValue: "All Logs")
-        static let shareProfile = String(localized: "menu.shareProfile", defaultValue: "Share profile")
         static let settings = String(localized: "menu.settings", defaultValue: "Settings")
         static let shareData = String(localized: "menu.shareData", defaultValue: "Share Data")
     }
@@ -607,16 +561,6 @@ enum L10n {
             localized: "shareData.import.profileUpdated",
             defaultValue: "Profile settings were updated from the import."
         )
-
-        enum Unavailable {
-            static let title = String(localized: "shareData.unavailable.title", defaultValue: "Sharing Unavailable")
-            static let message = String(
-                localized: "shareData.unavailable.message",
-                defaultValue: "Connect to iCloud in Settings to share profiles with family members."
-            )
-            static let openSettings = String(localized: "shareData.unavailable.openSettings", defaultValue: "Open Settings")
-            static let retry = String(localized: "shareData.unavailable.retry", defaultValue: "Check Again")
-        }
 
         enum AirDrop {
             static let sectionTitle = String(

@@ -10,16 +10,9 @@ import PhotosUI
 import UIKit
 
 struct SettingsView: View {
-    @EnvironmentObject private var cloudStatusController: CloudAccountStatusController
-    @EnvironmentObject private var appDataStack: AppDataStack
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
     @EnvironmentObject private var locationManager: LocationManager
-#if DEBUG
-    @EnvironmentObject private var syncCoordinator: SyncCoordinator
-    @EnvironmentObject private var syncStatusViewModel: SyncStatusViewModel
-    private let cloudKitContainerIdentifier = "iCloud.com.prioritybit.babynanny"
-#endif
     @Environment(\.openURL) private var openURL
     @AppStorage("trackActionLocations") private var trackActionLocations = false
     @State private var selectedPhoto: PhotosPickerItem?
@@ -42,12 +35,8 @@ struct SettingsView: View {
             activeProfileSection
             homeSection
             privacySection
-            cloudSection
             notificationsSection
             aboutSection
-#if DEBUG
-            debugSection
-#endif
         }
         .navigationTitle(L10n.Settings.title)
         .phScreen("settings_screen_settingsView")
@@ -125,38 +114,6 @@ struct SettingsView: View {
                 pendingCrop = nil
             }
             .preferredColorScheme(.dark)
-        }
-    }
-
-    private var cloudSection: some View {
-        Section(header: Text(L10n.Settings.Cloud.sectionTitle)) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Label(L10n.Settings.Cloud.statusLabel, systemImage: "icloud")
-                Spacer()
-                Text(cloudStatusDescription)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Button {
-                    Analytics.capture("settings_cloud_refresh_button", properties: ["status": cloudStatusController.status.analyticsValue])
-                    cloudStatusController.refreshAccountStatus(force: true)
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .imageScale(.medium)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(L10n.Settings.Cloud.refresh)
-                .postHogLabel("settings.cloud.refresh")
-            }
-
-            if appDataStack.cloudSyncEnabled == false {
-                Button {
-                    Analytics.capture("settings_cloud_enable_button", properties: ["status": cloudStatusController.status.analyticsValue])
-                    cloudStatusController.enableCloudSync()
-                } label: {
-                    Text(L10n.Settings.Cloud.enable)
-                }
-                .postHogLabel("settings.cloud.enable")
-            }
         }
     }
 
@@ -270,19 +227,6 @@ struct SettingsView: View {
         Section(header: Text(L10n.Profiles.activeProfileSection)) {
             activeProfileHeader
             processingPhotoIndicator
-        }
-    }
-
-    private var cloudStatusDescription: String {
-        switch cloudStatusController.status {
-        case .available:
-            return L10n.Settings.Cloud.statusAvailable
-        case .needsAccount:
-            return L10n.Settings.Cloud.statusNeedsAccount
-        case .localOnly:
-            return L10n.Settings.Cloud.statusLocalOnly
-        case .loading:
-            return L10n.Settings.Cloud.statusLoading
         }
     }
 
@@ -451,21 +395,6 @@ struct SettingsView: View {
             }
         }
     }
-
-#if DEBUG
-    private var debugSection: some View {
-        Section(header: Text("Debug")) {
-            NavigationLink {
-                SyncDiagnosticsView(coordinator: syncCoordinator,
-                                    statusViewModel: syncStatusViewModel,
-                                    containerIdentifier: cloudKitContainerIdentifier)
-            } label: {
-                Label("Sync Diagnostics", systemImage: "antenna.radiowaves.left.and.right")
-            }
-            .postHogLabel("settings.debug.syncDiagnostics")
-        }
-    }
-#endif
 
     private func handlePhotoSelectionChange(_ newValue: PhotosPickerItem?) {
         photoLoadingTask?.cancel()

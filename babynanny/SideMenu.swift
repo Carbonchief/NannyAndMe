@@ -8,9 +8,7 @@
 import SwiftUI
 
 struct SideMenu: View {
-    let isCloudSharingAvailable: Bool
     let onSelectAllLogs: () -> Void
-    let onSelectShareProfile: () -> Void
     let onSelectSettings: () -> Void
     let onSelectShareData: () -> Void
 
@@ -65,9 +63,7 @@ struct SideMenu: View {
 }
 
 #Preview {
-    SideMenu(isCloudSharingAvailable: true,
-             onSelectAllLogs: {},
-             onSelectShareProfile: {},
+    SideMenu(onSelectAllLogs: {},
              onSelectSettings: {},
              onSelectShareData: {})
 }

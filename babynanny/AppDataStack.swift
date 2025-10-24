@@ -1,50 +1,26 @@
-import CloudKit
 import Foundation
 import os
 import SwiftData
 
 @MainActor
 final class AppDataStack: ObservableObject {
-    @Published private(set) var cloudSyncEnabled: Bool
-
     private(set) var modelContainer: ModelContainer
     private(set) var mainContext: ModelContext
-    private(set) var syncCoordinator: SyncCoordinator
-    private(set) var syncStatusViewModel: SyncStatusViewModel
-    private(set) var shareMetadataStore: ShareMetadataStore?
-    private(set) var shareAcceptanceHandler: ShareAcceptanceHandler?
-    private(set) var sharedSubscriptionManager: SharedScopeSubscriptionManager?
 
     private let swiftDataLogger = Logger(subsystem: "com.prioritybit.babynanny", category: "swiftdata")
     private var coalescedSaveTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
-    private var sharedZoneChangeTokenStore: SharedZoneChangeTokenStore?
-    private let containerIdentifier = "iCloud.com.prioritybit.babynanny"
-
-    init(cloudSyncEnabled: Bool = false,
-         modelContainer: ModelContainer? = nil,
-         syncCoordinatorFactory: ((ModelContainer, ModelContext, Bool) -> SyncCoordinator)? = nil) {
-        self.cloudSyncEnabled = cloudSyncEnabled
+    
+    init(modelContainer: ModelContainer? = nil) {
         let container = modelContainer ?? Self.makeModelContainer()
         self.modelContainer = container
         self.mainContext = container.mainContext
-        if let factory = syncCoordinatorFactory {
-            self.syncCoordinator = factory(container, container.mainContext, cloudSyncEnabled)
-        } else {
-            self.syncCoordinator = SyncCoordinator(sharedContext: container.mainContext,
-                                                   cloudContainerIdentifier: containerIdentifier,
-                                                   cloudSyncEnabled: cloudSyncEnabled)
-        }
-        self.syncStatusViewModel = SyncStatusViewModel(modelContainer: container)
         configureContexts()
-        configureCloudResources(enabled: cloudSyncEnabled)
     }
 
-    static func makeModelContainer(cloudSyncEnabled _: Bool = true,
-                                   inMemory: Bool = false) -> ModelContainer {
+    static func makeModelContainer(inMemory: Bool = false) -> ModelContainer {
         let configuration = ModelConfiguration(
             isStoredInMemoryOnly: inMemory,
-            allowsSave: true,
-            cloudKitDatabase: .private("iCloud.com.prioritybit.babynanny")
+            allowsSave: true
         )
 
         do {
@@ -61,16 +37,6 @@ final class AppDataStack: ObservableObject {
         let context = ModelContext(modelContainer)
         context.autosaveEnabled = false
         return context
-    }
-
-    func requestSyncIfNeeded(reason: SyncCoordinator.SyncReason) {
-        syncCoordinator.requestSyncIfNeeded(reason: reason)
-    }
-
-    func prepareSubscriptionsIfNeeded() {
-        guard cloudSyncEnabled else { return }
-        sharedSubscriptionManager?.ensureSubscriptions()
-        syncCoordinator.prepareSubscriptionsIfNeeded()
     }
 
     func scheduleSaveIfNeeded(on context: ModelContext,
@@ -106,39 +72,8 @@ final class AppDataStack: ObservableObject {
         }
     }
 
-    func setCloudSyncEnabled(_ isEnabled: Bool) {
-        guard isEnabled != cloudSyncEnabled else { return }
-        cloudSyncEnabled = isEnabled
-        configureCloudResources(enabled: isEnabled)
-    }
-
     private func configureContexts() {
         mainContext.autosaveEnabled = false
-    }
-
-    private func configureCloudResources(enabled: Bool) {
-        syncCoordinator.setCloudSyncEnabled(enabled)
-        guard enabled else {
-            sharedSubscriptionManager = nil
-            shareAcceptanceHandler = nil
-            shareMetadataStore = nil
-            sharedZoneChangeTokenStore = nil
-            return
-        }
-
-        let metadataStore = shareMetadataStore ?? ShareMetadataStore()
-        let zoneTokenStore = sharedZoneChangeTokenStore ?? SharedZoneChangeTokenStore()
-        let acceptanceHandler = ShareAcceptanceHandler(modelContainer: modelContainer,
-                                                       metadataStore: metadataStore,
-                                                       tokenStore: zoneTokenStore)
-        shareMetadataStore = metadataStore
-        shareAcceptanceHandler = acceptanceHandler
-        sharedZoneChangeTokenStore = zoneTokenStore
-        let subscriptionManager = SharedScopeSubscriptionManager(tokenStore: zoneTokenStore,
-                                                                 shareMetadataStore: metadataStore,
-                                                                 ingestor: acceptanceHandler)
-        sharedSubscriptionManager = subscriptionManager
-        subscriptionManager.ensureSubscriptions()
     }
 
     private func performSaveIfNeeded(on context: ModelContext, reason: String) async {
@@ -158,7 +93,6 @@ final class AppDataStack: ObservableObject {
 
 extension AppDataStack {
     static func preview() -> AppDataStack {
-        AppDataStack(cloudSyncEnabled: true,
-                     modelContainer: makeModelContainer(inMemory: true))
+        AppDataStack(modelContainer: makeModelContainer(inMemory: true))
     }
 }

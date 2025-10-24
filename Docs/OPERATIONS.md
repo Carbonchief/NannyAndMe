@@ -1,38 +1,31 @@
-# Sync operations runbook
+# Data operations runbook
 
-This document outlines how the NannyAndMe sync pipeline behaves and how to test or reset it during development.
+This document outlines how NannyAndMe stores data locally and how to back it up or reset it during development.
 
-## Push-driven updates
+## Local storage
 
-1. **SwiftData + CloudKit** – The app uses SwiftData's built-in CloudKit support with a private database. Every `ProfileActionStateModel` and `BabyActionModel` change is mirrored to the user's private zone.
-2. **Subscriptions** – On launch the `SyncCoordinator` verifies that a database-wide `CKDatabaseSubscription` exists. If not, it creates one configured for silent pushes.
-3. **Silent push handling** – When CloudKit delivers a push, `AppDelegate` forwards the payload to the `SyncCoordinator`. The coordinator deduplicates notification IDs, updates diagnostics, and schedules a debounced refresh that re-fetches the relevant SwiftData models so the latest CloudKit state is reflected locally.
-4. **UI propagation** – SwiftData merges remote records into the local store, which triggers `NSPersistentStoreRemoteChange`. `ActionLogStore` listens for these notifications, rehydrates `ProfileStore` metadata, and the SwiftUI views refresh automatically through their environment objects or `@Query` readers.
+1. **SwiftData on-device** – The app keeps all profiles and actions in a single SwiftData store located in the app's sandbox. There is no automatic cloud mirroring.
+2. **Explicit saves** – `AppDataStack` coalesces save operations so bursts of edits (e.g., logging multiple actions quickly) do not block the main thread.
+3. **Model notifications** – `ActionLogStore` listens for SwiftData context changes to refresh in-memory caches that drive the UI.
 
-## Resetting the local store (without touching iCloud)
+## Resetting the local store
 
-Use this when you want to clear the on-device cache but preserve CloudKit data for the account:
+Use this when you want to clear on-device data and start from a clean slate:
 
 1. Delete the app from the simulator or device.
-2. In Xcode, choose **Product ▸ Run** to reinstall. SwiftData will bootstrap an empty store and repopulate it as CloudKit syncs down existing records.
-3. If you only need to wipe data during a debug session, run `xcrun simctl erase <device>` to factory-reset the simulator.
+2. Reinstall via Xcode (**Product ▸ Run**) or the debugger. SwiftData will bootstrap an empty store and create a placeholder profile on first launch.
+3. Alternatively, run `xcrun simctl erase <device>` to factory-reset the simulator.
 
-> ⚠️ Avoid deleting records directly from the CloudKit Dashboard when testing; doing so may cause sync gaps for other testers.
+> ⚠️ Removing the app also deletes any locally exported JSON backups unless they were copied outside the sandbox.
 
-## Testing push updates
+## Exporting and importing data
 
-1. Sign into the same iCloud account on two devices (simulator + device or two simulators).
-2. Launch the app on both. Grant notification permission on the physical device.
-3. On Device A, update a profile name or log a new action.
-4. Observe Device B. Within seconds the UI should update without manual refresh. For debug builds, open **Settings ▸ Debug ▸ Sync Diagnostics** to confirm the push time stamp advanced.
+1. Open **Settings ▸ Share Data**.
+2. Tap **Export** to create a JSON archive of the active profile and its actions. You can AirDrop the file or store it with Files.app.
+3. Tap **Import** to merge a previously exported archive. The merge routine deduplicates by action identifier and updates existing entries when timestamps or metadata differ.
 
-## Common pitfalls
+## Troubleshooting tips
 
-- **Duplicate subscriptions** – The coordinator fetches existing subscriptions at launch and only creates a new one when necessary, preventing CloudKit errors caused by duplicate IDs.
-- **No-op saves** – `AppDataStack` checks `ModelContext.hasChanges` before saving, so toggling UI state without a data change will not trigger redundant sync traffic.
-- **Conflict storms** – Each `BabyActionSnapshot` carries an `updatedAt` timestamp. `ActionConflictResolver` chooses the newer timestamp (or the entry with the latest end date on ties), stopping ping-pong updates between devices.
-- **Manual fetch loops** – All syncs are push-triggered or manually requested via `SyncCoordinator.requestSyncIfNeeded(reason:)`; there is no polling loop.
-
-## Adding sharing later
-
-`SyncCoordinator` isolates CloudKit touchpoints, making it straightforward to extend the stack with `CKShare`-based collaboration in the future. Implement share acceptance inside the coordinator and keep the existing private-database flow untouched.
+- **Missing reminders** – Ensure notification permissions are granted and that the active profile has reminders enabled. Use the reminder preview buttons in Settings to schedule a test notification.
+- **Location logging** – Location details appear only when system authorization is granted and the "Track action locations" toggle is on. If a reminder highlights denied access, use the provided button to jump to iOS Settings.
+- **JSON import conflicts** – If an import reports a mismatched profile error, confirm that the archive was exported for the currently active profile. The app prevents cross-profile merges to avoid accidental overwrites.

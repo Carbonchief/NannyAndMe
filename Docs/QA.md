@@ -1,35 +1,34 @@
 # Manual QA Checklist
 
-Use the following script to validate SwiftData + CloudKit syncing and sharing.
+Use the following script to validate core functionality after local-only persistence changes.
 
-1. **Seed Device A**
-   - Launch the app, create a profile, and log three actions (sleep, feeding, diaper).
-   - Confirm entries appear on the Home and All Logs screens.
-   - Open the debug panel (Settings → Debug) and verify the private scope shows three `BabyAction` records and one `Profile` record.
+1. **Seed base data**
+   - Launch the app, rename the default profile, and add a profile photo.
+   - Log sleep, feeding, and diaper actions. Confirm entries appear on the Home and All Logs screens.
+   - Toggle the "Show recent activity on Home" setting and verify the Home view updates accordingly.
 
-2. **Initial import on Device B**
-   - Install the app with the same Apple ID on a clean device or simulator.
-   - Wait for the sync overlay to disappear; the debug panel should report `Finished` with no outstanding changes.
-   - Confirm the seeded profile and all three actions appear in Home/All Logs without manual refresh.
+2. **Reminder workflows**
+   - Enable action reminders for the active profile.
+   - Use the custom reminder preview button for each category and confirm notifications arrive (requires notification permission).
+   - Log an action and ensure the related reminder toggle resets the override.
 
-3. **Share the profile**
-   - On Device A, open Settings → Share Profile and create a share.
-   - Invite Device B (iCloud email) and accept the share prompt on Device B.
-   - After acceptance, Device B's action lists should include the shared profile and existing logs.
+3. **Location tracking**
+   - Enable "Track action locations" in Settings. Grant location access when prompted.
+   - Log a new action and verify the All Logs list shows a location badge. Confirm the entry appears on the Map tab.
 
-4. **Live collaboration**
-   - On Device B, edit one of the shared actions (change the duration or metadata).
-   - Within seconds, Device A should reflect the edit (UI refresh happens automatically via SwiftData mirroring).
-   - Add a new action on Device A; verify it appears on Device B after the push arrives.
+4. **Share Data export/import**
+   - Export the active profile from **Settings ▸ Share Data** using AirDrop (or save to Files in the simulator).
+   - Delete the app to clear local data, reinstall, and confirm the store starts empty.
+   - Re-import the previously exported JSON and verify the profile details and logged actions return.
 
-5. **Modify participants**
-   - On Device A, downgrade Device B to read-only, then remove the participant. Device B should lose access shortly after.
-   - Stop sharing entirely and confirm Device A no longer lists the participant.
+5. **Profile management**
+   - Add a second profile and switch between profiles using the avatar button.
+   - Delete the secondary profile and ensure the active profile falls back to the original one.
 
-6. **Deletion cascade**
-   - Delete the shared profile on Device A and confirm the actions disappear locally.
-   - Verify Device B also loses access to the profile and actions once CloudKit processes the deletion.
+6. **Duration Activity shortcuts**
+   - Start a duration action (e.g., sleep) and leave it running.
+   - Trigger the custom URL scheme `nannyme://activity/<action-id>/stop` from Safari or the debugger to ensure the action stops.
 
-7. **Diagnostics sanity**
-   - In the debug panel, use "Force mirror refresh" to trigger a manual sync. When the real monitor is available the status should momentarily flip to `Importing` before returning to `Finished`; otherwise the compatibility shim will leave the state at `Finished`.
-   - Tap "Dump counts per scope" and confirm the private and shared counts match expectations (no orphaned records).
+7. **Share Data external import prompt**
+   - With the app in the foreground, AirDrop a JSON export from another device/simulator.
+   - Confirm the Share Data sheet appears automatically and completing the import merges new actions without duplicating existing entries.

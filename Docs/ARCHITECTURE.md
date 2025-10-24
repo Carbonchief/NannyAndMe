@@ -2,39 +2,27 @@
 
 ## SwiftData model graph
 
-The app persists all user state with SwiftData models that mirror directly to CloudKit:
+The app persists all user state with SwiftData models that mirror the care log domain:
 
 - `Profile` (`ProfileActionStateModel` alias) is the root entity. It owns profile metadata and an ordered collection of `BabyAction` objects.
-- `BabyAction` (`BabyActionModel` alias) represents an individual sleep/feeding/diaper event. Each action keeps a stable `UUID` identifier and timestamps normalized to UTC.
+- `BabyAction` (`BabyActionModel` alias) represents an individual sleep/feeding/diaper event. Each action keeps a stable `UUID` identifier and timestamps normalized to UTC so local merges remain deterministic.
 
-Relationships use SwiftData's inverse tracking so that deleting a profile cascades to its actions while individual actions can safely be re-parented. Each model stores a defaulted `UUID` identifier so CloudKit mirroring can restore stable identities without relying on SwiftData's unique-constraint attribute, which CloudKit mirroring does not support.
+Relationships use SwiftData's inverse tracking so that deleting a profile cascades to its actions while individual actions can safely be re-parented. Each model stores a defaulted `UUID` identifier so persisted histories remain stable even if records are exported and re-imported.
 
 ## Model container configuration
 
-`AppDataStack.makeModelContainer` constructs a single `ModelContainer` for `Profile` and `BabyAction`. The `ModelConfiguration` attaches to the CloudKit container `iCloud.com.prioritybit.babynanny` with `.cloudKitDatabase(.both)` so SwiftData automatically mirrors the private and shared scopes. The same configuration is used everywhere in the app (main context, previews, tests) to avoid data islands.
+`AppDataStack.makeModelContainer` constructs a single `ModelContainer` for `Profile` and `BabyAction`. The `ModelConfiguration` stores data on device (optionally in-memory for previews/tests) and disables autosave. The same configuration is used everywhere in the app (main context, previews, tests) to avoid divergent schemas.
 
-## CloudKit mirroring lifecycle
+## Local persistence lifecycle
 
-`SyncStatusViewModel` consumes an async event stream sourced from either the real `CloudKitSyncMonitor` SPI (when the toolchain exposes it) or a fallback `CloudKitSyncMonitorCompat` shim that synthesizes a final idle event. The view model publishes a `State` enum that drives:
+`AppDataStack` owns the shared `ModelContext` and exposes helpers to coalesce saves. UI layers call `scheduleSaveIfNeeded` and `saveIfNeeded` to throttle writes when the user makes rapid changes. All saves are gated by `ModelContext.hasChanges` and wrapped in lightweight logging so background sync work never blocks the main thread.
 
-- A non-blocking sync message anchored to the bottom of `HomeView` during first-run imports.
-- Status indicators in the new debug diagnostics panel.
-- Force-refresh and timeout handling for manual sync attempts.
+`ActionLogStore` observes the shared context for inserts/updates and keeps an in-memory cache keyed by profile. When a change notification arrives, the store rebuilds the cache so SwiftUI views can render without hitting disk. Profile metadata updates (name, avatar, birth date) stay in sync via `ProfileStore.synchronizeProfileMetadata`.
 
-Remote notifications are funneled through `SyncCoordinator`, which still prepares CloudKit database subscriptions and triggers additional fetches when APNs wake the app. The coordinator and status view model share the main `ModelContext` so updates are reflected immediately.
+## Data export & import
 
-## Sharing flow
-
-`CloudKitSharingManager` provisions shares by talking directly to CloudKit. It looks for previously cached `CKShare` identifiers, fetches the associated records when possible, and falls back to creating a new share with `CKShare(rootRecord:)`. The manager persists share metadata via `ShareMetadataStore` so future lookups avoid redundant network work. Participant mutations reuse the stored record identifiers and send targeted `CKModifyRecordsOperation` updates, while stop-sharing tears down the share record and its custom zone.
-
-`ShareProfilePageViewModel` asks the manager for the share and presents participants via the standard `CKShare` interface. Updates, removals, and stop-sharing requests flow through the same manager so the UI reacts as soon as CloudKit confirms the change. Since SwiftData mirrors shared zones, collaborators see updates without custom fetch logic.
+The Share Data screen exports the active profile and its actions to JSON. Imports run through `ActionLogStore.merge` which deduplicates by action identifier, updates existing entries when timestamps differ, and appends new actions. Profile metadata merges through `ProfileStore.mergeActiveProfile`, ensuring imported names or avatars replace the local copy only when the incoming profile matches the active profile.
 
 ## Debug tooling
 
-Under `#if DEBUG`, `SyncDiagnosticsView` combines information from `SyncCoordinator`, `SyncStatusViewModel`, and the CloudKit container. Developers can:
-
-- Inspect account status, last push, and last successful sync.
-- Review the current CloudKit monitor phase and model progress.
-- Trigger a manual sync or dump record counts for the private and shared databases.
-
-The view is accessible from Settings → Debug and complements the inline footer that end users see during long imports.
+The Settings screen exposes switches for notification reminders, profile photo management, and action reminder previews. For runtime diagnostics the app logs SwiftData saves and merge operations via the unified logger (`com.prioritybit.babynanny.swiftdata`). Developers can inspect the console while interacting with the simulator to confirm writes succeed.

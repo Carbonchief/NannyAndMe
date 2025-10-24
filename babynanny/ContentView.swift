@@ -8,8 +8,6 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject private var cloudStatusController: CloudAccountStatusController
-    @EnvironmentObject private var appDataStack: AppDataStack
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
     @EnvironmentObject private var locationManager: LocationManager
@@ -19,13 +17,8 @@ struct ContentView: View {
     @State private var isMenuVisible = false
     @State private var showSettings = false
     @State private var showAllLogs = false
-    @State private var showShareProfile = false
     @State private var isProfileSwitcherPresented = false
     @State private var isInitialProfilePromptPresented = false
-
-    private var isCloudSharingAvailable: Bool {
-        cloudStatusController.status == .available && appDataStack.cloudSyncEnabled
-    }
 
     private var shouldShowMapTab: Bool {
         trackActionLocations && locationManager.isAuthorizedForUse
@@ -184,9 +177,6 @@ struct ContentView: View {
                 .navigationDestination(isPresented: $showAllLogs) {
                     AllLogsView()
                 }
-                .navigationDestination(isPresented: $showShareProfile) {
-                    ShareProfilePage(profileID: profileStore.activeProfile.id)
-                }
                 .navigationDestination(
                     isPresented: Binding(
                         get: { shareDataCoordinator.isShowingShareData },
@@ -246,23 +236,11 @@ struct ContentView: View {
                     .zIndex(1)
 
                 SideMenu(
-                    isCloudSharingAvailable: isCloudSharingAvailable,
                     onSelectAllLogs: {
                         Analytics.capture("navigation_open_allLogs_menu", properties: ["source": "side_menu"])
                         withAnimation(.easeInOut) {
                             isMenuVisible = false
                             showAllLogs = true
-                        }
-                    },
-                    onSelectShareProfile: {
-                        guard isCloudSharingAvailable else {
-                            Analytics.capture("navigation_open_shareProfile_menu_blocked", properties: ["source": "side_menu"])
-                            return
-                        }
-                        Analytics.capture("navigation_open_shareProfile_menu", properties: ["source": "side_menu"])
-                        withAnimation(.easeInOut) {
-                            isMenuVisible = false
-                            showShareProfile = true
                         }
                     },
                     onSelectSettings: {
@@ -302,35 +280,20 @@ struct ContentView: View {
         .onAppear {
             isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(
                 for: profileStore.activeProfile,
-                profileCount: profileStore.profiles.count,
-                isAwaitingInitialImport: profileStore.isAwaitingInitialCloudImport
+                profileCount: profileStore.profiles.count
             )
         }
         .onChange(of: profileStore.activeProfile) { _, profile in
             isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(
                 for: profile,
-                profileCount: profileStore.profiles.count,
-                isAwaitingInitialImport: profileStore.isAwaitingInitialCloudImport
+                profileCount: profileStore.profiles.count
             )
         }
         .onChange(of: profileStore.profiles) { _, profiles in
             isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(
                 for: profileStore.activeProfile,
-                profileCount: profiles.count,
-                isAwaitingInitialImport: profileStore.isAwaitingInitialCloudImport
+                profileCount: profiles.count
             )
-        }
-        .onChange(of: profileStore.isAwaitingInitialCloudImport) { _, _ in
-            isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(
-                for: profileStore.activeProfile,
-                profileCount: profileStore.profiles.count,
-                isAwaitingInitialImport: profileStore.isAwaitingInitialCloudImport
-            )
-        }
-        .onChange(of: isCloudSharingAvailable) { _, available in
-            if available == false {
-                showShareProfile = false
-            }
         }
         .onChange(of: shouldShowMapTab) { _, isVisible in
             if isVisible == false && selectedTab == .map {
@@ -398,10 +361,7 @@ private struct AnimatedTabContent: View {
 }
 
 private func shouldShowInitialProfilePrompt(for profile: ChildProfile,
-                                            profileCount: Int,
-                                            isAwaitingInitialImport: Bool) -> Bool {
-    guard isAwaitingInitialImport == false else { return false }
-
+                                            profileCount: Int) -> Bool {
     return profileCount <= 1 && profile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 }
 
