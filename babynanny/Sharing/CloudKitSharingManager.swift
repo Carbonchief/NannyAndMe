@@ -14,6 +14,9 @@ final class CloudKitSharingManager {
     }
 
     private static let minimumCompatibleShareVersion = 1
+    private enum ShareFieldKey {
+        static let minimumCompatibleVersion = CKShare.SystemFieldKey("minimumCompatibleVersion")
+    }
 
     private let modelContainer: ModelContainer
     private let metadataStore: ShareMetadataStore
@@ -271,7 +274,7 @@ final class CloudKitSharingManager {
                              title: String?,
                              thumbnailData: Data?) async throws -> CKShare {
         let share = CKShare(rootRecord: rootRecord)
-        share[CKShare.SystemFieldKey.minimumCompatibleVersion] = NSNumber(value: Self.minimumCompatibleShareVersion)
+        share[ShareFieldKey.minimumCompatibleVersion] = NSNumber(value: Self.minimumCompatibleShareVersion)
         share[CKShare.SystemFieldKey.title] = title as CKRecordValue?
         if let thumbnailData {
             share[CKShare.SystemFieldKey.thumbnailImageData] = thumbnailData as CKRecordValue
@@ -307,7 +310,7 @@ final class CloudKitSharingManager {
     private func ensureCompatibility(for share: CKShare, rootRecord: CKRecord? = nil) async {
         let target = Self.minimumCompatibleShareVersion
         guard needsCompatibilityUpdate(for: share, target: target) else { return }
-        share[CKShare.SystemFieldKey.minimumCompatibleVersion] = NSNumber(value: target)
+        share[ShareFieldKey.minimumCompatibleVersion] = NSNumber(value: target)
         do {
             try await save(share: share, rootRecord: rootRecord)
         } catch {
@@ -316,7 +319,7 @@ final class CloudKitSharingManager {
     }
 
     private func needsCompatibilityUpdate(for share: CKShare, target: Int) -> Bool {
-        guard let rawValue = share[CKShare.SystemFieldKey.minimumCompatibleVersion] else {
+        guard let rawValue = share[ShareFieldKey.minimumCompatibleVersion] else {
             return true
         }
         if let number = rawValue as? NSNumber {
