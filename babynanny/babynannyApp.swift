@@ -21,6 +21,8 @@ struct babynannyApp: App {
     @State private var syncStatusViewModel: SyncStatusViewModel?
     @State private var isShowingSplashScreen = true
     @State private var isPresentingCloudPrompt = false
+    @State private var placeholderModelContainer = AppDataStack.makeModelContainer(cloudSyncEnabled: false,
+                                                                                   inMemory: true)
 
     init() {
         Analytics.setup()
@@ -79,7 +81,7 @@ struct babynannyApp: App {
                     }
                 }
             }
-            .modelContainer(appDataStack?.modelContainer ?? AppDataStack.makeModelContainer())
+            .modelContainer(appDataStack?.modelContainer ?? placeholderModelContainer)
         }
     }
 }

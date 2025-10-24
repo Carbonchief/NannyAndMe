@@ -24,7 +24,7 @@ final class AppDataStack: ObservableObject {
          modelContainer: ModelContainer? = nil,
          syncCoordinatorFactory: ((ModelContainer, ModelContext, Bool) -> SyncCoordinator)? = nil) {
         self.cloudSyncEnabled = cloudSyncEnabled
-        let container = modelContainer ?? Self.makeModelContainer()
+        let container = modelContainer ?? Self.makeModelContainer(cloudSyncEnabled: cloudSyncEnabled)
         self.modelContainer = container
         self.mainContext = container.mainContext
         if let factory = syncCoordinatorFactory {
@@ -39,12 +39,12 @@ final class AppDataStack: ObservableObject {
         configureCloudResources(enabled: cloudSyncEnabled)
     }
 
-    static func makeModelContainer(cloudSyncEnabled _: Bool = true,
+    static func makeModelContainer(cloudSyncEnabled: Bool = true,
                                    inMemory: Bool = false) -> ModelContainer {
         let configuration = ModelConfiguration(
             isStoredInMemoryOnly: inMemory,
             allowsSave: true,
-            cloudKitDatabase: .private("iCloud.com.prioritybit.babynanny")
+            cloudKitDatabase: cloudSyncEnabled ? .private("iCloud.com.prioritybit.babynanny") : nil
         )
 
         do {
@@ -158,7 +158,7 @@ final class AppDataStack: ObservableObject {
 
 extension AppDataStack {
     static func preview() -> AppDataStack {
-        AppDataStack(cloudSyncEnabled: true,
-                     modelContainer: makeModelContainer(inMemory: true))
+        AppDataStack(cloudSyncEnabled: false,
+                     modelContainer: makeModelContainer(cloudSyncEnabled: false, inMemory: true))
     }
 }

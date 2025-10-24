@@ -11,7 +11,10 @@ Relationships use SwiftData's inverse tracking so that deleting a profile cascad
 
 ## Model container configuration
 
-`AppDataStack.makeModelContainer` constructs a single `ModelContainer` for `Profile` and `BabyAction`. The `ModelConfiguration` attaches to the CloudKit container `iCloud.com.prioritybit.babynanny` with `.cloudKitDatabase(.both)` so SwiftData automatically mirrors the private and shared scopes. The same configuration is used everywhere in the app (main context, previews, tests) to avoid data islands.
+`AppDataStack.makeModelContainer` constructs the shared `ModelContainer` for `Profile` and `BabyAction`. When CloudKit sync is
+enabled the `ModelConfiguration` attaches to the container `iCloud.com.prioritybit.babynanny`, otherwise it falls back to a
+purely local store (used for previews, tests, and the bootstrap placeholder container) to avoid registering multiple CloudKit
+mirroring delegates for the same store.
 
 ## CloudKit mirroring lifecycle
 
