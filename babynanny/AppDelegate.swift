@@ -7,11 +7,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "sync")
     private weak var syncCoordinator: SyncCoordinator?
     private var sharedSubscriptionManager: SharedScopeSubscriptionManager?
+    private weak var shareAcceptanceHandler: (any CloudKitShareAccepting)?
 
     func configure(with coordinator: SyncCoordinator?,
-                   sharedSubscriptionManager: SharedScopeSubscriptionManager?) {
+                   sharedSubscriptionManager: SharedScopeSubscriptionManager?,
+                   shareAcceptanceHandler: (any CloudKitShareAccepting)?) {
         syncCoordinator = coordinator
         self.sharedSubscriptionManager = sharedSubscriptionManager
+        self.shareAcceptanceHandler = shareAcceptanceHandler
     }
 
     func application(_ application: UIApplication,
@@ -59,6 +62,28 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             }
 
             completionHandler(.newData)
+        }
+    }
+
+    func application(_ application: UIApplication, userDidAcceptCloudKitShareWith metadata: CKShare.Metadata) {
+        guard let handler = shareAcceptanceHandler else {
+            logger.error("Received share metadata without a configured acceptance handler")
+            return
+        }
+
+        let logger = self.logger
+        Task.detached(priority: .userInitiated) { [weak self] in
+            do {
+                try await handler.accept(metadata: metadata)
+                if let self {
+                    await MainActor.run {
+                        self.sharedSubscriptionManager?.ensureSubscriptions()
+                        self.syncCoordinator?.requestSyncIfNeeded(reason: .userInitiated)
+                    }
+                }
+            } catch {
+                logger.error("Failed to accept CloudKit share: \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 }

@@ -3,6 +3,11 @@ import Foundation
 import os
 import SwiftData
 
+/// Describes a type that can accept CloudKit share metadata and ingest the associated records.
+protocol CloudKitShareAccepting: AnyObject, Sendable {
+    func accept(metadata: CKShare.Metadata) async throws
+}
+
 /// Handles the acceptance of incoming `CKShare`s and ingests the shared data into SwiftData.
 final class ShareAcceptanceHandler: SharedRecordIngesting {
     private let container: CKContainer
@@ -405,3 +410,7 @@ extension ShareAcceptanceHandler {
         let newToken: CKServerChangeToken?
     }
 }
+
+extension ShareAcceptanceHandler: CloudKitShareAccepting {}
+
+extension ShareAcceptanceHandler: @unchecked Sendable {}

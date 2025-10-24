@@ -144,7 +144,8 @@ private extension babynannyApp {
 
     func configureAppDelegate(with stack: AppDataStack) {
         appDelegate.configure(with: stack.cloudSyncEnabled ? stack.syncCoordinator : nil,
-                              sharedSubscriptionManager: stack.sharedSubscriptionManager)
+                              sharedSubscriptionManager: stack.sharedSubscriptionManager,
+                              shareAcceptanceHandler: stack.shareAcceptanceHandler)
     }
 
     func handleCloudStatusChange(_ status: CloudAccountStatusController.Status) async {
