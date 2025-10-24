@@ -13,7 +13,7 @@ final class CloudKitSharingManager {
         case shareUnavailable
     }
 
-    private static let minimumCompatibleShareVersion = 1
+    private static let minimumCompatibleShareVersion = 0
     private enum ShareFieldKey {
         static let minimumCompatibleVersion: CKRecord.FieldKey = "minimumCompatibleVersion"
     }
