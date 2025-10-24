@@ -14,9 +14,6 @@ final class CloudKitSharingManager {
     }
 
     private static let minimumCompatibleShareVersion = 0
-    private enum ShareFieldKey {
-        static let minimumCompatibleVersion: CKRecord.FieldKey = "minimumCompatibleVersion"
-    }
 
     private let modelContainer: ModelContainer
     private let metadataStore: ShareMetadataStore
@@ -274,7 +271,7 @@ final class CloudKitSharingManager {
                              title: String?,
                              thumbnailData: Data?) async throws -> CKShare {
         let share = CKShare(rootRecord: rootRecord)
-        share[ShareFieldKey.minimumCompatibleVersion] = NSNumber(value: Self.minimumCompatibleShareVersion)
+        setMinimumCompatibleVersion(Self.minimumCompatibleShareVersion, for: share)
         share[CKShare.SystemFieldKey.title] = title as CKRecordValue?
         if let thumbnailData {
             share[CKShare.SystemFieldKey.thumbnailImageData] = thumbnailData as CKRecordValue
@@ -310,7 +307,7 @@ final class CloudKitSharingManager {
     private func ensureCompatibility(for share: CKShare, rootRecord: CKRecord? = nil) async {
         let target = Self.minimumCompatibleShareVersion
         guard needsCompatibilityUpdate(for: share, target: target) else { return }
-        share[ShareFieldKey.minimumCompatibleVersion] = NSNumber(value: target)
+        setMinimumCompatibleVersion(target, for: share)
         do {
             try await save(share: share, rootRecord: rootRecord)
         } catch {
@@ -319,19 +316,29 @@ final class CloudKitSharingManager {
     }
 
     private func needsCompatibilityUpdate(for share: CKShare, target: Int) -> Bool {
-        guard let rawValue = share[ShareFieldKey.minimumCompatibleVersion] else {
+        guard let current = minimumCompatibleVersion(for: share) else {
             return true
         }
-        if let number = rawValue as? NSNumber {
-            return number.intValue > target
+        return current > target
+    }
+
+    private func minimumCompatibleVersion(for share: CKShare) -> Int? {
+        let object = share as NSObject
+        if let number = object.value(forKey: "minimumCompatibleVersion") as? NSNumber {
+            return number.intValue
         }
-        if let stringValue = rawValue as? NSString, let value = Int(stringValue as String) {
-            return value > target
+        if let stringValue = object.value(forKey: "minimumCompatibleVersion") as? NSString {
+            return Int(stringValue as String)
         }
-        if let intValue = rawValue as? Int {
-            return intValue > target
+        if let intValue = object.value(forKey: "minimumCompatibleVersion") as? Int {
+            return intValue
         }
-        return true
+        return nil
+    }
+
+    private func setMinimumCompatibleVersion(_ value: Int, for share: CKShare) {
+        let object = share as NSObject
+        object.setValue(value, forKey: "minimumCompatibleVersion")
     }
 }
 
