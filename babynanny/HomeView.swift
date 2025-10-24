@@ -235,7 +235,7 @@ struct HomeView: View {
         let cardShape = RoundedRectangle(cornerRadius: 16, style: .continuous)
 
         return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: headerCardAlignment(for: recent), spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
                 AnimatedActionIcon(
                     systemName: recent.icon,
                     color: recent.category.accentColor
@@ -323,10 +323,6 @@ struct HomeView: View {
                     .accessibilityLabel(L10n.Home.lastFinished(accessibility))
             }
         }
-    }
-
-    private func headerCardAlignment(for action: BabyActionSnapshot) -> VerticalAlignment {
-        action.endDate == nil ? .top : .center
     }
 
     @ViewBuilder
