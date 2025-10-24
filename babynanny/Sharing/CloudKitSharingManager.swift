@@ -13,6 +13,8 @@ final class CloudKitSharingManager {
         case shareUnavailable
     }
 
+    private static let minimumCompatibleShareVersion = 1
+
     private let modelContainer: ModelContainer
     private let metadataStore: ShareMetadataStore
     private let privateDatabase: CKDatabase
@@ -33,6 +35,7 @@ final class CloudKitSharingManager {
         if let cached = await metadataStore.metadata(for: profileID) {
             do {
                 let share = try await fetchShare(with: cached.shareRecordID)
+                await ensureCompatibility(for: share)
                 await persistMetadataIfNeeded(for: share,
                                              profileID: profileID,
                                              rootRecordID: cached.rootRecordID)
@@ -52,6 +55,7 @@ final class CloudKitSharingManager {
         let rootRecord = try await fetchRootRecord(for: profileID)
         if let shareReference = rootRecord.share {
             let share = try await fetchShare(with: shareReference.recordID)
+            await ensureCompatibility(for: share)
             await persistMetadataIfNeeded(for: share,
                                          profileID: profileID,
                                          rootRecordID: rootRecord.recordID)
@@ -61,6 +65,7 @@ final class CloudKitSharingManager {
         let share = try await createShare(rootRecord: rootRecord,
                                           title: profile.name,
                                           thumbnailData: profile.imageData)
+        await ensureCompatibility(for: share, rootRecord: rootRecord)
         await persistMetadataIfNeeded(for: share,
                                      profileID: profileID,
                                      rootRecordID: rootRecord.recordID)
@@ -266,6 +271,7 @@ final class CloudKitSharingManager {
                              title: String?,
                              thumbnailData: Data?) async throws -> CKShare {
         let share = CKShare(rootRecord: rootRecord)
+        share[CKShare.SystemFieldKey.minimumCompatibleVersion] = NSNumber(value: Self.minimumCompatibleShareVersion)
         share[CKShare.SystemFieldKey.title] = title as CKRecordValue?
         if let thumbnailData {
             share[CKShare.SystemFieldKey.thumbnailImageData] = thumbnailData as CKRecordValue
@@ -296,6 +302,33 @@ final class CloudKitSharingManager {
 
     private func fallbackRootRecordID(from share: CKShare) -> CKRecord.ID? {
         (share as NSObject).value(forKey: "rootRecordID") as? CKRecord.ID
+    }
+
+    private func ensureCompatibility(for share: CKShare, rootRecord: CKRecord? = nil) async {
+        let target = Self.minimumCompatibleShareVersion
+        guard needsCompatibilityUpdate(for: share, target: target) else { return }
+        share[CKShare.SystemFieldKey.minimumCompatibleVersion] = NSNumber(value: target)
+        do {
+            try await save(share: share, rootRecord: rootRecord)
+        } catch {
+            logger.error("Failed to update share compatibility: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func needsCompatibilityUpdate(for share: CKShare, target: Int) -> Bool {
+        guard let rawValue = share[CKShare.SystemFieldKey.minimumCompatibleVersion] else {
+            return true
+        }
+        if let number = rawValue as? NSNumber {
+            return number.intValue > target
+        }
+        if let stringValue = rawValue as? NSString, let value = Int(stringValue as String) {
+            return value > target
+        }
+        if let intValue = rawValue as? Int {
+            return intValue > target
+        }
+        return true
     }
 }
 
