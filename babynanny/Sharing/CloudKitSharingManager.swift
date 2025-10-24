@@ -15,7 +15,7 @@ final class CloudKitSharingManager {
 
     private static let minimumCompatibleShareVersion = 1
     private enum ShareFieldKey {
-        static let minimumCompatibleVersion = CKShare.SystemFieldKey("minimumCompatibleVersion")
+        static let minimumCompatibleVersion: CKRecord.FieldKey = "minimumCompatibleVersion"
     }
 
     private let modelContainer: ModelContainer
