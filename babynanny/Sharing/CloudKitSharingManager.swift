@@ -18,11 +18,11 @@ final class CloudKitSharingManager {
     private let modelContainer: ModelContainer
     private let metadataStore: ShareMetadataStore
     private let privateDatabase: CKDatabase
-    private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "share")
+    private let logger = Logger(subsystem: "com.prioritybit.nannyandme", category: "share")
 
     init(modelContainer: ModelContainer,
          metadataStore: ShareMetadataStore = ShareMetadataStore(),
-         containerIdentifier: String = "iCloud.com.prioritybit.babynanny") {
+         containerIdentifier: String = CKConfig.containerID) {
         self.modelContainer = modelContainer
         self.metadataStore = metadataStore
         let container = CKContainer(identifier: containerIdentifier)
@@ -52,7 +52,7 @@ final class CloudKitSharingManager {
             throw SharingError.profileNotFound
         }
 
-        let rootRecord = try await fetchRootRecord(for: profileID)
+        let rootRecord = try await ensureRootRecord(for: profile)
         if let shareReference = rootRecord.share {
             let share = try await fetchShare(with: shareReference.recordID)
             await ensureCompatibility(for: share)
@@ -123,6 +123,17 @@ final class CloudKitSharingManager {
         try await ensureShare(for: profileID)
     }
 
+    func synchronizeSharedContent(for profileID: UUID) async {
+        let context = ModelContext(modelContainer)
+        context.autosaveEnabled = false
+        do {
+            guard let profile = try fetchProfile(in: context, id: profileID) else { return }
+            _ = try await ensureRootRecord(for: profile)
+        } catch {
+            logger.error("Failed to synchronize shared content for profile \(profileID.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     // MARK: - Helpers
 
     private func fetchProfile(in context: ModelContext, id: UUID) throws -> Profile? {
@@ -153,12 +164,19 @@ final class CloudKitSharingManager {
     }
 
     private func save(share: CKShare, rootRecord: CKRecord? = nil) async throws {
+        var records: [CKRecord] = [share]
+        if let rootRecord {
+            records.append(rootRecord)
+        }
+        try await save(records: records)
+    }
+
+    private func save(records: [CKRecord], deleting recordIDs: [CKRecord.ID] = []) async throws {
+        guard records.isEmpty == false || recordIDs.isEmpty == false else { return }
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            var records: [CKRecord] = [share]
-            if let rootRecord {
-                records.append(rootRecord)
-            }
-            let operation = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: nil)
+            let operation = CKModifyRecordsOperation(recordsToSave: records.isEmpty ? nil : records,
+                                                     recordIDsToDelete: recordIDs.isEmpty ? nil : recordIDs)
+            operation.savePolicy = .changedKeys
             operation.modifyRecordsResultBlock = { result in
                 switch result {
                 case .success:
@@ -187,83 +205,127 @@ final class CloudKitSharingManager {
         }
     }
 
-    private func fetchRootRecord(for profileID: UUID) async throws -> CKRecord {
-        let zones = try await fetchAllZones()
-        for zone in zones {
-            for recordType in CloudKitRecordTypeCatalog.profileRecordTypes {
-                for identifierField in CloudKitRecordTypeCatalog.profileIdentifierFields {
-                    do {
-                        if let record = try await queryProfileRecord(profileID: profileID,
-                                                                      recordType: recordType,
-                                                                      identifierField: identifierField,
-                                                                      in: zone.zoneID) {
-                            return record
-                        }
-                    } catch {
-                        if error.isMissingRecordTypeError || error.isUnknownFieldError {
-                            continue
-                        }
-                        throw error
-                    }
-                }
-            }
+    private func ensureRootRecord(for profile: ProfileActionStateModel) async throws -> CKRecord {
+        let zoneID = CloudKitProfileZone.zoneID(for: profile.profileID)
+        try await ensureZoneExists(zoneID: zoneID)
+        if let existing = try await fetchRecord(withID: CloudKitProfileZone.profileRecordID(for: profile.profileID)) {
+            let updated = CloudKitRecordMapper.makeProfileRecord(from: profile,
+                                                                 zoneID: zoneID,
+                                                                 existing: existing)
+            try await save(records: [updated])
+            try await synchronizeActions(for: profile, zoneID: zoneID)
+            return updated
         }
-        throw SharingError.profileNotFound
+        return try await uploadSnapshot(for: profile, zoneID: zoneID)
     }
 
-    private func fetchAllZones() async throws -> [CKRecordZone] {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[CKRecordZone], Error>) in
-            privateDatabase.fetchAllRecordZones { (fetchedZones: [CKRecordZone]?, error) in
-                if let error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                var zones = fetchedZones ?? []
-                let defaultZone = CKRecordZone.default()
-                if zones.contains(where: { $0.zoneID == defaultZone.zoneID }) == false {
-                    zones.append(defaultZone)
-                }
-                continuation.resume(returning: zones)
-            }
-        }
-    }
-
-    private func queryProfileRecord(profileID: UUID,
-                                    recordType: String,
-                                    identifierField: String,
-                                    in zoneID: CKRecordZone.ID) async throws -> CKRecord? {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKRecord?, Error>) in
-            let logger = self.logger
-            let predicate = NSPredicate(format: "%K == %@", identifierField, profileID.uuidString)
-            let query = CKQuery(recordType: recordType, predicate: predicate)
-            let operation = CKQueryOperation(query: query)
-            operation.zoneID = zoneID
-            operation.resultsLimit = 1
-
-            var matchedRecord: CKRecord?
-            operation.recordMatchedBlock = { _, result in
-                switch result {
-                case .success(let record):
-                    matchedRecord = record
-                case .failure(let error):
-                    logger.error("Failed to match profile record: \(error.localizedDescription, privacy: .public)")
-                }
-            }
-
-            operation.queryResultBlock = { result in
+    private func ensureZoneExists(zoneID: CKRecordZone.ID) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let zone = CKRecordZone(zoneID: zoneID)
+            let operation = CKModifyRecordZonesOperation(recordZonesToSave: [zone], recordZoneIDsToDelete: nil)
+            operation.modifyRecordZonesResultBlock = { result in
                 switch result {
                 case .success:
-                    continuation.resume(returning: matchedRecord)
+                    continuation.resume(returning: ())
                 case .failure(let error):
-                    if error.isMissingRecordTypeError || error.isUnknownFieldError {
-                        continuation.resume(returning: nil)
+                    if let ckError = error as? CKError, ckError.code == .zoneAlreadyExists {
+                        continuation.resume(returning: ())
                     } else {
                         continuation.resume(throwing: error)
                     }
                 }
             }
+            privateDatabase.add(operation)
+        }
+    }
 
+    private func uploadSnapshot(for profile: ProfileActionStateModel,
+                                zoneID: CKRecordZone.ID) async throws -> CKRecord {
+        var records: [CKRecord] = []
+        let profileRecord = CloudKitRecordMapper.makeProfileRecord(from: profile, zoneID: zoneID)
+        records.append(profileRecord)
+        for action in profile.actions {
+            let actionRecord = CloudKitRecordMapper.makeBabyActionRecord(from: action,
+                                                                        profileID: profile.profileID,
+                                                                        zoneID: zoneID)
+            records.append(actionRecord)
+        }
+        try await save(records: records)
+        return profileRecord
+    }
+
+    private func synchronizeActions(for profile: ProfileActionStateModel,
+                                    zoneID: CKRecordZone.ID) async throws {
+        let existingRecords = try await fetchExistingActionRecords(in: zoneID)
+        var remainingExisting = Set(existingRecords.keys)
+        var recordsToSave: [CKRecord] = []
+
+        for action in profile.actions {
+            let recordName = CloudKitProfileZone.babyActionRecordName(for: action.id)
+            let existing = existingRecords[recordName]
+            let record = CloudKitRecordMapper.makeBabyActionRecord(from: action,
+                                                                  profileID: profile.profileID,
+                                                                  zoneID: zoneID,
+                                                                  existing: existing)
+            recordsToSave.append(record)
+            remainingExisting.remove(recordName)
+        }
+
+        let idsToDelete = remainingExisting.compactMap { existingRecords[$0]?.recordID }
+        try await save(records: recordsToSave, deleting: idsToDelete)
+    }
+
+    private func fetchExistingActionRecords(in zoneID: CKRecordZone.ID) async throws -> [String: CKRecord] {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[String: CKRecord], Error>) in
+            let query = CKQuery(recordType: CloudKitRecordMapper.babyActionRecordType,
+                                predicate: NSPredicate(value: true))
+            let operation = CKQueryOperation(query: query)
+            operation.zoneID = zoneID
+            operation.resultsLimit = CKQueryOperation.maximumResults
+            operation.desiredKeys = []
+            var records: [String: CKRecord] = [:]
+            let logger = self.logger
+            operation.recordMatchedBlock = { recordID, result in
+                switch result {
+                case .success(let record):
+                    records[recordID.recordName.lowercased()] = record
+                case .failure(let error):
+                    logger.error("Failed to enumerate action record \(recordID.recordName, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                }
+            }
+            operation.queryResultBlock = { result in
+                switch result {
+                case .success:
+                    continuation.resume(returning: records)
+                case .failure(let error):
+                    if error.isMissingRecordTypeError {
+                        continuation.resume(returning: [:])
+                    } else {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
             self.privateDatabase.add(operation)
+        }
+    }
+
+    private func fetchRecord(withID recordID: CKRecord.ID) async throws -> CKRecord? {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKRecord?, Error>) in
+            privateDatabase.fetch(withRecordID: recordID) { record, error in
+                if let error as? CKError {
+                    if error.code == .unknownItem {
+                        continuation.resume(returning: nil)
+                        return
+                    }
+                    continuation.resume(throwing: error)
+                    return
+                }
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                continuation.resume(returning: record)
+            }
         }
     }
 
@@ -297,7 +359,7 @@ final class CloudKitSharingManager {
         if let extracted = fallbackRootRecordID(from: share) {
             return extracted
         }
-        return CKRecord.ID(recordName: "profile-\(profileID.uuidString)", zoneID: fallbackZoneID)
+        return CloudKitProfileZone.profileRecordID(for: profileID, ownerName: fallbackZoneID.ownerName)
     }
 
     private func fallbackRootRecordID(from share: CKShare) -> CKRecord.ID? {
@@ -411,7 +473,7 @@ actor ShareMetadataStore {
     }
 
     private let defaults: UserDefaults
-    private let storageKey = "com.prioritybit.babynanny.share.metadata"
+    private let storageKey = "com.prioritybit.nannyandme.share.metadata"
     private var cache: [UUID: ShareMetadata]
 
     init() {

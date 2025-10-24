@@ -19,10 +19,10 @@ final class SharedScopeSubscriptionManager {
     private let tokenStore: SharedZoneChangeTokenStore
     private let shareMetadataStore: ShareMetadataStore
     private weak var ingestor: (any SharedRecordIngesting)?
-    private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "share")
+    private let logger = Logger(subsystem: "com.prioritybit.nannyandme", category: "share")
     private var pendingTask: Task<Void, Never>?
 
-    init(containerIdentifier: String = "iCloud.com.prioritybit.babynanny",
+    init(containerIdentifier: String = CKConfig.containerID,
          subscriptionStore: SharedSubscriptionStateStore = SharedSubscriptionStateStore(),
          tokenStore: SharedZoneChangeTokenStore = SharedZoneChangeTokenStore(),
          shareMetadataStore: ShareMetadataStore = ShareMetadataStore(),
@@ -59,6 +59,23 @@ final class SharedScopeSubscriptionManager {
         }
 
         return true
+    }
+
+    func fetchAllSharedChangesNow() {
+        pendingTask?.cancel()
+        pendingTask = Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else { return }
+            do {
+                try await self.fetchAllSharedZones()
+            } catch {
+                self.logger.error("Failed to fetch shared changes: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
+    func subscriptionIdentifiers() async -> [String] {
+        let identifiers = await subscriptionStore.allSubscriptionIDs()
+        return identifiers.sorted()
     }
 
     private func createSubscriptionsIfNeeded() async {
@@ -120,6 +137,13 @@ final class SharedScopeSubscriptionManager {
         guard zones.isEmpty == false else { return }
 
         try Task.checkCancellation()
+        try await fetchChanges(for: zones)
+    }
+
+    private func fetchAllSharedZones() async throws {
+        let metadata = await shareMetadataStore.allMetadata()
+        let zones = Array(Set(metadata.values.map { $0.zoneID }))
+        guard zones.isEmpty == false else { return }
         try await fetchChanges(for: zones)
     }
 
@@ -277,7 +301,7 @@ actor SharedSubscriptionStateStore {
     }
 
     private let defaults: UserDefaults
-    private let key = "com.prioritybit.babynanny.shared.subscriptionState"
+    private let key = "com.prioritybit.nannyandme.shared.subscriptionState"
     private var state: State
 
     init(suiteName: String? = nil) {
@@ -327,21 +351,28 @@ actor SharedZoneChangeTokenStore {
         var zoneName: String
         var ownerName: String
         var tokenData: Data
+        var lastFetchTime: Date?
     }
 
     private let defaults: UserDefaults
-    private let key = "com.prioritybit.babynanny.shared.zoneTokens"
+    private let key = "com.prioritybit.nannyandme.shared.zoneTokens"
     private var tokens: [CKRecordZone.ID: CKServerChangeToken]
+    private var lastFetchDates: [CKRecordZone.ID: Date]
 
     init() {
         let defaults = UserDefaults.standard
         self.defaults = defaults
+        self.tokens = [:]
+        self.lastFetchDates = [:]
         if let data = defaults.data(forKey: key),
            let decoded = try? JSONDecoder().decode([PersistedToken].self, from: data) {
             tokens = decoded.reduce(into: [:]) { partialResult, item in
                 if let token = SharedZoneChangeTokenStore.decodeToken(from: item.tokenData) {
                     let zoneID = CKRecordZone.ID(zoneName: item.zoneName, ownerName: item.ownerName)
                     partialResult[zoneID] = token
+                    if let lastFetch = item.lastFetchTime {
+                        lastFetchDates[zoneID] = lastFetch
+                    }
                 }
             }
         } else {
@@ -356,18 +387,34 @@ actor SharedZoneChangeTokenStore {
     func store(token: CKServerChangeToken?, for zoneID: CKRecordZone.ID) {
         guard let token else {
             tokens.removeValue(forKey: zoneID)
+            lastFetchDates.removeValue(forKey: zoneID)
             persist()
             return
         }
         tokens[zoneID] = token
+        lastFetchDates[zoneID] = Date()
         persist()
+    }
+
+    func lastFetchDate(for zoneID: CKRecordZone.ID) -> Date? {
+        lastFetchDates[zoneID]
+    }
+
+    func allSnapshots() -> [ZoneSnapshot] {
+        let zoneIDs = Set(tokens.keys).union(lastFetchDates.keys)
+        return zoneIDs.map { zoneID in
+            ZoneSnapshot(zoneID: zoneID,
+                         hasToken: tokens[zoneID] != nil,
+                         lastFetch: lastFetchDates[zoneID])
+        }
     }
 
     private func persist() {
         let payload = tokens.map { zoneID, token in
             PersistedToken(zoneName: zoneID.zoneName,
                            ownerName: zoneID.ownerName,
-                           tokenData: SharedZoneChangeTokenStore.encodeToken(token) ?? Data())
+                           tokenData: SharedZoneChangeTokenStore.encodeToken(token) ?? Data(),
+                           lastFetchTime: lastFetchDates[zoneID])
         }
         guard let data = try? JSONEncoder().encode(payload) else { return }
         defaults.set(data, forKey: key)
@@ -379,6 +426,12 @@ actor SharedZoneChangeTokenStore {
 
     private static func decodeToken(from data: Data) -> CKServerChangeToken? {
         try? NSKeyedUnarchiver.unarchivedObject(ofClass: CKServerChangeToken.self, from: data)
+    }
+
+    struct ZoneSnapshot: Sendable {
+        let zoneID: CKRecordZone.ID
+        let hasToken: Bool
+        let lastFetch: Date?
     }
 }
 

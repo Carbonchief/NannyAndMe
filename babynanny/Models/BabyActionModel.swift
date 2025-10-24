@@ -422,10 +422,30 @@ struct ProfileActionState: Codable, Sendable {
 final class Profile {
     /// Stable identifier used for CloudKit mirroring and SwiftData uniqueness.
     var profileID: UUID = UUID()
-    var name: String?
-    var birthDate: Date?
+    var name: String? {
+        didSet {
+            if oldValue != name {
+                updatedAt = Date()
+            }
+        }
+    }
+    var birthDate: Date? {
+        didSet {
+            if oldValue != birthDate {
+                updatedAt = Date()
+            }
+        }
+    }
     @Attribute(.externalStorage)
-    var imageData: Data?
+    var imageData: Data? {
+        didSet {
+            if oldValue != imageData {
+                updatedAt = Date()
+            }
+        }
+    }
+    private var createdAtRawValue: Date = Date()
+    private var updatedAtRawValue: Date = Date()
     @Relationship(deleteRule: .cascade)
     var storedActions: [BabyAction]?
 
@@ -433,13 +453,27 @@ final class Profile {
          name: String? = nil,
          birthDate: Date? = nil,
          imageData: Data? = nil,
+         createdAt: Date = Date(),
+         updatedAt: Date = Date(),
          actions: [BabyAction] = []) {
         self.profileID = profileID
         self.name = name
         self.birthDate = birthDate?.normalizedToUTC()
         self.imageData = imageData
+        self.createdAtRawValue = createdAt
+        self.updatedAtRawValue = updatedAt
         self.storedActions = actions
         ensureActionOwnership()
+    }
+
+    var createdAt: Date {
+        get { createdAtRawValue }
+        set { createdAtRawValue = newValue }
+    }
+
+    var updatedAt: Date {
+        get { updatedAtRawValue }
+        set { updatedAtRawValue = newValue }
     }
 
     var resolvedProfileID: UUID {
@@ -452,6 +486,7 @@ final class Profile {
         set {
             storedActions = newValue
             ensureActionOwnership()
+            updatedAt = Date()
         }
     }
 
@@ -464,6 +499,7 @@ final class Profile {
         }
         if needsUpdate {
             storedActions = currentActions
+            updatedAt = Date()
         }
     }
 }

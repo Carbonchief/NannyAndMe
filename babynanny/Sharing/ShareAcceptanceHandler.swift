@@ -15,10 +15,10 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
     private let modelContainer: ModelContainer
     private let metadataStore: ShareMetadataStore
     private let tokenStore: SharedZoneChangeTokenStore
-    private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "share")
+    private let logger = Logger(subsystem: "com.prioritybit.nannyandme", category: "share")
 
     init(modelContainer: ModelContainer,
-         containerIdentifier: String = "iCloud.com.prioritybit.babynanny",
+         containerIdentifier: String = CKConfig.containerID,
          metadataStore: ShareMetadataStore = ShareMetadataStore(),
          tokenStore: SharedZoneChangeTokenStore = SharedZoneChangeTokenStore()) {
         self.container = CKContainer(identifier: containerIdentifier)
@@ -208,7 +208,7 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
         }
 
         var mutated = false
-        if let name = record["name"] as? String, model.name != name {
+        if let name = record["displayName"] as? String, model.name != name {
             model.name = name
             mutated = true
         }
@@ -223,11 +223,21 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
             mutated = true
         }
 
-        if let asset = record["image"] as? CKAsset,
-           let url = asset.fileURL,
-           let data = try? Data(contentsOf: url),
-           model.imageData != data {
+        if let createdAt = record["createdAt"] as? Date, model.createdAt != createdAt {
+            model.createdAt = createdAt
+            mutated = true
+        }
+
+        if let modifiedAt = record["modifiedAt"] as? Date, model.updatedAt != modifiedAt {
+            model.updatedAt = modifiedAt
+            mutated = true
+        }
+
+        if let data = record["imageData"] as? Data, model.imageData != data {
             model.imageData = data
+            mutated = true
+        } else if record["imageData"] == nil, model.imageData != nil {
+            model.imageData = nil
             mutated = true
         }
 
@@ -252,13 +262,13 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
         }
 
         var mutated = false
-        if let categoryRaw = record["category"] as? String,
+        if let categoryRaw = record["type"] as? String,
            let category = BabyActionCategory(rawValue: categoryRaw),
            model.category != category {
             model.category = category
             mutated = true
         }
-        if let startDate = record["startDate"] as? Date, model.startDate != startDate {
+        if let startDate = record["timestamp"] as? Date, model.startDate != startDate {
             model.startDate = startDate
             mutated = true
         }
@@ -327,7 +337,7 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
             model.longitude = nil
             mutated = true
         }
-        if let placename = record["placename"] as? String {
+        if let placename = record["notes"] as? String {
             if model.placename != placename {
                 model.placename = placename
                 mutated = true
@@ -336,14 +346,13 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
             model.placename = nil
             mutated = true
         }
-        if let updatedAt = record["updatedAt"] as? Date, model.updatedAt != updatedAt {
+        if let updatedAt = record["modifiedAt"] as? Date, model.updatedAt != updatedAt {
             model.updatedAt = updatedAt
             mutated = true
         }
 
-        if let profileRef = record["profile"] as? CKRecord.Reference {
-            let profileIDString = profileRef.recordID.recordName.replacingOccurrences(of: "profile-", with: "")
-            if let profileID = UUID(uuidString: profileIDString) {
+        if let profileRef = record["profileRef"] as? CKRecord.Reference {
+            if let profileID = CloudKitProfileZone.profileID(from: profileRef.recordID.zoneID) ?? UUID(uuidString: profileRef.recordID.recordName) {
                 let predicate = #Predicate<ProfileActionStateModel> { model in
                     model.profileID == profileID
                 }
@@ -356,6 +365,19 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
                     }
                 }
             }
+        } else if let profileIDString = record["profileID"] as? String,
+                  let profileID = UUID(uuidString: profileIDString) {
+            let predicate = #Predicate<ProfileActionStateModel> { model in
+                model.profileID == profileID
+            }
+            var descriptor = FetchDescriptor<ProfileActionStateModel>(predicate: predicate)
+            descriptor.fetchLimit = 1
+            if let profileModel = try context.fetch(descriptor).first {
+                if model.profile !== profileModel {
+                    model.profile = profileModel
+                    mutated = true
+                }
+            }
         } else if model.profile != nil {
             model.profile = nil
             mutated = true
@@ -365,29 +387,33 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
     }
 
     private static func deleteRecord(with recordID: CKRecord.ID, in context: ModelContext) throws -> Bool {
-        if recordID.recordName.hasPrefix("action-"),
-           let uuid = UUID(uuidString: recordID.recordName.replacingOccurrences(of: "action-", with: "")) {
-            let predicate = #Predicate<BabyActionModel> { model in
-                model.id == uuid
+        if let profileID = CloudKitProfileZone.profileID(from: recordID.zoneID) {
+            let profileRecordName = CloudKitProfileZone.profileRecordName(for: profileID)
+            if recordID.recordName.caseInsensitiveCompare(profileRecordName) == .orderedSame {
+                let predicate = #Predicate<ProfileActionStateModel> { model in
+                    model.profileID == profileID
+                }
+                var descriptor = FetchDescriptor<ProfileActionStateModel>(predicate: predicate)
+                descriptor.fetchLimit = 1
+                if let model = try context.fetch(descriptor).first {
+                    context.delete(model)
+                    return true
+                }
             }
-            var descriptor = FetchDescriptor<BabyActionModel>(predicate: predicate)
-            descriptor.fetchLimit = 1
-            if let model = try context.fetch(descriptor).first {
-                context.delete(model)
-                return true
-            }
-        } else if recordID.recordName.hasPrefix("profile-"),
-                  let uuid = UUID(uuidString: recordID.recordName.replacingOccurrences(of: "profile-", with: "")) {
-            let predicate = #Predicate<ProfileActionStateModel> { model in
-                model.profileID == uuid
-            }
-            var descriptor = FetchDescriptor<ProfileActionStateModel>(predicate: predicate)
-            descriptor.fetchLimit = 1
-            if let model = try context.fetch(descriptor).first {
-                context.delete(model)
-                return true
+
+            if let actionID = UUID(uuidString: recordID.recordName) ?? UUID(uuidString: recordID.recordName.replacingOccurrences(of: "action-", with: "")) {
+                let predicate = #Predicate<BabyActionModel> { model in
+                    model.id == actionID
+                }
+                var descriptor = FetchDescriptor<BabyActionModel>(predicate: predicate)
+                descriptor.fetchLimit = 1
+                if let model = try context.fetch(descriptor).first {
+                    context.delete(model)
+                    return true
+                }
             }
         }
+
         return false
     }
 }

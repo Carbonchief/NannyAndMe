@@ -41,7 +41,7 @@ struct SharingUI: UIViewControllerRepresentable {
 
     @MainActor
     final class Coordinator: NSObject, UICloudSharingControllerDelegate {
-        private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "share")
+        private let logger = Logger(subsystem: "com.prioritybit.nannyandme", category: "share")
         private var observer: SystemSharingObserver?
         private let share: CKShare
         private let itemTitle: String?

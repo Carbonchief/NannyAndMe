@@ -6,11 +6,31 @@ struct SyncDiagnosticsView: View {
     @ObservedObject var coordinator: SyncCoordinator
     @ObservedObject var statusViewModel: SyncStatusViewModel
     let containerIdentifier: String
+    let sharedManager: SharedScopeSubscriptionManager?
+    let sharedTokenStore: SharedZoneChangeTokenStore?
+    let metadataStore: ShareMetadataStore?
 
     @State private var accountStatusDescription = "—"
     @State private var countsOutput: String?
     @State private var isDumpingCounts = false
     @State private var forceSyncInFlight = false
+    @State private var sharedZoneInfo: [SharedZoneDebug] = []
+    @State private var sharedSubscriptionIDs: [String] = []
+    @State private var isFetchingSharedChanges = false
+
+    init(coordinator: SyncCoordinator,
+         statusViewModel: SyncStatusViewModel,
+         containerIdentifier: String,
+         sharedManager: SharedScopeSubscriptionManager? = nil,
+         sharedTokenStore: SharedZoneChangeTokenStore? = nil,
+         metadataStore: ShareMetadataStore? = nil) {
+        _coordinator = ObservedObject(wrappedValue: coordinator)
+        _statusViewModel = ObservedObject(wrappedValue: statusViewModel)
+        self.containerIdentifier = containerIdentifier
+        self.sharedManager = sharedManager
+        self.sharedTokenStore = sharedTokenStore
+        self.metadataStore = metadataStore
+    }
 
     private var diagnostics: SyncCoordinator.Diagnostics { coordinator.diagnostics }
 
@@ -20,10 +40,14 @@ struct SyncDiagnosticsView: View {
             statusSection
             coordinatorSection
             if let countsOutput { countsSection(countsOutput) }
+            if sharedManager != nil { sharedZonesSection }
             actionsSection
         }
         .navigationTitle("Sync Diagnostics")
-        .task { await loadAccountStatus() }
+        .task {
+            await loadAccountStatus()
+            await loadSharedDiagnostics()
+        }
     }
 }
 
@@ -98,6 +122,71 @@ private extension SyncDiagnosticsView {
         }
     }
 
+    var sharedZonesSection: some View {
+        Section(header: Text("Shared Zones")) {
+            if sharedZoneInfo.isEmpty {
+                Text("No shared zones")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(sharedZoneInfo) { zone in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(zone.zoneName)
+                            .font(.headline)
+                        if zone.profileSummary.isEmpty == false {
+                            Text(zone.profileSummary)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        HStack {
+                            Text("Token")
+                            Spacer()
+                            Text(zone.hasToken ? "Present" : "Missing")
+                                .foregroundStyle(zone.hasToken ? Color.green : Color.secondary)
+                        }
+                        HStack {
+                            Text("Last Fetch")
+                            Spacer()
+                            Text(formatted(date: zone.lastFetch))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            if sharedSubscriptionIDs.isEmpty {
+                HStack {
+                    Text("Subscriptions")
+                    Spacer()
+                    Text("None")
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Subscriptions")
+                    ForEach(sharedSubscriptionIDs, id: \.self) { identifier in
+                        Text(identifier)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            Button {
+                fetchSharedChanges()
+            } label: {
+                if isFetchingSharedChanges {
+                    HStack {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                        Text("Fetching shared changes…")
+                    }
+                } else {
+                    Label("Pull shared changes now", systemImage: "icloud.and.arrow.down")
+                }
+            }
+            .disabled(isFetchingSharedChanges || sharedManager == nil)
+            .postHogLabel("debug.shared.forceFetch")
+        }
+    }
+
     var actionsSection: some View {
         Section {
             Button {
@@ -126,12 +215,86 @@ private extension SyncDiagnosticsView {
         }
     }
 
+    func loadSharedDiagnostics() async {
+        guard sharedManager != nil else {
+            await MainActor.run {
+                sharedZoneInfo = []
+                sharedSubscriptionIDs = []
+            }
+            return
+        }
+
+        guard let tokenStore = sharedTokenStore, let metadataStore = metadataStore else {
+            await MainActor.run {
+                sharedZoneInfo = []
+                sharedSubscriptionIDs = []
+            }
+            return
+        }
+
+        let snapshots = await tokenStore.allSnapshots()
+        let metadata = await metadataStore.allMetadata()
+        let zoneIDs = Set(snapshots.map { $0.zoneID }).union(metadata.values.map { $0.zoneID })
+        let subscriptionIDs = await sharedManager?.subscriptionIdentifiers() ?? []
+        let info = zoneIDs.map { zoneID -> SharedZoneDebug in
+            let snapshot = snapshots.first(where: { $0.zoneID == zoneID })
+            let profiles = metadata.values.filter { $0.zoneID == zoneID }.map { $0.profileID }
+            return SharedZoneDebug(zoneID: zoneID,
+                                   profileIDs: profiles,
+                                   hasToken: snapshot?.hasToken ?? false,
+                                   lastFetch: snapshot?.lastFetch)
+        }.sorted { $0.zoneName < $1.zoneName }
+
+        await MainActor.run {
+            sharedZoneInfo = info
+            sharedSubscriptionIDs = subscriptionIDs
+        }
+    }
+
+    func fetchSharedChanges() {
+        guard let sharedManager else { return }
+        isFetchingSharedChanges = true
+        sharedManager.fetchAllSharedChangesNow()
+        Task {
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            await loadSharedDiagnostics()
+            await MainActor.run { isFetchingSharedChanges = false }
+        }
+    }
+
     func diagnosticsRow(title: String, value: String) -> some View {
         HStack {
             Text(title)
             Spacer()
             Text(value)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    struct SharedZoneDebug: Identifiable {
+        let id: String
+        let zoneName: String
+        let ownerName: String?
+        let profileIDs: [UUID]
+        let hasToken: Bool
+        let lastFetch: Date?
+
+        init(zoneID: CKRecordZone.ID,
+             profileIDs: [UUID],
+             hasToken: Bool,
+             lastFetch: Date?) {
+            self.id = "\(zoneID.zoneName)::\(zoneID.ownerName ?? CKCurrentUserDefaultName)"
+            self.zoneName = zoneID.zoneName
+            self.ownerName = zoneID.ownerName
+            self.profileIDs = profileIDs
+            self.hasToken = hasToken
+            self.lastFetch = lastFetch
+        }
+
+        var profileSummary: String {
+            guard profileIDs.isEmpty == false else { return "" }
+            let fragments = profileIDs.map { String($0.uuidString.prefix(8)) }
+            return "Profiles: \(fragments.joined(separator: ", "))"
         }
     }
 
@@ -342,7 +505,7 @@ private extension SyncDiagnosticsView {
         SyncDiagnosticsView(
             coordinator: previewStack.syncCoordinator,
             statusViewModel: previewStack.syncStatusViewModel,
-            containerIdentifier: "iCloud.com.prioritybit.babynanny"
+            containerIdentifier: CKConfig.containerID
         )
     }
 }

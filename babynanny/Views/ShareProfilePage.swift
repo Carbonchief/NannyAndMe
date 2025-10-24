@@ -39,7 +39,7 @@ private struct ShareProfilePageContent: View {
          modelContainer: ModelContainer,
          metadataStore: ShareMetadataStore,
          subscriptionManager: SharedScopeSubscriptionManager,
-         containerIdentifier: String = "iCloud.com.prioritybit.babynanny") {
+         containerIdentifier: String = CKConfig.containerID) {
         self.profileID = profileID
         _viewModel = StateObject(wrappedValue: ShareProfilePageViewModel(
             profileID: profileID,
@@ -911,7 +911,7 @@ private enum ShareStrings {
 // MARK: - Notifications
 
 extension Notification.Name {
-    static let sharedScopeNotification = Notification.Name("com.prioritybit.babynanny.sharedScopeNotification")
+    static let sharedScopeNotification = Notification.Name("com.prioritybit.nannyandme.sharedScopeNotification")
 }
 
 // MARK: - Preview

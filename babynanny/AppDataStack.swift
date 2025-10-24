@@ -14,11 +14,12 @@ final class AppDataStack: ObservableObject {
     private(set) var shareMetadataStore: ShareMetadataStore?
     private(set) var shareAcceptanceHandler: ShareAcceptanceHandler?
     private(set) var sharedSubscriptionManager: SharedScopeSubscriptionManager?
+    private var profileZoneMigrator: ProfileZoneMigrator?
 
-    private let swiftDataLogger = Logger(subsystem: "com.prioritybit.babynanny", category: "swiftdata")
+    private let swiftDataLogger = Logger(subsystem: "com.prioritybit.nannyandme", category: "swiftdata")
     private var coalescedSaveTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
     private var sharedZoneChangeTokenStore: SharedZoneChangeTokenStore?
-    private let containerIdentifier = "iCloud.com.prioritybit.babynanny"
+    private let containerIdentifier = CKConfig.containerID
 
     init(cloudSyncEnabled: Bool = false,
          modelContainer: ModelContainer? = nil,
@@ -46,7 +47,7 @@ final class AppDataStack: ObservableObject {
             configuration = ModelConfiguration(
                 isStoredInMemoryOnly: inMemory,
                 allowsSave: true,
-                cloudKitDatabase: .private("iCloud.com.prioritybit.babynanny")
+                cloudKitDatabase: .private(CKConfig.containerID)
             )
         } else {
             configuration = ModelConfiguration(
@@ -79,6 +80,10 @@ final class AppDataStack: ObservableObject {
         guard cloudSyncEnabled else { return }
         sharedSubscriptionManager?.ensureSubscriptions()
         syncCoordinator.prepareSubscriptionsIfNeeded()
+    }
+
+    var sharedZoneTokenStore: SharedZoneChangeTokenStore? {
+        sharedZoneChangeTokenStore
     }
 
     func scheduleSaveIfNeeded(on context: ModelContext,
@@ -131,6 +136,7 @@ final class AppDataStack: ObservableObject {
             shareAcceptanceHandler = nil
             shareMetadataStore = nil
             sharedZoneChangeTokenStore = nil
+            profileZoneMigrator = nil
             return
         }
 
@@ -147,6 +153,24 @@ final class AppDataStack: ObservableObject {
                                                                  ingestor: acceptanceHandler)
         sharedSubscriptionManager = subscriptionManager
         subscriptionManager.ensureSubscriptions()
+        let migrator = profileZoneMigrator ?? ProfileZoneMigrator(modelContainer: modelContainer)
+        profileZoneMigrator = migrator
+        Task { await migrator.migrateIfNeeded() }
+    }
+
+    private func scheduleSharedContentSync() {
+        guard cloudSyncEnabled,
+              let metadataStore = shareMetadataStore else { return }
+        let container = modelContainer
+        Task { @MainActor in
+            let metadata = await metadataStore.allMetadata()
+            let sharedEntries = metadata.values.filter { $0.isShared }
+            guard sharedEntries.isEmpty == false else { return }
+            let manager = CloudKitSharingManager(modelContainer: container, metadataStore: metadataStore)
+            for entry in sharedEntries {
+                await manager.synchronizeSharedContent(for: entry.profileID)
+            }
+        }
     }
 
     private func performSaveIfNeeded(on context: ModelContext, reason: String) async {
@@ -158,6 +182,7 @@ final class AppDataStack: ObservableObject {
         do {
             try context.save()
             swiftDataLogger.debug("Saved context for \(reason, privacy: .public)")
+            scheduleSharedContentSync()
         } catch {
             swiftDataLogger.error("Failed to save context for \(reason, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }

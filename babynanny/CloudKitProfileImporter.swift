@@ -32,7 +32,7 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
     private let fallbackRecordTypes: [String]
     private let dataField: String
 
-    init(container: CKContainer = CKContainer(identifier: "iCloud.com.prioritybit.babynanny"),
+    init(container: CKContainer = CKConfig.container(),
          recordType: String = "CD_Profile",
          fallbackRecordTypes: [String] = ["Profile", "ProfileActionStateModel", "ProfileState", "CD_ProfileActionStateModel"],
          dataField: String = "payload") {

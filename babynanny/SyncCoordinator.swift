@@ -38,16 +38,16 @@ final class SyncCoordinator: ObservableObject {
     private let sharedContext: ModelContext
     private var cloudDatabase: CKDatabase?
     private let cloudContainerIdentifier: String
-    private let subscriptionID = "com.prioritybit.babynanny.databaseSubscription"
-    private let syncLogger = Logger(subsystem: "com.prioritybit.babynanny", category: "sync")
-    private let cloudLogger = Logger(subsystem: "com.prioritybit.babynanny", category: "cloudkit")
+    private let subscriptionID = "com.prioritybit.nannyandme.databaseSubscription"
+    private let syncLogger = Logger(subsystem: "com.prioritybit.nannyandme", category: "sync")
+    private let cloudLogger = Logger(subsystem: "com.prioritybit.nannyandme", category: "cloudkit")
     private var processedNotificationIDs: [String: Date] = [:]
     private var pendingSyncTask: Task<Void, Never>?
     private var isPerformingSync = false
     private let observers = NSHashTable<AnyObject>.weakObjects()
 
     init(sharedContext: ModelContext,
-         cloudContainerIdentifier: String = "iCloud.com.prioritybit.babynanny",
+         cloudContainerIdentifier: String = CKConfig.containerID,
          database: CKDatabase? = nil,
          cloudSyncEnabled: Bool = true) {
         self.sharedContext = sharedContext

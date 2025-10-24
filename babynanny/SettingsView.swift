@@ -18,7 +18,7 @@ struct SettingsView: View {
 #if DEBUG
     @EnvironmentObject private var syncCoordinator: SyncCoordinator
     @EnvironmentObject private var syncStatusViewModel: SyncStatusViewModel
-    private let cloudKitContainerIdentifier = "iCloud.com.prioritybit.babynanny"
+    private let cloudKitContainerIdentifier = CKConfig.containerID
 #endif
     @Environment(\.openURL) private var openURL
     @AppStorage("trackActionLocations") private var trackActionLocations = false
@@ -458,7 +458,10 @@ struct SettingsView: View {
             NavigationLink {
                 SyncDiagnosticsView(coordinator: syncCoordinator,
                                     statusViewModel: syncStatusViewModel,
-                                    containerIdentifier: cloudKitContainerIdentifier)
+                                    containerIdentifier: cloudKitContainerIdentifier,
+                                    sharedManager: appDataStack.sharedSubscriptionManager,
+                                    sharedTokenStore: appDataStack.sharedZoneTokenStore,
+                                    metadataStore: appDataStack.shareMetadataStore)
             } label: {
                 Label("Sync Diagnostics", systemImage: "antenna.radiowaves.left.and.right")
             }

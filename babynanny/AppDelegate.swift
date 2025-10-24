@@ -4,7 +4,7 @@ import UIKit
 import os
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "sync")
+    private let logger = Logger(subsystem: "com.prioritybit.nannyandme", category: "sync")
     private weak var syncCoordinator: SyncCoordinator?
     private var sharedSubscriptionManager: SharedScopeSubscriptionManager?
     private weak var shareAcceptanceHandler: (any CloudKitShareAccepting)?

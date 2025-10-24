@@ -70,7 +70,7 @@ The application relies on SwiftData's CloudKit integration for syncing. Ensure t
 
 1. **iCloud + CloudKit**
    - In the **Signing & Capabilities** tab, add the iCloud capability.
-   - Select **CloudKit** and choose the default container `iCloud.com.prioritybit.babynanny`.
+   - Select **CloudKit** and choose the default container `iCloud.com.prioritybit.nannyandme`.
    - Enable both the **Private** and **Shared** databases so SwiftData can mirror personal and collaborative zones.
 2. **Push Notifications**
    - Add the **Push Notifications** capability so APNs tokens are issued on device builds.

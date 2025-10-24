@@ -50,12 +50,12 @@ final class CloudAccountStatusController: ObservableObject {
     private let provider: CloudAccountStatusProviding
     private let notificationCenter: NotificationCenter
     private let userDefaults: UserDefaults
-    private let stayLocalKey = "com.prioritybit.babynanny.cloud.localOnly"
+    private let stayLocalKey = "com.prioritybit.nannyandme.cloud.localOnly"
     private var notificationTask: Task<Void, Never>?
     private var refreshTask: Task<Void, Never>?
-    private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "cloud.accountStatus")
+    private let logger = Logger(subsystem: "com.prioritybit.nannyandme", category: "cloud.accountStatus")
 
-    init(containerIdentifier: String = "iCloud.com.prioritybit.babynanny",
+    init(containerIdentifier: String = CKConfig.containerID,
          provider: CloudAccountStatusProviding? = nil,
          notificationCenter: NotificationCenter = .default,
          userDefaults: UserDefaults = .standard) {
@@ -148,8 +148,8 @@ extension CloudAccountStatusController {
             }
         }
 
-        let defaults = UserDefaults(suiteName: "com.prioritybit.babynanny.preview.cloudStatus")!
-        defaults.removePersistentDomain(forName: "com.prioritybit.babynanny.preview.cloudStatus")
+        let defaults = UserDefaults(suiteName: "com.prioritybit.nannyandme.preview.cloudStatus")!
+        defaults.removePersistentDomain(forName: "com.prioritybit.nannyandme.preview.cloudStatus")
 
         let ckStatus: CKAccountStatus
         switch status {

@@ -3,18 +3,19 @@ import Foundation
 
 enum CloudKitRecordTypeCatalog {
     static let profileRecordTypes: [String] = [
-        "CD_Profile",
+        CloudKitRecordMapper.profileRecordType,
         "Profile",
         "CD_ProfileActionStateModel"
     ]
 
     static let babyActionRecordTypes: [String] = [
-        "CD_BabyAction",
+        CloudKitRecordMapper.babyActionRecordType,
         "BabyAction",
         "CD_BabyActionModel"
     ]
 
     static let profileIdentifierFields: [String] = [
+        "id",
         "profileID",
         "CD_profileID"
     ]
