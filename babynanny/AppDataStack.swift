@@ -41,11 +41,19 @@ final class AppDataStack: ObservableObject {
 
     static func makeModelContainer(cloudSyncEnabled: Bool = true,
                                    inMemory: Bool = false) -> ModelContainer {
-        let configuration = ModelConfiguration(
-            isStoredInMemoryOnly: inMemory,
-            allowsSave: true,
-            cloudKitDatabase: cloudSyncEnabled ? .private("iCloud.com.prioritybit.babynanny") : nil
-        )
+        let configuration: ModelConfiguration
+        if cloudSyncEnabled {
+            configuration = ModelConfiguration(
+                isStoredInMemoryOnly: inMemory,
+                allowsSave: true,
+                cloudKitDatabase: .private("iCloud.com.prioritybit.babynanny")
+            )
+        } else {
+            configuration = ModelConfiguration(
+                isStoredInMemoryOnly: inMemory,
+                allowsSave: true
+            )
+        }
 
         do {
             return try ModelContainer(
