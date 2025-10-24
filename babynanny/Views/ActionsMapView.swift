@@ -3,6 +3,7 @@ import SwiftData
 import SwiftUI
 
 /// Displays logged baby actions on a map with filtering by action type and date range.
+@MainActor
 struct ActionsMapView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var locationManager: LocationManager
