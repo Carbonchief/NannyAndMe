@@ -185,8 +185,19 @@ final class CloudKitSharingManager {
     private func fetchRootRecord(for profileID: UUID) async throws -> CKRecord {
         let zones = try await fetchAllZones()
         for zone in zones {
-            if let record = try await queryProfileRecord(profileID: profileID, in: zone.zoneID) {
-                return record
+            for recordType in CloudKitRecordTypeCatalog.profileRecordTypes {
+                do {
+                    if let record = try await queryProfileRecord(profileID: profileID,
+                                                                  recordType: recordType,
+                                                                  in: zone.zoneID) {
+                        return record
+                    }
+                } catch {
+                    if error.isMissingRecordTypeError {
+                        continue
+                    }
+                    throw error
+                }
             }
         }
         throw SharingError.profileNotFound
@@ -210,11 +221,12 @@ final class CloudKitSharingManager {
     }
 
     private func queryProfileRecord(profileID: UUID,
+                                    recordType: String,
                                     in zoneID: CKRecordZone.ID) async throws -> CKRecord? {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKRecord?, Error>) in
             let logger = self.logger
             let predicate = NSPredicate(format: "%K == %@", "profileID", profileID.uuidString)
-            let query = CKQuery(recordType: RecordType.profile.rawValue, predicate: predicate)
+            let query = CKQuery(recordType: recordType, predicate: predicate)
             let operation = CKQueryOperation(query: query)
             operation.zoneID = zoneID
             operation.resultsLimit = 1
@@ -234,7 +246,11 @@ final class CloudKitSharingManager {
                 case .success:
                     continuation.resume(returning: matchedRecord)
                 case .failure(let error):
-                    continuation.resume(throwing: error)
+                    if error.isMissingRecordTypeError {
+                        continuation.resume(returning: nil)
+                    } else {
+                        continuation.resume(throwing: error)
+                    }
                 }
             }
 
@@ -280,13 +296,6 @@ final class CloudKitSharingManager {
 }
 
 // MARK: - Snapshot helpers
-
-extension CloudKitSharingManager {
-    enum RecordType: String {
-        case profile = "Profile"
-        case babyAction = "BabyAction"
-    }
-}
 
 // MARK: - Metadata persistence
 

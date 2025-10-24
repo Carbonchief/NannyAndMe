@@ -104,18 +104,7 @@ struct CloudKitProfileImporter: ProfileCloudImporting {
     }
 
     private static func isMissingRecordType(_ error: Error) -> Bool {
-        guard let ckError = error as? CKError else { return false }
-
-        if ckError.code == .unknownItem {
-            return ckError.containsMissingRecordTypeMessage
-        }
-
-        if ckError.code == .partialFailure {
-            let partialErrors = ckError.partialErrorsByItemID ?? [:]
-            return partialErrors.values.contains { isMissingRecordType($0) }
-        }
-
-        return false
+        error.isMissingRecordTypeError
     }
 
     private static let recoverableErrorCodes: Set<CKError.Code> = [
@@ -475,22 +464,3 @@ private struct ChildProfilePayload: Decodable {
     }
 }
 
-private extension CKError {
-    var containsMissingRecordTypeMessage: Bool {
-        if localizedDescription.localizedCaseInsensitiveContains("did not find record type") {
-            return true
-        }
-
-        if let failureReason = userInfo[NSLocalizedFailureReasonErrorKey] as? String,
-           failureReason.localizedCaseInsensitiveContains("record type") {
-            return true
-        }
-
-        if let debugDescription = userInfo[NSDebugDescriptionErrorKey] as? String,
-           debugDescription.localizedCaseInsensitiveContains("record type") {
-            return true
-        }
-
-        return false
-    }
-}

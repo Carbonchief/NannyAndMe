@@ -40,7 +40,7 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
             let zoneID = rootRecordID.zoneID
             let result = try await fetchAndIngestInitialContent(for: zoneID)
             let share = metadata.share
-            if let profileRecord = result.records.first(where: { $0.recordType == RecordType.profile }),
+            if let profileRecord = result.records.first(where: { CloudKitRecordTypeCatalog.matchesProfile($0.recordType) }),
                let profileIDString = profileRecord["profileID"] as? String,
                let profileID = UUID(uuidString: profileIDString) {
                 let stored = ShareMetadataStore.ShareMetadata(
@@ -160,11 +160,11 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
                 var hasMutations = false
                 for record in records {
                     switch record.recordType {
-                    case RecordType.profile:
+                    case let type where CloudKitRecordTypeCatalog.matchesProfile(type):
                         if try Self.updateProfile(from: record, in: context) {
                             hasMutations = true
                         }
-                    case RecordType.babyAction:
+                    case let type where CloudKitRecordTypeCatalog.matchesBabyAction(type):
                         if try Self.updateAction(from: record, in: context) {
                             hasMutations = true
                         }
@@ -405,10 +405,5 @@ extension ShareAcceptanceHandler {
         let records: [CKRecord]
         let deleted: [CKRecord.ID]
         let newToken: CKServerChangeToken?
-    }
-
-    enum RecordType {
-        static let profile = "Profile"
-        static let babyAction = "BabyAction"
     }
 }

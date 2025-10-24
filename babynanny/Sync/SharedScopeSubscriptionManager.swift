@@ -45,9 +45,8 @@ final class SharedScopeSubscriptionManager {
     @discardableResult
     func handleRemoteNotification(_ notification: CKNotification) async -> Bool {
         guard let subscriptionID = notification.subscriptionID else { return false }
-        let profileID = await subscriptionStore.profileSubscriptionID
-        let actionID = await subscriptionStore.actionSubscriptionID
-        guard subscriptionID == profileID || subscriptionID == actionID else { return false }
+        let knownIDs = await subscriptionStore.allSubscriptionIDs()
+        guard knownIDs.contains(subscriptionID) else { return false }
 
         pendingTask?.cancel()
         pendingTask = Task.detached(priority: .userInitiated) { [weak self] in
@@ -63,52 +62,58 @@ final class SharedScopeSubscriptionManager {
     }
 
     private func createSubscriptionsIfNeeded() async {
-        let desiredProfileID = await subscriptionStore.profileSubscriptionID
-        let desiredActionID = await subscriptionStore.actionSubscriptionID
-
         do {
             let existing = try await fetchAllSubscriptions()
             let existingIDs = Set(existing.map { $0.subscriptionID })
-            var subscriptionsToSave: [CKSubscription] = []
-
-            if let desiredProfileID {
-                if !existingIDs.contains(desiredProfileID) {
-                    subscriptionsToSave.append(Self.makeQuerySubscription(recordType: RecordType.profile.rawValue,
-                                                                           subscriptionID: desiredProfileID))
-                }
-            } else {
-                let newID = UUID().uuidString
-                subscriptionsToSave.append(Self.makeQuerySubscription(recordType: RecordType.profile.rawValue,
-                                                                       subscriptionID: newID))
-                await subscriptionStore.updateProfileSubscriptionID(newID)
-            }
-
-            if let desiredActionID {
-                if !existingIDs.contains(desiredActionID) {
-                    subscriptionsToSave.append(Self.makeQuerySubscription(recordType: RecordType.babyAction.rawValue,
-                                                                           subscriptionID: desiredActionID))
-                }
-            } else {
-                let newID = UUID().uuidString
-                subscriptionsToSave.append(Self.makeQuerySubscription(recordType: RecordType.babyAction.rawValue,
-                                                                       subscriptionID: newID))
-                await subscriptionStore.updateActionSubscriptionID(newID)
-            }
-
-            guard !subscriptionsToSave.isEmpty else { return }
-
-            try await modifySubscriptions(saving: subscriptionsToSave, deleting: [])
+            var mutableExisting = existingIDs
+            try await ensureSubscriptions(for: CloudKitRecordTypeCatalog.profileRecordTypes,
+                                          existingIDs: &mutableExisting)
+            try await ensureSubscriptions(for: CloudKitRecordTypeCatalog.babyActionRecordTypes,
+                                          existingIDs: &mutableExisting)
             logger.log("Ensured shared scope subscriptions")
         } catch {
             logger.error("Failed to ensure shared subscriptions: \(error.localizedDescription, privacy: .public)")
         }
     }
 
+    private func ensureSubscriptions(for recordTypes: [String],
+                                      existingIDs: inout Set<String>) async throws {
+        for recordType in recordTypes {
+            if let storedID = await subscriptionStore.subscriptionID(for: recordType) {
+                guard existingIDs.contains(storedID) == false else { continue }
+                do {
+                    try await modifySubscriptions(saving: [Self.makeQuerySubscription(recordType: recordType,
+                                                                                       subscriptionID: storedID)],
+                                                  deleting: [])
+                    existingIDs.insert(storedID)
+                } catch {
+                    if error.isMissingRecordTypeError {
+                        await subscriptionStore.removeSubscriptionID(for: recordType)
+                    } else {
+                        throw error
+                    }
+                }
+            } else {
+                let newID = UUID().uuidString
+                do {
+                    try await modifySubscriptions(saving: [Self.makeQuerySubscription(recordType: recordType,
+                                                                                       subscriptionID: newID)],
+                                                  deleting: [])
+                    existingIDs.insert(newID)
+                    await subscriptionStore.updateSubscriptionID(newID, for: recordType)
+                } catch {
+                    if error.isMissingRecordTypeError == false {
+                        throw error
+                    }
+                }
+            }
+        }
+    }
+
     private func processNotification(_ notification: CKNotification) async throws {
         guard let subscriptionID = notification.subscriptionID else { return }
-        let profileID = await subscriptionStore.profileSubscriptionID
-        let actionID = await subscriptionStore.actionSubscriptionID
-        guard subscriptionID == profileID || subscriptionID == actionID else { return }
+        let knownIDs = await subscriptionStore.allSubscriptionIDs()
+        guard knownIDs.contains(subscriptionID) else { return }
 
         let metadata = await shareMetadataStore.allMetadata()
         let zones = Array(Set(metadata.values.map { $0.zoneID }))
@@ -186,11 +191,6 @@ final class SharedScopeSubscriptionManager {
 }
 
 private extension SharedScopeSubscriptionManager {
-    enum RecordType: String {
-        case profile = "Profile"
-        case babyAction = "BabyAction"
-    }
-
     struct ZoneFetchResult {
         let records: [CKRecord]
         let deleted: [CKRecord.ID]
@@ -241,8 +241,39 @@ private extension SharedScopeSubscriptionManager {
 
 actor SharedSubscriptionStateStore {
     private struct State: Codable {
-        var profileSubscriptionID: String?
-        var actionSubscriptionID: String?
+        var subscriptionIDs: [String: String]
+
+        init(subscriptionIDs: [String: String] = [:]) {
+            self.subscriptionIDs = subscriptionIDs
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            if let dictionary = try container.decodeIfPresent([String: String].self, forKey: .subscriptionIDs) {
+                subscriptionIDs = dictionary
+                return
+            }
+
+            var legacy: [String: String] = [:]
+            if let profileID = try container.decodeIfPresent(String.self, forKey: .profileSubscriptionID) {
+                legacy["Profile"] = profileID
+            }
+            if let actionID = try container.decodeIfPresent(String.self, forKey: .actionSubscriptionID) {
+                legacy["BabyAction"] = actionID
+            }
+            subscriptionIDs = legacy
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(subscriptionIDs, forKey: .subscriptionIDs)
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case subscriptionIDs
+            case profileSubscriptionID
+            case actionSubscriptionID
+        }
     }
 
     private let defaults: UserDefaults
@@ -267,17 +298,22 @@ actor SharedSubscriptionStateStore {
         }
     }
 
-    var profileSubscriptionID: String? { state.profileSubscriptionID }
-    var actionSubscriptionID: String? { state.actionSubscriptionID }
+    func subscriptionID(for recordType: String) -> String? {
+        state.subscriptionIDs[recordType]
+    }
 
-    func updateProfileSubscriptionID(_ identifier: String) {
-        state.profileSubscriptionID = identifier
+    func updateSubscriptionID(_ identifier: String, for recordType: String) {
+        state.subscriptionIDs[recordType] = identifier
         persist()
     }
 
-    func updateActionSubscriptionID(_ identifier: String) {
-        state.actionSubscriptionID = identifier
+    func removeSubscriptionID(for recordType: String) {
+        state.subscriptionIDs.removeValue(forKey: recordType)
         persist()
+    }
+
+    func allSubscriptionIDs() -> Set<String> {
+        Set(state.subscriptionIDs.values)
     }
 
     private func persist() {
