@@ -41,8 +41,7 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
             let result = try await fetchAndIngestInitialContent(for: zoneID)
             let share = metadata.share
             if let profileRecord = result.records.first(where: { CloudKitRecordTypeCatalog.matchesProfile($0.recordType) }),
-               let profileIDString = profileRecord["profileID"] as? String,
-               let profileID = UUID(uuidString: profileIDString) {
+               let profileID = CloudKitRecordTypeCatalog.profileIdentifier(from: profileRecord) {
                 let stored = ShareMetadataStore.ShareMetadata(
                     profileID: profileID,
                     zoneID: zoneID,
@@ -189,8 +188,7 @@ final class ShareAcceptanceHandler: SharedRecordIngesting {
     }
 
     private static func updateProfile(from record: CKRecord, in context: ModelContext) throws -> Bool {
-        guard let profileIDString = record["profileID"] as? String,
-              let profileID = UUID(uuidString: profileIDString) else {
+        guard let profileID = CloudKitRecordTypeCatalog.profileIdentifier(from: record) else {
             return false
         }
         let predicate = #Predicate<ProfileActionStateModel> { model in

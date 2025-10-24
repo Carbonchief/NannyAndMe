@@ -186,17 +186,20 @@ final class CloudKitSharingManager {
         let zones = try await fetchAllZones()
         for zone in zones {
             for recordType in CloudKitRecordTypeCatalog.profileRecordTypes {
-                do {
-                    if let record = try await queryProfileRecord(profileID: profileID,
-                                                                  recordType: recordType,
-                                                                  in: zone.zoneID) {
-                        return record
+                for identifierField in CloudKitRecordTypeCatalog.profileIdentifierFields {
+                    do {
+                        if let record = try await queryProfileRecord(profileID: profileID,
+                                                                      recordType: recordType,
+                                                                      identifierField: identifierField,
+                                                                      in: zone.zoneID) {
+                            return record
+                        }
+                    } catch {
+                        if error.isMissingRecordTypeError || error.isUnknownFieldError {
+                            continue
+                        }
+                        throw error
                     }
-                } catch {
-                    if error.isMissingRecordTypeError {
-                        continue
-                    }
-                    throw error
                 }
             }
         }
@@ -222,10 +225,11 @@ final class CloudKitSharingManager {
 
     private func queryProfileRecord(profileID: UUID,
                                     recordType: String,
+                                    identifierField: String,
                                     in zoneID: CKRecordZone.ID) async throws -> CKRecord? {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKRecord?, Error>) in
             let logger = self.logger
-            let predicate = NSPredicate(format: "%K == %@", "profileID", profileID.uuidString)
+            let predicate = NSPredicate(format: "%K == %@", identifierField, profileID.uuidString)
             let query = CKQuery(recordType: recordType, predicate: predicate)
             let operation = CKQueryOperation(query: query)
             operation.zoneID = zoneID
@@ -246,7 +250,7 @@ final class CloudKitSharingManager {
                 case .success:
                     continuation.resume(returning: matchedRecord)
                 case .failure(let error):
-                    if error.isMissingRecordTypeError {
+                    if error.isMissingRecordTypeError || error.isUnknownFieldError {
                         continuation.resume(returning: nil)
                     } else {
                         continuation.resume(throwing: error)
