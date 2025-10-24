@@ -86,8 +86,8 @@ final class CloudKitSharingManager {
         guard let existing = share.participants.first(where: { $0.userIdentity.userRecordID == target.userIdentity.userRecordID }) else {
             throw SharingError.participantNotFound
         }
-        if let role { existing.role = role }
-        if let permission { existing.permission = permission }
+        if let role = role { existing.role = role }
+        if let permission = permission { existing.permission = permission }
         try await save(share: share)
         logger.log("Updated participant for profile \(profileID.uuidString, privacy: .public)")
     }
@@ -165,7 +165,7 @@ final class CloudKitSharingManager {
 
     private func save(share: CKShare, rootRecord: CKRecord? = nil) async throws {
         var records: [CKRecord] = [share]
-        if let rootRecord {
+        if let rootRecord = rootRecord {
             records.append(rootRecord)
         }
         try await save(records: records)
@@ -192,7 +192,7 @@ final class CloudKitSharingManager {
     private func fetchShare(with recordID: CKRecord.ID) async throws -> CKShare {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKShare, Error>) in
             privateDatabase.fetch(withRecordID: recordID) { record, error in
-                if let error {
+                if let error = error {
                     continuation.resume(throwing: error)
                     return
                 }
@@ -220,6 +220,37 @@ final class CloudKitSharingManager {
     }
 
     private func ensureZoneExists(zoneID: CKRecordZone.ID) async throws {
+        if try await zoneExists(withID: zoneID) {
+            return
+        }
+        try await createZoneIfNeeded(withID: zoneID)
+    }
+
+    private func zoneExists(withID zoneID: CKRecordZone.ID) async throws -> Bool {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Bool, Error>) in
+            privateDatabase.fetch(withRecordZoneID: zoneID) { zone, error in
+                if zone != nil {
+                    continuation.resume(returning: true)
+                    return
+                }
+                if let ckError = error as? CKError {
+                    if ckError.code == .zoneNotFound {
+                        continuation.resume(returning: false)
+                        return
+                    }
+                    continuation.resume(throwing: ckError)
+                    return
+                }
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                continuation.resume(returning: false)
+            }
+        }
+    }
+
+    private func createZoneIfNeeded(withID zoneID: CKRecordZone.ID) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let zone = CKRecordZone(zoneID: zoneID)
             let operation = CKModifyRecordZonesOperation(recordZonesToSave: [zone], recordZoneIDsToDelete: nil)
@@ -228,10 +259,12 @@ final class CloudKitSharingManager {
                 case .success:
                     continuation.resume(returning: ())
                 case .failure(let error):
-                    if let ckError = error as? CKError, ckError.code == .zoneAlreadyExists {
-                        continuation.resume(returning: ())
-                    } else {
-                        continuation.resume(throwing: error)
+                    Task { @MainActor in
+                        if let exists = try? await self.zoneExists(withID: zoneID), exists {
+                            continuation.resume(returning: ())
+                        } else {
+                            continuation.resume(throwing: error)
+                        }
                     }
                 }
             }
@@ -312,15 +345,15 @@ final class CloudKitSharingManager {
     private func fetchRecord(withID recordID: CKRecord.ID) async throws -> CKRecord? {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKRecord?, Error>) in
             privateDatabase.fetch(withRecordID: recordID) { record, error in
-                if let error as? CKError {
-                    if error.code == .unknownItem {
+                if let ckError = error as? CKError {
+                    if ckError.code == .unknownItem {
                         continuation.resume(returning: nil)
                         return
                     }
-                    continuation.resume(throwing: error)
+                    continuation.resume(throwing: ckError)
                     return
                 }
-                if let error {
+                if let error = error {
                     continuation.resume(throwing: error)
                     return
                 }
@@ -335,7 +368,7 @@ final class CloudKitSharingManager {
         let share = CKShare(rootRecord: rootRecord)
         setMinimumCompatibleVersion(Self.minimumCompatibleShareVersion, for: share)
         share[CKShare.SystemFieldKey.title] = title as CKRecordValue?
-        if let thumbnailData {
+        if let thumbnailData = thumbnailData {
             share[CKShare.SystemFieldKey.thumbnailImageData] = thumbnailData as CKRecordValue
         }
         do {
@@ -350,7 +383,7 @@ final class CloudKitSharingManager {
                                      profileID: UUID,
                                      fallbackZoneID: CKRecordZone.ID,
                                      providedRootRecordID: CKRecord.ID?) async -> CKRecord.ID {
-        if let providedRootRecordID {
+        if let providedRootRecordID = providedRootRecordID {
             return providedRootRecordID
         }
         if let cached = await metadataStore.metadata(for: profileID) {
@@ -523,7 +556,7 @@ private extension CKDatabase {
     func deleteRecordAsync(withID recordID: CKRecord.ID) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             delete(withRecordID: recordID) { _, error in
-                if let error {
+                if let error = error {
                     continuation.resume(throwing: error)
                 } else {
                     continuation.resume(returning: ())
@@ -535,7 +568,7 @@ private extension CKDatabase {
     func deleteZoneAsync(withID zoneID: CKRecordZone.ID) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             delete(withRecordZoneID: zoneID) { _, error in
-                if let error {
+                if let error = error {
                     continuation.resume(throwing: error)
                 } else {
                     continuation.resume(returning: ())
