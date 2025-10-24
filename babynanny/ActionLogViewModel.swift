@@ -23,7 +23,6 @@ final class ActionLogStore: ObservableObject {
     private var contextObservers: [NSObjectProtocol] = []
     private var localMutationDepth = 0
     private let conflictResolver = ActionConflictResolver()
-    private var isObservingSyncCoordinator = false
     private var cachedStates: [UUID: ProfileActionState] = [:]
     private var stateReloadTask: Task<Void, Never>?
 
@@ -53,7 +52,6 @@ final class ActionLogStore: ObservableObject {
         self.observedPersistentStoreCoordinatorIdentifier = contextIdentifiers.coordinatorIdentifier
         scheduleReminders()
         observeModelContextChanges()
-        observeSyncCoordinatorIfNeeded()
     }
 
     deinit {
@@ -83,22 +81,10 @@ final class ActionLogStore: ObservableObject {
         synchronizeMetadataFromModelContext()
     }
 
-    func refreshSyncObservation() {
-        if dataStack.cloudSyncEnabled {
-            if isObservingSyncCoordinator == false {
-                observeSyncCoordinatorIfNeeded()
-            }
-        } else if isObservingSyncCoordinator {
-            dataStack.syncCoordinator.removeObserver(self)
-            isObservingSyncCoordinator = false
-        }
-    }
-
     func performUserInitiatedRefresh() async {
         await dataStack.flushPendingSaves()
         let reloadTask = reloadStateFromPersistentStore()
         await reloadTask.value
-        dataStack.requestSyncIfNeeded(reason: .userInitiated)
     }
 
     func synchronizeProfileMetadata(_ profiles: [ChildProfile]) {
@@ -821,26 +807,3 @@ private extension NSManagedObjectContext {
     }
 }
 
-private extension ActionLogStore {
-    func observeSyncCoordinatorIfNeeded() {
-        let coordinator = dataStack.syncCoordinator
-        guard dataStack.cloudSyncEnabled else { return }
-        guard coordinator.sharesModelContainer(with: modelContext) else { return }
-        coordinator.addObserver(self)
-        isObservingSyncCoordinator = true
-    }
-
-    func refreshAfterSync(for reason: SyncCoordinator.SyncReason) {
-        // Remote pushes and foreground refreshes should hydrate the cache from disk so the
-        // UI matches a cold start. Other sync reasons currently share the same path because
-        // we do not maintain a separate incremental-update pipeline yet.
-        handleModelContextChange(reloadFromPersistentStore: true)
-    }
-}
-
-extension ActionLogStore: SyncCoordinator.Observer {
-    func syncCoordinator(_ coordinator: SyncCoordinator,
-                         didMergeChangesFor reason: SyncCoordinator.SyncReason) {
-        refreshAfterSync(for: reason)
-    }
-}

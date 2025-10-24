@@ -10,14 +10,12 @@ NannyAndMe is a SwiftUI-based iOS application that helps caregivers keep track o
 - **Context-aware controls** – Automatically surface active timers, offer start/stop buttons per category, and present configuration sheets when additional details are required.
 - **Profile switching** – Manage multiple baby profiles via an in-app profile switcher with dedicated avatars.
 - **Profile photos** – Choose, crop, and automatically optimize profile pictures for each child.
-- **Profile metadata sync** – Keep profile names and avatars aligned across devices with automatic CloudKit updates.
+- **Profile metadata persistence** – Save profile names and avatars locally with SwiftData so changes stick between launches.
 - **Settings and stats views** – Review caregiver preferences and explore insights like weekly trends and daily patterns.
 - **Monthly age reminders** – Receive 10 a.m. notifications on each child's monthly milestones, with combined alerts when multiple profiles share the same celebration.
 - **Action reminders** – Get configurable notifications for sleep, diaper, and feeding actions with per-action intervals that reset whenever you log an entry.
 - **Optional location logging** – Capture where each action was recorded and review entries spatially on a dedicated Map tab when location tracking is enabled in Settings.
 - **Data sharing** – Export the active profile's logs to JSON and merge imports that include new or updated entries.
-- **iCloud profile restore** – Automatically pull existing child profiles from your private CloudKit database the first time you install the app on a device.
-- **Cloud sync visibility** – Monitor SwiftData's CloudKit mirroring progress with an in-app overlay and debug diagnostics panel (Debug build).
 - **Localized experience** – Navigate the interface in English, German, or Spanish with fully translated caregiver-facing text.
 
 ## Project structure
@@ -63,37 +61,6 @@ NannyAndMe/
    - Select the `babynanny` scheme.
    - Choose an iOS Simulator device (e.g., iPhone 15 Pro).
    - Press <kbd>Cmd</kbd>+<kbd>R</kbd> to build and run.
-
-## iCloud & push configuration
-
-The application relies on SwiftData's CloudKit integration for syncing. Ensure the following capabilities are enabled in the `babynanny` target for every build configuration:
-
-1. **iCloud + CloudKit**
-   - In the **Signing & Capabilities** tab, add the iCloud capability.
-   - Select **CloudKit** and choose the default container `iCloud.com.prioritybit.babynanny`.
-   - Enable both the **Private** and **Shared** databases so SwiftData can mirror personal and collaborative zones.
-2. **Push Notifications**
-   - Add the **Push Notifications** capability so APNs tokens are issued on device builds.
-3. **Background Modes**
-   - Enable **Remote notifications** under Background Modes to allow silent pushes to wake the app.
-
-### Debug vs. Release profiles
-
-- **Debug / local development**: Use your personal developer team and allow Xcode to manage signing. Confirm that the provisioning profile contains the iCloud and push entitlements listed above. Silent pushes require a real device; the simulator can still process simulated CloudKit notifications.
-- **Release / TestFlight**: Create a distribution provisioning profile that includes the same entitlements. The CloudKit container must be shared with your App Store Connect group so TestFlight builds inherit access.
-
-### Tester checklist
-
-- Install the app on two devices logged into the same iCloud account.
-- After the first launch, accept the remote-notification prompt so silent pushes are delivered.
-- Verify in **Settings ▸ Developer ▸ Sync Diagnostics** (Debug builds) that the CloudKit subscription state reads *Active*.
-
-### Offline & iCloud-optional mode
-
-- The app now checks the user's iCloud account status on launch and whenever the system reports a change.
-- If iCloud is unavailable, caregivers can continue in a "Local Only" mode without creating an account. A one-time prompt appears with quick links to iOS Settings or to stay offline permanently.
-- You can revisit the decision at any time from **Settings ▸ Cloud**, which shows whether the current device is syncing with iCloud and offers buttons to re-check availability or enable syncing.
-- When iCloud access returns, switching back to cloud sync triggers a fresh profile import and re-enables CloudKit-based sharing features without requiring a relaunch.
 
 ## Analytics
 

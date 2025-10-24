@@ -420,7 +420,7 @@ struct ProfileActionState: Codable, Sendable {
 
 @Model
 final class Profile {
-    /// Stable identifier used for CloudKit mirroring and SwiftData uniqueness.
+    /// Stable identifier used for SwiftData uniqueness and JSON exports.
     var profileID: UUID = UUID()
     var name: String?
     var birthDate: Date?
@@ -504,7 +504,7 @@ extension ProfileActionStateModel {
 
 @Model
 final class BabyAction {
-    /// Stable identifier synced with CloudKit to keep actions unique across devices.
+    /// Stable identifier used to deduplicate actions during merges and exports.
     var id: UUID = UUID()
     private var categoryRawValue: String = BabyActionCategory.sleep.rawValue
     var startDateRawValue: Date = Date().normalizedToUTC()

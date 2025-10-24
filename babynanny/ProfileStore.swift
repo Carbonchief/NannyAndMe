@@ -257,12 +257,10 @@ final class ProfileStore: ObservableObject {
 
     private let saveURL: URL
     private let reminderScheduler: ReminderScheduling
-    private var cloudImporter: ProfileCloudImporting?
-    private var initialCloudImportTask: Task<Void, Never>?
     private weak var actionStore: ActionLogStore?
     private let didLoadProfilesFromDisk: Bool
     private var shouldEnsureProfileExists: Bool {
-        didLoadProfilesFromDisk || cloudImporter == nil || isAwaitingInitialCloudImport == false
+        true
     }
     struct ActionReminderSummary: Equatable, Sendable {
         let fireDate: Date
@@ -285,20 +283,15 @@ final class ProfileStore: ObservableObject {
         }
     }
 
-    @Published private(set) var isAwaitingInitialCloudImport: Bool
-
     init(
         fileManager: FileManager = .default,
         directory: URL? = nil,
         filename: String = "childProfiles.json",
-        reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler(),
-        cloudImporter: ProfileCloudImporting? = CloudKitProfileImporter()
+        reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler()
     ) {
         self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
         self.reminderScheduler = reminderScheduler
-        self.cloudImporter = cloudImporter
         self.didLoadProfilesFromDisk = fileManager.fileExists(atPath: saveURL.path)
-        self.isAwaitingInitialCloudImport = (didLoadProfilesFromDisk == false && cloudImporter != nil)
 
         if let data = try? Data(contentsOf: saveURL) {
             let decoder = JSONDecoder()
@@ -310,14 +303,12 @@ final class ProfileStore: ObservableObject {
                 self.state = Self.defaultState()
             }
         } else {
-            let shouldCreateBootstrapProfile = didLoadProfilesFromDisk || cloudImporter == nil
+            let shouldCreateBootstrapProfile = didLoadProfilesFromDisk
             self.state = Self.sanitized(state: nil, ensureProfileExists: shouldCreateBootstrapProfile)
         }
 
         persistState()
         scheduleReminders()
-
-        scheduleInitialCloudImport()
     }
 
     init(
@@ -326,14 +317,11 @@ final class ProfileStore: ObservableObject {
         fileManager: FileManager = .default,
         directory: URL? = nil,
         filename: String = "childProfiles.json",
-        reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler(),
-        cloudImporter: ProfileCloudImporting? = nil
+        reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler()
     ) {
         self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
         self.reminderScheduler = reminderScheduler
-        self.cloudImporter = cloudImporter
         self.didLoadProfilesFromDisk = true
-        self.isAwaitingInitialCloudImport = false
         let state = ProfileState(profiles: initialProfiles, activeProfileID: activeProfileID)
         self.state = Self.sanitized(state: state, ensureProfileExists: true)
         persistState()
@@ -693,174 +681,6 @@ func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
 
     private func synchronizeProfileMetadata() {
         actionStore?.synchronizeProfileMetadata(state.profiles)
-    }
-
-    private func scheduleInitialCloudImport() {
-        guard initialCloudImportTask == nil else { return }
-        guard let cloudImporter else { return }
-
-        initialCloudImportTask = Task { [weak self] in
-            guard let self else { return }
-            await self.performInitialCloudImport(using: cloudImporter)
-        }
-    }
-
-    private func performInitialCloudImport(using importer: ProfileCloudImporting) async {
-        defer {
-            finishInitialCloudImport()
-        }
-        defer { initialCloudImportTask = nil }
-
-        let maxRetryAttempts = 5
-        var retryAttempt = 0
-
-        while true {
-            do {
-                guard let snapshot = try await importer.fetchProfileSnapshot() else {
-                    if shouldRetry() {
-                        await scheduleRetry()
-                        continue
-                    }
-                    return
-                }
-
-                let currentState = Self.sanitized(state: state, ensureProfileExists: shouldEnsureProfileExists)
-                let importedState = Self.sanitized(state: ProfileState(
-                    profiles: snapshot.profiles,
-                    activeProfileID: snapshot.activeProfileID,
-                    showRecentActivityOnHome: snapshot.showRecentActivityOnHome
-                ), ensureProfileExists: true)
-
-                guard importedState.profiles.isEmpty == false else { return }
-
-                let mergedState = merged(
-                    localState: currentState,
-                    remoteState: importedState,
-                    remoteProfilesWithExplicitReminderStates: snapshot.profilesWithExplicitReminderStates
-                )
-
-                guard mergedState != currentState else { return }
-
-                state = mergedState
-                return
-            } catch let CloudProfileImportError.recoverable(error) {
-                if shouldRetry() {
-                    #if DEBUG
-                    print("Recoverable CloudKit import error: \(error.localizedDescription). Retrying...")
-                    #endif
-                    await scheduleRetry()
-                    continue
-                }
-                #if DEBUG
-                print("Failed to import CloudKit profiles: \(error.localizedDescription)")
-                #endif
-                return
-            } catch {
-                #if DEBUG
-                print("Failed to import CloudKit profiles: \(error.localizedDescription)")
-                #endif
-                return
-            }
-        }
-
-        func shouldRetry() -> Bool {
-            guard isBootstrapState(state) else { return false }
-            guard retryAttempt < maxRetryAttempts else { return false }
-            retryAttempt += 1
-            return true
-        }
-
-        func scheduleRetry() async {
-            let baseDelay: Double = 0.25
-            let exponentialDelay = min(1.0, baseDelay * pow(2.0, Double(max(retryAttempt - 1, 0))))
-            let nanoseconds = UInt64(exponentialDelay * 1_000_000_000)
-            try? await Task.sleep(nanoseconds: nanoseconds)
-        }
-    }
-
-    private func finishInitialCloudImport() {
-        if isAwaitingInitialCloudImport {
-            isAwaitingInitialCloudImport = false
-            ensureValidState()
-        }
-    }
-
-    func updateCloudImporter(_ importer: ProfileCloudImporting?) {
-        if importer == nil {
-            initialCloudImportTask?.cancel()
-            initialCloudImportTask = nil
-            cloudImporter = nil
-            finishInitialCloudImport()
-            return
-        }
-
-        cloudImporter = importer
-        isAwaitingInitialCloudImport = true
-        initialCloudImportTask?.cancel()
-        initialCloudImportTask = nil
-        scheduleInitialCloudImport()
-    }
-
-    private func merged(localState: ProfileState,
-                        remoteState: ProfileState,
-                        remoteProfilesWithExplicitReminderStates: Set<UUID>) -> ProfileState {
-        if didLoadProfilesFromDisk == false && isBootstrapState(localState) {
-            return Self.sanitized(state: remoteState, ensureProfileExists: true)
-        }
-
-        let remoteProfilesByID = Dictionary(uniqueKeysWithValues: remoteState.profiles.map { ($0.id, $0) })
-        let localIDs = Set(localState.profiles.map { $0.id })
-
-        var combinedProfiles: [ChildProfile] = localState.profiles.map { profile in
-            guard var remoteProfile = remoteProfilesByID[profile.id] else {
-                return profile
-            }
-
-            if remoteProfilesWithExplicitReminderStates.contains(profile.id) == false {
-                remoteProfile.remindersEnabled = profile.remindersEnabled
-            }
-
-            return remoteProfile
-        }
-
-        for profile in remoteState.profiles where localIDs.contains(profile.id) == false {
-            combinedProfiles.append(profile)
-        }
-
-        var mergedState = ProfileState(
-            profiles: combinedProfiles,
-            activeProfileID: remoteState.activeProfileID ?? localState.activeProfileID,
-            showRecentActivityOnHome: remoteState.showRecentActivityOnHome
-        )
-
-        if let activeID = mergedState.activeProfileID,
-           combinedProfiles.contains(where: { $0.id == activeID }) == false {
-            if let localActiveID = localState.activeProfileID,
-               combinedProfiles.contains(where: { $0.id == localActiveID }) {
-                mergedState.activeProfileID = localActiveID
-            } else {
-                mergedState.activeProfileID = combinedProfiles.first?.id
-            }
-        }
-
-        return Self.sanitized(state: mergedState, ensureProfileExists: true)
-    }
-
-    private func isBootstrapState(_ state: ProfileState) -> Bool {
-        if state.profiles.isEmpty {
-            return true
-        }
-
-        guard state.profiles.count == 1 else { return false }
-        guard let profile = state.profiles.first else { return false }
-
-        if profile.name.isEmpty == false { return false }
-        if profile.imageData != nil { return false }
-        if profile.remindersEnabled { return false }
-        if profile.actionReminderIntervals != ChildProfile.defaultActionReminderIntervals() { return false }
-        if profile.actionRemindersEnabled != ChildProfile.defaultActionRemindersEnabled() { return false }
-
-        return true
     }
 
     private static func sanitized(state: ProfileState?, ensureProfileExists: Bool) -> ProfileState {
