@@ -7,8 +7,6 @@ struct ShareDataView: View {
     @EnvironmentObject private var actionStore: ActionLogStore
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
 
-    @State private var isExporting = false
-    @State private var exportDocument: ShareDataDocument?
     @State private var isImporting = false
     @State private var lastImportSummary: ActionLogStore.MergeSummary?
     @State private var didUpdateProfile = false
@@ -20,11 +18,20 @@ struct ShareDataView: View {
     var body: some View {
         Form {
             Section(header: Text(L10n.ShareData.profileSectionTitle)) {
-                Text(L10n.ShareData.profileName(profileStore.activeProfile.displayName))
-                let historyCount = actionStore.state(for: profileStore.activeProfile.id).history.count
-                Text(L10n.ShareData.logCount(historyCount))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                let profile = profileStore.activeProfile
+                let historyCount = actionStore.state(for: profile.id).history.count
+
+                HStack(spacing: 16) {
+                    ProfileAvatarView(imageData: profile.imageData, size: 44)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L10n.ShareData.profileName(profile.displayName))
+
+                        Text(L10n.ShareData.logCount(historyCount))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
 
             Section {
@@ -53,26 +60,6 @@ struct ShareDataView: View {
 
             Section {
                 ShareDataActionButton(
-                    title: L10n.ShareData.exportButton,
-                    systemImage: "square.and.arrow.up",
-                    tint: .accentColor,
-                    action: startExport
-                )
-                .postHogLabel("shareData.export")
-                .phCaptureTap(
-                    event: "shareData_export_button",
-                    properties: ["profile_id": profileStore.activeProfile.id.uuidString]
-                )
-            } header: {
-                Text(L10n.ShareData.exportSectionTitle)
-            } footer: {
-                Text(L10n.ShareData.exportFooter)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section {
-                ShareDataActionButton(
                     title: L10n.ShareData.importButton,
                     systemImage: "square.and.arrow.down",
                     tint: .mint,
@@ -93,14 +80,6 @@ struct ShareDataView: View {
         .shareDataFormStyling()
         .navigationTitle(L10n.ShareData.title)
         .phScreen("shareData_screen_shareDataView")
-        .fileExporter(
-            isPresented: $isExporting,
-            document: exportDocument,
-            contentType: .json,
-            defaultFilename: defaultExportFilename
-        ) { result in
-            handleExportResult(result)
-        }
         .fileImporter(
             isPresented: $isImporting,
             allowedContentTypes: [.json],
@@ -179,14 +158,6 @@ struct ShareDataView: View {
         }
     }
 
-    private func startExport() {
-        let profile = profileStore.activeProfile
-        let state = actionStore.state(for: profile.id)
-        let payload = SharedProfileData(profile: profile, actions: state)
-        exportDocument = ShareDataDocument(payload: payload)
-        isExporting = true
-    }
-
     private func startAirDropShare() {
         guard !isPreparingAirDropShare else { return }
 
@@ -227,22 +198,6 @@ struct ShareDataView: View {
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return try encoder.encode(payload)
-    }
-
-    private func handleExportResult(_ result: Result<URL, Error>) {
-        switch result {
-        case .success(let url):
-            alert = ShareDataAlert(
-                title: L10n.ShareData.Alert.exportSuccessTitle,
-                message: L10n.ShareData.Alert.exportSuccessMessage(url.lastPathComponent)
-            )
-        case .failure(let error):
-            guard (error as NSError).code != NSUserCancelledError else { return }
-            alert = ShareDataAlert(
-                title: L10n.ShareData.Alert.exportFailureTitle,
-                message: L10n.ShareData.Alert.exportFailureMessage
-            )
-        }
     }
 
     private func handleImportResult(_ result: Result<[URL], Error>) {
@@ -478,34 +433,6 @@ struct SharedProfileData: Codable {
         self.exportedAt = exportedAt
         self.profile = profile
         self.actions = actions
-    }
-}
-
-struct ShareDataDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.json] }
-    static var writableContentTypes: [UTType] { [.json] }
-
-    var payload: SharedProfileData
-
-    init(payload: SharedProfileData) {
-        self.payload = payload
-    }
-
-    init(configuration: ReadConfiguration) throws {
-        guard let data = configuration.file.regularFileContents else {
-            throw CocoaError(.fileReadCorruptFile)
-        }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        self.payload = try decoder.decode(SharedProfileData.self, from: data)
-    }
-
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(payload)
-        return FileWrapper(regularFileWithContents: data)
     }
 }
 
