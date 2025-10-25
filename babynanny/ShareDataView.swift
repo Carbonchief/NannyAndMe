@@ -282,6 +282,35 @@ private struct AirDropShareItem: Identifiable {
     }
 }
 
+private final class AirDropShareItemSource: NSObject, UIActivityItemSource {
+    private let item: AirDropShareItem
+
+    init(item: AirDropShareItem) {
+        self.item = item
+    }
+
+    func activityViewControllerPlaceholderItem(_ activityViewController: UIActivityViewController) -> Any {
+        item.url
+    }
+
+    func activityViewController(
+        _ activityViewController: UIActivityViewController,
+        itemForActivityType activityType: UIActivity.ActivityType?
+    ) -> Any? {
+        item.url
+    }
+
+    func activityViewController(
+        _ activityViewController: UIActivityViewController,
+        dataTypeIdentifierForActivityType activityType: UIActivity.ActivityType?
+    ) -> String {
+        if #available(iOS 14.0, *) {
+            return UTType.json.identifier
+        }
+        return "public.json"
+    }
+}
+
 private enum AirDropShareOutcome {
     case completed
     case cancelled
@@ -297,7 +326,8 @@ private struct AirDropShareSheet: UIViewControllerRepresentable {
     }
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        let controller = UIActivityViewController(activityItems: [item.url], applicationActivities: nil)
+        let activityItem = AirDropShareItemSource(item: item)
+        let controller = UIActivityViewController(activityItems: [activityItem], applicationActivities: nil)
         controller.excludedActivityTypes = Self.nonAirDropActivities
         controller.completionWithItemsHandler = { _, completed, _, error in
             DispatchQueue.main.async {
