@@ -380,6 +380,10 @@ private struct ActionCluster: Identifiable, Equatable {
         locations.map(\.id.uuidString).sorted().joined(separator: "-")
     }
 
+    static func == (lhs: ActionCluster, rhs: ActionCluster) -> Bool {
+        lhs.id == rhs.id
+    }
+
     var accessibilityLabel: String {
         let locationName = headerTitle
         let dateDescription: String
