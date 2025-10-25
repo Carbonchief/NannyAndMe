@@ -19,9 +19,21 @@ enum DurationActivityController {
             return
         }
 
+        let existingActivity = existingActivity(for: model.id)
+
+        guard model.profile != nil else {
+            if let existingActivity {
+                await existingActivity.end(
+                    using: existingActivity.content.state,
+                    dismissalPolicy: .immediate
+                )
+            }
+            return
+        }
+
         let state = model.makeContentState()
 
-        if let existing = existingActivity(for: model.id) {
+        if let existing = existingActivity {
             await existing.update(using: state)
             if state.endDate != nil {
                 await existing.end(using: state, dismissalPolicy: .immediate)
@@ -62,7 +74,11 @@ enum DurationActivityController {
 
         let descriptor = FetchDescriptor<BabyActionModel>()
         let models = (try? context.fetch(descriptor)) ?? []
-        let running = models.filter { $0.endDate == nil && $0.category.isInstant == false }
+        let running = models.filter { model in
+            model.endDate == nil &&
+                model.category.isInstant == false &&
+                model.profile != nil
+        }
         let runningIDs = Set(running.map(\.id))
 
         for model in running {
