@@ -3,6 +3,7 @@ import Foundation
 enum L10n {
     enum Tab {
         static let home = String(localized: "tab.home.title", defaultValue: "Home")
+        static let map = String(localized: "tab.map.title", defaultValue: "Map")
         static let reports = String(localized: "tab.reports.title", defaultValue: "Reports")
     }
 
@@ -404,12 +405,25 @@ enum L10n {
         static let startDate = String(localized: "map.filter.startDate", defaultValue: "Start date")
         static let endDate = String(localized: "map.filter.endDate", defaultValue: "End date")
         static let allDates = String(localized: "map.filter.allDates", defaultValue: "All dates")
+        static let dateRangeToday = String(localized: "map.filter.dateRange.today", defaultValue: "Today")
+        static let dateRangeSevenDays = String(
+            localized: "map.filter.dateRange.sevenDays",
+            defaultValue: "Last 7 days"
+        )
+        static let dateRangeThirtyDays = String(
+            localized: "map.filter.dateRange.thirtyDays",
+            defaultValue: "Last 30 days"
+        )
         static let dateRangeFilterToggle = String(
             localized: "map.filter.dateRange.toggle",
             defaultValue: "Filter by date range"
         )
         static let allActions = String(localized: "map.filter.allActions", defaultValue: "All actions")
         static let emptyState = String(localized: "map.emptyState", defaultValue: "No actions match your filters.")
+        static let unknownLocation = String(
+            localized: "map.unknownLocation",
+            defaultValue: "Unknown location"
+        )
 
         static let annotationTypeLabel = String(localized: "map.annotation.type", defaultValue: "Type")
         static let annotationSubtypeLabel = String(localized: "map.annotation.subtype", defaultValue: "Subtype")

@@ -1,4 +1,5 @@
 "tab.home.title" = "Home";
+"tab.map.title" = "Map";
 "tab.reports.title" = "Reports";
 "common.stop" = "Stop";
 "common.start" = "Start";
@@ -162,9 +163,13 @@
 "map.filter.startDate" = "Start date";
 "map.filter.endDate" = "End date";
 "map.filter.allDates" = "All dates";
+"map.filter.dateRange.today" = "Today";
+"map.filter.dateRange.sevenDays" = "Last 7 days";
+"map.filter.dateRange.thirtyDays" = "Last 30 days";
 "map.filter.dateRange.toggle" = "Filter by date range";
 "map.filter.allActions" = "All actions";
 "map.emptyState" = "No actions match your filters.";
+"map.unknownLocation" = "Unknown location";
 "map.annotation.type" = "Type";
 "map.annotation.subtype" = "Subtype";
 "map.annotation.loggedAt" = "Logged on %@";
