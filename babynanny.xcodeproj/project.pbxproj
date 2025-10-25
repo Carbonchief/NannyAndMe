@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		4D9378C8061A450A9B62527F /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = DD1D323F70A4410991301FD7 /* PostHog */; };
 		EDBCCD052E9A324500C65A0E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBCCD042E9A324500C65A0E /* WidgetKit.framework */; };
 		EDBCCD072E9A324500C65A0E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBCCD062E9A324500C65A0E /* SwiftUI.framework */; };
 		EDBCCD182E9A324800C65A0E /* DurationActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EDBCCD022E9A324500C65A0E /* DurationActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -116,14 +115,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		EDD0498E2E93FE1A00795772 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				4D9378C8061A450A9B62527F /* PostHog in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
+                EDD0498E2E93FE1A00795772 /* Frameworks */ = {
+                        isa = PBXFrameworksBuildPhase;
+                        buildActionMask = 2147483647;
+                        files = (
+                        );
+                        runOnlyForDeploymentPostprocessing = 0;
+                };
 		EDD0499E2E93FE1E00795772 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -216,9 +214,8 @@
 				EDD049932E93FE1A00795772 /* babynanny */,
 			);
 			name = babynanny;
-			packageProductDependencies = (
-				DD1D323F70A4410991301FD7 /* PostHog */,
-			);
+                        packageProductDependencies = (
+                        );
 			productName = babynanny;
 			productReference = EDD049912E93FE1A00795772 /* babynanny.app */;
 			productType = "com.apple.product-type.application";
@@ -306,9 +303,8 @@
 			);
 			mainGroup = EDD049882E93FE1A00795772;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = (
-				A6629B96F8E34810908AEDB9 /* XCRemoteSwiftPackageReference "posthog-ios" */,
-			);
+                        packageReferences = (
+                        );
 			preferredProjectObjectVersion = 77;
 			productRefGroup = EDD049922E93FE1A00795772 /* Products */;
 			projectDirPath = "";
@@ -769,22 +765,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		A6629B96F8E34810908AEDB9 /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/PostHog/posthog-ios.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 3.0.0;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		DD1D323F70A4410991301FD7 /* PostHog */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A6629B96F8E34810908AEDB9 /* XCRemoteSwiftPackageReference "posthog-ios" */;
-			productName = PostHog;
-		};
 /* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = EDD049892E93FE1A00795772 /* Project object */;

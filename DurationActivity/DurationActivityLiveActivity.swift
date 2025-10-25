@@ -69,8 +69,7 @@ struct DurationLiveActivityWidget: Widget {
                 DynamicIslandExpandedRegion(.trailing) {
                     StopActionButton(
                         actionID: context.state.activityID,
-                        accentColor: accentColor,
-                        postHogLabel: "duration_stop_button_liveActivity_dynamicIsland"
+                        accentColor: accentColor
                     )
                 }
             },
@@ -181,8 +180,7 @@ private struct DurationLockScreenView: View {
 
                 StopActionButton(
                     actionID: context.state.activityID,
-                    accentColor: resolvedAccentColor,
-                    postHogLabel: "duration_stop_button_liveActivity_lockScreen"
+                    accentColor: resolvedAccentColor
                 )
             }
 
@@ -207,7 +205,6 @@ private struct DurationLockScreenView: View {
 private struct StopActionButton: View {
     let actionID: UUID
     let accentColor: Color?
-    let postHogLabel: String
 
     @ViewBuilder
     var body: some View {
@@ -226,7 +223,6 @@ private struct StopActionButton: View {
                     .contentShape(Circle())
                     .accessibilityLabel(WidgetL10n.Common.stop)
             }
-            .postHogLabel(postHogLabel)
             .privacySensitive(false)
         }
     }

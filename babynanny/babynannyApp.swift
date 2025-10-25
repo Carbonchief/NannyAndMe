@@ -18,7 +18,6 @@ struct babynannyApp: App {
     @State private var isShowingSplashScreen = true
 
     init() {
-        Analytics.setup()
 
         let stack = AppDataStack()
         let scheduler = UserNotificationReminderScheduler()

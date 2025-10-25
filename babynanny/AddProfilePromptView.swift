@@ -3,7 +3,6 @@ import PhotosUI
 import UIKit
 
 struct AddProfilePromptView: View {
-    let analyticsSource: String
     let onCreate: (String, Data?) -> Void
     let onCancel: () -> Void
 
@@ -21,11 +20,9 @@ struct AddProfilePromptView: View {
     init(
         initialName: String = "",
         initialImageData: Data? = nil,
-        analyticsSource: String,
         onCreate: @escaping (String, Data?) -> Void,
         onCancel: @escaping () -> Void = {}
     ) {
-        self.analyticsSource = analyticsSource
         self.onCreate = onCreate
         self.onCancel = onCancel
         _name = State(initialValue: initialName)
@@ -60,7 +57,6 @@ struct AddProfilePromptView: View {
                     .textFieldStyle(.roundedBorder)
                     .focused($isNameFieldFocused)
                     .submitLabel(.done)
-                    .postHogLabel("\(analyticsSource).nameField")
                     .onSubmit(handleCreate)
                 }
 
@@ -80,14 +76,6 @@ struct AddProfilePromptView: View {
                     Text(L10n.Profiles.addPromptCreate)
                         .frame(maxWidth: .infinity)
                 }
-                .postHogLabel("\(analyticsSource).create")
-                .phCaptureTap(
-                    event: "\(analyticsSource)_create_profile_button",
-                    properties: [
-                        "is_name_empty": trimmedName.isEmpty ? "true" : "false",
-                        "has_photo": imageData == nil ? "false" : "true"
-                    ]
-                )
                 .buttonStyle(.borderedProminent)
                 .disabled(trimmedName.isEmpty)
             }
@@ -99,8 +87,6 @@ struct AddProfilePromptView: View {
                     Button(L10n.Common.cancel) {
                         handleCancel()
                     }
-                    .postHogLabel("\(analyticsSource).cancel")
-                    .phCaptureTap(event: "\(analyticsSource)_cancel_button")
                 }
             }
             .onAppear {
@@ -117,7 +103,6 @@ struct AddProfilePromptView: View {
         .interactiveDismissDisabled(false)
         .presentationDetents([.medium])
         .presentationDragIndicator(.hidden)
-        .phScreen("\(analyticsSource)_addProfilePromptView")
         .fullScreenCover(item: $pendingCrop) { crop in
             ImageCropperView(image: crop.image) {
                 pendingCrop = nil
@@ -134,19 +119,11 @@ struct AddProfilePromptView: View {
     private func handleCreate() {
         let value = trimmedName
         guard value.isEmpty == false else { return }
-        Analytics.capture(
-            "\(analyticsSource)_submit_profile_name",
-            properties: [
-                "name_length": "\(value.count)",
-                "has_photo": imageData == nil ? "false" : "true"
-            ]
-        )
         onCreate(value, imageData)
         dismiss()
     }
 
     private func handleCancel() {
-        Analytics.capture("\(analyticsSource)_cancel_add_profile")
         onCancel()
         dismiss()
     }
@@ -167,7 +144,6 @@ struct AddProfilePromptView: View {
             }
             .buttonStyle(.plain)
             .contentShape(Rectangle())
-            .postHogLabel("\(analyticsSource).profilePhotoPicker")
             .accessibilityLabel(L10n.Profiles.choosePhoto)
             .onChange(of: selectedPhoto) { _, newValue in
                 handlePhotoSelectionChange(newValue)
@@ -175,7 +151,6 @@ struct AddProfilePromptView: View {
 
             if imageData != nil {
                 Button {
-                    Analytics.capture("\(analyticsSource)_remove_profile_photo_button")
                     imageData = nil
                 } label: {
                     Image(systemName: "trash.fill")
@@ -187,8 +162,6 @@ struct AddProfilePromptView: View {
                         .shadow(radius: 2)
                 }
                 .buttonStyle(.plain)
-                .postHogLabel("\(analyticsSource).profilePhotoRemove")
-                .phCaptureTap(event: "\(analyticsSource)_remove_profile_photo_button")
                 .accessibilityLabel(L10n.Profiles.removePhoto)
                 .padding(4)
             }
@@ -211,7 +184,6 @@ struct AddProfilePromptView: View {
         photoLoadingTask?.cancel()
         guard let newValue else { return }
 
-        Analytics.capture("\(analyticsSource)_select_profile_photo_picker")
 
         isProcessingPhoto = true
         let requestID = UUID()
@@ -247,7 +219,7 @@ struct AddProfilePromptView: View {
 }
 
 #Preview {
-    AddProfilePromptView(analyticsSource: "preview") { _, _ in }
+    AddProfilePromptView { _, _ in }
 }
 
 private extension AddProfilePromptView {

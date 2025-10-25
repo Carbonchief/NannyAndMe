@@ -36,7 +36,6 @@ struct HomeView: View {
             content(referenceDate: context.date)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .phScreen("home_screen_homeView", properties: ["tab": "home"])
         .sheet(item: $presentedCategory, onDismiss: {
             categoryClearedForSheet = nil
         }) { category in
@@ -58,18 +57,10 @@ struct HomeView: View {
                 title: Text(L10n.Home.interruptionAlertTitle),
                 message: Text(L10n.Home.interruptionAlertMessage(pending.category.title, runningList)),
                 primaryButton: .destructive(Text(L10n.Home.interruptionAlertConfirm)) {
-                    Analytics.capture(
-                        "home_confirm_interruption_alert",
-                        properties: ["category": pending.category.rawValue]
-                    )
                     completePendingStartAction(pending)
                     pendingStartAction = nil
                 },
                 secondaryButton: .cancel {
-                    Analytics.capture(
-                        "home_cancel_interruption_alert",
-                        properties: ["category": pending.category.rawValue]
-                    )
                     pendingStartAction = nil
                 }
             )
@@ -79,19 +70,11 @@ struct HomeView: View {
                 title: Text(L10n.Home.customReminderNotificationsDeniedTitle),
                 message: Text(L10n.Home.customReminderNotificationsDeniedMessage),
                 primaryButton: .default(Text(L10n.Home.customReminderNotificationsDeniedSettings)) {
-                    Analytics.capture(
-                        "home_open_notification_settings_alert",
-                        properties: ["category": alert.category.rawValue]
-                    )
                     if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
                         openURL(settingsURL)
                     }
                 },
                 secondaryButton: .cancel(Text(L10n.Home.customReminderNotificationsDeniedCancel)) {
-                    Analytics.capture(
-                        "home_dismiss_notification_settings_alert",
-                        properties: ["category": alert.category.rawValue]
-                    )
                 }
             )
         }
@@ -104,10 +87,6 @@ struct HomeView: View {
                     scheduleReminder(for: prompt, delay: selectedDelay)
                 },
                 onCancel: { prompt in
-                    Analytics.capture(
-                        "home_cancel_custom_action_reminder",
-                        properties: ["category": prompt.category.rawValue]
-                    )
                 }
             )
         }
@@ -151,14 +130,9 @@ struct HomeView: View {
 
                             Spacer()
 
-                            Button.phTap(
-                                L10n.Home.recentActivityShowAll,
-                                event: "home_showAllLogs_button_homeView",
-                                properties: ["source": "recent_activity"]
-                            ) {
+                            Button(L10n.Home.recentActivityShowAll) {
                                 onShowAllLogs()
                             }
-                            .postHogLabel("home.recentActivity.showAll")
                             .tint(.accentColor)
                         }
 
@@ -182,12 +156,7 @@ struct HomeView: View {
             .padding(.top, 8)
             .padding(.bottom, 24)
         }
-        .postHogLabel("home.pullToRefresh")
         .refreshable {
-            Analytics.capture(
-                "home_pullToRefresh",
-                properties: ["source": "home"]
-            )
             await actionStore.performUserInitiatedRefresh()
         }
     }
@@ -250,14 +219,9 @@ struct HomeView: View {
                 Spacer(minLength: 12)
 
                 if isRunning {
-                    Button.phTap(
-                        L10n.Common.stop,
-                        event: "home_stop_action_header",
-                        properties: ["category": recent.category.rawValue]
-                    ) {
+                    Button(L10n.Common.stop) {
                         _ = handleStopTap(for: recent.category)
                     }
-                    .postHogLabel("home.header.stop.\(recent.category.rawValue)")
                     .buttonStyle(.borderedProminent)
                     .tint(recent.category.accentColor)
                     .transition(trailingTransition)
@@ -281,7 +245,6 @@ struct HomeView: View {
         )
         .clipShape(cardShape)
         .contentShape(Rectangle())
-        .postHogLabel("home.header.editAction")
         .onTapGesture {
             editingAction = recent
         }
@@ -468,10 +431,6 @@ struct HomeView: View {
     }
 
     private func handleReminderLongPress(for category: BabyActionCategory) {
-        Analytics.capture(
-            "home_long_press_action_card",
-            properties: ["category": category.rawValue]
-        )
 
         Task { @MainActor in
             let isAuthorized = await profileStore.ensureNotificationAuthorization()
@@ -493,26 +452,12 @@ struct HomeView: View {
             initialDelay: initialDelay
         )
 
-        Analytics.capture(
-            "home_open_custom_action_reminder",
-            properties: [
-                "category": category.rawValue,
-                "is_one_off": true
-            ]
-        )
     }
 
     private func handleHistoryLongPress(for action: BabyActionSnapshot) {
         guard recentActionDetail == nil,
               let completedAction = mostRecentCompletedAction(from: action) else { return }
 
-        Analytics.capture(
-            "home_open_recentAction_detail",
-            properties: [
-                "action_id": completedAction.id.uuidString,
-                "category": completedAction.category.rawValue
-            ]
-        )
 
         withAnimation(.easeInOut(duration: 0.2)) {
             recentActionDetail = RecentActionDetailState(action: completedAction)
@@ -537,15 +482,6 @@ struct HomeView: View {
                                                   delay: clampedDelay,
                                                   isOneOff: true)
 
-        Analytics.capture(
-            "home_schedule_custom_action_reminder",
-            properties: [
-                "profile_id": prompt.profileID.uuidString,
-                "category": prompt.category.rawValue,
-                "delay_minutes": clampedDelay / 60,
-                "is_one_off": true
-            ]
-        )
     }
 
     private func defaultReminderDelay(for category: BabyActionCategory) -> TimeInterval {
@@ -706,7 +642,6 @@ private struct ActionReminderDelayDialog: View {
 
                 CountdownDialer(delay: $selectedDelay, delayRange: delayRange)
                     .frame(height: 216)
-                    .postHogLabel("home.customReminder.dialer")
             }
 
             HStack(spacing: 16) {
@@ -714,7 +649,6 @@ private struct ActionReminderDelayDialog: View {
                     onCancel()
                 }
                 .buttonStyle(.bordered)
-                .postHogLabel("home.customReminder.cancel")
 
                 Button(L10n.Home.customReminderSchedule) {
                     let selected = Self.normalizedDelay(selectedDelay, within: delayRange)
@@ -722,7 +656,6 @@ private struct ActionReminderDelayDialog: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(category.accentColor)
-                .postHogLabel("home.customReminder.schedule")
             }
         }
         .padding(.horizontal, 24)
@@ -831,23 +764,9 @@ private struct ActionCard: View {
 
             if isActive {
                 if onStop() {
-                    Analytics.capture(
-                        "home_stop_action_card",
-                        properties: [
-                            "category": category.rawValue,
-                            "is_active": "true"
-                        ]
-                    )
                 }
             } else {
                 if onStart() {
-                    Analytics.capture(
-                        "home_start_action_card",
-                        properties: [
-                            "category": category.rawValue,
-                            "is_active": "false"
-                        ]
-                    )
                 }
             }
         } label: {
@@ -893,7 +812,6 @@ private struct ActionCard: View {
                 .animation(cardAnimation, value: activeAction?.id)
             }
         }
-        .postHogLabel("home.actionCard.\(category.rawValue)")
         .buttonStyle(.plain)
         .disabled(isInteractionDisabled)
         .simultaneousGesture(
@@ -1054,31 +972,15 @@ private struct RecentActionDetailDialog: View {
 
             HStack(spacing: 16) {
                 Button(L10n.Common.done) {
-                    Analytics.capture(
-                        "home_close_recentAction_detail",
-                        properties: [
-                            "action_id": action.id.uuidString,
-                            "category": action.category.rawValue
-                        ]
-                    )
                     onDone()
                 }
                 .buttonStyle(.bordered)
-                .postHogLabel("home.recentActionDetail.done")
 
                 Button(L10n.Logs.editAction) {
-                    Analytics.capture(
-                        "home_edit_recentAction_longPress",
-                        properties: [
-                            "action_id": action.id.uuidString,
-                            "category": action.category.rawValue
-                        ]
-                    )
                     onEdit()
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(action.category.accentColor)
-                .postHogLabel("home.recentActionDetail.edit")
             }
         }
         .padding(.horizontal, 24)
@@ -1305,22 +1207,15 @@ private struct HistoryRow: View {
                 Label(L10n.Logs.editAction, systemImage: "square.and.pencil")
             }
             .tint(.accentColor)
-            .postHogLabel("home.historyRow.edit.leading.\(action.category.rawValue)")
         }
         .swipeActions(edge: .trailing) {
             Button {
-                Analytics.capture(
-                    "home_edit_recentAction_swipe",
-                    properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
-                )
                 onEdit(action)
             } label: {
                 Label(L10n.Logs.editAction, systemImage: "square.and.pencil")
             }
             .tint(.accentColor)
-            .postHogLabel("home.historyRow.edit.trailing.\(action.category.rawValue)")
         }
-        .postHogLabel("home.recentActivity.card.\(action.category.rawValue)")
     }
 }
 
@@ -1519,7 +1414,6 @@ private struct ActionTypeSelectionGrid<Option: ActionTypeOption>: View {
     @Binding var selection: Option
     let accentColor: Color
     var onOptionActivated: ((Option) -> Void)?
-    let postHogLabelPrefix: String
     let highlightedOptions: [Option: Alignment]
 
     private let columns: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
@@ -1528,13 +1422,11 @@ private struct ActionTypeSelectionGrid<Option: ActionTypeOption>: View {
          selection: Binding<Option>,
          accentColor: Color,
          onOptionActivated: ((Option) -> Void)? = nil,
-         postHogLabelPrefix: String,
          highlightedOptions: [Option: Alignment] = [:]) {
         self.options = options
         self._selection = selection
         self.accentColor = accentColor
         self.onOptionActivated = onOptionActivated
-        self.postHogLabelPrefix = postHogLabelPrefix
         self.highlightedOptions = highlightedOptions
     }
 
@@ -1542,14 +1434,6 @@ private struct ActionTypeSelectionGrid<Option: ActionTypeOption>: View {
         LazyVGrid(columns: columns, spacing: 16) {
             ForEach(options) { option in
                 Button {
-                    Analytics.capture(
-                        "home_select_action_option_sheet",
-                        properties: [
-                            "category": postHogLabelPrefix,
-                            "option_id": String(describing: option.id),
-                            "previous_selection": String(describing: selection.id)
-                        ]
-                    )
                     selection = option
                     onOptionActivated?(option)
                 } label: {
@@ -1587,7 +1471,6 @@ private struct ActionTypeSelectionGrid<Option: ActionTypeOption>: View {
                     )
                 }
                 .buttonStyle(.plain)
-                .postHogLabel("\(postHogLabelPrefix).\(String(describing: option.id))")
                 .accessibilityElement(children: .combine)
                 .accessibilityAddTraits(selection == option ? .isSelected : [])
             }
@@ -1693,49 +1576,22 @@ struct ActionEditSheet: View {
                     Button(L10n.Common.cancel) {
                         dismiss()
                     }
-                    .postHogLabel("home.edit.cancel")
-                    .phCaptureTap(
-                        event: "home_edit_cancel_toolbar",
-                        properties: actionAnalyticsProperties
-                    )
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.Common.done) {
                         save()
                     }
-                    .postHogLabel("home.edit.save")
-                    .phCaptureTap(
-                        event: "home_edit_save_toolbar",
-                        properties: actionAnalyticsProperties
-                    )
                     .disabled(isSaveDisabled)
                 }
             }
         }
-        .phScreen(
-            "home_edit_sheet_actionEditSheet",
-            properties: screenAnalyticsProperties
-        )
         .onChange(of: startDate) { _, newValue in
             guard let currentEndDate = endDate else { return }
             if currentEndDate < newValue {
                 endDate = newValue
             }
         }
-    }
-
-    private var actionAnalyticsProperties: [String: String] {
-        [
-            "action_id": action.id.uuidString,
-            "category": action.category.rawValue
-        ]
-    }
-
-    private var screenAnalyticsProperties: [String: String] {
-        [
-            "category": action.category.rawValue
-        ]
     }
 
     @ViewBuilder
@@ -1767,7 +1623,6 @@ struct ActionEditSheet: View {
                 in: startDateRange,
                 displayedComponents: [.date, .hourAndMinute]
             )
-            .postHogLabel("home.edit.startDate")
         }
     }
 
@@ -1782,7 +1637,6 @@ struct ActionEditSheet: View {
                 } label: {
                     Text(L10n.Home.diaperTypePickerLabel)
                 }
-                .postHogLabel("home.edit.diaperType")
                 .pickerStyle(.segmented)
             }
         }
@@ -1799,7 +1653,6 @@ struct ActionEditSheet: View {
                 } label: {
                     Text(L10n.Home.feedingTypePickerLabel)
                 }
-                .postHogLabel("home.edit.feedingType")
                 .pickerStyle(.segmented)
             }
 
@@ -1819,7 +1672,6 @@ struct ActionEditSheet: View {
             } label: {
                 Text(L10n.Home.bottleTypePickerLabel)
             }
-            .postHogLabel("home.edit.bottleType")
             .pickerStyle(.segmented)
         }
     }
@@ -1834,13 +1686,11 @@ struct ActionEditSheet: View {
             } label: {
                 Text(L10n.Home.bottleVolumePickerLabel)
             }
-            .postHogLabel("home.edit.bottleVolume")
             .pickerStyle(.segmented)
 
             if bottleSelection == .custom {
                 TextField(L10n.Home.customVolumeFieldPlaceholder, text: $customBottleVolume)
                     .keyboardType(.numberPad)
-                    .postHogLabel("home.edit.customBottleVolume")
             }
         }
     }
@@ -1856,7 +1706,6 @@ struct ActionEditSheet: View {
                         in: endDateRange,
                         displayedComponents: [.date, .hourAndMinute]
                     )
-                    .postHogLabel("home.edit.endDate")
                 }
             } else {
                 Section(header: Text(L10n.Home.editEndSectionTitle)) {
@@ -1879,11 +1728,6 @@ struct ActionEditSheet: View {
                 Button(action: continueAction) {
                     Label(L10n.Logs.continueAction, systemImage: "play.fill")
                 }
-                .postHogLabel("home.edit.continue")
-                .phCaptureTap(
-                    event: "home_edit_continue_button",
-                    properties: actionAnalyticsProperties
-                )
             }
         }
     }
@@ -1893,11 +1737,6 @@ struct ActionEditSheet: View {
             Button(role: .destructive, action: deleteAction) {
                 Label(L10n.Logs.deleteAction, systemImage: "trash")
             }
-            .postHogLabel("home.edit.delete")
-            .phCaptureTap(
-                event: "home_edit_delete_button",
-                properties: actionAnalyticsProperties
-            )
         }
     }
 
@@ -2027,8 +1866,7 @@ private struct ActionDetailSheet: View {
                             accentColor: category.accentColor,
                             onOptionActivated: { _ in
                                 startIfReady()
-                            },
-                            postHogLabelPrefix: "home.detail.diaperType"
+                            }
                         )
                     } header: {
                         Text(L10n.Home.diaperTypeSectionTitle)
@@ -2043,7 +1881,6 @@ private struct ActionDetailSheet: View {
                             onOptionActivated: { _ in
                                 startIfReady()
                             },
-                            postHogLabelPrefix: "home.detail.feedingType",
                             highlightedOptions: highlightedFeedingOptions
                         )
                     } header: {
@@ -2059,7 +1896,6 @@ private struct ActionDetailSheet: View {
                             } label: {
                                 Text(L10n.Home.bottleTypePickerLabel)
                             }
-                            .postHogLabel("home.detail.bottleType")
                             .pickerStyle(.segmented)
                         } header: {
                             Text(L10n.Home.bottleTypeSectionTitle)
@@ -2075,13 +1911,11 @@ private struct ActionDetailSheet: View {
                             } label: {
                                 Text(L10n.Home.bottleVolumePickerLabel)
                             }
-                            .postHogLabel("home.detail.bottleVolume")
                             .pickerStyle(.segmented)
 
                             if bottleSelection == .custom {
                                 TextField(L10n.Home.customVolumeFieldPlaceholder, text: $customBottleVolume)
                                     .keyboardType(.numberPad)
-                                    .postHogLabel("home.detail.customBottleVolume")
                             }
                         } header: {
                             Text(L10n.Home.bottleVolumeSectionTitle)
@@ -2096,30 +1930,16 @@ private struct ActionDetailSheet: View {
                     Button(L10n.Common.cancel) {
                         dismiss()
                     }
-                    .postHogLabel("home.detail.cancel")
-                    .phCaptureTap(
-                        event: "home_detail_cancel_toolbar",
-                        properties: ["category": category.rawValue]
-                    )
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button(category.startActionButtonTitle) {
                         startIfReady()
                     }
-                    .postHogLabel("home.detail.start")
-                    .phCaptureTap(
-                        event: "home_detail_start_toolbar",
-                        properties: ["category": category.rawValue]
-                    )
                     .disabled(isStartDisabled)
                 }
             }
         }
-        .phScreen(
-            "home_detail_sheet_actionDetailSheet",
-            properties: ["category": category.rawValue]
-        )
     }
 
     private var configuration: ActionConfiguration {

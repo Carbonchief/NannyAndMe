@@ -37,27 +37,15 @@ struct ProfileSwitcherView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .postHogLabel("profile.select.\(profile.id.uuidString)")
-                        .phCaptureTap(
-                            event: "profileSwitcher_select_profile_row",
-                            properties: ["profile_id": profile.id.uuidString]
-                        )
                     }
                 }
 
                 Section {
                     Button {
-                        Analytics.capture(
-                            "profileSwitcher_add_profile_button",
-                            properties: [
-                                "profile_count": "\(profileStore.profiles.count)"
-                            ]
-                        )
                         isAddProfilePromptPresented = true
                     } label: {
                         Label(L10n.Profiles.addProfile, systemImage: "plus")
                     }
-                    .postHogLabel("profile.add")
                 }
             }
             .listStyle(.insetGrouped)
@@ -67,25 +55,12 @@ struct ProfileSwitcherView: View {
                     Button(L10n.Common.done) {
                         dismiss()
                     }
-                    .postHogLabel("profileSwitcher.done")
-                    .phCaptureTap(event: "profileSwitcher_done_toolbar")
                 }
             }
         }
-        .phScreen("profileSwitcher_sheet_profileSwitcherView")
         .sheet(isPresented: $isAddProfilePromptPresented) {
-            AddProfilePromptView(analyticsSource: "profileSwitcher_addProfilePrompt") { name, imageData in
-                Analytics.capture(
-                    "profileSwitcher_add_profile_confirm",
-                    properties: [
-                        "profile_count": "\(profileStore.profiles.count)",
-                        "name_length": "\(name.count)",
-                        "has_photo": imageData == nil ? "false" : "true"
-                    ]
-                )
+            AddProfilePromptView { name, imageData in
                 profileStore.addProfile(name: name, imageData: imageData)
-            } onCancel: {
-                Analytics.capture("profileSwitcher_add_profile_cancel")
             }
         }
         .presentationDetents([.medium, .large])

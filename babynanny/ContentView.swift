@@ -44,7 +44,6 @@ struct ContentView: View {
                         onShowAllLogs: { showAllLogs = true }
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .postHogLabel("tab.swipeContent")
                     .simultaneousGesture(
                         DragGesture(minimumDistance: 30, coordinateSpace: .local)
                             .onEnded { value in
@@ -56,28 +55,12 @@ struct ContentView: View {
                                 guard abs(horizontal) > abs(vertical), abs(horizontal) > 40 else { return }
 
                                 if horizontal < 0, let nextTab = nextTab(after: selectedTab, in: tabs) {
-                                    Analytics.capture(
-                                        "navigation_swipe_tab_content",
-                                        properties: [
-                                            "direction": "left",
-                                            "target_tab": nextTab.analyticsIdentifier,
-                                            "previous_tab": selectedTab.analyticsIdentifier
-                                        ]
-                                    )
                                     let oldValue = selectedTab
                                     previousTab = oldValue
                                     withAnimation(.easeInOut(duration: 0.3)) {
                                         selectedTab = nextTab
                                     }
                                 } else if horizontal > 0, let previous = previousTab(before: selectedTab, in: tabs) {
-                                    Analytics.capture(
-                                        "navigation_swipe_tab_content",
-                                        properties: [
-                                            "direction": "right",
-                                            "target_tab": previous.analyticsIdentifier,
-                                            "previous_tab": selectedTab.analyticsIdentifier
-                                        ]
-                                    )
                                     let oldValue = selectedTab
                                     previousTab = oldValue
                                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -102,13 +85,7 @@ struct ContentView: View {
                             .foregroundStyle(selectedTab == tab ? Color.accentColor : Color.secondary)
                             .frame(maxWidth: .infinity)
                             .contentShape(Rectangle())
-                            .phOnTapCapture(
-                                event: "navigation_select_tab_tabBar",
-                                properties: [
-                                    "target_tab": tab.analyticsIdentifier,
-                                    "previous_tab": selectedTab.analyticsIdentifier
-                                ]
-                            ) {
+                            .onTapGesture {
                                 guard tab != selectedTab else { return }
                                 let oldValue = selectedTab
                                 previousTab = oldValue
@@ -116,7 +93,6 @@ struct ContentView: View {
                                     selectedTab = tab
                                 }
                             }
-                            .postHogLabel(tab.postHogLabel)
                             .frame(maxWidth: .infinity)
                         }
                     }
@@ -131,34 +107,22 @@ struct ContentView: View {
 
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
-                            Analytics.capture(
-                                "navigation_toggle_menu_toolbar",
-                                properties: ["is_open": isMenuVisible ? "true" : "false"]
-                            )
                             withAnimation(.easeInOut) {
                                 isMenuVisible.toggle()
                             }
                         } label: {
                             Image(systemName: "line.3.horizontal")
                         }
-                        .postHogLabel("toolbar.menu")
                     }
 
                     ToolbarItem(placement: .topBarTrailing) {
                         let doubleTap = TapGesture(count: 2)
                             .onEnded {
-                                handleProfileCycle(direction: .next, analyticsSource: "toolbar_doubleTap")
+                                handleProfileCycle(direction: .next)
                             }
 
                         let singleTap = TapGesture()
                             .onEnded {
-                                Analytics.capture(
-                                    "profile_open_switcher_toolbar",
-                                    properties: [
-                                        "profile_id": profileStore.activeProfile.id.uuidString,
-                                        "profile_count": "\(profileStore.profiles.count)"
-                                    ]
-                                )
                                 isProfileSwitcherPresented = true
                             }
 
@@ -167,7 +131,6 @@ struct ContentView: View {
                             .gesture(doubleTap.exclusively(before: singleTap))
                             .accessibilityLabel(L10n.Profiles.title)
                             .accessibilityAddTraits(.isButton)
-                            .postHogLabel("toolbar.profileSwitcher")
                     }
                 }
                 .navigationBarTitleDisplayMode(.inline)
@@ -196,7 +159,6 @@ struct ContentView: View {
                     .frame(width: 24)
                     .contentShape(Rectangle())
                     .ignoresSafeArea(edges: .vertical)
-                    .postHogLabel("sideMenu.edgeSwipe")
                     .highPriorityGesture(
                         DragGesture(minimumDistance: 20, coordinateSpace: .local)
                             .onEnded { value in
@@ -205,12 +167,6 @@ struct ContentView: View {
 
                                 guard horizontal > 40, abs(horizontal) > abs(vertical) else { return }
 
-                                Analytics.capture(
-                                    "navigation_open_menu_edgeSwipe",
-                                    properties: [
-                                        "source": "edge_swipe"
-                                    ]
-                                )
 
                                 withAnimation(.easeInOut) {
                                     isMenuVisible = true
@@ -223,12 +179,7 @@ struct ContentView: View {
             if isMenuVisible {
                 Color.black.opacity(0.25)
                     .ignoresSafeArea()
-                    .postHogLabel("sideMenu.dismissOverlay")
                     .onTapGesture {
-                        Analytics.capture(
-                            "navigation_close_menu_overlay",
-                            properties: ["was_open": isMenuVisible ? "true" : "false"]
-                        )
                         withAnimation(.easeInOut) {
                             isMenuVisible = false
                         }
@@ -237,21 +188,18 @@ struct ContentView: View {
 
                 SideMenu(
                     onSelectAllLogs: {
-                        Analytics.capture("navigation_open_allLogs_menu", properties: ["source": "side_menu"])
                         withAnimation(.easeInOut) {
                             isMenuVisible = false
                             showAllLogs = true
                         }
                     },
                     onSelectSettings: {
-                        Analytics.capture("navigation_open_settings_menu", properties: ["source": "side_menu"])
                         withAnimation(.easeInOut) {
                             isMenuVisible = false
                             showSettings = true
                         }
                     },
                     onSelectShareData: {
-                        Analytics.capture("navigation_open_shareData_menu", properties: ["source": "side_menu"])
                         withAnimation(.easeInOut) {
                             isMenuVisible = false
                             shareDataCoordinator.presentShareData()
@@ -303,21 +251,8 @@ struct ContentView: View {
         }
     }
 
-    private func handleProfileCycle(direction: ProfileNavigationDirection,
-                                    analyticsSource: String)
-    {
-        let previousProfileID = profileStore.activeProfile.id
-        guard let newProfile = profileStore.cycleActiveProfile(direction: direction) else { return }
-
-        Analytics.capture(
-            "profileSwitcher_cycle_\(analyticsSource)",
-            properties: [
-                "direction": direction.analyticsValue,
-                "previous_profile_id": previousProfileID.uuidString,
-                "new_profile_id": newProfile.id.uuidString,
-                "profile_count": "\(profileStore.profiles.count)"
-            ]
-        )
+    private func handleProfileCycle(direction: ProfileNavigationDirection) {
+        _ = profileStore.cycleActiveProfile(direction: direction)
     }
 }
 
@@ -400,17 +335,6 @@ private enum Tab: Hashable, CaseIterable {
             return 1
         case .map:
             return 2
-        }
-    }
-
-    var postHogLabel: String {
-        switch self {
-        case .home:
-            return "tab.home"
-        case .reports:
-            return "tab.reports"
-        case .map:
-            return "tab.map"
         }
     }
 

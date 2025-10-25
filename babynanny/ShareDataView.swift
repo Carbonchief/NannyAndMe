@@ -42,13 +42,6 @@ struct ShareDataView: View {
                     action: startAirDropShare,
                     isLoading: isPreparingAirDropShare
                 )
-                .postHogLabel("shareData.airDrop")
-                .phCaptureTap(
-                    event: "shareData_airdrop_button",
-                    properties: [
-                        "profile_id": profileStore.activeProfile.id.uuidString
-                    ]
-                )
                 .disabled(isPreparingAirDropShare)
             } header: {
                 Text(L10n.ShareData.AirDrop.sectionTitle)
@@ -65,11 +58,6 @@ struct ShareDataView: View {
                     tint: .mint,
                     action: { isImporting = true }
                 )
-                .postHogLabel("shareData.import")
-                .phCaptureTap(
-                    event: "shareData_import_button",
-                    properties: ["profile_id": profileStore.activeProfile.id.uuidString]
-                )
             } header: {
                 Text(L10n.ShareData.importSectionTitle)
             } footer: {
@@ -79,7 +67,6 @@ struct ShareDataView: View {
         }
         .shareDataFormStyling()
         .navigationTitle(L10n.ShareData.title)
-        .phScreen("shareData_screen_shareDataView")
         .fileImporter(
             isPresented: $isImporting,
             allowedContentTypes: [.json],
