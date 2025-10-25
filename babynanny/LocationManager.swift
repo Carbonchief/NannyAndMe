@@ -148,23 +148,32 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         }
     }
 
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.first else {
-            continuation?.resume(throwing: CLError(.locationUnknown))
-            continuation = nil
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.continuation?.resume(throwing: CLError(.locationUnknown))
+                self.continuation = nil
+            }
             return
         }
 
-        lastKnownLocation = location
-        if #available(iOS 14.0, *) {
-            accuracyAuthorization = manager.accuracyAuthorization
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.lastKnownLocation = location
+            if #available(iOS 14.0, *) {
+                self.accuracyAuthorization = manager.accuracyAuthorization
+            }
+            self.continuation?.resume(returning: location)
+            self.continuation = nil
         }
-        continuation?.resume(returning: location)
-        continuation = nil
     }
 
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        continuation?.resume(throwing: error)
-        continuation = nil
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.continuation?.resume(throwing: error)
+            self.continuation = nil
+        }
     }
 }
