@@ -20,11 +20,10 @@ struct ContentView: View {
     @State private var isInitialProfilePromptPresented = false
 
     private var visibleTabs: [Tab] {
-        var tabs: [Tab] = [.home]
+        var tabs: [Tab] = [.home, .reports]
         if trackActionLocations {
             tabs.append(.map)
         }
-        tabs.append(.reports)
         return tabs
     }
 
@@ -326,9 +325,9 @@ private enum Tab: Hashable, CaseIterable {
         switch self {
         case .home:
             return 0
-        case .map:
-            return 1
         case .reports:
+            return 1
+        case .map:
             return 2
         }
     }
