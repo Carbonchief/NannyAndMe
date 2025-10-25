@@ -14,7 +14,7 @@ Use the following script to validate core functionality after local-only persist
 
 3. **Location tracking**
    - Enable "Track action locations" in Settings. Grant location access when prompted.
-   - Log a new action and verify the All Logs list shows a location badge. Confirm the entry appears on the Map tab.
+   - Log a new action and verify the All Logs list shows a location badge and location details in the entry drawer.
 
 4. **Share Data export/import**
    - Export the active profile from **Settings ▸ Share Data** using AirDrop (or save to Files in the simulator).

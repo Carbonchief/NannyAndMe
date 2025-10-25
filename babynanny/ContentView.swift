@@ -10,8 +10,6 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
-    @EnvironmentObject private var locationManager: LocationManager
-    @AppStorage("trackActionLocations") private var trackActionLocations = false
     @State private var selectedTab: Tab = .home
     @State private var previousTab: Tab = .home
     @State private var isMenuVisible = false
@@ -20,16 +18,8 @@ struct ContentView: View {
     @State private var isProfileSwitcherPresented = false
     @State private var isInitialProfilePromptPresented = false
 
-    private var shouldShowMapTab: Bool {
-        trackActionLocations && locationManager.isAuthorizedForUse
-    }
-
     private var visibleTabs: [Tab] {
-        var tabs: [Tab] = [.home, .reports]
-        if shouldShowMapTab {
-            tabs.append(.map)
-        }
-        return tabs
+        return [.home, .reports]
     }
 
     var body: some View {
@@ -47,8 +37,6 @@ struct ContentView: View {
                     .simultaneousGesture(
                         DragGesture(minimumDistance: 30, coordinateSpace: .local)
                             .onEnded { value in
-                                guard selectedTab != .map else { return }
-
                                 let horizontal = value.translation.width
                                 let vertical = value.translation.height
 
@@ -243,12 +231,6 @@ struct ContentView: View {
                 profileCount: profiles.count
             )
         }
-        .onChange(of: shouldShowMapTab) { _, isVisible in
-            if isVisible == false && selectedTab == .map {
-                previousTab = .home
-                selectedTab = .home
-            }
-        }
     }
 
     private func handleProfileCycle(direction: ProfileNavigationDirection) {
@@ -284,10 +266,6 @@ private struct AnimatedTabContent: View {
             case .reports:
                 ReportsView()
                     .transition(transition)
-
-            case .map:
-                ActionsMapView()
-                    .transition(transition)
             }
         }
         .animation(.easeInOut(duration: 0.3), value: selectedTab)
@@ -303,14 +281,11 @@ private func shouldShowInitialProfilePrompt(for profile: ChildProfile,
 private enum Tab: Hashable, CaseIterable {
     case home
     case reports
-    case map
 
     var title: String {
         switch self {
         case .home:
             return L10n.Tab.home
-        case .map:
-            return L10n.Tab.map
         case .reports:
             return L10n.Tab.reports
         }
@@ -322,8 +297,6 @@ private enum Tab: Hashable, CaseIterable {
             return "house"
         case .reports:
             return "chart.bar"
-        case .map:
-            return "map"
         }
     }
 
@@ -333,8 +306,6 @@ private enum Tab: Hashable, CaseIterable {
             return 0
         case .reports:
             return 1
-        case .map:
-            return 2
         }
     }
 
@@ -344,8 +315,6 @@ private enum Tab: Hashable, CaseIterable {
             return "home"
         case .reports:
             return "reports"
-        case .map:
-            return "map"
         }
     }
 }
