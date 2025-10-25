@@ -10,6 +10,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
+    @AppStorage("trackActionLocations") private var trackActionLocations = false
     @State private var selectedTab: Tab = .home
     @State private var previousTab: Tab = .home
     @State private var isMenuVisible = false
@@ -19,7 +20,12 @@ struct ContentView: View {
     @State private var isInitialProfilePromptPresented = false
 
     private var visibleTabs: [Tab] {
-        return [.home, .reports]
+        var tabs: [Tab] = [.home]
+        if trackActionLocations {
+            tabs.append(.map)
+        }
+        tabs.append(.reports)
+        return tabs
     }
 
     var body: some View {
@@ -73,6 +79,7 @@ struct ContentView: View {
                             .foregroundStyle(selectedTab == tab ? Color.accentColor : Color.secondary)
                             .frame(maxWidth: .infinity)
                             .contentShape(Rectangle())
+                            .postHogLabel("navigation_select_tabBar_\(tab.analyticsIdentifier)")
                             .onTapGesture {
                                 guard tab != selectedTab else { return }
                                 let oldValue = selectedTab
@@ -231,6 +238,12 @@ struct ContentView: View {
                 profileCount: profiles.count
             )
         }
+        .onChange(of: trackActionLocations) { _, _ in
+            ensureSelectionIsVisible(in: visibleTabs)
+        }
+        .onAppear {
+            ensureSelectionIsVisible(in: visibleTabs)
+        }
     }
 
     private func handleProfileCycle(direction: ProfileNavigationDirection) {
@@ -263,6 +276,10 @@ private struct AnimatedTabContent: View {
                 HomeView(onShowAllLogs: onShowAllLogs)
                     .transition(transition)
 
+            case .map:
+                ActionMapView()
+                    .transition(transition)
+
             case .reports:
                 ReportsView()
                     .transition(transition)
@@ -280,12 +297,15 @@ private func shouldShowInitialProfilePrompt(for profile: ChildProfile,
 
 private enum Tab: Hashable, CaseIterable {
     case home
+    case map
     case reports
 
     var title: String {
         switch self {
         case .home:
             return L10n.Tab.home
+        case .map:
+            return L10n.Tab.map
         case .reports:
             return L10n.Tab.reports
         }
@@ -295,6 +315,8 @@ private enum Tab: Hashable, CaseIterable {
         switch self {
         case .home:
             return "house"
+        case .map:
+            return "map"
         case .reports:
             return "chart.bar"
         }
@@ -304,8 +326,10 @@ private enum Tab: Hashable, CaseIterable {
         switch self {
         case .home:
             return 0
-        case .reports:
+        case .map:
             return 1
+        case .reports:
+            return 2
         }
     }
 
@@ -313,8 +337,22 @@ private enum Tab: Hashable, CaseIterable {
         switch self {
         case .home:
             return "home"
+        case .map:
+            return "map"
         case .reports:
             return "reports"
+        }
+    }
+}
+
+private extension ContentView {
+    func ensureSelectionIsVisible(in tabs: [Tab]) {
+        guard tabs.contains(selectedTab) == false else { return }
+        previousTab = tabs.first ?? .home
+        if let first = tabs.first {
+            selectedTab = first
+        } else {
+            selectedTab = .home
         }
     }
 }

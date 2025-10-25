@@ -1,4 +1,5 @@
 "tab.home.title" = "Startseite";
+"tab.map.title" = "Karte";
 "tab.reports.title" = "Berichte";
 "common.stop" = "Stopp";
 "common.start" = "Starten";
@@ -158,9 +159,13 @@
 "map.filter.startDate" = "Startdatum";
 "map.filter.endDate" = "Enddatum";
 "map.filter.allDates" = "Alle Daten";
+"map.filter.dateRange.today" = "Heute";
+"map.filter.dateRange.sevenDays" = "Letzte 7 Tage";
+"map.filter.dateRange.thirtyDays" = "Letzte 30 Tage";
 "map.filter.dateRange.toggle" = "Nach Datumsbereich filtern";
 "map.filter.allActions" = "Alle Aktionen";
 "map.emptyState" = "Keine Aktionen passen zu diesen Filtern.";
+"map.unknownLocation" = "Unbekannter Ort";
 "map.annotation.type" = "Typ";
 "map.annotation.subtype" = "Untertyp";
 "map.annotation.loggedAt" = "Protokolliert am %@";
