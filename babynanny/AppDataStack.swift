@@ -1,3 +1,4 @@
+import CloudKit
 import Foundation
 import os
 import SwiftData
@@ -18,16 +19,45 @@ final class AppDataStack: ObservableObject {
     }
 
     static func makeModelContainer(inMemory: Bool = false) -> ModelContainer {
-        let configuration = ModelConfiguration(
-            isStoredInMemoryOnly: inMemory,
-            allowsSave: true
-        )
-
         do {
-            return try ModelContainer(
-                for: ProfileActionStateModel.self, BabyActionModel.self,
-                configurations: configuration
+            if inMemory {
+                let configuration = ModelConfiguration(
+                    isStoredInMemoryOnly: true,
+                    allowsSave: true
+                )
+
+                return try ModelContainer(
+                    for: ProfileActionStateModel.self, BabyActionModel.self,
+                    configurations: configuration
+                )
+            }
+
+            let groupContainer: ModelConfiguration.GroupContainer = .appGroup(identifier: appGroupIdentifier)
+            var privateConfiguration = ModelConfiguration(
+                allowsSave: true,
+                groupContainer: groupContainer,
+                cloudKitDatabase: .private(cloudKitContainerIdentifier)
             )
+
+            var sharedConfiguration = ModelConfiguration(
+                allowsSave: true,
+                groupContainer: groupContainer,
+                cloudKitDatabase: .shared(cloudKitContainerIdentifier)
+            )
+
+            if #available(iOS 17.4, *) {
+                privateConfiguration.allowsCloudSharing = true
+                sharedConfiguration.allowsCloudSharing = true
+            }
+
+            let container = try ModelContainer(
+                for: ProfileActionStateModel.self, BabyActionModel.self,
+                configurations: privateConfiguration, sharedConfiguration
+            )
+
+            migrateLegacyStoreIfNeeded(to: container)
+
+            return container
         } catch {
             fatalError("Failed to create ModelContainer: \(error.localizedDescription)")
         }
@@ -87,6 +117,122 @@ final class AppDataStack: ObservableObject {
             swiftDataLogger.debug("Saved context for \(reason, privacy: .public)")
         } catch {
             swiftDataLogger.error("Failed to save context for \(reason, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
+    }
+}
+
+private extension AppDataStack {
+    static let appGroupIdentifier = "group.com.prioritybit.babynanny"
+    static let cloudKitContainerIdentifier = "iCloud.com.prioritybit.babynanny"
+    static let legacyMigrationFlag = "com.prioritybit.babynanny.swiftdata.legacyMigrationComplete"
+    static let migrationLogger = Logger(subsystem: "com.prioritybit.babynanny", category: "migration")
+
+    static func migrateLegacyStoreIfNeeded(to container: ModelContainer) {
+        guard UserDefaults.standard.bool(forKey: legacyMigrationFlag) == false else { return }
+
+        let context = container.mainContext
+        var descriptor = FetchDescriptor<ProfileActionStateModel>()
+        descriptor.fetchLimit = 1
+        if let existingProfiles = try? context.fetch(descriptor), existingProfiles.isEmpty == false {
+            UserDefaults.standard.set(true, forKey: legacyMigrationFlag)
+            return
+        }
+
+        guard let legacyStoreURL = legacyStoreURL() else {
+            UserDefaults.standard.set(true, forKey: legacyMigrationFlag)
+            return
+        }
+
+        do {
+            migrationLogger.debug("Attempting SwiftData migration from legacy store at \(legacyStoreURL.path, privacy: .public)")
+            let legacyConfiguration = ModelConfiguration(url: legacyStoreURL, allowsSave: true)
+            let legacyContainer = try ModelContainer(
+                for: ProfileActionStateModel.self, BabyActionModel.self,
+                configurations: legacyConfiguration
+            )
+
+            let legacyProfiles = try legacyContainer.mainContext.fetch(FetchDescriptor<ProfileActionStateModel>())
+
+            guard legacyProfiles.isEmpty == false else {
+                cleanupLegacyStore(at: legacyStoreURL)
+                UserDefaults.standard.set(true, forKey: legacyMigrationFlag)
+                return
+            }
+
+            let migrationContext = ModelContext(container)
+            migrationContext.autosaveEnabled = false
+
+            for legacyProfile in legacyProfiles {
+                let migratedProfile = ProfileActionStateModel(
+                    profileID: legacyProfile.resolvedProfileID,
+                    name: legacyProfile.name,
+                    birthDate: legacyProfile.birthDate,
+                    imageData: legacyProfile.imageData
+                )
+
+                migrationContext.insert(migratedProfile)
+
+                for action in legacyProfile.actions {
+                    let clonedAction = BabyActionModel(
+                        id: action.id,
+                        category: action.category,
+                        startDate: action.startDate,
+                        endDate: action.endDate,
+                        diaperType: action.diaperType,
+                        feedingType: action.feedingType,
+                        bottleType: action.bottleType,
+                        bottleVolume: action.bottleVolume,
+                        latitude: action.latitude,
+                        longitude: action.longitude,
+                        placename: action.placename,
+                        updatedAt: action.updatedAt,
+                        profile: migratedProfile
+                    )
+
+                    migrationContext.insert(clonedAction)
+                }
+            }
+
+            if migrationContext.hasChanges {
+                try migrationContext.save()
+            }
+
+            cleanupLegacyStore(at: legacyStoreURL)
+            UserDefaults.standard.set(true, forKey: legacyMigrationFlag)
+            migrationLogger.notice("Successfully migrated legacy SwiftData store to CloudKit-backed container")
+        } catch {
+            migrationLogger.error("Failed migrating legacy SwiftData store: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    static func legacyStoreURL() -> URL? {
+        let fileManager = FileManager.default
+        guard let appSupportURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+
+        do {
+            let storeURLs = try fileManager.contentsOfDirectory(at: appSupportURL, includingPropertiesForKeys: nil)
+            return storeURLs.first(where: { $0.pathExtension == "store" })
+        } catch {
+            migrationLogger.error("Unable to enumerate legacy store directory: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
+    static func cleanupLegacyStore(at url: URL) {
+        let fileManager = FileManager.default
+        let auxiliarySuffixes = ["", "-wal", "-shm"]
+
+        for suffix in auxiliarySuffixes {
+            let candidateURL = URL(fileURLWithPath: url.path + suffix)
+            if fileManager.fileExists(atPath: candidateURL.path) {
+                do {
+                    try fileManager.removeItem(at: candidateURL)
+                } catch {
+                    migrationLogger.error("Failed to remove legacy store file: \(candidateURL.path, privacy: .public) error: \(error.localizedDescription, privacy: .public)")
+                }
+            }
         }
     }
 }
