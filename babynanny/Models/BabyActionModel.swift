@@ -427,7 +427,7 @@ final class Profile {
     var name: String?
     @Attribute(.allowsCloudEncryption)
     var birthDate: Date?
-    @Attribute([.externalStorage, .allowsCloudEncryption])
+    @Attribute(.externalStorage, .allowsCloudEncryption)
     var imageData: Data?
     @Relationship(deleteRule: .cascade)
     var storedActions: [BabyAction]?

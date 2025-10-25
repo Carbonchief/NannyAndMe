@@ -31,16 +31,17 @@ final class AppDataStack: ObservableObject {
                 )
             }
 
+            let groupContainer = ModelConfiguration.GroupContainer(identifier: appGroupIdentifier)
             var privateConfiguration = ModelConfiguration(
                 allowsSave: true,
-                cloudKitDatabase: .private,
-                groupContainerIdentifier: appGroupIdentifier
+                groupContainer: groupContainer,
+                cloudKitDatabase: .private(cloudKitContainerIdentifier)
             )
 
             var sharedConfiguration = ModelConfiguration(
                 allowsSave: true,
-                cloudKitDatabase: .shared,
-                groupContainerIdentifier: appGroupIdentifier
+                groupContainer: groupContainer,
+                cloudKitDatabase: .shared(cloudKitContainerIdentifier)
             )
 
             if #available(iOS 17.4, *) {
@@ -50,7 +51,7 @@ final class AppDataStack: ObservableObject {
 
             let container = try ModelContainer(
                 for: ProfileActionStateModel.self, BabyActionModel.self,
-                configurations: [privateConfiguration, sharedConfiguration]
+                configurations: privateConfiguration, sharedConfiguration
             )
 
             migrateLegacyStoreIfNeeded(to: container)
@@ -121,6 +122,7 @@ final class AppDataStack: ObservableObject {
 
 private extension AppDataStack {
     static let appGroupIdentifier = "group.com.prioritybit.babynanny"
+    static let cloudKitContainerIdentifier = "iCloud.com.prioritybit.babynanny"
     static let legacyMigrationFlag = "com.prioritybit.babynanny.swiftdata.legacyMigrationComplete"
     static let migrationLogger = Logger(subsystem: "com.prioritybit.babynanny", category: "migration")
 
@@ -128,7 +130,8 @@ private extension AppDataStack {
         guard UserDefaults.standard.bool(forKey: legacyMigrationFlag) == false else { return }
 
         let context = container.mainContext
-        let descriptor = FetchDescriptor<ProfileActionStateModel>(fetchLimit: 1)
+        var descriptor = FetchDescriptor<ProfileActionStateModel>()
+        descriptor.fetchLimit = 1
         if let existingProfiles = try? context.fetch(descriptor), existingProfiles.isEmpty == false {
             UserDefaults.standard.set(true, forKey: legacyMigrationFlag)
             return
