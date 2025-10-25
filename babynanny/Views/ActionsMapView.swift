@@ -113,7 +113,6 @@ struct ActionsMapView: View {
                 }
             }
             .mapStyle(.standard)
-            .postHogLabel("map.canvas")
             .overlay(alignment: .top) {
                 if filteredActionAnnotations.isEmpty {
                     EmptyStateView()
@@ -217,17 +216,8 @@ struct ActionsMapView: View {
             annotation: annotation,
             isSelected: selectedAnnotationID == annotation.id
         )
-            .phOnTapCapture(
-                event: "map_select_annotation",
-                properties: [
-                    "action_id": annotation.id.uuidString,
-                    "category": annotation.category.rawValue,
-                    "has_placename": annotation.placename != nil
-                ]
-            ) {
                 handleSingleSelection(annotation)
             }
-            .postHogLabel(annotation.postHogLabel)
     }
 
     @ViewBuilder
@@ -236,17 +226,8 @@ struct ActionsMapView: View {
             cluster: cluster,
             isSelected: selectedClusterID == cluster.id
         )
-            .phOnTapCapture(
-                event: "map_select_cluster",
-                properties: [
-                    "action_ids": cluster.actionIDs.map(\.uuidString),
-                    "count": cluster.count,
-                    "categories": cluster.categoryIdentifiers
-                ]
-            ) {
                 handleClusterSelection(cluster)
             }
-            .postHogLabel(cluster.postHogLabel)
     }
 
     private func handleSingleSelection(_ annotation: ActionAnnotation) {
@@ -439,9 +420,6 @@ private extension ActionsMapView {
             return L10n.Map.annotationAccessibility(category.title, title, dateString)
         }
 
-        var postHogLabel: String {
-            "map.annotation.pin.\(category.rawValue)"
-        }
     }
 
     struct ClusteredActionAnnotation: Identifiable, Equatable {
@@ -496,9 +474,6 @@ private extension ActionsMapView {
             L10n.Map.clusterAccessibility(count, representativeTitle)
         }
 
-        var postHogLabel: String {
-            "map.annotation.cluster"
-        }
 
         func contains(actionID: UUID) -> Bool {
             actionIDs.contains(actionID)
@@ -628,14 +603,6 @@ private extension ActionsMapView {
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(Color.secondary)
                     }
-                    .postHogLabel("map.annotationDetail.close")
-                    .phCaptureTap(
-                        event: "map_close_annotation_detail",
-                        properties: [
-                            "action_id": annotation.id.uuidString,
-                            "category": annotation.category.rawValue
-                        ]
-                    )
                     .accessibilityLabel(L10n.Common.close)
                 }
 
@@ -710,14 +677,6 @@ private extension ActionsMapView {
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(Color.secondary)
                     }
-                    .postHogLabel("map.clusterDetail.close")
-                    .phCaptureTap(
-                        event: "map_close_cluster_detail",
-                        properties: [
-                            "count": cluster.count,
-                            "action_ids": cluster.actionIDs.map(\.uuidString)
-                        ]
-                    )
                     .accessibilityLabel(L10n.Common.close)
                 }
 
@@ -731,14 +690,6 @@ private extension ActionsMapView {
                             ClusterActionRow(annotation: action)
                         }
                         .buttonStyle(.plain)
-                        .postHogLabel("map.clusterDetail.action.\(action.category.rawValue)")
-                        .phCaptureTap(
-                            event: "map_select_cluster_action",
-                            properties: [
-                                "action_id": action.id.uuidString,
-                                "category": action.category.rawValue
-                            ]
-                        )
                         .accessibilityLabel(action.accessibilityLabel)
                     }
                 }
@@ -823,7 +774,6 @@ private extension ActionsMapView {
                                accessory: .chevronDown)
                 }
                 .buttonStyle(.plain)
-                .postHogLabel("map.filter.actionType")
 
                 Button(action: onShowDateFilters) {
                     FilterChip(iconName: "calendar.badge.clock",
@@ -833,7 +783,6 @@ private extension ActionsMapView {
                                isActive: isDateFilterEnabled)
                 }
                 .buttonStyle(.plain)
-                .postHogLabel("map.filter.dateButton")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
@@ -920,7 +869,6 @@ private extension ActionsMapView {
                     Section {
                         Toggle(L10n.Map.dateRangeFilterToggle,
                                isOn: $isFilterEnabled.animation())
-                            .postHogLabel("map.filterSheet.toggle")
                     }
 
                     Section(L10n.Map.dateRangeFilter) {
@@ -928,7 +876,6 @@ private extension ActionsMapView {
                                    selection: $startDate,
                                    displayedComponents: .date)
                             .datePickerStyle(.graphical)
-                            .postHogLabel("map.filterSheet.startDate")
                             .disabled(isFilterEnabled == false)
 
                         DatePicker(L10n.Map.endDate,
@@ -936,7 +883,6 @@ private extension ActionsMapView {
                                    in: startDate...,
                                    displayedComponents: .date)
                             .datePickerStyle(.graphical)
-                            .postHogLabel("map.filterSheet.endDate")
                             .disabled(isFilterEnabled == false)
                     }
                 }
@@ -946,7 +892,6 @@ private extension ActionsMapView {
                         Button(L10n.Common.cancel) {
                             isPresented = false
                         }
-                        .postHogLabel("map.filterSheet.cancel")
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button(L10n.Common.done) {
@@ -955,7 +900,6 @@ private extension ActionsMapView {
                             }
                             isPresented = false
                         }
-                        .postHogLabel("map.filterSheet.done")
                     }
                 }
             }

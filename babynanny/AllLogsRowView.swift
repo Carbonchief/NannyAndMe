@@ -35,11 +35,6 @@ struct AllLogsRowView: View {
             }
             .padding(.vertical, 10)
         }
-        .postHogLabel("logs.row.open.\(action.id.uuidString)")
-        .phCaptureTap(
-            event: "logs_open_entry_row",
-            properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
-        )
         .buttonStyle(.plain)
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
             Button {
@@ -47,11 +42,6 @@ struct AllLogsRowView: View {
             } label: {
                 Label(L10n.Logs.editAction, systemImage: "square.and.pencil")
             }
-            .postHogLabel("logs.row.edit.\(action.id.uuidString)")
-            .phCaptureTap(
-                event: "logs_edit_entry_swipe",
-                properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
-            )
             .tint(.accentColor)
         }
         .swipeActions(edge: .trailing) {
@@ -60,11 +50,6 @@ struct AllLogsRowView: View {
             } label: {
                 Label(L10n.Logs.deleteAction, systemImage: "trash")
             }
-            .postHogLabel("logs.row.delete.\(action.id.uuidString)")
-            .phCaptureTap(
-                event: "logs_delete_entry_swipe",
-                properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
-            )
         }
     }
 

@@ -39,7 +39,6 @@ struct SettingsView: View {
             aboutSection
         }
         .navigationTitle(L10n.Settings.title)
-        .phScreen("settings_screen_settingsView")
         .alert(item: $activeAlert, content: makeAlert)
         .confirmationDialog(
             deletionConfirmationTitle,
@@ -48,17 +47,9 @@ struct SettingsView: View {
             presenting: profilePendingDeletion
         ) { profile in
             Button(L10n.Profiles.deleteAction, role: .destructive) {
-                Analytics.capture(
-                    "settings_confirm_delete_profile_dialog",
-                    properties: ["profile_id": profile.id.uuidString]
-                )
                 deleteProfile(profile)
             }
             Button(L10n.Common.cancel, role: .cancel) {
-                Analytics.capture(
-                    "settings_cancel_delete_profile_dialog",
-                    properties: ["profile_id": profile.id.uuidString]
-                )
                 profilePendingDeletion = nil
             }
         } message: { profile in
@@ -90,18 +81,8 @@ struct SettingsView: View {
             isProcessingPhoto = false
         }
         .sheet(isPresented: $isAddProfilePromptPresented) {
-            AddProfilePromptView(analyticsSource: "settings_addProfilePrompt") { name, imageData in
-                Analytics.capture(
-                    "settings_add_profile_confirm",
-                    properties: [
-                        "profile_count": "\(profileStore.profiles.count)",
-                        "name_length": "\(name.count)",
-                        "has_photo": imageData == nil ? "false" : "true"
-                    ]
-                )
+            AddProfilePromptView { name, imageData in
                 profileStore.addProfile(name: name, imageData: imageData)
-            } onCancel: {
-                Analytics.capture("settings_add_profile_cancel")
             }
         }
         .fullScreenCover(item: $pendingCrop) { crop in
@@ -122,12 +103,7 @@ struct SettingsView: View {
             Toggle(isOn: $trackActionLocations) {
                 Label(L10n.Settings.Privacy.trackActionLocations, systemImage: "location.fill")
             }
-            .postHogLabel("settings.privacy.trackLocations")
             .onChange(of: trackActionLocations) { _, newValue in
-                Analytics.capture(
-                    "settings_toggle_track_locations",
-                    properties: ["is_enabled": newValue ? "true" : "false"]
-                )
                 if newValue {
                     locationManager.requestPermissionIfNeeded()
                     locationManager.ensurePreciseAccuracyIfNeeded()
@@ -142,7 +118,6 @@ struct SettingsView: View {
                locationManager.authorizationStatus == .denied ||
                locationManager.authorizationStatus == .restricted {
                 Button {
-                    Analytics.capture("settings_open_location_settings_button")
                     if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
                         openURL(settingsURL)
                     }
@@ -152,7 +127,6 @@ struct SettingsView: View {
                         .foregroundStyle(.orange)
                 }
                 .buttonStyle(.borderless)
-                .postHogLabel("settings.privacy.openSystemSettings")
             }
         }
     }
@@ -164,17 +138,10 @@ struct SettingsView: View {
             }
 
             Button {
-                Analytics.capture(
-                    "settings_add_profile_button",
-                    properties: [
-                        "profile_count": "\(profileStore.profiles.count)"
-                    ]
-                )
                 isAddProfilePromptPresented = true
             } label: {
                 Label(L10n.Profiles.addProfile, systemImage: "plus")
             }
-            .postHogLabel("settings.profiles.add")
         }
     }
 
@@ -201,12 +168,7 @@ struct SettingsView: View {
             }
         }
         .contentShape(Rectangle())
-        .postHogLabel("settings.profiles.select.\(profile.id.uuidString)")
         .onTapGesture {
-            Analytics.capture(
-                "settings_select_profile_row",
-                properties: ["profile_id": profile.id.uuidString]
-            )
             profileStore.setActiveProfile(profile)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -215,11 +177,6 @@ struct SettingsView: View {
             } label: {
                 Label(L10n.Profiles.deleteAction, systemImage: "trash")
             }
-            .postHogLabel("settings.profiles.delete.\(profile.id.uuidString)")
-            .phCaptureTap(
-                event: "settings_delete_profile_swipe",
-                properties: ["profile_id": profile.id.uuidString]
-            )
         }
     }
 
@@ -243,7 +200,6 @@ struct SettingsView: View {
                 ))
                 .textInputAutocapitalization(.words)
                 .disableAutocorrection(true)
-                .postHogLabel("settings.profile.name")
 
                 DatePicker(
                     selection: Binding(
@@ -257,7 +213,6 @@ struct SettingsView: View {
                 ) {
                     Text(L10n.Profiles.birthDate)
                 }
-                .postHogLabel("settings.profile.birthDate")
             }
         }
     }
@@ -292,7 +247,6 @@ struct SettingsView: View {
                         }
                     }
             }
-            .postHogLabel("settings.profile.photoPicker")
             .buttonStyle(.plain)
             .contentShape(Rectangle())
             .accessibilityLabel(L10n.Profiles.choosePhoto)
@@ -312,12 +266,7 @@ struct SettingsView: View {
                         .clipShape(Circle())
                         .shadow(radius: 2)
                 }
-                .postHogLabel("settings.profile.removePhoto")
                 .buttonStyle(.plain)
-                .phCaptureTap(
-                    event: "settings_remove_profile_photo_button",
-                    properties: ["profile_id": profileStore.activeProfile.id.uuidString]
-                )
                 .accessibilityLabel(L10n.Profiles.removePhoto)
                 .padding(4)
             }
@@ -351,12 +300,7 @@ struct SettingsView: View {
             ) {
                 Text(L10n.Settings.showRecentActivity)
             }
-            .postHogLabel("settings.home.showRecentActivity")
             .onChange(of: profileStore.showRecentActivityOnHome) { _, newValue in
-                Analytics.capture(
-                    "settings_toggle_recent_activity_home",
-                    properties: ["is_on": newValue ? "true" : "false"]
-                )
             }
         }
     }
@@ -372,16 +316,8 @@ struct SettingsView: View {
         ) {
             Text(L10n.Settings.enableReminders)
         }
-        .postHogLabel("settings.reminders.enable")
         .disabled(isUpdatingReminders)
         .onChange(of: profileStore.activeProfile.remindersEnabled) { _, newValue in
-            Analytics.capture(
-                "settings_toggle_global_reminders",
-                properties: [
-                    "profile_id": profileStore.activeProfile.id.uuidString,
-                    "is_on": newValue ? "true" : "false"
-                ]
-            )
         }
     }
 
@@ -400,10 +336,6 @@ struct SettingsView: View {
         photoLoadingTask?.cancel()
         guard let newValue else { return }
 
-        Analytics.capture(
-            "settings_select_profile_photo_picker",
-            properties: ["profile_id": profileStore.activeProfile.id.uuidString]
-        )
 
         isProcessingPhoto = true
         let requestID = UUID()
@@ -463,19 +395,11 @@ struct SettingsView: View {
                 title: Text(L10n.Settings.notificationsPermissionTitle),
                 message: Text(L10n.Settings.notificationsPermissionMessage),
                 primaryButton: .default(Text(L10n.Settings.notificationsPermissionAction)) {
-                    Analytics.capture(
-                        "settings_open_notification_settings_alert",
-                        properties: ["profile_id": profileStore.activeProfile.id.uuidString]
-                    )
                     if let url = URL(string: UIApplication.openSettingsURLString) {
                         openURL(url)
                     }
                 },
                 secondaryButton: .cancel(Text(L10n.Settings.notificationsPermissionCancel)) {
-                    Analytics.capture(
-                        "settings_dismiss_notification_settings_alert",
-                        properties: ["profile_id": profileStore.activeProfile.id.uuidString]
-                    )
                 }
             )
         }
@@ -595,14 +519,6 @@ private extension SettingsView {
             set: { newValue in
                 let clamped = max(1, min(12, newValue))
                 let interval = TimeInterval(clamped) * 3600
-                Analytics.capture(
-                    "settings_adjust_reminder_frequency",
-                    properties: [
-                        "profile_id": profileStore.activeProfile.id.uuidString,
-                        "category": category.rawValue,
-                        "hours": "\(clamped)"
-                    ]
-                )
                 profileStore.updateActiveProfile { profile in
                     profile.setReminderInterval(interval, for: category)
                 }
@@ -615,14 +531,6 @@ private extension SettingsView {
         Binding(
             get: { profileStore.activeProfile.isActionReminderEnabled(for: category) },
             set: { newValue in
-                Analytics.capture(
-                    "settings_toggle_category_reminder",
-                    properties: [
-                        "profile_id": profileStore.activeProfile.id.uuidString,
-                        "category": category.rawValue,
-                        "is_on": newValue ? "true" : "false"
-                    ]
-                )
                 profileStore.updateActiveProfile { profile in
                     profile.setReminderEnabled(newValue, for: category)
                 }
@@ -648,7 +556,6 @@ private extension SettingsView {
             Toggle(isOn: enabledBinding) {
                 Label(L10n.Settings.actionReminderTitle(category.title), systemImage: category.icon)
             }
-            .postHogLabel("settings.reminders.category.\(category.rawValue).toggle")
             .disabled(remindersEnabled == false)
             .tint(category.accentColor)
 
@@ -657,7 +564,6 @@ private extension SettingsView {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            .postHogLabel("settings.reminders.category.\(category.rawValue).frequency")
             .disabled(remindersEnabled == false || isCategoryEnabled == false)
 
             actionReminderStatus(for: category, isEnabled: remindersEnabled && isCategoryEnabled)

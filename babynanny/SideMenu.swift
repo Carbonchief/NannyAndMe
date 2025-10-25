@@ -25,31 +25,25 @@ struct SideMenu: View {
             .padding(.top, 48)
 
             Button(action: {
-                Analytics.capture("menu_select_allLogs_drawer", properties: ["source": "side_menu"])
                 onSelectAllLogs()
             }) {
                 Label(L10n.Menu.allLogs, systemImage: "list.bullet.rectangle")
                     .font(.headline)
             }
-            .postHogLabel("menu.allLogs")
 
             Button(action: {
-                Analytics.capture("menu_select_shareData_drawer", properties: ["source": "side_menu"])
                 onSelectShareData()
             }) {
                 Label(L10n.Menu.shareData, systemImage: "arrow.up.arrow.down.circle.fill")
                     .font(.headline)
             }
-            .postHogLabel("menu.shareData")
 
             Button(action: {
-                Analytics.capture("menu_select_settings_drawer", properties: ["source": "side_menu"])
                 onSelectSettings()
             }) {
                 Label(L10n.Menu.settings, systemImage: "gearshape.fill")
                     .font(.headline)
             }
-            .postHogLabel("menu.settings")
 
             Spacer()
         }

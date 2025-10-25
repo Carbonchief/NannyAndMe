@@ -38,7 +38,6 @@ struct ReportsView: View {
             shareContentWidth = width
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .phScreen("reports_screen_reportsView", properties: ["tab": "reports"])
         .onAppear(perform: initializeTabIfNeeded)
         .onChange(of: profileStore.activeProfile.id) { _, _ in
             resetSelectionForActiveProfile()
@@ -49,18 +48,10 @@ struct ReportsView: View {
             }
         }
         .onChange(of: calendarSelectedDate) { _, newValue in
-            Analytics.capture(
-                "reports_select_calendar_date",
-                properties: ["date": analyticsDateFormatter.string(from: newValue)]
-            )
         }
         .sheet(item: $shareItem) { item in
             ChartShareSheet(item: item) { outcome in
                 if case .completed = outcome {
-                    Analytics.capture(
-                        "reports_share_chart_completed",
-                        properties: ["chart": item.chartIdentifier]
-                    )
                 }
                 shareItem = nil
             }
@@ -127,7 +118,6 @@ struct ReportsView: View {
                 }
                 .buttonStyle(.plain)
                 .frame(width: 52, height: 52)
-                .postHogLabel(tab.postHogLabel)
                 .accessibilityLabel(tab.accessibilityLabel)
                 .accessibilityAddTraits(isSelected ? [.isSelected] : [])
             }
@@ -148,13 +138,8 @@ struct ReportsView: View {
 
         persistedTabIdentifier = tab.persistenceIdentifier
 
-        Analytics.capture(
-            "reports_select_tab",
-            properties: ["tab": tab.analyticsValue]
-        )
 
         if tab.isCalendar {
-            Analytics.capture("reports_open_calendar_tab")
         }
     }
 
@@ -242,7 +227,6 @@ struct ReportsView: View {
                 .datePickerStyle(.graphical)
                 .labelsHidden()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .postHogLabel("reports.calendar.datePicker")
             }
 
             reportsCard(spacing: 16) {
@@ -439,10 +423,6 @@ struct ReportsView: View {
 
                     if hasData {
                         Button {
-                            Analytics.capture(
-                                "reports_share_chart_button",
-                                properties: ["chart": "daily_trend", "category": focusCategory.rawValue]
-                            )
                             let context = DailyTrendShareContext(metrics: metrics,
                                                                   yAxisTitle: yAxisTitle,
                                                                   axisDays: axisDays,
@@ -455,7 +435,6 @@ struct ReportsView: View {
                                 .font(.system(size: 16, weight: .semibold))
                         }
                         .buttonStyle(.plain)
-                        .postHogLabel("reports.shareChartButton.dailyTrend")
                         .accessibilityLabel(L10n.Stats.shareChartAccessibility)
                     }
                 }
@@ -536,10 +515,6 @@ struct ReportsView: View {
 
                 if hasData {
                     Button {
-                        Analytics.capture(
-                            "reports_share_chart_button",
-                            properties: ["chart": "daily_pattern", "category": focusCategory.rawValue]
-                        )
                         let context = ActionPatternShareContext(segments: patternSegments,
                                                                 dayAxisValues: dayAxisValues,
                                                                 subtypeTitle: subtypeTitle,
@@ -551,7 +526,6 @@ struct ReportsView: View {
                             .font(.system(size: 16, weight: .semibold))
                     }
                     .buttonStyle(.plain)
-                    .postHogLabel("reports.shareChartButton.dailyPattern")
                     .accessibilityLabel(L10n.Stats.shareChartAccessibility)
                 }
             }
@@ -670,7 +644,6 @@ struct ReportsView: View {
                                     }
                                 }
                         )
-                        .postHogLabel("reports.dailyTrend.columnTap")
                 }
             }
         }
@@ -1180,17 +1153,6 @@ private enum ReportsTab: Hashable, Identifiable {
             return category.rawValue
         case .calendar:
             return "calendar"
-        }
-    }
-
-    var postHogLabel: String {
-        switch self {
-        case .dailySnapshot:
-            return "reports.tab.dailySnapshot"
-        case .category(let category):
-            return "reports.tab.\(category.rawValue)"
-        case .calendar:
-            return "reports.tab.calendar"
         }
     }
 

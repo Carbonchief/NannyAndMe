@@ -30,7 +30,6 @@ struct ProfileListView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .postHogLabel("profileList.select.\(profile.resolvedProfileID.uuidString)")
             }
         }
         .listStyle(.insetGrouped)

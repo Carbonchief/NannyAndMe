@@ -33,7 +33,6 @@ struct AllLogsView: View {
         .navigationTitle(L10n.Logs.title)
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .phScreen("logs_screen_allLogsView", properties: ["source": "navigation"])
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -41,11 +40,6 @@ struct AllLogsView: View {
                 } label: {
                     Label(L10n.Logs.filterButton, systemImage: "line.3.horizontal.decrease.circle")
                 }
-                .postHogLabel("logs.filter.open")
-                .phCaptureTap(
-                    event: "logs_open_filter_toolbar",
-                    properties: ["has_active_filter": activeFilterDescription() == nil ? "false" : "true"]
-                )
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -76,17 +70,9 @@ struct AllLogsView: View {
                 title: Text(L10n.Logs.deleteConfirmationTitle),
                 message: Text(L10n.Logs.deleteConfirmationMessage),
                 primaryButton: .destructive(Text(L10n.Logs.deleteAction)) {
-                    Analytics.capture(
-                        "logs_confirm_delete_alert",
-                        properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
-                    )
                     deleteAction(action)
                 },
                 secondaryButton: .cancel {
-                    Analytics.capture(
-                        "logs_cancel_delete_alert",
-                        properties: ["action_id": action.id.uuidString, "category": action.category.rawValue]
-                    )
                     actionPendingDeletion = nil
                 }
             )

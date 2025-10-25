@@ -97,11 +97,6 @@ extension AllLogsView {
                 Text(L10n.Logs.filterClear)
                     .font(.subheadline.weight(.semibold))
             }
-            .postHogLabel("logs.filter.summaryClear")
-            .phCaptureTap(
-                event: "logs_clear_filter_banner",
-                properties: ["has_filter": activeFilterDescription() == nil ? "false" : "true"]
-            )
             .buttonStyle(.borderless)
         }
         .padding(.horizontal, 16)

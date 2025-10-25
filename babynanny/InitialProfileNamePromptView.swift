@@ -56,7 +56,6 @@ struct InitialProfileNamePromptView: View {
                     .textFieldStyle(.roundedBorder)
                     .focused($isNameFieldFocused)
                     .submitLabel(.done)
-                    .postHogLabel("onboarding.profileName")
                     .onSubmit(handleContinue)
                 }
 
@@ -76,11 +75,6 @@ struct InitialProfileNamePromptView: View {
                     Text(L10n.Onboarding.profilePromptContinue)
                         .frame(maxWidth: .infinity)
                 }
-                .postHogLabel("onboarding.continue")
-                .phCaptureTap(
-                    event: "onboarding_profile_continue_button",
-                    properties: ["is_name_empty": trimmedName.isEmpty ? "true" : "false"]
-                )
                 .buttonStyle(.borderedProminent)
                 .disabled(trimmedName.isEmpty)
             }
@@ -101,7 +95,6 @@ struct InitialProfileNamePromptView: View {
         .interactiveDismissDisabled(!allowsDismissal)
         .presentationDetents([.medium])
         .presentationDragIndicator(.hidden)
-        .phScreen("onboarding_profile_prompt_initialProfileNamePromptView")
         .fullScreenCover(item: $pendingCrop) { crop in
             ImageCropperView(image: crop.image) {
                 pendingCrop = nil
@@ -118,13 +111,6 @@ struct InitialProfileNamePromptView: View {
     private func handleContinue() {
         let value = trimmedName
         guard value.isEmpty == false else { return }
-        Analytics.capture(
-            "onboarding_profile_submit_name",
-            properties: [
-                "name_length": "\(value.count)",
-                "has_photo": imageData == nil ? "false" : "true"
-            ]
-        )
         onContinue(value, imageData)
     }
 
@@ -144,7 +130,6 @@ struct InitialProfileNamePromptView: View {
             }
             .buttonStyle(.plain)
             .contentShape(Rectangle())
-            .postHogLabel("onboarding.profilePhotoPicker")
             .accessibilityLabel(L10n.Profiles.choosePhoto)
             .onChange(of: selectedPhoto) { _, newValue in
                 handlePhotoSelectionChange(newValue)
@@ -152,7 +137,6 @@ struct InitialProfileNamePromptView: View {
 
             if imageData != nil {
                 Button {
-                    Analytics.capture("onboarding_remove_profile_photo_button")
                     imageData = nil
                 } label: {
                     Image(systemName: "trash.fill")
@@ -164,8 +148,6 @@ struct InitialProfileNamePromptView: View {
                         .shadow(radius: 2)
                 }
                 .buttonStyle(.plain)
-                .postHogLabel("onboarding.profilePhotoRemove")
-                .phCaptureTap(event: "onboarding_remove_profile_photo_button")
                 .accessibilityLabel(L10n.Profiles.removePhoto)
                 .padding(4)
             }
@@ -188,7 +170,6 @@ struct InitialProfileNamePromptView: View {
         photoLoadingTask?.cancel()
         guard let newValue else { return }
 
-        Analytics.capture("onboarding_select_profile_photo_picker")
 
         isProcessingPhoto = true
         let requestID = UUID()
