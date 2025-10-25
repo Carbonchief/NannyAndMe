@@ -570,7 +570,7 @@ struct ReportsView: View {
     {
         let selectedDay = selectedDate?.wrappedValue
 
-        return Chart {
+        Chart {
             ForEach(metrics) { metric in
                 BarMark(
                     x: .value(L10n.Stats.dayAxisLabel, metric.date, unit: .day),
@@ -614,7 +614,7 @@ struct ReportsView: View {
         .chartOverlay { proxy in
             if let selectedDate {
                 GeometryReader { geo in
-                    let plotFrame = geo[proxy.plotAreaFrame]
+                    let plotFrame = geo[proxy.plotFrame]
                     Rectangle()
                         .fill(.clear)
                         .contentShape(Rectangle())
