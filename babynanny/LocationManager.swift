@@ -123,17 +123,28 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         return CapturedLocation(coordinate: coordinate, placename: placename)
     }
 
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        authorizationStatus = manager.authorizationStatus
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+        var updatedAccuracy: CLAccuracyAuthorization?
         if #available(iOS 14.0, *) {
-            accuracyAuthorization = manager.accuracyAuthorization
+            updatedAccuracy = manager.accuracyAuthorization
         }
-        if manager.authorizationStatus == .denied {
-            continuation?.resume(throwing: CLError(.denied))
-            continuation = nil
-        }
-        if manager.authorizationStatus == .authorizedWhenInUse || manager.authorizationStatus == .authorizedAlways {
-            ensurePreciseAccuracyIfNeeded()
+        let shouldRequestPrecision = status == .authorizedWhenInUse || status == .authorizedAlways
+        let isDenied = status == .denied
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.authorizationStatus = status
+            if let updatedAccuracy {
+                self.accuracyAuthorization = updatedAccuracy
+            }
+            if isDenied {
+                self.continuation?.resume(throwing: CLError(.denied))
+                self.continuation = nil
+            }
+            if shouldRequestPrecision {
+                self.ensurePreciseAccuracyIfNeeded()
+            }
         }
     }
 
