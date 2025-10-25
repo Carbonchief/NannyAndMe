@@ -3,7 +3,6 @@ import Foundation
 enum L10n {
     enum Tab {
         static let home = String(localized: "tab.home.title", defaultValue: "Home")
-        static let map = String(localized: "tab.map.title", defaultValue: "Map")
         static let reports = String(localized: "tab.reports.title", defaultValue: "Reports")
     }
 
