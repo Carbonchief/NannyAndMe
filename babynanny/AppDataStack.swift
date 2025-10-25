@@ -1,3 +1,4 @@
+import CloudKit
 import Foundation
 import os
 import SwiftData
@@ -31,7 +32,7 @@ final class AppDataStack: ObservableObject {
                 )
             }
 
-            let groupContainer = ModelConfiguration.GroupContainer(identifier: appGroupIdentifier)
+            let groupContainer: ModelConfiguration.GroupContainer = .appGroup(identifier: appGroupIdentifier)
             var privateConfiguration = ModelConfiguration(
                 allowsSave: true,
                 groupContainer: groupContainer,
