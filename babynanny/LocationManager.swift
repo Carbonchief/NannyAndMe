@@ -123,37 +123,57 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         return CapturedLocation(coordinate: coordinate, placename: placename)
     }
 
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        authorizationStatus = manager.authorizationStatus
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+        var updatedAccuracy: CLAccuracyAuthorization?
         if #available(iOS 14.0, *) {
-            accuracyAuthorization = manager.accuracyAuthorization
+            updatedAccuracy = manager.accuracyAuthorization
         }
-        if manager.authorizationStatus == .denied {
-            continuation?.resume(throwing: CLError(.denied))
-            continuation = nil
-        }
-        if manager.authorizationStatus == .authorizedWhenInUse || manager.authorizationStatus == .authorizedAlways {
-            ensurePreciseAccuracyIfNeeded()
+        let shouldRequestPrecision = status == .authorizedWhenInUse || status == .authorizedAlways
+        let isDenied = status == .denied
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.authorizationStatus = status
+            if let updatedAccuracy {
+                self.accuracyAuthorization = updatedAccuracy
+            }
+            if isDenied {
+                self.continuation?.resume(throwing: CLError(.denied))
+                self.continuation = nil
+            }
+            if shouldRequestPrecision {
+                self.ensurePreciseAccuracyIfNeeded()
+            }
         }
     }
 
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.first else {
-            continuation?.resume(throwing: CLError(.locationUnknown))
-            continuation = nil
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.continuation?.resume(throwing: CLError(.locationUnknown))
+                self.continuation = nil
+            }
             return
         }
 
-        lastKnownLocation = location
-        if #available(iOS 14.0, *) {
-            accuracyAuthorization = manager.accuracyAuthorization
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.lastKnownLocation = location
+            if #available(iOS 14.0, *) {
+                self.accuracyAuthorization = manager.accuracyAuthorization
+            }
+            self.continuation?.resume(returning: location)
+            self.continuation = nil
         }
-        continuation?.resume(returning: location)
-        continuation = nil
     }
 
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        continuation?.resume(throwing: error)
-        continuation = nil
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.continuation?.resume(throwing: error)
+            self.continuation = nil
+        }
     }
 }
