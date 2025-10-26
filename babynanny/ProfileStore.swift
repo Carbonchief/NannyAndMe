@@ -109,6 +109,10 @@ struct ChildProfile: Identifiable, Equatable, Codable {
         actionReminderOverrides[category]
     }
 
+    var reminderOverridesByCategory: [BabyActionCategory: ActionReminderOverride] {
+        actionReminderOverrides
+    }
+
     mutating func setReminderInterval(_ interval: TimeInterval, for category: BabyActionCategory) {
         actionReminderIntervals[category] = max(0, interval)
         normalizeReminderPreferences()

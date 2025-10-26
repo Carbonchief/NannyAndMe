@@ -284,7 +284,7 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
     ) -> [ActionReminderEvent] {
         var events: [ActionReminderEvent] = []
 
-        let activeOverrides = profile.actionReminderOverrides.filter { _, override in
+        let activeOverrides = profile.reminderOverridesByCategory.filter { _, override in
             override.fireDate > now
         }
 
@@ -302,7 +302,7 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
 
         guard profile.remindersEnabled else { return events }
 
-        let overriddenCategories = Set(activeOverrides.map(\.key))
+        let overriddenCategories = Set(activeOverrides.map { $0.key })
 
         for category in BabyActionCategory.allCases where overriddenCategories.contains(category) == false {
             let interval = profile.reminderInterval(for: category)
