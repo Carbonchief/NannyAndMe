@@ -224,6 +224,7 @@
 "shareData.error.mismatchedProfile" = "Este archivo pertenece a otro perfil. Cambia a ese perfil e inténtalo de nuevo.";
 "shareData.error.readFailed" = "No se pudo leer el archivo. Asegúrate de seleccionar una exportación de Nanny & Me.";
 "shareData.error.missingShareableProfile" = "Aún no encontramos los datos del perfil para compartir. Inténtalo de nuevo en unos momentos.";
+"shareData.cloudKit.status.unknown" = "Estado de iCloud desconocido";
 "logs.title" = "Todos los registros";
 "logs.empty.title" = "Todavía no hay registros";
 "logs.empty.subtitle" = "Las acciones que registres aparecerán aquí organizadas por día.";

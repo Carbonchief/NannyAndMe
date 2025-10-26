@@ -198,6 +198,7 @@
 "shareData.error.mismatchedProfile" = "Diese Datei gehört zu einem anderen Profil. Wechsle zu diesem Profil und versuche es erneut.";
 "shareData.error.readFailed" = "Die Datei konnte nicht gelesen werden. Bitte wähle einen Nanny & Me-Export.";
 "shareData.error.missingShareableProfile" = "Die Profildaten stehen noch nicht zur Freigabe bereit. Bitte versuche es in einem Moment erneut.";
+"shareData.cloudKit.status.unknown" = "Cloud-Status unbekannt";
 "logs.title" = "Alle Protokolle";
 "logs.empty.title" = "Noch keine Protokolle";
 "logs.empty.subtitle" = "Hier erscheinen deine aufgezeichneten Aktionen nach Tagen sortiert.";

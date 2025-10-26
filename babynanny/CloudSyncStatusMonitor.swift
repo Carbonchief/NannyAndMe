@@ -56,7 +56,9 @@ final class CloudSyncStatusMonitor: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             guard let self else { return }
-            Task { await self.refreshStatus() }
+            Task { @MainActor in
+                await self.refreshStatus()
+            }
         }
         observers.append(accountObserver)
 
@@ -66,10 +68,11 @@ final class CloudSyncStatusMonitor: ObservableObject {
             queue: .main
         ) { [weak self] notification in
             guard let self else { return }
-            if let date = notification.object as? Date {
-                self.lastSyncDate = date
-            } else if let stored = UserDefaults.standard.object(forKey: AppDataStack.lastCloudSyncDefaultsKey) as? Date {
-                self.lastSyncDate = stored
+            let defaultsKey = AppDataStack.lastCloudSyncDefaultsKey
+            let newDate = (notification.object as? Date)
+                ?? UserDefaults.standard.object(forKey: defaultsKey) as? Date
+            Task { @MainActor [weak self] in
+                self?.lastSyncDate = newDate
             }
         }
         observers.append(syncObserver)
@@ -87,8 +90,10 @@ private extension CloudSyncStatusMonitor.Status {
             self = .restricted
         case .temporarilyUnavailable:
             self = .temporarilyUnavailable
+        case .couldNotDetermine:
+            self = .error(L10n.ShareData.CloudKit.statusUnknown)
         @unknown default:
-            self = .error("Unknown status")
+            self = .error(L10n.ShareData.CloudKit.statusUnknown)
         }
     }
 }

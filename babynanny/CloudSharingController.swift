@@ -3,10 +3,8 @@ import UIKit
 
 @available(iOS 17.0, *)
 final class CloudSharingController: UICloudSharingController {
-    init(share: CKShare, container: CKContainer) {
-        super.init(preparationHandler: { _, completion in
-            completion(share, container, nil)
-        })
+    override init(share: CKShare, container: CKContainer) {
+        super.init(share: share, container: container)
     }
 
     @available(*, unavailable)

@@ -437,7 +437,7 @@ final class Profile {
     @Attribute(.allowsCloudEncryption)
     var shareOwnerName: String?
     @Relationship(deleteRule: .cascade, inverse: \BabyAction.profile)
-    var storedActions: [BabyAction]?
+    var storedActions: [BabyAction] = []
 
     init(profileID: UUID = UUID(),
          name: String? = nil,
@@ -469,7 +469,7 @@ final class Profile {
     }
 
     var actions: [BabyAction] {
-        get { storedActions ?? [] }
+        get { storedActions }
         set {
             storedActions = newValue
             ensureActionOwnership()
@@ -477,7 +477,8 @@ final class Profile {
     }
 
     func ensureActionOwnership() {
-        guard var currentActions = storedActions else { return }
+        guard storedActions.isEmpty == false else { return }
+        var currentActions = storedActions
         var needsUpdate = false
         for index in currentActions.indices where currentActions[index].profile == nil {
             currentActions[index].profile = self

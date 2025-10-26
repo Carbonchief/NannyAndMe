@@ -707,6 +707,10 @@ enum L10n {
                 localized: "shareData.cloudKit.status.inactive",
                 defaultValue: "Not currently shared"
             )
+            static let statusUnknown = String(
+                localized: "shareData.cloudKit.status.unknown",
+                defaultValue: "Cloud status unknown"
+            )
             static let ownerRole = String(
                 localized: "shareData.cloudKit.role.owner",
                 defaultValue: "Owner"
