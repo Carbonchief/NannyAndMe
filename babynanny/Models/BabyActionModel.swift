@@ -610,6 +610,7 @@ final class BabyAction {
         get { updatedAtRawValue }
         set { updatedAtRawValue = newValue.normalizedToUTC() }
     }
+    @Transient
     var profile: Profile? {
         get { profileReference }
         set { profileReference = newValue }
