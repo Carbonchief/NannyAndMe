@@ -436,8 +436,8 @@ final class Profile {
     var shareZoneName: String?
     @Attribute(.allowsCloudEncryption)
     var shareOwnerName: String?
-    @Relationship(deleteRule: .cascade, inverse: \BabyAction.profileReference)
-    var storedActions: [BabyAction] = []
+    @Relationship(deleteRule: .cascade, inverse: \BabyAction.profile)
+    var storedActions: [BabyAction]? = []
 
     init(profileID: UUID = UUID(),
          name: String? = nil,
@@ -470,7 +470,7 @@ final class Profile {
 
     @Transient
     var actions: [BabyAction] {
-        get { storedActions }
+        get { storedActions ?? [] }
         set {
             storedActions = newValue
             ensureActionOwnership()
@@ -478,8 +478,7 @@ final class Profile {
     }
 
     func ensureActionOwnership() {
-        guard storedActions.isEmpty == false else { return }
-        var currentActions = storedActions
+        guard var currentActions = storedActions, currentActions.isEmpty == false else { return }
         var needsUpdate = false
         for index in currentActions.indices where currentActions[index].profile == nil {
             currentActions[index].profile = self
@@ -561,7 +560,7 @@ final class BabyAction {
     @Attribute(.allowsCloudEncryption)
     var placename: String?
     @Relationship(deleteRule: .nullify, inverse: \Profile.storedActions)
-    fileprivate var profileReference: Profile?
+    var profile: Profile?
 
     init(id: UUID = UUID(),
          category: BabyActionCategory = .sleep,
@@ -588,7 +587,7 @@ final class BabyAction {
         self.longitude = longitude
         self.placename = placename
         self.updatedAtRawValue = updatedAt.normalizedToUTC()
-        self.profileReference = profile
+        self.profile = profile
     }
 
     var category: BabyActionCategory {
@@ -615,13 +614,6 @@ final class BabyAction {
 typealias BabyActionModel = BabyAction
 
 extension BabyAction {
-    /// Convenience access to the owning profile while keeping the persisted relationship private.
-    @Transient
-    var profile: Profile? {
-        get { profileReference }
-        set { profileReference = newValue }
-    }
-
     var subtypeWord: String? {
         switch category {
         case .sleep:

@@ -364,17 +364,12 @@ private actor PreviewReminderScheduler: ReminderScheduling {
 }
 
 #Preview("Share Profile Page") {
-    ShareProfilePreview()
+    ShareProfilePreviewFactory.make()
 }
 
-private struct ShareProfilePreview: View {
-    private let container: ModelContainer
-    @StateObject private var dataStack: AppDataStack
-    @StateObject private var profileStore: ProfileStore
-    @StateObject private var actionStore: ActionLogStore
-    @StateObject private var shareDataCoordinator = ShareDataCoordinator()
-
-    init() {
+private enum ShareProfilePreviewFactory {
+    @MainActor
+    static func make() -> some View {
         let container = AppDataStack.makeModelContainer(inMemory: true)
         let stack = AppDataStack(modelContainer: container)
         let scheduler = PreviewReminderScheduler()
@@ -413,17 +408,12 @@ private struct ShareProfilePreview: View {
         profileStore.registerActionStore(actionStore)
         actionStore.registerProfileStore(profileStore)
 
-        self.container = container
-        _dataStack = StateObject(wrappedValue: stack)
-        _profileStore = StateObject(wrappedValue: profileStore)
-        _actionStore = StateObject(wrappedValue: actionStore)
-    }
+        let shareDataCoordinator = ShareDataCoordinator()
 
-    var body: some View {
-        NavigationStack {
+        return NavigationStack {
             ShareProfilePage()
         }
-        .environmentObject(dataStack)
+        .environmentObject(stack)
         .environmentObject(profileStore)
         .environmentObject(actionStore)
         .environmentObject(shareDataCoordinator)
