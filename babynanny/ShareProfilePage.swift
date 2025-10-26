@@ -402,7 +402,7 @@ private actor PreviewReminderScheduler: ReminderScheduling {
     profileStore.registerActionStore(actionStore)
     actionStore.registerProfileStore(profileStore)
 
-    return NavigationStack {
+    NavigationStack {
         ShareProfilePage()
     }
     .environmentObject(stack)
