@@ -614,40 +614,40 @@ struct ReportsView: View {
         .chartOverlay { proxy in
             if let selectedDate {
                 GeometryReader { geo in
-                    guard let plotFrameAnchor = proxy.plotFrame else {
-                        return Color.clear
-                    }
+                    if let plotFrameAnchor = proxy.plotFrame {
+                        let plotFrame = geo[plotFrameAnchor]
+                        Rectangle()
+                            .fill(.clear)
+                            .contentShape(Rectangle())
+                            .gesture(
+                                SpatialTapGesture()
+                                    .onEnded { value in
+                                        guard plotFrame.contains(value.location) else {
+                                            selectedDate.wrappedValue = nil
+                                            return
+                                        }
 
-                    let plotFrame = geo[plotFrameAnchor]
-                    Rectangle()
-                        .fill(.clear)
-                        .contentShape(Rectangle())
-                        .gesture(
-                            SpatialTapGesture()
-                                .onEnded { value in
-                                    guard plotFrame.contains(value.location) else {
-                                        selectedDate.wrappedValue = nil
-                                        return
-                                    }
-
-                                    let locationX = value.location.x - plotFrame.origin.x
-                                    if let tappedDate: Date = proxy.value(atX: locationX, as: Date.self) {
-                                        let normalized = Calendar.current.startOfDay(for: tappedDate)
-                                        if let nearest = nearestTrendDay(to: normalized,
-                                                                         from: aggregates.map(\.date)) {
-                                            if nearest == selectedDate.wrappedValue {
-                                                selectedDate.wrappedValue = nil
+                                        let locationX = value.location.x - plotFrame.origin.x
+                                        if let tappedDate: Date = proxy.value(atX: locationX, as: Date.self) {
+                                            let normalized = Calendar.current.startOfDay(for: tappedDate)
+                                            if let nearest = nearestTrendDay(to: normalized,
+                                                                             from: aggregates.map(\.date)) {
+                                                if nearest == selectedDate.wrappedValue {
+                                                    selectedDate.wrappedValue = nil
+                                                } else {
+                                                    selectedDate.wrappedValue = nearest
+                                                }
                                             } else {
-                                                selectedDate.wrappedValue = nearest
+                                                selectedDate.wrappedValue = nil
                                             }
                                         } else {
                                             selectedDate.wrappedValue = nil
                                         }
-                                    } else {
-                                        selectedDate.wrappedValue = nil
                                     }
-                                }
-                        )
+                            )
+                    } else {
+                        Color.clear
+                    }
                 }
             }
         }
