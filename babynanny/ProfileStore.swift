@@ -767,8 +767,10 @@ final class ProfileStore: ObservableObject {
         let predicate = #Predicate<ProfileActionStateModel> { model in
             model.profileID == id
         }
-        let descriptor = FetchDescriptor<ProfileActionStateModel>(predicate: predicate, fetchLimit: 1)
-        return try? modelContext.fetch(descriptor).first
+        var descriptor = FetchDescriptor<ProfileActionStateModel>(predicate: predicate)
+        descriptor.fetchLimit = 1
+        let results = try? modelContext.fetch(descriptor)
+        return results?.first
     }
 
     private static func clampCustomReminderDelay(_ delay: TimeInterval) -> TimeInterval {
@@ -789,9 +791,10 @@ final class ProfileStore: ObservableObject {
     }
 
     private static func fetchOrCreateSettings(in context: ModelContext) -> ProfileStoreSettings {
-        let descriptor = FetchDescriptor<ProfileStoreSettings>(fetchLimit: 1)
-        if let existing = try? context.fetch(descriptor).first {
-            return existing
+        var descriptor = FetchDescriptor<ProfileStoreSettings>()
+        descriptor.fetchLimit = 1
+        if let existing = try? context.fetch(descriptor), let model = existing.first {
+            return model
         }
 
         let settings = ProfileStoreSettings()
