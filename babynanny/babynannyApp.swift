@@ -21,7 +21,9 @@ struct babynannyApp: App {
 
         let stack = AppDataStack()
         let scheduler = UserNotificationReminderScheduler()
-        let profileStore = ProfileStore(reminderScheduler: scheduler)
+        let profileStore = ProfileStore(modelContext: stack.mainContext,
+                                        dataStack: stack,
+                                        reminderScheduler: scheduler)
         let actionStore = ActionLogStore(modelContext: stack.mainContext,
                                          reminderScheduler: scheduler,
                                          dataStack: stack)

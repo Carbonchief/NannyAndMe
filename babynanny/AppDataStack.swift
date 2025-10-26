@@ -25,7 +25,10 @@ final class AppDataStack: ObservableObject {
 
         do {
             return try ModelContainer(
-                for: ProfileActionStateModel.self, BabyActionModel.self,
+                for: ProfileActionStateModel.self,
+                    BabyActionModel.self,
+                    ProfileReminderPreference.self,
+                    ProfileStoreSettings.self,
                 configurations: configuration
             )
         } catch {

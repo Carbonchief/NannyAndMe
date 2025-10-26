@@ -418,6 +418,66 @@ struct ProfileActionState: Codable, Sendable {
     }
 }
 
+struct ProfileActionReminderOverride: Codable, Equatable, Sendable {
+    var fireDate: Date
+    var isOneOff: Bool
+}
+
+@Model
+final class ProfileReminderPreference {
+    private var categoryRawValue: String = BabyActionCategory.sleep.rawValue
+    var interval: TimeInterval = 3 * 60 * 60
+    var isEnabled: Bool = true
+    var overrideFireDate: Date?
+    var overrideIsOneOff: Bool = false
+    @Relationship(deleteRule: .nullify, inverse: \Profile.reminderPreferences)
+    var profile: Profile?
+
+    init(category: BabyActionCategory = .sleep,
+         interval: TimeInterval = 3 * 60 * 60,
+         isEnabled: Bool = true,
+         override: ProfileActionReminderOverride? = nil,
+         profile: Profile? = nil) {
+        self.categoryRawValue = category.rawValue
+        self.interval = max(0, interval)
+        self.isEnabled = isEnabled
+        self.overrideFireDate = override?.fireDate
+        self.overrideIsOneOff = override?.isOneOff ?? false
+        self.profile = profile
+    }
+
+    var category: BabyActionCategory {
+        get { BabyActionCategory(rawValue: categoryRawValue) ?? .sleep }
+        set { categoryRawValue = newValue.rawValue }
+    }
+
+    var override: ProfileActionReminderOverride? {
+        get {
+            guard let fireDate = overrideFireDate else { return nil }
+            return ProfileActionReminderOverride(fireDate: fireDate, isOneOff: overrideIsOneOff)
+        }
+        set {
+            overrideFireDate = newValue?.fireDate
+            overrideIsOneOff = newValue?.isOneOff ?? false
+        }
+    }
+}
+
+@Model
+final class ProfileStoreSettings {
+    var identifier: String = "profile-store-settings"
+    var activeProfileID: UUID?
+    var showRecentActivityOnHome: Bool = true
+
+    init(identifier: String = "profile-store-settings",
+         activeProfileID: UUID? = nil,
+         showRecentActivityOnHome: Bool = true) {
+        self.identifier = identifier
+        self.activeProfileID = activeProfileID
+        self.showRecentActivityOnHome = showRecentActivityOnHome
+    }
+}
+
 @Model
 final class Profile {
     /// Stable identifier used for SwiftData uniqueness and JSON exports.
@@ -426,19 +486,35 @@ final class Profile {
     var birthDate: Date?
     @Attribute(.externalStorage)
     var imageData: Data?
+    var remindersEnabled: Bool = false
     @Relationship(deleteRule: .cascade)
     var storedActions: [BabyAction]?
+    @Relationship(deleteRule: .cascade)
+    var reminderPreferences: [ProfileReminderPreference]?
 
     init(profileID: UUID = UUID(),
          name: String? = nil,
          birthDate: Date? = nil,
          imageData: Data? = nil,
+         remindersEnabled: Bool = false,
+         reminderPreferences: [ProfileReminderPreference]? = nil,
          actions: [BabyAction] = []) {
         self.profileID = profileID
         self.name = name
         self.birthDate = birthDate?.normalizedToUTC()
         self.imageData = imageData
+        self.remindersEnabled = remindersEnabled
         self.storedActions = actions
+        if let reminderPreferences {
+            self.reminderPreferences = reminderPreferences
+        } else {
+            self.reminderPreferences = BabyActionCategory.allCases.map { category in
+                ProfileReminderPreference(category: category,
+                                           interval: Profile.defaultActionReminderInterval,
+                                           isEnabled: true,
+                                           profile: self)
+            }
+        }
         ensureActionOwnership()
     }
 
@@ -471,6 +547,111 @@ final class Profile {
 typealias ProfileActionStateModel = Profile
 
 extension ProfileActionStateModel {
+    static var defaultActionReminderInterval: TimeInterval { 3 * 60 * 60 }
+
+    func reminderPreference(for category: BabyActionCategory) -> ProfileReminderPreference {
+        if let existing = reminderPreferences?.first(where: { $0.category == category }) {
+            return existing
+        }
+
+        let preference = ProfileReminderPreference(category: category,
+                                                   interval: Self.defaultActionReminderInterval,
+                                                   isEnabled: true,
+                                                   profile: self)
+        if reminderPreferences == nil {
+            reminderPreferences = []
+        }
+        reminderPreferences?.append(preference)
+        return preference
+    }
+
+    func reminderInterval(for category: BabyActionCategory) -> TimeInterval {
+        let interval = reminderPreference(for: category).interval
+        return interval > 0 ? interval : Self.defaultActionReminderInterval
+    }
+
+    func setReminderInterval(_ interval: TimeInterval, for category: BabyActionCategory) {
+        let normalized = max(0, interval)
+        let preference = reminderPreference(for: category)
+        preference.interval = normalized > 0 ? normalized : Self.defaultActionReminderInterval
+    }
+
+    func isReminderEnabled(for category: BabyActionCategory) -> Bool {
+        reminderPreference(for: category).isEnabled
+    }
+
+    func setReminderEnabled(_ isEnabled: Bool, for category: BabyActionCategory) {
+        let preference = reminderPreference(for: category)
+        preference.isEnabled = isEnabled
+    }
+
+    func reminderOverride(for category: BabyActionCategory) -> ProfileActionReminderOverride? {
+        reminderPreference(for: category).override
+    }
+
+    func setReminderOverride(_ override: ProfileActionReminderOverride?,
+                             for category: BabyActionCategory,
+                             referenceDate: Date = Date()) {
+        let preference = reminderPreference(for: category)
+        if let override, override.fireDate > referenceDate {
+            preference.override = override
+        } else {
+            preference.override = nil
+        }
+    }
+
+    func clearReminderOverride(for category: BabyActionCategory) {
+        reminderPreference(for: category).override = nil
+    }
+
+    func pruneReminderOverrides(referenceDate: Date = Date()) {
+        reminderPreferences?.forEach { preference in
+            if let override = preference.override, override.fireDate <= referenceDate {
+                preference.override = nil
+            }
+        }
+    }
+
+    func normalizeReminderPreferences() {
+        for category in BabyActionCategory.allCases {
+            let preference = reminderPreference(for: category)
+            if preference.interval <= 0 {
+                preference.interval = Self.defaultActionReminderInterval
+            }
+        }
+        pruneReminderOverrides()
+    }
+
+    func reminderIntervalsByCategory() -> [BabyActionCategory: TimeInterval] {
+        var intervals: [BabyActionCategory: TimeInterval] = [:]
+        for category in BabyActionCategory.allCases {
+            intervals[category] = reminderInterval(for: category)
+        }
+        return intervals
+    }
+
+    func reminderEnabledByCategory() -> [BabyActionCategory: Bool] {
+        var values: [BabyActionCategory: Bool] = [:]
+        for category in BabyActionCategory.allCases {
+            values[category] = isReminderEnabled(for: category)
+        }
+        return values
+    }
+
+    func reminderOverridesByCategory(referenceDate: Date = Date()) -> [BabyActionCategory: ProfileActionReminderOverride] {
+        var overrides: [BabyActionCategory: ProfileActionReminderOverride] = [:]
+        for category in BabyActionCategory.allCases {
+            if let override = reminderOverride(for: category), override.fireDate > referenceDate {
+                overrides[category] = override
+            }
+        }
+        return overrides
+    }
+
+    func setBirthDate(_ date: Date?) {
+        birthDate = date?.normalizedToUTC()
+    }
+
     func makeActionState() -> ProfileActionState {
         ensureActionOwnership()
 

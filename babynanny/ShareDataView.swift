@@ -454,13 +454,8 @@ struct SharedProfileData: Codable {
 }
 
 #Preview {
-    let profile = ChildProfile(name: "Aria", birthDate: Date())
-    let profileStore = ProfileStore(
-        initialProfiles: [profile],
-        activeProfileID: profile.id,
-        directory: FileManager.default.temporaryDirectory,
-        filename: "shareDataPreviewProfiles.json"
-    )
+    let profileStore = ProfileStore.preview
+    let profile = profileStore.activeProfile
 
     var state = ProfileActionState()
     state.history = [

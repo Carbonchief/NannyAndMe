@@ -2010,8 +2010,8 @@ private struct ActionDetailSheet: View {
 }
 
 #Preview {
-    let profile = ChildProfile(name: "Aria", birthDate: Date())
-    let profileStore = ProfileStore(initialProfiles: [profile], activeProfileID: profile.id, directory: FileManager.default.temporaryDirectory, filename: "previewHomeProfiles.json")
+    let profileStore = ProfileStore.preview
+    let profile = profileStore.activeProfile
 
     var state = ProfileActionState()
     state.activeActions[.sleep] = BabyActionSnapshot(category: .sleep, startDate: Date().addingTimeInterval(-1200))
