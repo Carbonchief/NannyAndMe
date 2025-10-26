@@ -28,12 +28,16 @@ struct SettingsView: View {
     @State private var activeAlert: ActiveAlert?
     @State private var profilePendingDeletion: ChildProfile?
     @State private var isAddProfilePromptPresented = false
+    @StateObject private var cloudStatusMonitor = CloudSyncStatusMonitor(
+        containerIdentifier: AppDataStack.cloudKitContainerIdentifier
+    )
 
     var body: some View {
         Form {
             profilesSection
             activeProfileSection
             homeSection
+            cloudStatusSection
             privacySection
             notificationsSection
             aboutSection
@@ -98,6 +102,38 @@ struct SettingsView: View {
         }
     }
 
+    private var cloudStatusSection: some View {
+        Section(header: Text(L10n.Settings.Cloud.sectionTitle)) {
+            HStack(spacing: 12) {
+                Image(systemName: cloudStatusIcon)
+                    .font(.title3)
+                    .foregroundStyle(cloudStatusColor)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(cloudStatusTitle)
+                        .font(.headline)
+                    if let detail = cloudStatusDetail {
+                        Text(detail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let lastSync = cloudStatusMonitor.lastSyncDate {
+                        Text(cloudStatusLastSyncText(for: lastSync))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+            }
+
+            if cloudStatusRequiresRetry {
+                Button(action: refreshCloudStatus) {
+                    Label(L10n.Settings.Cloud.retry, systemImage: "arrow.clockwise")
+                }
+                .postHogLabel("settings_refreshCloudStatus_button_settingsView")
+            }
+        }
+    }
+
     private var privacySection: some View {
         Section(header: Text(L10n.Settings.Privacy.sectionTitle)) {
             Toggle(isOn: $trackActionLocations) {
@@ -129,6 +165,94 @@ struct SettingsView: View {
                 .buttonStyle(.borderless)
             }
         }
+    }
+
+    private var cloudStatusIcon: String {
+        switch cloudStatusMonitor.status {
+        case .available:
+            return "icloud"
+        case .checking, .idle:
+            return "icloud.and.arrow.up"
+        case .noAccount:
+            return "exclamationmark.icloud"
+        case .restricted, .temporarilyUnavailable:
+            return "icloud.slash"
+        case .error:
+            return "xmark.icloud"
+        }
+    }
+
+    private var cloudStatusColor: Color {
+        switch cloudStatusMonitor.status {
+        case .available:
+            return .green
+        case .checking, .idle:
+            return .blue
+        case .noAccount:
+            return .orange
+        case .restricted, .temporarilyUnavailable:
+            return .yellow
+        case .error:
+            return .red
+        }
+    }
+
+    private var cloudStatusTitle: String {
+        switch cloudStatusMonitor.status {
+        case .idle, .checking:
+            return L10n.Settings.Cloud.statusChecking
+        case .available:
+            return L10n.Settings.Cloud.statusAvailable
+        case .noAccount:
+            return L10n.Settings.Cloud.statusNoAccount
+        case .restricted:
+            return L10n.Settings.Cloud.statusRestricted
+        case .temporarilyUnavailable:
+            return L10n.Settings.Cloud.statusUnavailable
+        case let .error(message):
+            return L10n.Settings.Cloud.statusError(message)
+        }
+    }
+
+    private var cloudStatusDetail: String? {
+        switch cloudStatusMonitor.status {
+        case .idle:
+            return nil
+        case .checking:
+            return L10n.Settings.Cloud.statusDetailChecking
+        case .available:
+            return L10n.Settings.Cloud.statusDetailAvailable
+        case .noAccount:
+            return L10n.Settings.Cloud.statusDetailNoAccount
+        case .restricted:
+            return L10n.Settings.Cloud.statusDetailRestricted
+        case .temporarilyUnavailable:
+            return L10n.Settings.Cloud.statusDetailUnavailable
+        case .error:
+            return L10n.Settings.Cloud.statusDetailError
+        }
+    }
+
+    private func cloudStatusLastSyncText(for date: Date) -> String {
+        let relativeFormatter = RelativeDateTimeFormatter()
+        relativeFormatter.unitsStyle = .short
+        let relative = relativeFormatter.localizedString(for: date, relativeTo: Date())
+        let absoluteFormatter = DateFormatter()
+        absoluteFormatter.dateStyle = .medium
+        absoluteFormatter.timeStyle = .short
+        let absolute = absoluteFormatter.string(from: date)
+        return L10n.Settings.Cloud.lastSync(absolute, relative)
+    }
+
+    private var cloudStatusRequiresRetry: Bool {
+        if case .error = cloudStatusMonitor.status {
+            return true
+        }
+        return false
+    }
+
+    private func refreshCloudStatus() {
+        Task { await cloudStatusMonitor.refreshStatus() }
     }
 
     private var profilesSection: some View {

@@ -21,10 +21,15 @@ final class AppDataStack: ObservableObject {
     static func makeModelContainer(inMemory: Bool = false) -> ModelContainer {
         do {
             if inMemory {
-                let configuration = ModelConfiguration(
+                var configuration = ModelConfiguration(
+                    "InMemory",
                     isStoredInMemoryOnly: true,
                     allowsSave: true
                 )
+
+                if #available(iOS 17.4, *) {
+                    configuration.allowsCloudSharing = true
+                }
 
                 return try ModelContainer(
                     for: ProfileActionStateModel.self, BabyActionModel.self,
@@ -34,12 +39,14 @@ final class AppDataStack: ObservableObject {
 
             let groupContainer: ModelConfiguration.GroupContainer = .appGroup(identifier: appGroupIdentifier)
             var privateConfiguration = ModelConfiguration(
+                "CloudPrivate",
                 allowsSave: true,
                 groupContainer: groupContainer,
                 cloudKitDatabase: .private(cloudKitContainerIdentifier)
             )
 
             var sharedConfiguration = ModelConfiguration(
+                "CloudShared",
                 allowsSave: true,
                 groupContainer: groupContainer,
                 cloudKitDatabase: .shared(cloudKitContainerIdentifier)
@@ -52,7 +59,7 @@ final class AppDataStack: ObservableObject {
 
             let container = try ModelContainer(
                 for: ProfileActionStateModel.self, BabyActionModel.self,
-                configurations: privateConfiguration, sharedConfiguration
+                configurations: [privateConfiguration, sharedConfiguration]
             )
 
             migrateLegacyStoreIfNeeded(to: container)
@@ -115,6 +122,9 @@ final class AppDataStack: ObservableObject {
         do {
             try context.save()
             swiftDataLogger.debug("Saved context for \(reason, privacy: .public)")
+            let syncDate = Date().normalizedToUTC()
+            UserDefaults.standard.set(syncDate, forKey: Self.lastCloudSyncDefaultsKey)
+            NotificationCenter.default.post(name: Self.cloudSyncDidSaveNotification, object: syncDate)
         } catch {
             swiftDataLogger.error("Failed to save context for \(reason, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
@@ -122,7 +132,9 @@ final class AppDataStack: ObservableObject {
 }
 
 extension AppDataStack {
-    static let cloudKitContainerIdentifier = "iCloud.com.prioritybit.babynanny"
+    static let cloudKitContainerIdentifier = "iCloud.com.prioritybit.nannyandme"
+    static let cloudSyncDidSaveNotification = Notification.Name("com.prioritybit.babynanny.cloudSyncDidSave")
+    static let lastCloudSyncDefaultsKey = "com.prioritybit.babynanny.lastCloudSync"
 }
 
 private extension AppDataStack {

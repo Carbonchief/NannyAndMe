@@ -14,6 +14,7 @@ final class ShareDataCoordinator: ObservableObject {
 
     @Published var isShowingShareData = false
     @Published private(set) var externalImportRequest: ExternalImportRequest?
+    @Published var isProcessingShareAcceptance = false
 
     func presentShareData() {
         isShowingShareData = true
@@ -31,5 +32,13 @@ final class ShareDataCoordinator: ObservableObject {
 
     func dismissShareData() {
         isShowingShareData = false
+    }
+
+    func beginShareAcceptance() {
+        isProcessingShareAcceptance = true
+    }
+
+    func completeShareAcceptance() {
+        isProcessingShareAcceptance = false
     }
 }

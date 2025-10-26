@@ -64,6 +64,16 @@ struct babynannyApp: App {
                         shareDataCoordinator.handleIncomingFile(url: url)
                     }
 
+                if shareDataCoordinator.isProcessingShareAcceptance {
+                    Color.black.opacity(0.25)
+                        .ignoresSafeArea()
+                    ProgressView(L10n.ShareData.CloudKit.acceptingShare)
+                        .padding(24)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .shadow(radius: 12)
+                }
+
                 if isShowingSplashScreen {
                     SplashScreenView()
                         .transition(.opacity)
@@ -100,6 +110,8 @@ private extension babynannyApp {
     @available(iOS 17.0, *)
     func handleShareAcceptance(for metadata: CKShare.Metadata) {
         Task { @MainActor in
+            shareDataCoordinator.beginShareAcceptance()
+            defer { shareDataCoordinator.completeShareAcceptance() }
             do {
                 try await acceptShare(metadata: metadata)
             } catch {

@@ -1,3 +1,4 @@
+import CloudKit
 import Foundation
 import SwiftData
 import SwiftUI
@@ -178,7 +179,7 @@ struct BabyActionSnapshot: Identifiable, Codable, Equatable, Sendable {
         self.latitude = latitude
         self.longitude = longitude
         self.placename = placename
-        self.updatedAt = updatedAt
+        self.updatedAt = updatedAt.normalizedToUTC()
     }
 
     var title: String {
@@ -429,19 +430,31 @@ final class Profile {
     var birthDate: Date?
     @Attribute(.externalStorage, .allowsCloudEncryption)
     var imageData: Data?
-    @Relationship(deleteRule: .cascade)
+    @Attribute(.allowsCloudEncryption)
+    var shareRecordName: String?
+    @Attribute(.allowsCloudEncryption)
+    var shareZoneName: String?
+    @Attribute(.allowsCloudEncryption)
+    var shareOwnerName: String?
+    @Relationship(deleteRule: .cascade, inverse: \BabyAction.profile)
     var storedActions: [BabyAction]?
 
     init(profileID: UUID = UUID(),
          name: String? = nil,
          birthDate: Date? = nil,
          imageData: Data? = nil,
-         actions: [BabyAction] = []) {
+         actions: [BabyAction] = [],
+         shareRecordName: String? = nil,
+         shareZoneName: String? = nil,
+         shareOwnerName: String? = nil) {
         self.id = profileID
         self.name = name
         self.birthDate = birthDate?.normalizedToUTC()
         self.imageData = imageData
         self.storedActions = actions
+        self.shareRecordName = shareRecordName
+        self.shareZoneName = shareZoneName
+        self.shareOwnerName = shareOwnerName
         ensureActionOwnership()
     }
 
@@ -473,6 +486,14 @@ final class Profile {
         if needsUpdate {
             storedActions = currentActions
         }
+    }
+
+    var shareRecordID: CKShare.ID? {
+        guard let recordName = shareRecordName,
+              let zoneName = shareZoneName,
+              let ownerName = shareOwnerName else { return nil }
+        let zoneID = CKRecordZone.ID(zoneName: zoneName, ownerName: ownerName)
+        return CKShare.ID(recordName: recordName, zoneID: zoneID)
     }
 }
 
@@ -530,7 +551,7 @@ final class BabyAction {
     @Attribute(.allowsCloudEncryption)
     var bottleVolume: Int?
     @Attribute(.allowsCloudEncryption)
-    private var updatedAtRawValue: Date = Date()
+    private var updatedAtRawValue: Date = Date().normalizedToUTC()
     @Attribute(.allowsCloudEncryption)
     var latitude: Double?
     @Attribute(.allowsCloudEncryption)
@@ -564,7 +585,7 @@ final class BabyAction {
         self.latitude = latitude
         self.longitude = longitude
         self.placename = placename
-        self.updatedAtRawValue = updatedAt
+        self.updatedAtRawValue = updatedAt.normalizedToUTC()
         self.profile = profile
     }
 
@@ -585,7 +606,7 @@ final class BabyAction {
 
     var updatedAt: Date {
         get { updatedAtRawValue }
-        set { updatedAtRawValue = newValue }
+        set { updatedAtRawValue = newValue.normalizedToUTC() }
     }
 }
 

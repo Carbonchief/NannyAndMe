@@ -63,6 +63,18 @@ NannyAndMe/
    - Choose an iOS Simulator device (e.g., iPhone 15 Pro).
    - Press <kbd>Cmd</kbd>+<kbd>R</kbd> to build and run.
 
+### Cloud sync & sharing
+
+CloudKit is optional during development, but the sharing screens require the dedicated container to be available.
+
+1. In Xcode, open the target signing settings and enable the **iCloud** capability with **CloudKit** using the container
+   `iCloud.com.prioritybit.nannyandme`.
+2. Run the app on a device or simulator that is signed in to iCloud. Any changes are stored locally first and sync as soon as
+   connectivity is available.
+3. To validate sharing, install the app on two different Apple IDs, create a profile on the owner device, and use the **Share
+   Profile** screen to invite the second user. Log a few actions on each device and confirm they appear on both ends before
+   trying the **Stop sharing** flow.
+
 ## Testing
 
 Run the unit or UI test suites from Xcode with <kbd>Cmd</kbd>+<kbd>U</kbd>, or from the command line:

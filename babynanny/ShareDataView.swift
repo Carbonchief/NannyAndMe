@@ -1,4 +1,3 @@
-import CloudKit
 import SwiftData
 import SwiftUI
 import UIKit
@@ -16,8 +15,6 @@ struct ShareDataView: View {
     @State private var alert: ShareDataAlert?
     @State private var airDropShareItem: AirDropShareItem?
     @State private var isPreparingAirDropShare = false
-    @State private var isPreparingCloudShare = false
-    @State private var cloudSharePresentation: CloudSharePresentation?
     @State private var processedExternalImportID: ShareDataCoordinator.ExternalImportRequest.ID?
 
     var body: some View {
@@ -41,15 +38,18 @@ struct ShareDataView: View {
 
             if supportsCloudSharing {
                 Section {
-                    ShareDataActionButton(
-                        title: L10n.ShareData.CloudKit.inviteButton,
-                        systemImage: "person.2.badge.plus",
-                        tint: .purple,
-                        action: startCloudShare,
-                        isLoading: isPreparingCloudShare,
-                        postHogLabel: "shareData_invite_button_shareDataView"
-                    )
-                    .disabled(isPreparingCloudShare)
+                    NavigationLink {
+                        ShareProfilePage()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Label(L10n.ShareData.CloudKit.manageButton, systemImage: "person.2.badge.checkmark")
+                                .labelStyle(.titleAndIcon)
+                            Text(L10n.ShareData.CloudKit.manageDescription)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .postHogLabel("shareData_manage_button_shareDataView")
                 } header: {
                     Text(L10n.ShareData.CloudKit.sectionTitle)
                 } footer: {
@@ -155,13 +155,6 @@ struct ShareDataView: View {
                 }
             }
         }
-        .sheet(item: $cloudSharePresentation) { presentation in
-            if #available(iOS 17.0, *) {
-                CloudSharingControllerView(presentation: presentation)
-            } else {
-                EmptyView()
-            }
-        }
         .onAppear {
             processPendingExternalImportIfNeeded()
         }
@@ -223,62 +216,6 @@ struct ShareDataView: View {
 
             importSummaryDetails
         }
-    }
-
-    private func startCloudShare() {
-        guard supportsCloudSharing else { return }
-        guard isPreparingCloudShare == false else { return }
-
-        withAnimation {
-            isPreparingCloudShare = true
-        }
-
-        Task(priority: .userInitiated) {
-            do {
-                let presentation = try await MainActor.run {
-                    try prepareCloudSharePresentation()
-                }
-
-                await MainActor.run {
-                    cloudSharePresentation = presentation
-                    withAnimation {
-                        isPreparingCloudShare = false
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    withAnimation {
-                        isPreparingCloudShare = false
-                    }
-                    alert = ShareDataAlert(
-                        title: L10n.ShareData.Alert.cloudShareFailureTitle,
-                        message: L10n.ShareData.Alert.cloudShareFailureMessage(error.localizedDescription)
-                    )
-                }
-            }
-        }
-    }
-
-    @MainActor
-    private func prepareCloudSharePresentation() throws -> CloudSharePresentation {
-        guard supportsCloudSharing else {
-            throw CloudShareError.missingProfile
-        }
-
-        let activeProfile = profileStore.activeProfile
-        actionStore.synchronizeProfileMetadata([activeProfile])
-
-        guard let profileModel = try fetchProfileModel(for: activeProfile.id) else {
-            throw CloudShareError.missingProfile
-        }
-
-        let share = try modelContext.share(profileModel, to: [])
-        share[CKRecord.SystemFieldKey.title] = activeProfile.displayName as CKRecordValue
-
-        return CloudSharePresentation(
-            share: share,
-            container: CKContainer(identifier: AppDataStack.cloudKitContainerIdentifier)
-        )
     }
 
     @MainActor
@@ -417,34 +354,6 @@ struct ShareDataView: View {
         return "\(base)-share"
     }
 
-}
-
-private enum CloudShareError: LocalizedError {
-    case missingProfile
-
-    var errorDescription: String? {
-        switch self {
-        case .missingProfile:
-            return L10n.ShareData.Error.missingShareableProfile
-        }
-    }
-}
-
-private struct CloudSharePresentation: Identifiable {
-    let id = UUID()
-    let share: CKShare
-    let container: CKContainer
-}
-
-@available(iOS 17.0, *)
-private struct CloudSharingControllerView: UIViewControllerRepresentable {
-    let presentation: CloudSharePresentation
-
-    func makeUIViewController(context: Context) -> CloudSharingController {
-        CloudSharingController(share: presentation.share, container: presentation.container)
-    }
-
-    func updateUIViewController(_ uiViewController: CloudSharingController, context: Context) {}
 }
 
 private struct AirDropShareItem: Identifiable {

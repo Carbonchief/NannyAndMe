@@ -394,6 +394,69 @@ enum L10n {
             static let openSettings = String(localized: "settings.privacy.openSettings", defaultValue: "Open Settings")
         }
 
+        enum Cloud {
+            static let sectionTitle = String(localized: "settings.cloud.section", defaultValue: "iCloud")
+            static let statusChecking = String(
+                localized: "settings.cloud.status.checking",
+                defaultValue: "Checking iCloud…"
+            )
+            static let statusAvailable = String(
+                localized: "settings.cloud.status.available",
+                defaultValue: "Signed in to iCloud"
+            )
+            static let statusNoAccount = String(
+                localized: "settings.cloud.status.noAccount",
+                defaultValue: "Sign in to iCloud"
+            )
+            static let statusRestricted = String(
+                localized: "settings.cloud.status.restricted",
+                defaultValue: "iCloud access restricted"
+            )
+            static let statusUnavailable = String(
+                localized: "settings.cloud.status.unavailable",
+                defaultValue: "iCloud temporarily unavailable"
+            )
+            static func statusError(_ reason: String) -> String {
+                let format = String(
+                    localized: "settings.cloud.status.error",
+                    defaultValue: "iCloud error: %@"
+                )
+                return String(format: format, locale: Locale.current, reason)
+            }
+            static let statusDetailChecking = String(
+                localized: "settings.cloud.detail.checking",
+                defaultValue: "We’re verifying your iCloud account."
+            )
+            static let statusDetailAvailable = String(
+                localized: "settings.cloud.detail.available",
+                defaultValue: "Cloud syncing is active."
+            )
+            static let statusDetailNoAccount = String(
+                localized: "settings.cloud.detail.noAccount",
+                defaultValue: "Sign in to iCloud to sync profiles across devices."
+            )
+            static let statusDetailRestricted = String(
+                localized: "settings.cloud.detail.restricted",
+                defaultValue: "Your device restricts iCloud access for this app."
+            )
+            static let statusDetailUnavailable = String(
+                localized: "settings.cloud.detail.unavailable",
+                defaultValue: "Try again in a moment. We’ll keep your changes safe offline."
+            )
+            static let statusDetailError = String(
+                localized: "settings.cloud.detail.error",
+                defaultValue: "We’ll keep retrying automatically."
+            )
+            static func lastSync(_ absolute: String, _ relative: String) -> String {
+                let format = String(
+                    localized: "settings.cloud.lastSync",
+                    defaultValue: "Last sync: %@ (%@)"
+                )
+                return String(format: format, locale: Locale.current, absolute, relative)
+            }
+            static let retry = String(localized: "settings.cloud.retry", defaultValue: "Check now")
+        }
+
     }
 
     enum Map {
@@ -584,9 +647,113 @@ enum L10n {
                 localized: "shareData.cloudKit.button",
                 defaultValue: "Invite caregivers"
             )
+            static let manageButton = String(
+                localized: "shareData.cloudKit.manageButton",
+                defaultValue: "Manage Cloud Sharing"
+            )
+            static let manageDescription = String(
+                localized: "shareData.cloudKit.manageDescription",
+                defaultValue: "Invite family or caregivers and manage shared access in one place."
+            )
+            static let manageTitle = String(
+                localized: "shareData.cloudKit.manageTitle",
+                defaultValue: "Share Profile"
+            )
             static let footer = String(
                 localized: "shareData.cloudKit.footer",
                 defaultValue: "Share this profile over iCloud to keep every caregiver up to date automatically."
+            )
+            static let statusSectionTitle = String(
+                localized: "shareData.cloudKit.statusSection",
+                defaultValue: "Sharing status"
+            )
+            static let participantsTitle = String(
+                localized: "shareData.cloudKit.participants",
+                defaultValue: "Participants"
+            )
+            static let noParticipants = String(
+                localized: "shareData.cloudKit.noParticipants",
+                defaultValue: "No additional caregivers yet. Use the button below to add someone."
+            )
+            static let removeParticipant = String(
+                localized: "shareData.cloudKit.removeParticipant",
+                defaultValue: "Remove caregiver"
+            )
+            static let actionsTitle = String(
+                localized: "shareData.cloudKit.actionsTitle",
+                defaultValue: "Actions"
+            )
+            static let copyLink = String(
+                localized: "shareData.cloudKit.copyLink",
+                defaultValue: "Copy invite link"
+            )
+            static let stopSharing = String(
+                localized: "shareData.cloudKit.stopSharing",
+                defaultValue: "Stop sharing"
+            )
+            static let syncInProgress = String(
+                localized: "shareData.cloudKit.syncInProgress",
+                defaultValue: "Syncing latest updates…"
+            )
+            static let syncError = String(
+                localized: "shareData.cloudKit.syncError",
+                defaultValue: "Sharing update failed"
+            )
+            static let shareActive = String(
+                localized: "shareData.cloudKit.status.active",
+                defaultValue: "Sharing is active"
+            )
+            static let shareInactive = String(
+                localized: "shareData.cloudKit.status.inactive",
+                defaultValue: "Not currently shared"
+            )
+            static let ownerRole = String(
+                localized: "shareData.cloudKit.role.owner",
+                defaultValue: "Owner"
+            )
+            static let editRole = String(
+                localized: "shareData.cloudKit.role.edit",
+                defaultValue: "Can edit"
+            )
+            static let viewRole = String(
+                localized: "shareData.cloudKit.role.view",
+                defaultValue: "Can view"
+            )
+            static let pendingRole = String(
+                localized: "shareData.cloudKit.role.pending",
+                defaultValue: "Pending access"
+            )
+            static let lastSyncedJustNow = String(
+                localized: "shareData.cloudKit.lastSynced.justNow",
+                defaultValue: "Last synced just now"
+            )
+            static let linkCopied = String(
+                localized: "shareData.cloudKit.linkCopied",
+                defaultValue: "Share link copied"
+            )
+            static let shareStopped = String(
+                localized: "shareData.cloudKit.shareStopped",
+                defaultValue: "Sharing disabled"
+            )
+            static let participantRemoved = String(
+                localized: "shareData.cloudKit.participantRemoved",
+                defaultValue: "Caregiver removed"
+            )
+            static let statusRefreshed = String(
+                localized: "shareData.cloudKit.statusRefreshed",
+                defaultValue: "Sharing status updated"
+            )
+            static let acceptingShare = String(
+                localized: "shareData.cloudKit.acceptingShare",
+                defaultValue: "Adding shared profile…"
+            )
+            static let ownerPlaceholder = String(
+                localized: "shareData.cloudKit.ownerPlaceholder",
+                defaultValue: "You"
+            )
+            static let unknownParticipant = String(
+                localized: "shareData.cloudKit.unknownParticipant",
+                defaultValue: "Pending participant"
             )
         }
 
