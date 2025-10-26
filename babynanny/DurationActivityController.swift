@@ -32,20 +32,18 @@ enum DurationActivityController {
         }
 
         let state = model.makeContentState()
+        let content = ActivityContent(state: state, staleDate: nil)
 
         if let existing = existingActivity {
-            await existing.update(using: state)
+            await existing.update(content)
             if state.endDate != nil {
-                await existing.end(
-                    ActivityContent(state: state, staleDate: nil),
-                    dismissalPolicy: .immediate
-                )
+                await existing.end(content, dismissalPolicy: .immediate)
             }
         } else if state.endDate == nil {
             do {
-                _ = try await Activity<DurationAttributes>.request(
+                _ = try Activity<DurationAttributes>.request(
                     attributes: DurationAttributes(activityID: model.id),
-                    contentState: state,
+                    content: content,
                     pushType: nil
                 )
             } catch {
