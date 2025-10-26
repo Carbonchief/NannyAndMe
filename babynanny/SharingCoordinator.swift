@@ -9,8 +9,8 @@ final class SharingCoordinator: ObservableObject {
     struct ParticipantSummary: Identifiable, Equatable {
         let id: String
         let displayName: String
-        let role: CKShare.Participant.Role
-        let permission: CKShare.Participant.Permission
+        let role: CKShare.ParticipantRole
+        let permission: CKShare.ParticipantPermission
         let participant: CKShare.Participant
 
         init(participant: CKShare.Participant) {
@@ -70,7 +70,7 @@ final class SharingCoordinator: ObservableObject {
         do {
             let (context, container) = try dependencies()
             logger.log("Creating share for profile \(profile.id.uuidString, privacy: .public)")
-            let share = try context.share(profile, to: [])
+            let share = try context.share(profile, to: nil)
             configureShareMetadata(share, for: profile)
             profile.shareRecordName = share.recordID.recordName
             profile.shareZoneName = share.recordID.zoneID.zoneName
@@ -107,6 +107,7 @@ final class SharingCoordinator: ObservableObject {
             profile.shareRecordName = fetchedShare.recordID.recordName
             profile.shareZoneName = fetchedShare.recordID.zoneID.zoneName
             profile.shareOwnerName = fetchedShare.recordID.zoneID.ownerName
+            try context.save()
             activeShare = fetchedShare
             participants = fetchedShare.participants.map(ParticipantSummary.init)
             status = .idle
@@ -156,17 +157,18 @@ final class SharingCoordinator: ObservableObject {
             }
 
             let share = try await fetchShare(with: shareID, container: container)
-            let filtered = share.participants.filter { existing in
-                guard let existingID = existing.userIdentity.userRecordID else { return true }
-                guard let targetID = participant.userIdentity.userRecordID else {
-                    return existing !== participant
-                }
-                return existingID != targetID
+            if let target = share.participants.first(where: { existing in
+                guard let existingID = existing.userIdentity.userRecordID else { return existing === participant }
+                guard let targetID = participant.userIdentity.userRecordID else { return false }
+                return existingID == targetID
+            }) {
+                share.removeParticipant(target)
             }
-            share.participants = filtered
+
             try await saveShare(share, container: container)
-            activeShare = share
-            participants = share.participants.map(ParticipantSummary.init)
+            let refreshed = try await fetchShare(with: shareID, container: container)
+            activeShare = refreshed
+            participants = refreshed.participants.map(ParticipantSummary.init)
             status = .idle
         } catch {
             logger.error("Removing participant failed: \(error.localizedDescription, privacy: .public)")
@@ -210,17 +212,18 @@ private extension SharingCoordinator {
 
     func fetchShare(with id: CKShare.ID, container: CKContainer) async throws -> CKShare {
         try await withCheckedThrowingContinuation { continuation in
-            let operation = CKFetchSharesOperation(shareRecordIDs: [id])
+            let operation = CKFetchRecordsOperation(recordIDs: [id])
+            operation.desiredKeys = nil
             var fetchedShare: CKShare?
-            operation.perShareResultBlock = { _, result in
+            operation.perRecordResultBlock = { _, result in
                 switch result {
-                case let .success(share):
-                    fetchedShare = share
+                case let .success(record):
+                    fetchedShare = record as? CKShare
                 case let .failure(error):
                     continuation.resume(throwing: error)
                 }
             }
-            operation.fetchShareResultBlock = { result in
+            operation.fetchRecordsResultBlock = { result in
                 switch result {
                 case .success:
                     if let share = fetchedShare {
@@ -232,13 +235,14 @@ private extension SharingCoordinator {
                     continuation.resume(throwing: error)
                 }
             }
-            container.add(operation)
+            container.privateCloudDatabase.add(operation)
         }
     }
 
     func saveShare(_ share: CKShare, container: CKContainer) async throws {
         try await withCheckedThrowingContinuation { continuation in
             let operation = CKModifyRecordsOperation(recordsToSave: [share])
+            operation.savePolicy = .changedKeys
             operation.modifyRecordsResultBlock = { result in
                 switch result {
                 case .success:
@@ -247,7 +251,7 @@ private extension SharingCoordinator {
                     continuation.resume(throwing: error)
                 }
             }
-            container.add(operation)
+            container.privateCloudDatabase.add(operation)
         }
     }
 
@@ -262,7 +266,7 @@ private extension SharingCoordinator {
                     continuation.resume(throwing: error)
                 }
             }
-            container.add(operation)
+            container.privateCloudDatabase.add(operation)
         }
     }
 }

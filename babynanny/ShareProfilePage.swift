@@ -364,50 +364,69 @@ private actor PreviewReminderScheduler: ReminderScheduling {
 }
 
 #Preview("Share Profile Page") {
-    let container = AppDataStack.makeModelContainer(inMemory: true)
-    let stack = AppDataStack(modelContainer: container)
-    let scheduler = PreviewReminderScheduler()
+    ShareProfilePreview()
+}
 
-    let childProfile = ChildProfile(
-        name: "Avery",
-        birthDate: Date(timeIntervalSince1970: 1_689_868_800)
-    )
+private struct ShareProfilePreview: View {
+    private let container: ModelContainer
+    @StateObject private var dataStack: AppDataStack
+    @StateObject private var profileStore: ProfileStore
+    @StateObject private var actionStore: ActionLogStore
+    @StateObject private var shareDataCoordinator = ShareDataCoordinator()
 
-    let profileModel = ProfileActionStateModel(
-        profileID: childProfile.id,
-        name: childProfile.name,
-        birthDate: childProfile.birthDate
-    )
+    init() {
+        let container = AppDataStack.makeModelContainer(inMemory: true)
+        let stack = AppDataStack(modelContainer: container)
+        let scheduler = PreviewReminderScheduler()
 
-    container.mainContext.insert(profileModel)
-    container.mainContext.insert(BabyActionModel(
-        category: .feeding,
-        startDate: Date().addingTimeInterval(-1_800),
-        endDate: Date(),
-        updatedAt: Date(),
-        profile: profileModel
-    ))
-    try? container.mainContext.save()
+        let childProfile = ChildProfile(
+            name: "Avery",
+            birthDate: Date(timeIntervalSince1970: 1_689_868_800)
+        )
 
-    let profileStore = ProfileStore(
-        initialProfiles: [childProfile],
-        activeProfileID: childProfile.id,
-        reminderScheduler: scheduler
-    )
-    let actionStore = ActionLogStore(
-        modelContext: container.mainContext,
-        reminderScheduler: scheduler,
-        dataStack: stack
-    )
-    profileStore.registerActionStore(actionStore)
-    actionStore.registerProfileStore(profileStore)
+        let profileModel = ProfileActionStateModel(
+            profileID: childProfile.id,
+            name: childProfile.name,
+            birthDate: childProfile.birthDate
+        )
 
-    NavigationStack {
-        ShareProfilePage()
+        container.mainContext.insert(profileModel)
+        container.mainContext.insert(BabyActionModel(
+            category: .feeding,
+            startDate: Date().addingTimeInterval(-1_800),
+            endDate: Date(),
+            updatedAt: Date(),
+            profile: profileModel
+        ))
+        try? container.mainContext.save()
+
+        let profileStore = ProfileStore(
+            initialProfiles: [childProfile],
+            activeProfileID: childProfile.id,
+            reminderScheduler: scheduler
+        )
+        let actionStore = ActionLogStore(
+            modelContext: container.mainContext,
+            reminderScheduler: scheduler,
+            dataStack: stack
+        )
+        profileStore.registerActionStore(actionStore)
+        actionStore.registerProfileStore(profileStore)
+
+        self.container = container
+        _dataStack = StateObject(wrappedValue: stack)
+        _profileStore = StateObject(wrappedValue: profileStore)
+        _actionStore = StateObject(wrappedValue: actionStore)
     }
-    .environmentObject(stack)
-    .environmentObject(profileStore)
-    .environmentObject(actionStore)
-    .environmentObject(ShareDataCoordinator())
-    .modelContainer(container)
+
+    var body: some View {
+        NavigationStack {
+            ShareProfilePage()
+        }
+        .environmentObject(dataStack)
+        .environmentObject(profileStore)
+        .environmentObject(actionStore)
+        .environmentObject(shareDataCoordinator)
+        .modelContainer(container)
+    }
 }
