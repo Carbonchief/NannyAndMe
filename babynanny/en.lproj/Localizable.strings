@@ -142,6 +142,11 @@
 "shareData.airdrop.title" = "Share";
 "shareData.airdrop.button" = "Share Data";
 "shareData.airdrop.footer" = "Send the exported file to another device over AirDrop.";
+"shareData.cloudKit.title" = "Caregiver sharing";
+"shareData.cloudKit.button" = "Invite caregivers";
+"shareData.cloudKit.footer" = "Share this profile over iCloud to keep every caregiver up to date automatically.";
+"shareData.legacy.title" = "Legacy JSON tools";
+"shareData.legacy.footer" = "Keep these JSON backups handy as a fallback when iCloud sharing isn't available.";
 "shareData.alert.exportSuccess.title" = "Export complete";
 "shareData.alert.exportSuccess.message" = "Saved file: %@";
 "shareData.alert.exportFailure.title" = "Export failed";
@@ -151,6 +156,9 @@
 "shareData.alert.airdropFailure.title" = "AirDrop failed";
 "shareData.alert.airdropFailure.message" = "AirDrop could not share the export.";
 "shareData.alert.airdropFailure.messageWithReason" = "AirDrop could not share the export. (%@)";
+"shareData.alert.cloudShareFailure.title" = "Couldn't start sharing";
+"shareData.alert.cloudShareFailure.message" = "We couldn't prepare the shared profile. Please try again.";
+"shareData.alert.cloudShareFailure.messageWithReason" = "We couldn't prepare the shared profile. (%@)";
 "sync.loadingInitialData" = "Syncing your data…";
 "sync.progressPercentage" = "%.0f%% complete";
 "sync.preparingUpdates" = "Preparing your latest updates…";
@@ -178,6 +186,7 @@
 "map.cluster.accessibility" = "%lld actions near %@";
 "shareData.error.mismatchedProfile" = "This file belongs to a different profile. Switch to that profile and try again.";
 "shareData.error.readFailed" = "The file could not be read. Make sure you selected a Nanny & Me export.";
+"shareData.error.missingShareableProfile" = "We couldn't find the profile data to share yet. Try again in a moment.";
 "logs.title" = "All Logs";
 "logs.empty.title" = "No logs yet";
 "logs.empty.subtitle" = "Actions you record will appear here, organized by day.";

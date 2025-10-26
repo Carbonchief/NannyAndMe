@@ -120,9 +120,12 @@ final class AppDataStack: ObservableObject {
     }
 }
 
+extension AppDataStack {
+    static let cloudKitContainerIdentifier = "iCloud.com.prioritybit.babynanny"
+}
+
 private extension AppDataStack {
     static let appGroupIdentifier = "group.com.prioritybit.babynanny"
-    static let cloudKitContainerIdentifier = "iCloud.com.prioritybit.babynanny"
     static let legacyMigrationFlag = "com.prioritybit.babynanny.swiftdata.legacyMigrationComplete"
     static let migrationLogger = Logger(subsystem: "com.prioritybit.babynanny", category: "migration")
 

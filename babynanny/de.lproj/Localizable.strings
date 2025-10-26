@@ -142,6 +142,11 @@
 "shareData.airdrop.title" = "Teilen";
 "shareData.airdrop.button" = "Daten teilen";
 "shareData.airdrop.footer" = "Sende die exportierte Datei per AirDrop an ein anderes Gerät.";
+"shareData.cloudKit.title" = "Freigabe für Betreuungspersonen";
+"shareData.cloudKit.button" = "Betreuungspersonen einladen";
+"shareData.cloudKit.footer" = "Teile dieses Profil über iCloud, damit alle Betreuungspersonen automatisch auf dem Laufenden bleiben.";
+"shareData.legacy.title" = "Legacy-JSON-Werkzeuge";
+"shareData.legacy.footer" = "Verwende diese JSON-Backups als Fallback, wenn die iCloud-Freigabe nicht verfügbar ist.";
 "shareData.alert.exportSuccess.title" = "Export abgeschlossen";
 "shareData.alert.exportSuccess.message" = "Gespeicherte Datei: %@";
 "shareData.alert.exportFailure.title" = "Export fehlgeschlagen";
@@ -151,6 +156,9 @@
 "shareData.alert.airdropFailure.title" = "AirDrop fehlgeschlagen";
 "shareData.alert.airdropFailure.message" = "AirDrop konnte den Export nicht teilen.";
 "shareData.alert.airdropFailure.messageWithReason" = "AirDrop konnte den Export nicht teilen. (%@)";
+"shareData.alert.cloudShareFailure.title" = "Freigabe konnte nicht gestartet werden";
+"shareData.alert.cloudShareFailure.message" = "Das freigegebene Profil konnte nicht vorbereitet werden. Versuche es erneut.";
+"shareData.alert.cloudShareFailure.messageWithReason" = "Das freigegebene Profil konnte nicht vorbereitet werden. (%@)";
 "map.title" = "Aktionskarte";
 "map.filter.actionType" = "Aktionstyp";
 "map.filter.dateRange" = "Datumsbereich";
@@ -174,6 +182,7 @@
 "map.cluster.accessibility" = "%lld Aktionen in der Nähe von %@";
 "shareData.error.mismatchedProfile" = "Diese Datei gehört zu einem anderen Profil. Wechsle zu diesem Profil und versuche es erneut.";
 "shareData.error.readFailed" = "Die Datei konnte nicht gelesen werden. Bitte wähle einen Nanny & Me-Export.";
+"shareData.error.missingShareableProfile" = "Die Profildaten stehen noch nicht zur Freigabe bereit. Bitte versuche es in einem Moment erneut.";
 "logs.title" = "Alle Protokolle";
 "logs.empty.title" = "Noch keine Protokolle";
 "logs.empty.subtitle" = "Hier erscheinen deine aufgezeichneten Aktionen nach Tagen sortiert.";

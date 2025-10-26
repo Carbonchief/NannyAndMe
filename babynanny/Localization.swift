@@ -575,6 +575,32 @@ enum L10n {
             defaultValue: "Profile settings were updated from the import."
         )
 
+        enum CloudKit {
+            static let sectionTitle = String(
+                localized: "shareData.cloudKit.title",
+                defaultValue: "Caregiver sharing"
+            )
+            static let inviteButton = String(
+                localized: "shareData.cloudKit.button",
+                defaultValue: "Invite caregivers"
+            )
+            static let footer = String(
+                localized: "shareData.cloudKit.footer",
+                defaultValue: "Share this profile over iCloud to keep every caregiver up to date automatically."
+            )
+        }
+
+        enum Legacy {
+            static let sectionTitle = String(
+                localized: "shareData.legacy.title",
+                defaultValue: "Legacy JSON tools"
+            )
+            static let footer = String(
+                localized: "shareData.legacy.footer",
+                defaultValue: "Keep these JSON backups handy as a fallback when iCloud sharing isn't available."
+            )
+        }
+
         enum AirDrop {
             static let sectionTitle = String(
                 localized: "shareData.airdrop.title",
@@ -637,6 +663,25 @@ enum L10n {
                 )
                 return String(format: format, locale: Locale.current, trimmed)
             }
+            static let cloudShareFailureTitle = String(
+                localized: "shareData.alert.cloudShareFailure.title",
+                defaultValue: "Couldn't start sharing"
+            )
+            private static let cloudShareFailureDefault = String(
+                localized: "shareData.alert.cloudShareFailure.message",
+                defaultValue: "We couldn't prepare the shared profile. Please try again."
+            )
+            static func cloudShareFailureMessage(_ reason: String) -> String {
+                let trimmed = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else {
+                    return cloudShareFailureDefault
+                }
+                let format = String(
+                    localized: "shareData.alert.cloudShareFailure.messageWithReason",
+                    defaultValue: "We couldn't prepare the shared profile. (%@)"
+                )
+                return String(format: format, locale: Locale.current, trimmed)
+            }
         }
 
         enum Error {
@@ -647,6 +692,10 @@ enum L10n {
             static let readFailed = String(
                 localized: "shareData.error.readFailed",
                 defaultValue: "The file could not be read. Make sure you selected a Nanny & Me export."
+            )
+            static let missingShareableProfile = String(
+                localized: "shareData.error.missingShareableProfile",
+                defaultValue: "We couldn't find the profile data to share yet. Try again in a moment."
             )
         }
     }
