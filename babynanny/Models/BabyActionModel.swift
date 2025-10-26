@@ -436,7 +436,7 @@ final class Profile {
     var shareZoneName: String?
     @Attribute(.allowsCloudEncryption)
     var shareOwnerName: String?
-    @Relationship(deleteRule: .cascade, inverse: \BabyAction.profile)
+    @Relationship(deleteRule: .cascade, inverse: \BabyAction.profileReference)
     var storedActions: [BabyAction] = []
 
     init(profileID: UUID = UUID(),
@@ -561,7 +561,7 @@ final class BabyAction {
     @Attribute(.allowsCloudEncryption)
     var placename: String?
     @Relationship(deleteRule: .nullify, inverse: \Profile.storedActions)
-    private var profileReference: Profile?
+    fileprivate var profileReference: Profile?
 
     init(id: UUID = UUID(),
          category: BabyActionCategory = .sleep,
