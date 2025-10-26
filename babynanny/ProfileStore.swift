@@ -254,6 +254,17 @@ final class ProfileStore: ObservableObject {
         let imageData: Data?
     }
 
+    enum ShareDataError: LocalizedError {
+        case mismatchedProfile
+
+        var errorDescription: String? {
+            switch self {
+            case .mismatchedProfile:
+                return L10n.ShareData.Error.mismatchedProfile
+            }
+        }
+    }
+
     enum ReminderAuthorizationResult: Equatable {
         case enabled
         case disabled
@@ -456,6 +467,75 @@ final class ProfileStore: ObservableObject {
 
             return didChange
         }
+    }
+
+    @discardableResult
+    func mergeActiveProfile(with importedProfile: ChildProfile) throws -> Bool {
+        if profiles.contains(where: { $0.id == importedProfile.id }) == false {
+            var didInsert = false
+
+            mutateProfiles(reason: "profile-import-insert") {
+                let trimmedName = importedProfile.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                let model = ProfileActionStateModel(profileID: importedProfile.id,
+                                                    name: trimmedName,
+                                                    birthDate: importedProfile.birthDate,
+                                                    imageData: importedProfile.imageData,
+                                                    remindersEnabled: importedProfile.remindersEnabled)
+
+                for category in BabyActionCategory.allCases {
+                    model.setReminderInterval(importedProfile.reminderInterval(for: category), for: category)
+                    model.setReminderEnabled(importedProfile.isActionReminderEnabled(for: category), for: category)
+                    if let override = importedProfile.actionReminderOverride(for: category) {
+                        let mapped = ProfileActionReminderOverride(fireDate: override.fireDate, isOneOff: override.isOneOff)
+                        model.setReminderOverride(mapped, for: category, referenceDate: Date())
+                    } else {
+                        model.clearReminderOverride(for: category)
+                    }
+                }
+
+                model.normalizeReminderPreferences()
+                modelContext.insert(model)
+                didInsert = true
+                return true
+            }
+
+            if didInsert {
+                activeProfileID = importedProfile.id
+            }
+
+            return didInsert
+        }
+
+        guard let activeID = activeProfileID else { return false }
+
+        guard importedProfile.id == activeID else {
+            throw ShareDataError.mismatchedProfile
+        }
+
+        let currentProfile = activeProfile
+        guard currentProfile != importedProfile else { return false }
+
+        updateProfile(withID: activeID, reason: "profile-import-merge") { model in
+            let trimmedName = importedProfile.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            model.name = trimmedName
+            model.setBirthDate(importedProfile.birthDate)
+            model.imageData = importedProfile.imageData
+            model.remindersEnabled = importedProfile.remindersEnabled
+
+            for category in BabyActionCategory.allCases {
+                model.setReminderInterval(importedProfile.reminderInterval(for: category), for: category)
+                model.setReminderEnabled(importedProfile.isActionReminderEnabled(for: category), for: category)
+
+                if let override = importedProfile.actionReminderOverride(for: category) {
+                    let mapped = ProfileActionReminderOverride(fireDate: override.fireDate, isOneOff: override.isOneOff)
+                    model.setReminderOverride(mapped, for: category, referenceDate: Date())
+                } else {
+                    model.clearReminderOverride(for: category)
+                }
+            }
+        }
+
+        return true
     }
 
     @discardableResult
