@@ -468,6 +468,7 @@ final class Profile {
         set { id = newValue }
     }
 
+    @Transient
     var actions: [BabyAction] {
         get { storedActions }
         set {
@@ -560,7 +561,7 @@ final class BabyAction {
     @Attribute(.allowsCloudEncryption)
     var placename: String?
     @Relationship(deleteRule: .nullify, inverse: \Profile.storedActions)
-    var profile: Profile?
+    private var profileReference: Profile?
 
     init(id: UUID = UUID(),
          category: BabyActionCategory = .sleep,
@@ -587,7 +588,7 @@ final class BabyAction {
         self.longitude = longitude
         self.placename = placename
         self.updatedAtRawValue = updatedAt.normalizedToUTC()
-        self.profile = profile
+        self.profileReference = profile
     }
 
     var category: BabyActionCategory {
@@ -608,6 +609,10 @@ final class BabyAction {
     var updatedAt: Date {
         get { updatedAtRawValue }
         set { updatedAtRawValue = newValue.normalizedToUTC() }
+    }
+    var profile: Profile? {
+        get { profileReference }
+        set { profileReference = newValue }
     }
 }
 
