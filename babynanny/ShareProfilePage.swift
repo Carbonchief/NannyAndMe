@@ -192,6 +192,10 @@ private extension ShareProfilePage {
     @MainActor
     func presentShareSheet() {
         guard isPerformingAction == false else { return }
+        guard #available(iOS 17.4, *) else {
+            presentUnsupportedAlert()
+            return
+        }
         guard let model = try? fetchProfileModel() else {
             alert = ShareProfileAlert(title: L10n.ShareData.Alert.cloudShareFailureTitle,
                                       message: L10n.ShareData.Alert.cloudShareFailureMessage(""))
@@ -216,6 +220,10 @@ private extension ShareProfilePage {
     @MainActor
     func copyShareLink() {
         guard isPerformingAction == false else { return }
+        guard #available(iOS 17.4, *) else {
+            presentUnsupportedAlert()
+            return
+        }
         guard let model = try? fetchProfileModel() else { return }
         isPerformingAction = true
 
@@ -240,6 +248,10 @@ private extension ShareProfilePage {
     @MainActor
     func stopSharing() {
         guard isPerformingAction == false else { return }
+        guard #available(iOS 17.4, *) else {
+            presentUnsupportedAlert()
+            return
+        }
         guard let model = try? fetchProfileModel() else { return }
         isPerformingAction = true
 
@@ -258,6 +270,10 @@ private extension ShareProfilePage {
     @MainActor
     func removeParticipant(_ participant: CKShare.Participant) {
         guard isPerformingAction == false else { return }
+        guard #available(iOS 17.4, *) else {
+            presentUnsupportedAlert()
+            return
+        }
         guard let model = try? fetchProfileModel() else { return }
         isPerformingAction = true
 
@@ -275,6 +291,10 @@ private extension ShareProfilePage {
 
     @MainActor
     func refreshShareState() async {
+        guard #available(iOS 17.4, *) else {
+            presentUnsupportedAlert()
+            return
+        }
         guard let model = try? fetchProfileModel() else { return }
         isPerformingAction = true
         do {
@@ -311,6 +331,11 @@ private extension ShareProfilePage {
             .background(.thinMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .shadow(radius: 8)
+    }
+
+    private func presentUnsupportedAlert() {
+        alert = ShareProfileAlert(title: L10n.ShareData.Alert.cloudShareFailureTitle,
+                                  message: L10n.ShareData.Alert.cloudShareFailureMessage(L10n.ShareData.CloudKit.unsupportedVersion))
     }
 }
 

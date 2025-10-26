@@ -187,6 +187,7 @@
 "shareData.cloudKit.acceptingShare" = "Adding shared profile…";
 "shareData.cloudKit.ownerPlaceholder" = "You";
 "shareData.cloudKit.unknownParticipant" = "Pending participant";
+"shareData.cloudKit.unsupportedVersion" = "Cloud sharing requires iOS 17.4 or later.";
 "shareData.legacy.title" = "Legacy JSON tools";
 "shareData.legacy.footer" = "Keep these JSON backups handy as a fallback when iCloud sharing isn't available.";
 "shareData.alert.exportSuccess.title" = "Export complete";

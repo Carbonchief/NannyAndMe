@@ -163,6 +163,7 @@
 "shareData.cloudKit.manageDescription" = "Invita a familiares o cuidadores y gestiona el acceso compartido en un solo lugar.";
 "shareData.cloudKit.manageTitle" = "Compartir perfil";
 "shareData.cloudKit.footer" = "Comparte este perfil mediante iCloud para que cada cuidador se mantenga actualizado automáticamente.";
+"shareData.cloudKit.unsupportedVersion" = "Compartir en iCloud requiere iOS 17.4 o posterior.";
 "shareData.cloudKit.statusSection" = "Estado de la compartición";
 "shareData.cloudKit.participants" = "Participantes";
 "shareData.cloudKit.noParticipants" = "Aún no hay cuidadores adicionales. Usa el botón de abajo para invitar a alguien.";

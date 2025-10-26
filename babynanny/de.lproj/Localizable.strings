@@ -160,6 +160,7 @@
 "shareData.cloudKit.title" = "Freigabe für Betreuungspersonen";
 "shareData.cloudKit.button" = "Betreuungspersonen einladen";
 "shareData.cloudKit.footer" = "Teile dieses Profil über iCloud, damit alle Betreuungspersonen automatisch auf dem Laufenden bleiben.";
+"shareData.cloudKit.unsupportedVersion" = "Cloud-Sharing erfordert iOS 17.4 oder neuer.";
 "shareData.legacy.title" = "Legacy-JSON-Werkzeuge";
 "shareData.legacy.footer" = "Verwende diese JSON-Backups als Fallback, wenn die iCloud-Freigabe nicht verfügbar ist.";
 "shareData.alert.exportSuccess.title" = "Export abgeschlossen";

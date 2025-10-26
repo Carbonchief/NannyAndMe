@@ -65,6 +65,9 @@ final class SharingCoordinator: ObservableObject {
 
     func createShare(for profile: Profile) async throws -> (CKShare, CKContainer) {
         try ensureDependencies()
+        guard #available(iOS 17.4, *) else {
+            throw ShareError.unsupportedOS
+        }
         status = .loading
 
         do {
@@ -90,6 +93,9 @@ final class SharingCoordinator: ObservableObject {
 
     func refreshParticipants(for profile: Profile) async throws {
         try ensureDependencies()
+        guard #available(iOS 17.4, *) else {
+            throw ShareError.unsupportedOS
+        }
         status = .loading
 
         do {
@@ -120,6 +126,9 @@ final class SharingCoordinator: ObservableObject {
 
     func stopSharing(profile: Profile) async throws {
         try ensureDependencies()
+        guard #available(iOS 17.4, *) else {
+            throw ShareError.unsupportedOS
+        }
         status = .loading
 
         do {
@@ -147,6 +156,9 @@ final class SharingCoordinator: ObservableObject {
 
     func remove(participant: CKShare.Participant, from profile: Profile) async throws {
         try ensureDependencies()
+        guard #available(iOS 17.4, *) else {
+            throw ShareError.unsupportedOS
+        }
         status = .loading
 
         do {
@@ -211,6 +223,9 @@ private extension SharingCoordinator {
     }
 
     func fetchShare(with id: CKShare.ID, container: CKContainer) async throws -> CKShare {
+        guard #available(iOS 17.4, *) else {
+            throw ShareError.unsupportedOS
+        }
         try await withCheckedThrowingContinuation { continuation in
             let operation = CKFetchRecordsOperation(recordIDs: [id])
             operation.desiredKeys = nil
@@ -240,6 +255,9 @@ private extension SharingCoordinator {
     }
 
     func saveShare(_ share: CKShare, container: CKContainer) async throws {
+        guard #available(iOS 17.4, *) else {
+            throw ShareError.unsupportedOS
+        }
         try await withCheckedThrowingContinuation { continuation in
             let operation = CKModifyRecordsOperation(recordsToSave: [share])
             operation.savePolicy = .changedKeys
@@ -256,6 +274,9 @@ private extension SharingCoordinator {
     }
 
     func deleteShare(with id: CKShare.ID, container: CKContainer) async throws {
+        guard #available(iOS 17.4, *) else {
+            throw ShareError.unsupportedOS
+        }
         try await withCheckedThrowingContinuation { continuation in
             let operation = CKModifyRecordsOperation(recordIDsToDelete: [id])
             operation.modifyRecordsResultBlock = { result in
@@ -274,6 +295,7 @@ private extension SharingCoordinator {
 private enum ShareError: LocalizedError {
     case missingDependencies
     case missingShare
+    case unsupportedOS
 
     var errorDescription: String? {
         switch self {
@@ -281,6 +303,8 @@ private enum ShareError: LocalizedError {
             return "Missing share dependencies."
         case .missingShare:
             return L10n.ShareData.Error.missingShareableProfile
+        case .unsupportedOS:
+            return L10n.ShareData.CloudKit.unsupportedVersion
         }
     }
 }

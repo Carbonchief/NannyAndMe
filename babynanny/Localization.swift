@@ -759,6 +759,10 @@ enum L10n {
                 localized: "shareData.cloudKit.unknownParticipant",
                 defaultValue: "Pending participant"
             )
+            static let unsupportedVersion = String(
+                localized: "shareData.cloudKit.unsupportedVersion",
+                defaultValue: "Cloud sharing requires iOS 17.4 or later."
+            )
         }
 
         enum Legacy {

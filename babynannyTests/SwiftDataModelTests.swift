@@ -94,12 +94,14 @@ final class SwiftDataModelTests: XCTestCase {
         context.insert(action)
         try context.save()
 
-        do {
-            let share = try context.share(profile, to: nil)
-            XCTAssertNotNil(share.recordID.recordName)
-            XCTAssertEqual(profile.actions.count, 1)
-        } catch {
-            throw XCTSkip("CloudKit sharing unavailable in tests: \(error)")
+        if #available(iOS 17.4, *) {
+            do {
+                let share = try context.share(profile, to: nil)
+                XCTAssertNotNil(share.recordID.recordName)
+                XCTAssertEqual(profile.actions.count, 1)
+            } catch {
+                throw XCTSkip("CloudKit sharing unavailable in tests: \(error)")
+            }
         }
     }
 }

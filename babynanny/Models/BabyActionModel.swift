@@ -436,8 +436,8 @@ final class Profile {
     var shareZoneName: String?
     @Attribute(.allowsCloudEncryption)
     var shareOwnerName: String?
-    @Relationship(deleteRule: .cascade, inverse: \BabyAction.profileReference)
-    var storedActions: [BabyAction] = []
+    @Relationship(deleteRule: .cascade, inverse: \BabyAction.profile)
+    var actions: [BabyAction] = []
 
     init(profileID: UUID = UUID(),
          name: String? = nil,
@@ -451,7 +451,7 @@ final class Profile {
         self.name = name
         self.birthDate = birthDate?.normalizedToUTC()
         self.imageData = imageData
-        self.storedActions = actions
+        self.actions = actions
         self.shareRecordName = shareRecordName
         self.shareZoneName = shareZoneName
         self.shareOwnerName = shareOwnerName
@@ -468,18 +468,9 @@ final class Profile {
         set { id = newValue }
     }
 
-    @Transient
-    var actions: [BabyAction] {
-        get { storedActions }
-        set {
-            storedActions = newValue
-            ensureActionOwnership()
-        }
-    }
-
     func ensureActionOwnership() {
-        guard storedActions.isEmpty == false else { return }
-        for action in storedActions where action.profile == nil {
+        guard actions.isEmpty == false else { return }
+        for action in actions where action.profile == nil {
             action.profile = self
         }
     }
@@ -554,8 +545,8 @@ final class BabyAction {
     var longitude: Double?
     @Attribute(.allowsCloudEncryption)
     var placename: String?
-    @Relationship(deleteRule: .nullify, inverse: \Profile.storedActions)
-    fileprivate var profileReference: Profile?
+    @Relationship(deleteRule: .nullify, inverse: \Profile.actions)
+    var profile: Profile?
 
     init(id: UUID = UUID(),
          category: BabyActionCategory = .sleep,
@@ -582,13 +573,7 @@ final class BabyAction {
         self.longitude = longitude
         self.placename = placename
         self.updatedAtRawValue = updatedAt.normalizedToUTC()
-        self.profileReference = profile
-    }
-
-    @Transient
-    var profile: Profile? {
-        get { profileReference }
-        set { profileReference = newValue }
+        self.profile = profile
     }
 
     var category: BabyActionCategory {
