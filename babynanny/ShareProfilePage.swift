@@ -289,8 +289,12 @@ private extension ShareProfilePage {
 
     @MainActor
     func fetchProfileModel() throws -> ProfileActionStateModel {
+        guard let activeID = profileStore.activeProfileID else {
+            throw ShareProfileError.missingShare
+        }
+
         let predicate = #Predicate<ProfileActionStateModel> { model in
-            model.profileID == profileStore.activeProfile.id
+            model.profileID == activeID
         }
         var descriptor = FetchDescriptor<ProfileActionStateModel>(predicate: predicate)
         descriptor.fetchLimit = 1
