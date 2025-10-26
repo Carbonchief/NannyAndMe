@@ -436,8 +436,8 @@ final class Profile {
     var shareZoneName: String?
     @Attribute(.allowsCloudEncryption)
     var shareOwnerName: String?
-    @Relationship(deleteRule: .cascade, inverse: \BabyAction.profile)
-    var storedActions: [BabyAction]? = []
+    @Relationship(deleteRule: .cascade, inverse: \BabyAction.profileReference)
+    var storedActions: [BabyAction] = []
 
     init(profileID: UUID = UUID(),
          name: String? = nil,
@@ -470,7 +470,7 @@ final class Profile {
 
     @Transient
     var actions: [BabyAction] {
-        get { storedActions ?? [] }
+        get { storedActions }
         set {
             storedActions = newValue
             ensureActionOwnership()
@@ -478,14 +478,9 @@ final class Profile {
     }
 
     func ensureActionOwnership() {
-        guard var currentActions = storedActions, currentActions.isEmpty == false else { return }
-        var needsUpdate = false
-        for index in currentActions.indices where currentActions[index].profile == nil {
-            currentActions[index].profile = self
-            needsUpdate = true
-        }
-        if needsUpdate {
-            storedActions = currentActions
+        guard storedActions.isEmpty == false else { return }
+        for action in storedActions where action.profile == nil {
+            action.profile = self
         }
     }
 
@@ -560,7 +555,7 @@ final class BabyAction {
     @Attribute(.allowsCloudEncryption)
     var placename: String?
     @Relationship(deleteRule: .nullify, inverse: \Profile.storedActions)
-    var profile: Profile?
+    fileprivate var profileReference: Profile?
 
     init(id: UUID = UUID(),
          category: BabyActionCategory = .sleep,
@@ -587,7 +582,13 @@ final class BabyAction {
         self.longitude = longitude
         self.placename = placename
         self.updatedAtRawValue = updatedAt.normalizedToUTC()
-        self.profile = profile
+        self.profileReference = profile
+    }
+
+    @Transient
+    var profile: Profile? {
+        get { profileReference }
+        set { profileReference = newValue }
     }
 
     var category: BabyActionCategory {

@@ -70,7 +70,7 @@ final class SharingCoordinator: ObservableObject {
         do {
             let (context, container) = try dependencies()
             logger.log("Creating share for profile \(profile.id.uuidString, privacy: .public)")
-            let share = try context.share(profile, to: [])
+            let share = try context.share(profile, to: nil)
             configureShareMetadata(share, for: profile)
             profile.shareRecordName = share.recordID.recordName
             profile.shareZoneName = share.recordID.zoneID.zoneName

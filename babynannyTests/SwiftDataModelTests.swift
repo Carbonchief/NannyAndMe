@@ -95,7 +95,7 @@ final class SwiftDataModelTests: XCTestCase {
         try context.save()
 
         do {
-            let share = try context.share(profile, to: [])
+            let share = try context.share(profile, to: nil)
             XCTAssertNotNil(share.recordID.recordName)
             XCTAssertEqual(profile.actions.count, 1)
         } catch {
