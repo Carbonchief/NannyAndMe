@@ -8,12 +8,10 @@ struct ProfileStoreTests {
     @Test
     func deniesRemindersWhenNotificationsDisabled() async throws {
         let scheduler = MockReminderScheduler(authorizationResult: false)
-        let profile = ChildProfile(name: "Alex", birthDate: Date())
-        let store = await ProfileStore(
-            initialProfiles: [profile],
-            activeProfileID: profile.id,
-            reminderScheduler: scheduler
-        )
+        let profileModel = await makeProfile(name: "Alex")
+        let (store, _) = await makeStore(initialProfiles: [profileModel],
+                                         activeProfileID: profileModel.resolvedProfileID,
+                                         reminderScheduler: scheduler)
 
         let result = await store.setRemindersEnabled(true)
 
@@ -26,12 +24,10 @@ struct ProfileStoreTests {
     @Test
     func enablesRemindersWhenAuthorized() async throws {
         let scheduler = MockReminderScheduler(authorizationResult: true)
-        let profile = ChildProfile(name: "Maya", birthDate: Date())
-        let store = await ProfileStore(
-            initialProfiles: [profile],
-            activeProfileID: profile.id,
-            reminderScheduler: scheduler
-        )
+        let profileModel = await makeProfile(name: "Maya")
+        let (store, _) = await makeStore(initialProfiles: [profileModel],
+                                         activeProfileID: profileModel.resolvedProfileID,
+                                         reminderScheduler: scheduler)
 
         let result = await store.setRemindersEnabled(true)
 
@@ -44,14 +40,13 @@ struct ProfileStoreTests {
     @Test
     func schedulingCustomReminderStoresOverride() async throws {
         let scheduler = MockReminderScheduler(authorizationResult: true)
-        let profile = ChildProfile(name: "Ivy", birthDate: Date(), remindersEnabled: true)
-        let store = await ProfileStore(
-            initialProfiles: [profile],
-            activeProfileID: profile.id,
-            reminderScheduler: scheduler
-        )
+        let profileModel = await makeProfile(name: "Ivy", remindersEnabled: true)
+        let profileID = profileModel.resolvedProfileID
+        let (store, _) = await makeStore(initialProfiles: [profileModel],
+                                         activeProfileID: profileID,
+                                         reminderScheduler: scheduler)
 
-        await store.scheduleCustomActionReminder(for: profile.id, category: .feeding, delay: 600, isOneOff: false)
+        await store.scheduleCustomActionReminder(for: profileID, category: .feeding, delay: 600, isOneOff: false)
 
         let activeProfile = await store.activeProfile
         let override = try #require(activeProfile.actionReminderOverride(for: .feeding))
@@ -62,29 +57,25 @@ struct ProfileStoreTests {
     @Test
     func addProfileStoresProvidedImage() async throws {
         let scheduler = MockReminderScheduler(authorizationResult: true)
-        let store = await ProfileStore(
-            initialProfiles: [],
-            reminderScheduler: scheduler
-        )
+        let (store, _) = await makeStore(reminderScheduler: scheduler)
 
         let sampleData = Data([0xDE, 0xAD, 0xBE, 0xEF])
 
         await store.addProfile(name: "Nova", imageData: sampleData)
 
         let profiles = await store.profiles
-        #expect(profiles.count == 1)
-        #expect(profiles.first?.imageData == sampleData)
+        let inserted = try #require(profiles.first(where: { $0.imageData == sampleData }))
+        #expect(inserted.name == "Nova")
     }
 
     @Test
     func disablingRemindersReturnsDisabled() async throws {
         let scheduler = MockReminderScheduler(authorizationResult: true)
-        let profile = ChildProfile(name: "Avery", birthDate: Date(), remindersEnabled: true)
-        let store = await ProfileStore(
-            initialProfiles: [profile],
-            activeProfileID: profile.id,
-            reminderScheduler: scheduler
-        )
+        let profileModel = await makeProfile(name: "Avery", remindersEnabled: true)
+        let profileID = profileModel.resolvedProfileID
+        let (store, _) = await makeStore(initialProfiles: [profileModel],
+                                         activeProfileID: profileID,
+                                         reminderScheduler: scheduler)
 
         let result = await store.setRemindersEnabled(false)
 
@@ -101,65 +92,94 @@ struct ProfileStoreTests {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
 
-        let profileA = ChildProfile(name: "Aria", birthDate: Date())
-        let profileB = ChildProfile(name: "Ben", birthDate: Date().addingTimeInterval(-86_400))
+        let profileAModel = await makeProfile(name: "Aria")
+        let profileBModel = await makeProfile(name: "Ben", birthDate: Date().addingTimeInterval(-86_400))
+        let profileAID = profileAModel.resolvedProfileID
+        let profileBID = profileBModel.resolvedProfileID
 
-        let store = await ProfileStore(
-            initialProfiles: [profileA, profileB],
-            activeProfileID: profileA.id,
-            directory: directory,
-            filename: "profiles.json",
-            reminderScheduler: scheduler
-        )
+        let (store, stack) = await makeStore(initialProfiles: [profileAModel, profileBModel],
+                                             activeProfileID: profileAID,
+                                             directory: directory,
+                                             filename: "profiles.json",
+                                             reminderScheduler: scheduler)
 
-        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(
-            for: [ProfileActionStateModel.self, BabyActionModel.self],
-            configurations: configuration
-        )
-        let actionStore = await ActionLogStore(modelContext: container.mainContext)
+        let actionStore = await ActionLogStore(modelContext: stack.mainContext, dataStack: stack)
         await store.registerActionStore(actionStore)
         await actionStore.registerProfileStore(store)
 
-        await actionStore.startAction(for: profileA.id, category: .feeding)
-        await actionStore.stopAction(for: profileA.id, category: .feeding)
+        await actionStore.startAction(for: profileAID, category: .feeding)
+        await actionStore.stopAction(for: profileAID, category: .feeding)
 
-        await store.deleteProfile(profileA)
+        let currentProfiles = await store.profiles
+        let profileToDelete = try #require(currentProfiles.first(where: { $0.id == profileAID }))
+        await store.deleteProfile(profileToDelete)
 
         let remainingProfiles = await store.profiles
-        #expect(remainingProfiles.contains(where: { $0.id == profileA.id }) == false)
-        #expect(await store.activeProfileID == profileB.id)
+        #expect(remainingProfiles.contains(where: { $0.id == profileAID }) == false)
+        #expect(await store.activeProfileID == profileBID)
 
-        let removedState = await actionStore.state(for: profileA.id)
+        let removedState = await actionStore.state(for: profileAID)
         #expect(removedState.history.isEmpty)
         #expect(removedState.activeActions.isEmpty)
     }
 
     @Test
     func loggingActionClearsCustomReminderOverride() async throws {
-        let stack = await AppDataStack(modelContainer: AppDataStack.makeModelContainer(inMemory: true))
-        let actionStore = await ActionLogStore(modelContext: stack.mainContext, dataStack: stack)
         let scheduler = MockReminderScheduler(authorizationResult: true)
-        let profile = ChildProfile(name: "Luca", birthDate: Date(), remindersEnabled: true)
-        let store = await ProfileStore(
-            initialProfiles: [profile],
-            activeProfileID: profile.id,
-            reminderScheduler: scheduler
-        )
+        let profileModel = await makeProfile(name: "Luca", remindersEnabled: true)
+        let profileID = profileModel.resolvedProfileID
+        let (store, stack) = await makeStore(initialProfiles: [profileModel],
+                                             activeProfileID: profileID,
+                                             reminderScheduler: scheduler)
+        let actionStore = await ActionLogStore(modelContext: stack.mainContext, dataStack: stack)
 
         await store.registerActionStore(actionStore)
         await actionStore.registerProfileStore(store)
 
-        await store.scheduleCustomActionReminder(for: profile.id, category: .feeding, delay: 600, isOneOff: false)
+        await store.scheduleCustomActionReminder(for: profileID, category: .feeding, delay: 600, isOneOff: false)
         let scheduledOverride = await store.activeProfile.actionReminderOverride(for: .feeding)
         #expect(scheduledOverride != nil)
 
-        await actionStore.startAction(for: profile.id, category: .feeding)
-        await actionStore.stopAction(for: profile.id, category: .feeding)
+        await actionStore.startAction(for: profileID, category: .feeding)
+        await actionStore.stopAction(for: profileID, category: .feeding)
         try await Task.sleep(nanoseconds: 100_000_000)
 
         let updatedProfile = await store.activeProfile
         #expect(updatedProfile.actionReminderOverride(for: .feeding) == nil)
+    }
+
+    @MainActor
+    private func makeProfile(name: String,
+                             birthDate: Date = Date(),
+                             remindersEnabled: Bool = false) -> ProfileActionStateModel {
+        let model = ProfileActionStateModel(name: name,
+                                            birthDate: birthDate,
+                                            remindersEnabled: remindersEnabled)
+        model.normalizeReminderPreferences()
+        return model
+    }
+
+    @MainActor
+    private func makeStore(initialProfiles: [ProfileActionStateModel] = [],
+                           activeProfileID: UUID? = nil,
+                           directory: URL? = nil,
+                           filename: String = "childProfiles.json",
+                           reminderScheduler: MockReminderScheduler) async -> (ProfileStore, AppDataStack) {
+        let container = AppDataStack.makeModelContainer(inMemory: true)
+        let stack = await AppDataStack(modelContainer: container)
+        let context = stack.mainContext
+        initialProfiles.forEach { context.insert($0) }
+        let store = ProfileStore(modelContext: context,
+                                 dataStack: stack,
+                                 fileManager: .default,
+                                 directory: directory,
+                                 filename: filename,
+                                 reminderScheduler: reminderScheduler)
+        if let activeProfileID,
+           let profile = store.profiles.first(where: { $0.id == activeProfileID }) {
+            store.setActiveProfile(profile)
+        }
+        return (store, stack)
     }
 
     private actor MockReminderScheduler: ReminderScheduling {
@@ -188,8 +208,3 @@ struct ProfileStoreTests {
     }
 }
 
-private struct TestProfileState: Codable {
-    var profiles: [ChildProfile]
-    var activeProfileID: UUID?
-    var showRecentActivityOnHome: Bool
-}

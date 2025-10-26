@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import SwiftUI
 
 enum ProfileNavigationDirection: Sendable {
@@ -6,31 +7,29 @@ enum ProfileNavigationDirection: Sendable {
     case previous
 }
 
-struct ChildProfile: Codable, Identifiable, Equatable {
-    var id: UUID
-    var name: String
-    var birthDate: Date
-    var imageData: Data?
-    var remindersEnabled: Bool
+struct ChildProfile: Identifiable, Equatable, Codable {
     struct ActionReminderOverride: Codable, Equatable, Sendable {
         var fireDate: Date
         var isOneOff: Bool
     }
 
-    var actionReminderIntervals: [BabyActionCategory: TimeInterval]
-    var actionRemindersEnabled: [BabyActionCategory: Bool]
-    var actionReminderOverrides: [BabyActionCategory: ActionReminderOverride]
+    var id: UUID
+    var name: String
+    var birthDate: Date
+    var imageData: Data?
+    var remindersEnabled: Bool
+    private var actionReminderIntervals: [BabyActionCategory: TimeInterval]
+    private var actionRemindersEnabled: [BabyActionCategory: Bool]
+    private var actionReminderOverrides: [BabyActionCategory: ActionReminderOverride]
 
-    init(
-        id: UUID = UUID(),
-        name: String,
-        birthDate: Date,
-        imageData: Data? = nil,
-        remindersEnabled: Bool = false,
-        actionReminderIntervals: [BabyActionCategory: TimeInterval] = ChildProfile.defaultActionReminderIntervals(),
-        actionRemindersEnabled: [BabyActionCategory: Bool] = ChildProfile.defaultActionRemindersEnabled(),
-        actionReminderOverrides: [BabyActionCategory: ActionReminderOverride] = [:]
-    ) {
+    init(id: UUID = UUID(),
+         name: String,
+         birthDate: Date,
+         imageData: Data? = nil,
+         remindersEnabled: Bool = false,
+         actionReminderIntervals: [BabyActionCategory: TimeInterval] = ChildProfile.defaultActionReminderIntervals(),
+         actionRemindersEnabled: [BabyActionCategory: Bool] = ChildProfile.defaultActionRemindersEnabled(),
+         actionReminderOverrides: [BabyActionCategory: ActionReminderOverride] = [:]) {
         self.id = id
         self.name = name
         self.birthDate = birthDate
@@ -40,6 +39,23 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         self.actionRemindersEnabled = actionRemindersEnabled
         self.actionReminderOverrides = actionReminderOverrides
         normalizeReminderPreferences()
+    }
+
+    init(model: ProfileActionStateModel, referenceDate: Date = Date()) {
+        let overrides = model.reminderOverridesByCategory(referenceDate: referenceDate)
+        let mappedOverrides = overrides.reduce(into: [BabyActionCategory: ActionReminderOverride]()) { partialResult, element in
+            let (category, value) = element
+            partialResult[category] = ActionReminderOverride(fireDate: value.fireDate, isOneOff: value.isOneOff)
+        }
+
+        self.init(id: model.resolvedProfileID,
+                  name: model.name ?? "",
+                  birthDate: model.birthDate ?? Date(),
+                  imageData: model.imageData,
+                  remindersEnabled: model.remindersEnabled,
+                  actionReminderIntervals: model.reminderIntervalsByCategory(),
+                  actionRemindersEnabled: model.reminderEnabledByCategory(),
+                  actionReminderOverrides: mappedOverrides)
     }
 
     var displayName: String {
@@ -81,6 +97,81 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         return L10n.Profiles.ageNewborn
     }
 
+    func reminderInterval(for category: BabyActionCategory) -> TimeInterval {
+        actionReminderIntervals[category] ?? Self.defaultActionReminderInterval
+    }
+
+    func isActionReminderEnabled(for category: BabyActionCategory) -> Bool {
+        actionRemindersEnabled[category] ?? true
+    }
+
+    func actionReminderOverride(for category: BabyActionCategory) -> ActionReminderOverride? {
+        actionReminderOverrides[category]
+    }
+
+    var reminderOverridesByCategory: [BabyActionCategory: ActionReminderOverride] {
+        actionReminderOverrides
+    }
+
+    mutating func setReminderInterval(_ interval: TimeInterval, for category: BabyActionCategory) {
+        actionReminderIntervals[category] = max(0, interval)
+        normalizeReminderPreferences()
+    }
+
+    mutating func setReminderEnabled(_ isEnabled: Bool, for category: BabyActionCategory) {
+        actionRemindersEnabled[category] = isEnabled
+        normalizeReminderPreferences()
+    }
+
+    mutating func setActionReminderOverride(_ override: ActionReminderOverride?,
+                                             for category: BabyActionCategory,
+                                             referenceDate: Date = Date()) {
+        if let override {
+            actionReminderOverrides[category] = override
+        } else {
+            actionReminderOverrides.removeValue(forKey: category)
+        }
+        normalizeReminderPreferences(referenceDate: referenceDate)
+    }
+
+    mutating func clearActionReminderOverride(for category: BabyActionCategory) {
+        actionReminderOverrides.removeValue(forKey: category)
+    }
+
+    mutating func normalizeReminderPreferences(referenceDate: Date = Date()) {
+        for category in BabyActionCategory.allCases {
+            if let value = actionReminderIntervals[category], value > 0 {
+                continue
+            }
+            actionReminderIntervals[category] = Self.defaultActionReminderInterval
+            if actionRemindersEnabled[category] == nil {
+                actionRemindersEnabled[category] = true
+            }
+        }
+
+        for category in BabyActionCategory.allCases where actionRemindersEnabled[category] == nil {
+            actionRemindersEnabled[category] = true
+        }
+
+        actionReminderOverrides = actionReminderOverrides.filter { _, override in
+            override.fireDate > referenceDate
+        }
+    }
+
+    static var defaultActionReminderInterval: TimeInterval { 3 * 60 * 60 }
+
+    static func defaultActionReminderIntervals() -> [BabyActionCategory: TimeInterval] {
+        Dictionary(uniqueKeysWithValues: BabyActionCategory.allCases.map { ($0, defaultActionReminderInterval) })
+    }
+
+    static func defaultActionRemindersEnabled() -> [BabyActionCategory: Bool] {
+        Dictionary(uniqueKeysWithValues: BabyActionCategory.allCases.map { ($0, true) })
+    }
+
+    static func placeholder() -> ChildProfile {
+        ChildProfile(name: "", birthDate: Date())
+    }
+
     private enum CodingKeys: String, CodingKey {
         case id
         case name
@@ -99,41 +190,41 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         birthDate = try container.decode(Date.self, forKey: .birthDate)
         imageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
         remindersEnabled = try container.decodeIfPresent(Bool.self, forKey: .remindersEnabled) ?? false
+
         if let rawIntervals = try container.decodeIfPresent([String: TimeInterval].self, forKey: .actionReminderIntervals) {
-            let mapped = rawIntervals.reduce(into: [BabyActionCategory: TimeInterval]()) { partialResult, element in
+            actionReminderIntervals = rawIntervals.reduce(into: [:]) { partialResult, element in
                 let (key, value) = element
                 if let category = BabyActionCategory(rawValue: key) {
                     partialResult[category] = max(0, value)
                 }
             }
-            actionReminderIntervals = mapped
         } else {
             actionReminderIntervals = Self.defaultActionReminderIntervals()
         }
+
         if let rawEnabled = try container.decodeIfPresent([String: Bool].self, forKey: .actionRemindersEnabled) {
-            let mapped = rawEnabled.reduce(into: [BabyActionCategory: Bool]()) { partialResult, element in
+            actionRemindersEnabled = rawEnabled.reduce(into: [:]) { partialResult, element in
                 let (key, value) = element
                 if let category = BabyActionCategory(rawValue: key) {
                     partialResult[category] = value
                 }
             }
-            actionRemindersEnabled = mapped
         } else {
             actionRemindersEnabled = Self.defaultActionRemindersEnabled()
         }
 
         if let rawOverrides = try container.decodeIfPresent([String: ActionReminderOverride].self,
                                                             forKey: .actionReminderOverrides) {
-            let mapped = rawOverrides.reduce(into: [BabyActionCategory: ActionReminderOverride]()) { partialResult, element in
+            actionReminderOverrides = rawOverrides.reduce(into: [:]) { partialResult, element in
                 let (key, value) = element
                 if let category = BabyActionCategory(rawValue: key) {
                     partialResult[category] = value
                 }
             }
-            actionReminderOverrides = mapped
         } else {
             actionReminderOverrides = [:]
         }
+
         normalizeReminderPreferences()
     }
 
@@ -151,329 +242,20 @@ struct ChildProfile: Codable, Identifiable, Equatable {
         let rawOverrides = Dictionary(uniqueKeysWithValues: actionReminderOverrides.map { ($0.key.rawValue, $0.value) })
         try container.encode(rawOverrides, forKey: .actionReminderOverrides)
     }
-
-    func reminderInterval(for category: BabyActionCategory) -> TimeInterval {
-        actionReminderIntervals[category] ?? Self.defaultActionReminderInterval
-    }
-
-    mutating func setReminderInterval(_ interval: TimeInterval, for category: BabyActionCategory) {
-        actionReminderIntervals[category] = max(0, interval)
-        normalizeReminderPreferences()
-    }
-
-    func isActionReminderEnabled(for category: BabyActionCategory) -> Bool {
-        actionRemindersEnabled[category] ?? true
-    }
-
-    mutating func setReminderEnabled(_ isEnabled: Bool, for category: BabyActionCategory) {
-        actionRemindersEnabled[category] = isEnabled
-        normalizeReminderPreferences()
-    }
-
-    mutating func normalizeReminderPreferences() {
-        for category in BabyActionCategory.allCases {
-            if let value = actionReminderIntervals[category], value > 0 {
-                continue
-            }
-            actionReminderIntervals[category] = Self.defaultActionReminderInterval
-            if actionRemindersEnabled[category] == nil {
-                actionRemindersEnabled[category] = true
-            }
-        }
-
-        for category in BabyActionCategory.allCases where actionRemindersEnabled[category] == nil {
-            actionRemindersEnabled[category] = true
-        }
-
-        pruneActionReminderOverrides()
-    }
-
-    static var defaultActionReminderInterval: TimeInterval { 3 * 60 * 60 }
-
-    static func defaultActionReminderIntervals() -> [BabyActionCategory: TimeInterval] {
-        Dictionary(uniqueKeysWithValues: BabyActionCategory.allCases.map { ($0, defaultActionReminderInterval) })
-    }
-
-    static func defaultActionRemindersEnabled() -> [BabyActionCategory: Bool] {
-        Dictionary(uniqueKeysWithValues: BabyActionCategory.allCases.map { ($0, true) })
-    }
-}
-
-extension ChildProfile {
-    mutating func setActionReminderOverride(_ override: ActionReminderOverride?,
-                                            for category: BabyActionCategory,
-                                            referenceDate: Date = Date()) {
-        if let override {
-            actionReminderOverrides[category] = override
-        } else {
-            actionReminderOverrides.removeValue(forKey: category)
-        }
-        pruneActionReminderOverrides(referenceDate: referenceDate)
-    }
-
-    func actionReminderOverride(for category: BabyActionCategory) -> ActionReminderOverride? {
-        actionReminderOverrides[category]
-    }
-
-    mutating func pruneActionReminderOverrides(referenceDate: Date = Date()) {
-        actionReminderOverrides = actionReminderOverrides.filter { _, override in
-            override.fireDate > referenceDate
-        }
-    }
-
-    mutating func clearActionReminderOverride(for category: BabyActionCategory) {
-        actionReminderOverrides.removeValue(forKey: category)
-    }
 }
 
 @MainActor
 final class ProfileStore: ObservableObject {
-    var profiles: [ChildProfile] {
-        state.profiles
-    }
-
-    var activeProfileID: UUID? {
-        state.activeProfileID
-    }
-
-    var activeProfile: ChildProfile {
-        if let profile = state.activeProfile {
-            return profile
-        }
-
-        if shouldEnsureProfileExists {
-            ensureValidState()
-            if let profile = state.activeProfile {
-                return profile
-            }
-        }
-
-        return ChildProfile(name: "", birthDate: Date())
-    }
-
-    var showRecentActivityOnHome: Bool {
-        state.showRecentActivityOnHome
-    }
-
-    private let saveURL: URL
-    private let reminderScheduler: ReminderScheduling
-    private weak var actionStore: ActionLogStore?
-    private let didLoadProfilesFromDisk: Bool
-    private var shouldEnsureProfileExists: Bool {
-        true
-    }
     struct ActionReminderSummary: Equatable, Sendable {
         let fireDate: Date
         let message: String
     }
-
-    static let customReminderDelayRange: ClosedRange<TimeInterval> = (5 * 60)...(24 * 60 * 60)
 
     struct ProfileMetadataUpdate: Equatable, Sendable {
         let id: UUID
         let name: String
         let birthDate: Date?
         let imageData: Data?
-    }
-    @Published private var state: ProfileState {
-        didSet {
-            persistState()
-            scheduleReminders()
-            synchronizeProfileMetadata()
-        }
-    }
-
-    init(
-        fileManager: FileManager = .default,
-        directory: URL? = nil,
-        filename: String = "childProfiles.json",
-        reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler()
-    ) {
-        self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
-        self.reminderScheduler = reminderScheduler
-        self.didLoadProfilesFromDisk = fileManager.fileExists(atPath: saveURL.path)
-
-        if let data = try? Data(contentsOf: saveURL) {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-
-            if let decoded = try? decoder.decode(ProfileState.self, from: data) {
-                self.state = Self.sanitized(state: decoded, ensureProfileExists: true)
-            } else {
-                self.state = Self.defaultState()
-            }
-        } else {
-            let shouldCreateBootstrapProfile = didLoadProfilesFromDisk
-            self.state = Self.sanitized(state: nil, ensureProfileExists: shouldCreateBootstrapProfile)
-        }
-
-        persistState()
-        scheduleReminders()
-    }
-
-    init(
-        initialProfiles: [ChildProfile],
-        activeProfileID: UUID? = nil,
-        fileManager: FileManager = .default,
-        directory: URL? = nil,
-        filename: String = "childProfiles.json",
-        reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler()
-    ) {
-        self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
-        self.reminderScheduler = reminderScheduler
-        self.didLoadProfilesFromDisk = true
-        let state = ProfileState(profiles: initialProfiles, activeProfileID: activeProfileID)
-        self.state = Self.sanitized(state: state, ensureProfileExists: true)
-        persistState()
-        scheduleReminders()
-    }
-
-    func registerActionStore(_ store: ActionLogStore) {
-        actionStore = store
-        scheduleReminders()
-        store.synchronizeProfileMetadata(state.profiles)
-    }
-
-    func setActiveProfile(_ profile: ChildProfile) {
-        guard state.profiles.contains(where: { $0.id == profile.id }) else { return }
-        var newState = state
-        newState.activeProfileID = profile.id
-        state = Self.sanitized(state: newState, ensureProfileExists: true)
-    }
-
-    @discardableResult
-    func cycleActiveProfile(direction: ProfileNavigationDirection) -> ChildProfile? {
-        guard state.profiles.count > 1 else { return nil }
-
-        guard let activeID = state.activeProfileID,
-              let currentIndex = state.profiles.firstIndex(where: { $0.id == activeID }) else {
-            if let first = state.profiles.first {
-                setActiveProfile(first)
-                return first
-            }
-            return nil
-        }
-
-        let nextIndex: Int
-        switch direction {
-        case .next:
-            nextIndex = (currentIndex + 1) % state.profiles.count
-        case .previous:
-            nextIndex = (currentIndex - 1 + state.profiles.count) % state.profiles.count
-        }
-
-        let targetProfile = state.profiles[nextIndex]
-        setActiveProfile(targetProfile)
-        return targetProfile
-    }
-
-    func addProfile(name: String, imageData: Data? = nil) {
-        var newState = state
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let profile = ChildProfile(name: trimmedName, birthDate: Date(), imageData: imageData)
-        newState.profiles.append(profile)
-        newState.activeProfileID = profile.id
-        state = Self.sanitized(state: newState, ensureProfileExists: true)
-    }
-
-    func addProfile() {
-        addProfile(name: "")
-    }
-
-    func setShowRecentActivityOnHome(_ newValue: Bool) {
-        var newState = state
-        newState.showRecentActivityOnHome = newValue
-        state = Self.sanitized(state: newState, ensureProfileExists: true)
-    }
-
-    func deleteProfile(_ profile: ChildProfile) {
-        guard let index = state.profiles.firstIndex(where: { $0.id == profile.id }) else { return }
-
-        var newState = state
-        newState.profiles.remove(at: index)
-
-        if newState.activeProfileID == profile.id {
-            if index < newState.profiles.count {
-                newState.activeProfileID = newState.profiles[index].id
-            } else {
-                newState.activeProfileID = newState.profiles.last?.id
-            }
-        }
-
-        state = Self.sanitized(state: newState, ensureProfileExists: true)
-        actionStore?.removeProfileData(for: profile.id)
-    }
-
-    func updateActiveProfile(_ updates: (inout ChildProfile) -> Void) {
-        guard let activeID = state.activeProfileID,
-              let index = state.profiles.firstIndex(where: { $0.id == activeID }) else { return }
-
-        var newState = state
-        updates(&newState.profiles[index])
-        state = Self.sanitized(state: newState, ensureProfileExists: true)
-    }
-
-    func updateProfile(withID id: UUID, updates: (inout ChildProfile) -> Void) {
-        guard let index = state.profiles.firstIndex(where: { $0.id == id }) else { return }
-
-        var newState = state
-        updates(&newState.profiles[index])
-        state = Self.sanitized(state: newState, ensureProfileExists: true)
-    }
-
-func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
-        guard updates.isEmpty == false else { return }
-
-        var newState = state
-        var didChange = false
-        var insertedProfiles: [ChildProfile] = []
-
-        for update in updates {
-            guard let index = newState.profiles.firstIndex(where: { $0.id == update.id }) else { continue }
-            var profile = newState.profiles[index]
-            let trimmedName = update.name.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            if profile.name != trimmedName {
-                profile.name = trimmedName
-                didChange = true
-            }
-
-            if profile.imageData != update.imageData {
-                profile.imageData = update.imageData
-                didChange = true
-            }
-
-            if let birthDate = update.birthDate, profile.birthDate != birthDate {
-                profile.birthDate = birthDate
-                didChange = true
-            }
-
-            newState.profiles[index] = profile
-        }
-
-        let existingIDs = Set(newState.profiles.map { $0.id })
-        for update in updates where existingIDs.contains(update.id) == false {
-            let trimmedName = update.name.trimmingCharacters(in: .whitespacesAndNewlines)
-            let birthDate = update.birthDate ?? Date()
-            var profile = ChildProfile(id: update.id,
-                                       name: trimmedName,
-                                       birthDate: birthDate,
-                                       imageData: update.imageData)
-            profile.normalizeReminderPreferences()
-            insertedProfiles.append(profile)
-        }
-
-        if insertedProfiles.isEmpty == false {
-            newState.profiles.append(contentsOf: insertedProfiles)
-            if newState.activeProfileID == nil {
-                newState.activeProfileID = insertedProfiles.first?.id ?? newState.profiles.first?.id
-            }
-            didChange = true
-        }
-
-        if didChange {
-            state = Self.sanitized(state: newState, ensureProfileExists: true)
-        }
     }
 
     enum ShareDataError: LocalizedError {
@@ -487,33 +269,6 @@ func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
         }
     }
 
-    @discardableResult
-    func mergeActiveProfile(with importedProfile: ChildProfile) throws -> Bool {
-        if state.profiles.contains(where: { $0.id == importedProfile.id }) == false {
-            var newState = state
-            newState.profiles.append(importedProfile)
-            newState.activeProfileID = importedProfile.id
-            state = Self.sanitized(state: newState, ensureProfileExists: true)
-            return true
-        }
-
-        guard let activeID = state.activeProfileID else { return false }
-
-        guard importedProfile.id == activeID else {
-            throw ShareDataError.mismatchedProfile
-        }
-
-        let currentProfile = activeProfile
-
-        guard currentProfile != importedProfile else { return false }
-
-        updateActiveProfile { profile in
-            profile = importedProfile
-        }
-
-        return true
-    }
-
     enum ReminderAuthorizationResult: Equatable {
         case enabled
         case disabled
@@ -524,6 +279,267 @@ func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
         case scheduled
         case authorizationDenied
         case disabled
+    }
+
+    static let customReminderDelayRange: ClosedRange<TimeInterval> = (5 * 60)...(24 * 60 * 60)
+
+    @Published private(set) var profiles: [ChildProfile] = [] {
+        didSet {
+            guard oldValue != profiles else { return }
+            scheduleReminders()
+            synchronizeProfileMetadata()
+        }
+    }
+
+    @Published private(set) var activeProfileID: UUID? {
+        didSet {
+            guard oldValue != activeProfileID else { return }
+            settings.activeProfileID = activeProfileID
+            persistSettings(reason: "profile-active-id")
+        }
+    }
+
+    @Published var showRecentActivityOnHome: Bool {
+        didSet {
+            guard oldValue != showRecentActivityOnHome else { return }
+            settings.showRecentActivityOnHome = showRecentActivityOnHome
+            persistSettings(reason: "profile-show-recent")
+        }
+    }
+
+    var activeProfile: ChildProfile {
+        if let activeID = activeProfileID,
+           let profile = profiles.first(where: { $0.id == activeID }) {
+            return profile
+        }
+        return profiles.first ?? ChildProfile.placeholder()
+    }
+
+    private let modelContext: ModelContext
+    private let dataStack: AppDataStack
+    private let reminderScheduler: ReminderScheduling
+    private weak var actionStore: ActionLogStore?
+    private let fileManager: FileManager
+    private let saveURL: URL
+    private var settings: ProfileStoreSettings
+    private var isEnsuringProfile = false
+
+    init(modelContext: ModelContext,
+         dataStack: AppDataStack,
+         fileManager: FileManager = .default,
+         directory: URL? = nil,
+         filename: String = "childProfiles.json",
+         reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler()) {
+        self.modelContext = modelContext
+        self.dataStack = dataStack
+        self.fileManager = fileManager
+        self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
+        self.reminderScheduler = reminderScheduler
+        self.settings = Self.fetchOrCreateSettings(in: modelContext)
+        self.showRecentActivityOnHome = settings.showRecentActivityOnHome
+        self.activeProfileID = settings.activeProfileID
+
+        migrateLegacyProfilesIfNeeded()
+        refreshProfiles()
+        ensureActiveProfileExists()
+        scheduleReminders()
+    }
+
+    func registerActionStore(_ store: ActionLogStore) {
+        actionStore = store
+        scheduleReminders()
+        synchronizeProfileMetadata()
+    }
+
+    func setActiveProfile(_ profile: ChildProfile) {
+        guard profiles.contains(where: { $0.id == profile.id }) else { return }
+        activeProfileID = profile.id
+    }
+
+    @discardableResult
+    func cycleActiveProfile(direction: ProfileNavigationDirection) -> ChildProfile? {
+        guard profiles.count > 1 else { return nil }
+        guard let activeID = activeProfileID,
+              let currentIndex = profiles.firstIndex(where: { $0.id == activeID }) else {
+            if let first = profiles.first {
+                setActiveProfile(first)
+                return first
+            }
+            return nil
+        }
+
+        let nextIndex: Int
+        switch direction {
+        case .next:
+            nextIndex = (currentIndex + 1) % profiles.count
+        case .previous:
+            nextIndex = (currentIndex - 1 + profiles.count) % profiles.count
+        }
+
+        let targetProfile = profiles[nextIndex]
+        setActiveProfile(targetProfile)
+        return targetProfile
+    }
+
+    func addProfile(name: String, imageData: Data? = nil) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let profile = ProfileActionStateModel(name: trimmedName,
+                                              birthDate: Date(),
+                                              imageData: imageData)
+        profile.normalizeReminderPreferences()
+        modelContext.insert(profile)
+        persistContextIfNeeded(reason: "profile-insert")
+        refreshProfiles()
+        activeProfileID = profile.resolvedProfileID
+    }
+
+    func addProfile() {
+        addProfile(name: "")
+    }
+
+    func setShowRecentActivityOnHome(_ newValue: Bool) {
+        showRecentActivityOnHome = newValue
+    }
+
+    func deleteProfile(_ profile: ChildProfile) {
+        mutateProfiles(reason: "profile-delete") {
+            guard let model = profileModel(withID: profile.id) else { return false }
+            modelContext.delete(model)
+            return true
+        }
+
+        if activeProfileID == profile.id {
+            activeProfileID = profiles.first?.id
+        }
+
+        actionStore?.removeProfileData(for: profile.id)
+    }
+
+    func updateActiveProfile(_ updates: (ProfileActionStateModel) -> Void) {
+        guard let activeID = activeProfileID else { return }
+        updateProfile(withID: activeID, reason: "profile-update-active", updates: updates)
+    }
+
+    func updateProfile(withID id: UUID, reason: String = "profile-update", updates: (ProfileActionStateModel) -> Void) {
+        mutateProfiles(reason: reason) {
+            guard let model = profileModel(withID: id) else { return false }
+            updates(model)
+            model.normalizeReminderPreferences()
+            return true
+        }
+    }
+
+    func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
+        guard updates.isEmpty == false else { return }
+
+        mutateProfiles(reason: "profile-metadata-update") {
+            var didChange = false
+            var insertedProfiles: [ProfileActionStateModel] = []
+
+            for update in updates {
+                if let model = profileModel(withID: update.id) {
+                    let trimmedName = update.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if model.name != trimmedName {
+                        model.name = trimmedName
+                        didChange = true
+                    }
+                    if let birthDate = update.birthDate, model.birthDate != birthDate.normalizedToUTC() {
+                        model.setBirthDate(birthDate)
+                        didChange = true
+                    }
+                    if model.imageData != update.imageData {
+                        model.imageData = update.imageData
+                        didChange = true
+                    }
+                } else {
+                    let trimmedName = update.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let birthDate = update.birthDate?.normalizedToUTC() ?? Date()
+                    let model = ProfileActionStateModel(profileID: update.id,
+                                                        name: trimmedName,
+                                                        birthDate: birthDate,
+                                                        imageData: update.imageData)
+                    model.normalizeReminderPreferences()
+                    modelContext.insert(model)
+                    insertedProfiles.append(model)
+                    didChange = true
+                }
+            }
+
+            if insertedProfiles.isEmpty == false, activeProfileID == nil {
+                activeProfileID = insertedProfiles.first?.resolvedProfileID
+            }
+
+            return didChange
+        }
+    }
+
+    @discardableResult
+    func mergeActiveProfile(with importedProfile: ChildProfile) throws -> Bool {
+        if profiles.contains(where: { $0.id == importedProfile.id }) == false {
+            var didInsert = false
+
+            mutateProfiles(reason: "profile-import-insert") {
+                let trimmedName = importedProfile.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                let model = ProfileActionStateModel(profileID: importedProfile.id,
+                                                    name: trimmedName,
+                                                    birthDate: importedProfile.birthDate,
+                                                    imageData: importedProfile.imageData,
+                                                    remindersEnabled: importedProfile.remindersEnabled)
+
+                for category in BabyActionCategory.allCases {
+                    model.setReminderInterval(importedProfile.reminderInterval(for: category), for: category)
+                    model.setReminderEnabled(importedProfile.isActionReminderEnabled(for: category), for: category)
+                    if let override = importedProfile.actionReminderOverride(for: category) {
+                        let mapped = ProfileActionReminderOverride(fireDate: override.fireDate, isOneOff: override.isOneOff)
+                        model.setReminderOverride(mapped, for: category, referenceDate: Date())
+                    } else {
+                        model.clearReminderOverride(for: category)
+                    }
+                }
+
+                model.normalizeReminderPreferences()
+                modelContext.insert(model)
+                didInsert = true
+                return true
+            }
+
+            if didInsert {
+                activeProfileID = importedProfile.id
+            }
+
+            return didInsert
+        }
+
+        guard let activeID = activeProfileID else { return false }
+
+        guard importedProfile.id == activeID else {
+            throw ShareDataError.mismatchedProfile
+        }
+
+        let currentProfile = activeProfile
+        guard currentProfile != importedProfile else { return false }
+
+        updateProfile(withID: activeID, reason: "profile-import-merge") { model in
+            let trimmedName = importedProfile.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            model.name = trimmedName
+            model.setBirthDate(importedProfile.birthDate)
+            model.imageData = importedProfile.imageData
+            model.remindersEnabled = importedProfile.remindersEnabled
+
+            for category in BabyActionCategory.allCases {
+                model.setReminderInterval(importedProfile.reminderInterval(for: category), for: category)
+                model.setReminderEnabled(importedProfile.isActionReminderEnabled(for: category), for: category)
+
+                if let override = importedProfile.actionReminderOverride(for: category) {
+                    let mapped = ProfileActionReminderOverride(fireDate: override.fireDate, isOneOff: override.isOneOff)
+                    model.setReminderOverride(mapped, for: category, referenceDate: Date())
+                } else {
+                    model.clearReminderOverride(for: category)
+                }
+            }
+        }
+
+        return true
     }
 
     @discardableResult
@@ -539,7 +555,10 @@ func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
             }
         }
 
-        updateActiveProfile { $0.remindersEnabled = desiredValue }
+        updateActiveProfile { model in
+            model.remindersEnabled = desiredValue
+        }
+
         return result
     }
 
@@ -548,14 +567,12 @@ func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
     }
 
     func nextReminder(for profileID: UUID) async -> ReminderOverview? {
-        let profiles = state.profiles
         let actionStates = await actionStore?.actionStatesSnapshot() ?? [:]
         let reminders = await reminderScheduler.upcomingReminders(for: profiles, actionStates: actionStates, reference: Date())
         return reminders.first(where: { $0.includes(profileID: profileID) })
     }
 
     func nextActionReminderSummaries(for profileID: UUID) async -> [BabyActionCategory: ActionReminderSummary] {
-        let profiles = state.profiles
         let actionStates = await actionStore?.actionStatesSnapshot() ?? [:]
         let reminders = await reminderScheduler.upcomingReminders(for: profiles, actionStates: actionStates, reference: Date())
 
@@ -578,7 +595,6 @@ func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
     }
 
     func nextActionReminderSummary(for profileID: UUID, category targetCategory: BabyActionCategory) async -> ActionReminderSummary? {
-        let profiles = state.profiles
         let actionStates = await actionStore?.actionStatesSnapshot() ?? [:]
         let reminders = await reminderScheduler.upcomingReminders(for: profiles, actionStates: actionStates, reference: Date())
 
@@ -602,7 +618,7 @@ func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
     }
 
     func scheduleActionReminderPreview(for category: BabyActionCategory, delay: TimeInterval = 60) async -> ReminderPreviewResult {
-        guard let profile = state.activeProfile else { return .disabled }
+        let profile = activeProfile
         guard profile.remindersEnabled, profile.isActionReminderEnabled(for: category) else { return .disabled }
 
         let scheduled = await reminderScheduler.schedulePreviewReminder(
@@ -621,18 +637,15 @@ func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
         let clampedDelay = Self.clampCustomReminderDelay(delay)
         let fireDate = Date().addingTimeInterval(clampedDelay)
 
-        updateProfile(withID: profileID) { profile in
-            profile.setActionReminderOverride(
-                ChildProfile.ActionReminderOverride(fireDate: fireDate, isOneOff: isOneOff),
-                for: category,
-                referenceDate: Date()
-            )
+        updateProfile(withID: profileID, reason: "profile-custom-reminder") { model in
+            let override = ProfileActionReminderOverride(fireDate: fireDate, isOneOff: isOneOff)
+            model.setReminderOverride(override, for: category, referenceDate: Date())
         }
     }
 
     func clearActionReminderOverride(for profileID: UUID, category: BabyActionCategory) {
-        updateProfile(withID: profileID) { profile in
-            profile.clearActionReminderOverride(for: category)
+        updateProfile(withID: profileID, reason: "profile-clear-reminder") { model in
+            model.clearReminderOverride(for: category)
         }
     }
 
@@ -640,38 +653,91 @@ func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
         clearActionReminderOverride(for: profileID, category: category)
     }
 
-    private static func clampCustomReminderDelay(_ delay: TimeInterval) -> TimeInterval {
-        let range = customReminderDelayRange
-        return min(max(delay, range.lowerBound), range.upperBound)
-    }
+    private func migrateLegacyProfilesIfNeeded() {
+        guard fileManager.fileExists(atPath: saveURL.path) else { return }
 
-    private func ensureValidState() {
-        let sanitized = Self.sanitized(state: state, ensureProfileExists: shouldEnsureProfileExists)
-        if sanitized != state {
-            state = sanitized
+        let descriptor = FetchDescriptor<ProfileActionStateModel>()
+        let existingCount = (try? modelContext.fetch(descriptor).count) ?? 0
+        guard existingCount == 0 else {
+            try? fileManager.removeItem(at: saveURL)
+            return
         }
-    }
 
-    private func persistState() {
-        let stateSnapshot = state
-        let url = saveURL
+        do {
+            let data = try Data(contentsOf: saveURL)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let legacyState = try decoder.decode(LegacyProfileState.self, from: data)
 
-        Task.detached(priority: .background) {
-            do {
-                let encoder = JSONEncoder()
-                encoder.dateEncodingStrategy = .iso8601
-                let data = try encoder.encode(stateSnapshot)
-                try data.write(to: url, options: .atomic)
-            } catch {
-                #if DEBUG
-                print("Failed to save child profiles: \(error.localizedDescription)")
-                #endif
+            for legacy in legacyState.profiles {
+                let model = ProfileActionStateModel(profileID: legacy.id,
+                                                    name: legacy.name,
+                                                    birthDate: legacy.birthDate,
+                                                    imageData: legacy.imageData,
+                                                    remindersEnabled: legacy.remindersEnabled)
+                modelContext.insert(model)
+                model.remindersEnabled = legacy.remindersEnabled
+                for category in BabyActionCategory.allCases {
+                    model.setReminderInterval(legacy.reminderInterval(for: category), for: category)
+                    model.setReminderEnabled(legacy.isActionReminderEnabled(for: category), for: category)
+                    if let override = legacy.actionReminderOverride(for: category) {
+                        let mapped = ProfileActionReminderOverride(fireDate: override.fireDate, isOneOff: override.isOneOff)
+                        model.setReminderOverride(mapped, for: category, referenceDate: Date())
+                    }
+                }
+                model.normalizeReminderPreferences()
             }
+
+            activeProfileID = legacyState.activeProfileID
+            showRecentActivityOnHome = legacyState.showRecentActivityOnHome
+            persistSettings(reason: "profile-migration-settings")
+            persistContextIfNeeded(reason: "profile-migration")
+            try? fileManager.removeItem(at: saveURL)
+        } catch {
+            #if DEBUG
+            print("Failed to migrate legacy profiles: \(error.localizedDescription)")
+            #endif
         }
+    }
+
+    private func refreshProfiles() {
+        let sortDescriptors = [
+            SortDescriptor(\ProfileActionStateModel.name),
+            SortDescriptor(\ProfileActionStateModel.birthDate, order: .reverse)
+        ]
+        let descriptor = FetchDescriptor<ProfileActionStateModel>(sortBy: sortDescriptors)
+        if let models = try? modelContext.fetch(descriptor) {
+            profiles = models.map { ChildProfile(model: $0) }
+        } else {
+            profiles = []
+        }
+    }
+
+    private func ensureActiveProfileExists() {
+        if profiles.isEmpty {
+            guard isEnsuringProfile == false else { return }
+            isEnsuringProfile = true
+            defer { isEnsuringProfile = false }
+
+            let model = ProfileActionStateModel(name: "", birthDate: Date())
+            model.normalizeReminderPreferences()
+            modelContext.insert(model)
+            persistContextIfNeeded(reason: "profile-ensure-default")
+            refreshProfiles()
+            activeProfileID = model.resolvedProfileID
+            return
+        }
+
+        if let activeID = activeProfileID,
+           profiles.contains(where: { $0.id == activeID }) {
+            return
+        }
+
+        activeProfileID = profiles.first?.id
     }
 
     private func scheduleReminders() {
-        let profiles = state.profiles
+        let profiles = profiles
         Task { @MainActor [weak self, profiles] in
             guard let self else { return }
             let actionStates = await self.actionStore?.actionStatesSnapshot() ?? [:]
@@ -680,36 +746,40 @@ func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
     }
 
     private func synchronizeProfileMetadata() {
-        actionStore?.synchronizeProfileMetadata(state.profiles)
+        actionStore?.synchronizeProfileMetadata(profiles)
     }
 
-    private static func sanitized(state: ProfileState?, ensureProfileExists: Bool) -> ProfileState {
-        var state = state ?? ProfileState(profiles: [], activeProfileID: nil)
-
-        if state.profiles.isEmpty {
-            if ensureProfileExists {
-                let defaultProfile = ChildProfile(name: "", birthDate: Date())
-                state.profiles = [defaultProfile]
-                state.activeProfileID = defaultProfile.id
-            }
-        } else if let activeID = state.activeProfileID,
-                  state.profiles.contains(where: { $0.id == activeID }) == false {
-            state.activeProfileID = state.profiles.first?.id
-        } else if state.activeProfileID == nil {
-            state.activeProfileID = state.profiles.first?.id
-        }
-
-        state.profiles = state.profiles.map { profile in
-            var normalized = profile
-            normalized.normalizeReminderPreferences()
-            return normalized
-        }
-
-        return state
+    private func mutateProfiles(reason: String, _ work: () -> Bool) {
+        let didChange = work()
+        guard didChange else { return }
+        persistContextIfNeeded(reason: reason)
+        refreshProfiles()
+        ensureActiveProfileExists()
     }
 
-    private static func defaultState() -> ProfileState {
-        sanitized(state: nil, ensureProfileExists: true)
+    private func persistContextIfNeeded(reason: String) {
+        if modelContext.hasChanges {
+            dataStack.saveIfNeeded(on: modelContext, reason: reason)
+        }
+    }
+
+    private func persistSettings(reason: String) {
+        persistContextIfNeeded(reason: reason)
+    }
+
+    private func profileModel(withID id: UUID) -> ProfileActionStateModel? {
+        let predicate = #Predicate<ProfileActionStateModel> { model in
+            model.profileID == id
+        }
+        var descriptor = FetchDescriptor<ProfileActionStateModel>(predicate: predicate)
+        descriptor.fetchLimit = 1
+        let results = try? modelContext.fetch(descriptor)
+        return results?.first
+    }
+
+    private static func clampCustomReminderDelay(_ delay: TimeInterval) -> TimeInterval {
+        let range = customReminderDelayRange
+        return min(max(delay, range.lowerBound), range.upperBound)
     }
 
     private static func resolveSaveURL(fileManager: FileManager, directory: URL?, filename: String) -> URL {
@@ -723,76 +793,168 @@ func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
 
         return fileManager.temporaryDirectory.appendingPathComponent(filename)
     }
-}
 
-extension ProfileNavigationDirection {
-    var analyticsValue: String {
-        switch self {
-        case .next:
-            return "next"
-        case .previous:
-            return "previous"
+    private static func fetchOrCreateSettings(in context: ModelContext) -> ProfileStoreSettings {
+        var descriptor = FetchDescriptor<ProfileStoreSettings>()
+        descriptor.fetchLimit = 1
+        if let existing = try? context.fetch(descriptor), let model = existing.first {
+            return model
         }
-    }
-}
 
-private struct ProfileState: Codable, Equatable {
-    var profiles: [ChildProfile]
-    var activeProfileID: UUID?
-    var showRecentActivityOnHome: Bool = true
-
-    var activeProfile: ChildProfile? {
-        guard let activeProfileID else { return nil }
-        return profiles.first(where: { $0.id == activeProfileID })
+        let settings = ProfileStoreSettings()
+        context.insert(settings)
+        return settings
     }
 }
 
 extension ProfileStore {
     static var preview: ProfileStore {
-        struct PreviewReminderScheduler: ReminderScheduling {
-            func ensureAuthorization() async -> Bool { true }
-            func refreshReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState]) async {}
-            func upcomingReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState], reference: Date) async -> [ReminderOverview] {
-                let enabledProfiles = profiles.filter { $0.remindersEnabled }
-                guard let profile = enabledProfiles.first else { return [] }
+        let stack = AppDataStack.preview()
+        let context = stack.mainContext
 
-                let entry = ReminderOverview.Entry(
-                    profileID: profile.id,
-                    message: L10n.Notifications.ageReminderMessage(profile.displayName, 1)
-                )
+        let profileA = ProfileActionStateModel(name: "Aria",
+                                               birthDate: Date(timeIntervalSince1970: 1_600_000_000),
+                                               remindersEnabled: true)
+        let profileB = ProfileActionStateModel(name: "Luca",
+                                               birthDate: Date(timeIntervalSince1970: 1_650_000_000))
+        profileA.normalizeReminderPreferences()
+        profileB.normalizeReminderPreferences()
+        context.insert(profileA)
+        context.insert(profileB)
 
-                return [
-                    ReminderOverview(
-                        identifier: UUID().uuidString,
-                        category: .ageMilestone,
-                        fireDate: reference.addingTimeInterval(3600),
-                        entries: [entry]
-                    )
-                ]
+        let scheduler = PreviewReminderScheduler()
+        let store = ProfileStore(modelContext: context,
+                                 dataStack: stack,
+                                 directory: FileManager.default.temporaryDirectory,
+                                 filename: "previewChildProfiles.json",
+                                 reminderScheduler: scheduler)
+        return store
+    }
+}
+
+private extension ProfileStore {
+    struct LegacyProfileState: Decodable {
+        var profiles: [LegacyChildProfile]
+        var activeProfileID: UUID?
+        var showRecentActivityOnHome: Bool
+
+        private enum CodingKeys: String, CodingKey {
+            case profiles
+            case activeProfileID
+            case showRecentActivityOnHome
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            profiles = try container.decode([LegacyChildProfile].self, forKey: .profiles)
+            activeProfileID = try container.decodeIfPresent(UUID.self, forKey: .activeProfileID)
+            showRecentActivityOnHome = try container.decodeIfPresent(Bool.self, forKey: .showRecentActivityOnHome) ?? true
+        }
+    }
+
+    struct LegacyChildProfile: Decodable {
+        var id: UUID
+        var name: String
+        var birthDate: Date
+        var imageData: Data?
+        var remindersEnabled: Bool
+        var actionReminderIntervals: [BabyActionCategory: TimeInterval]
+        var actionRemindersEnabled: [BabyActionCategory: Bool]
+        var actionReminderOverrides: [BabyActionCategory: ChildProfile.ActionReminderOverride]
+
+        private enum CodingKeys: String, CodingKey {
+            case id
+            case name
+            case birthDate
+            case imageData
+            case remindersEnabled
+            case actionReminderIntervals
+            case actionRemindersEnabled
+            case actionReminderOverrides
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decode(UUID.self, forKey: .id)
+            name = try container.decode(String.self, forKey: .name)
+            birthDate = try container.decode(Date.self, forKey: .birthDate)
+            imageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
+            remindersEnabled = try container.decodeIfPresent(Bool.self, forKey: .remindersEnabled) ?? false
+
+            if let rawIntervals = try container.decodeIfPresent([String: TimeInterval].self, forKey: .actionReminderIntervals) {
+                actionReminderIntervals = rawIntervals.reduce(into: [:]) { partialResult, element in
+                    let (key, value) = element
+                    if let category = BabyActionCategory(rawValue: key) {
+                        partialResult[category] = max(0, value)
+                    }
+                }
+            } else {
+                actionReminderIntervals = ChildProfile.defaultActionReminderIntervals()
             }
 
-            func schedulePreviewReminder(for profile: ChildProfile,
-                                         category: BabyActionCategory,
-                                         delay _: TimeInterval) async -> Bool {
-                true
+            if let rawEnabled = try container.decodeIfPresent([String: Bool].self, forKey: .actionRemindersEnabled) {
+                actionRemindersEnabled = rawEnabled.reduce(into: [:]) { partialResult, element in
+                    let (key, value) = element
+                    if let category = BabyActionCategory(rawValue: key) {
+                        partialResult[category] = value
+                    }
+                }
+            } else {
+                actionRemindersEnabled = ChildProfile.defaultActionRemindersEnabled()
+            }
+
+            if let rawOverrides = try container.decodeIfPresent([String: ChildProfile.ActionReminderOverride].self,
+                                                                forKey: .actionReminderOverrides) {
+                actionReminderOverrides = rawOverrides.reduce(into: [:]) { partialResult, element in
+                    let (key, value) = element
+                    if let category = BabyActionCategory(rawValue: key) {
+                        partialResult[category] = value
+                    }
+                }
+            } else {
+                actionReminderOverrides = [:]
             }
         }
 
-        let profiles = [
-            ChildProfile(
-                name: "Aria",
-                birthDate: Date(timeIntervalSince1970: 1_600_000_000),
-                remindersEnabled: true
-            ),
-            ChildProfile(name: "Luca", birthDate: Date(timeIntervalSince1970: 1_650_000_000))
-        ]
+        func reminderInterval(for category: BabyActionCategory) -> TimeInterval {
+            actionReminderIntervals[category] ?? ChildProfile.defaultActionReminderInterval
+        }
 
-        return ProfileStore(
-            initialProfiles: profiles,
-            activeProfileID: profiles.first?.id,
-            directory: FileManager.default.temporaryDirectory,
-            filename: "previewChildProfiles.json",
-            reminderScheduler: PreviewReminderScheduler()
-        )
+        func isActionReminderEnabled(for category: BabyActionCategory) -> Bool {
+            actionRemindersEnabled[category] ?? true
+        }
+
+        func actionReminderOverride(for category: BabyActionCategory) -> ChildProfile.ActionReminderOverride? {
+            actionReminderOverrides[category]
+        }
+    }
+
+    struct PreviewReminderScheduler: ReminderScheduling {
+        func ensureAuthorization() async -> Bool { true }
+        func refreshReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState]) async {}
+        func upcomingReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState], reference: Date) async -> [ReminderOverview] {
+            let enabledProfiles = profiles.filter { $0.remindersEnabled }
+            guard let profile = enabledProfiles.first else { return [] }
+
+            let entry = ReminderOverview.Entry(
+                profileID: profile.id,
+                message: L10n.Notifications.ageReminderMessage(profile.displayName, 1)
+            )
+
+            return [
+                ReminderOverview(
+                    identifier: UUID().uuidString,
+                    category: .ageMilestone,
+                    fireDate: reference.addingTimeInterval(3600),
+                    entries: [entry]
+                )
+            ]
+        }
+
+        func schedulePreviewReminder(for profile: ChildProfile,
+                                     category: BabyActionCategory,
+                                     delay: TimeInterval) async -> Bool {
+            true
+        }
     }
 }

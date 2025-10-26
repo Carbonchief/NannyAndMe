@@ -205,7 +205,7 @@ struct SettingsView: View {
                     selection: Binding(
                         get: { profileStore.activeProfile.birthDate },
                         set: { newValue in
-                            profileStore.updateActiveProfile { $0.birthDate = newValue }
+                        profileStore.updateActiveProfile { $0.setBirthDate(newValue) }
                         }
                     ),
                     in: Date.distantPast...Date(),

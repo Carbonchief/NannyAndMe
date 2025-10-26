@@ -102,7 +102,7 @@ final class ActionLogStore: ObservableObject {
                 }
                 let normalizedBirthDate = profile.birthDate.normalizedToUTC()
                 if model.birthDate != normalizedBirthDate {
-                    model.birthDate = normalizedBirthDate
+                    model.setBirthDate(profile.birthDate)
                     hasChanges = true
                 }
                 if model.imageData != profile.imageData {
