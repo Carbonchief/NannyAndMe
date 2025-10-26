@@ -610,16 +610,17 @@ final class BabyAction {
         get { updatedAtRawValue }
         set { updatedAtRawValue = newValue.normalizedToUTC() }
     }
-    @Transient
-    var profile: Profile? {
-        get { profileReference }
-        set { profileReference = newValue }
-    }
 }
 
 typealias BabyActionModel = BabyAction
 
 extension BabyAction {
+    /// Convenience access to the owning profile while keeping the persisted relationship private.
+    var profile: Profile? {
+        get { profileReference }
+        set { profileReference = newValue }
+    }
+
     var subtypeWord: String? {
         switch category {
         case .sleep:
