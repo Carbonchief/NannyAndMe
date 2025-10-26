@@ -381,11 +381,11 @@ private actor PreviewReminderScheduler: ReminderScheduling {
 
     container.mainContext.insert(profileModel)
     container.mainContext.insert(BabyActionModel(
-        profile: profileModel,
         category: .feeding,
         startDate: Date().addingTimeInterval(-1_800),
         endDate: Date(),
-        updatedAt: Date()
+        updatedAt: Date(),
+        profile: profileModel
     ))
     try? container.mainContext.save()
 
