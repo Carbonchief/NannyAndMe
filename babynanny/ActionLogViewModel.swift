@@ -654,7 +654,7 @@ private extension ActionLogStore {
         return task
     }
 
-    fileprivate func applyModelContextChanges(prefetchedStates: [UUID: ProfileActionState]? = nil) {
+    func applyModelContextChanges(prefetchedStates: [UUID: ProfileActionState]? = nil) {
         if let prefetchedStates {
             cachedStates = prefetchedStates
         }
