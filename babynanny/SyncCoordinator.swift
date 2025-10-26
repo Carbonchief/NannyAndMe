@@ -47,14 +47,11 @@ final class SyncCoordinator: ObservableObject {
             guard let self else { return }
             defer { self.syncTask = nil }
 
-            do {
-                await self.dataStack.flushPendingSaves()
-                try await self.dataStack.mainContext.sync()
-                self.notificationCenter.post(name: Self.mergeDidCompleteNotification, object: reason)
-                self.logger.debug("Completed sync for \(reason.rawValue, privacy: .public)")
-            } catch {
-                self.logger.error("Failed to sync for \(reason.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)")
-            }
+            await self.dataStack.flushPendingSaves()
+            // The SwiftData runtime currently performs CloudKit imports automatically when a push arrives,
+            // so we limit ourselves to ensuring local saves are committed before notifying the stores.
+            self.notificationCenter.post(name: Self.mergeDidCompleteNotification, object: reason)
+            self.logger.debug("Completed sync bookkeeping for \(reason.rawValue, privacy: .public)")
         }
     }
 
