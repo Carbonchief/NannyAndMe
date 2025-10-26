@@ -27,8 +27,8 @@ final class AppDataStack: ObservableObject {
             )
         } else {
             configuration = ModelConfiguration(
-                cloudKitDatabase: .private,
-                allowsSave: true
+                allowsSave: true,
+                cloudKitDatabase: .private("iCloud.com.prioritybit.babynanny")
             )
         }
 
