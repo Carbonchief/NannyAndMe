@@ -142,6 +142,11 @@
 "shareData.airdrop.title" = "Compartir";
 "shareData.airdrop.button" = "Compartir datos";
 "shareData.airdrop.footer" = "Envía el archivo exportado a otro dispositivo mediante AirDrop.";
+"shareData.cloudKit.title" = "Compartir con cuidadores";
+"shareData.cloudKit.button" = "Invitar cuidadores";
+"shareData.cloudKit.footer" = "Comparte este perfil mediante iCloud para que cada cuidador se mantenga actualizado automáticamente.";
+"shareData.legacy.title" = "Herramientas JSON heredadas";
+"shareData.legacy.footer" = "Conserva estas copias JSON como respaldo cuando el uso compartido por iCloud no esté disponible.";
 "shareData.alert.exportSuccess.title" = "Exportación completada";
 "shareData.alert.exportSuccess.message" = "Archivo guardado: %@";
 "shareData.alert.exportFailure.title" = "Error al exportar";
@@ -151,6 +156,9 @@
 "shareData.alert.airdropFailure.title" = "AirDrop falló";
 "shareData.alert.airdropFailure.message" = "AirDrop no pudo compartir la exportación.";
 "shareData.alert.airdropFailure.messageWithReason" = "AirDrop no pudo compartir la exportación. (%@)";
+"shareData.alert.cloudShareFailure.title" = "No se pudo iniciar el uso compartido";
+"shareData.alert.cloudShareFailure.message" = "No pudimos preparar el perfil compartido. Inténtalo de nuevo.";
+"shareData.alert.cloudShareFailure.messageWithReason" = "No pudimos preparar el perfil compartido. (%@)";
 "map.title" = "Mapa de acciones";
 "map.filter.actionType" = "Tipo de acción";
 "map.filter.dateRange" = "Intervalo de fechas";
@@ -174,6 +182,7 @@
 "map.cluster.accessibility" = "%lld acciones cerca de %@";
 "shareData.error.mismatchedProfile" = "Este archivo pertenece a otro perfil. Cambia a ese perfil e inténtalo de nuevo.";
 "shareData.error.readFailed" = "No se pudo leer el archivo. Asegúrate de seleccionar una exportación de Nanny & Me.";
+"shareData.error.missingShareableProfile" = "Aún no encontramos los datos del perfil para compartir. Inténtalo de nuevo en unos momentos.";
 "logs.title" = "Todos los registros";
 "logs.empty.title" = "Todavía no hay registros";
 "logs.empty.subtitle" = "Las acciones que registres aparecerán aquí organizadas por día.";
