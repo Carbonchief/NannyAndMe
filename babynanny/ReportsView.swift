@@ -614,7 +614,11 @@ struct ReportsView: View {
         .chartOverlay { proxy in
             if let selectedDate {
                 GeometryReader { geo in
-                    let plotFrame = geo[proxy.plotFrame]
+                    guard let plotFrameAnchor = proxy.plotFrame else {
+                        return Color.clear
+                    }
+
+                    let plotFrame = geo[plotFrameAnchor]
                     Rectangle()
                         .fill(.clear)
                         .contentShape(Rectangle())
