@@ -46,6 +46,7 @@ NannyAndMe/
 - macOS with Xcode 15 (or newer) installed
 - iOS 17 SDK (included with Xcode 15)
 - Swift 5.9 toolchain (bundled with the listed Xcode version)
+- Apple Developer account with iCloud (CloudKit) and Push Notifications enabled for the bundle identifier
 
 ## Getting started
 
@@ -62,6 +63,10 @@ NannyAndMe/
    - Select the `babynanny` scheme.
    - Choose an iOS Simulator device (e.g., iPhone 15 Pro).
    - Press <kbd>Cmd</kbd>+<kbd>R</kbd> to build and run.
+4. **Configure iCloud sync (real devices)**
+   - In the Signing & Capabilities tab ensure the `iCloud` capability is enabled with the `iCloud.com.prioritybit.babynanny` container.
+   - Enable the `Push Notifications` capability so CloudKit change notifications reach the device.
+   - Sign in to an iCloud account on the device before launching the app.
 
 ## Testing
 

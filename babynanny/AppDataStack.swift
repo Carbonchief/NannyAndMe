@@ -18,10 +18,19 @@ final class AppDataStack: ObservableObject {
     }
 
     static func makeModelContainer(inMemory: Bool = false) -> ModelContainer {
-        let configuration = ModelConfiguration(
-            isStoredInMemoryOnly: inMemory,
-            allowsSave: true
-        )
+        let configuration: ModelConfiguration
+
+        if inMemory {
+            configuration = ModelConfiguration(
+                isStoredInMemoryOnly: true,
+                allowsSave: true
+            )
+        } else {
+            configuration = ModelConfiguration(
+                cloudKitDatabase: .private,
+                allowsSave: true
+            )
+        }
 
         do {
             return try ModelContainer(
