@@ -616,6 +616,7 @@ typealias BabyActionModel = BabyAction
 
 extension BabyAction {
     /// Convenience access to the owning profile while keeping the persisted relationship private.
+    @Transient
     var profile: Profile? {
         get { profileReference }
         set { profileReference = newValue }
