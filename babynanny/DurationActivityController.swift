@@ -19,30 +19,27 @@ enum DurationActivityController {
             return
         }
 
+        let state = model.makeContentState()
+        let content = ActivityContent(state: state, staleDate: nil)
         let existingActivity = existingActivity(for: model.id)
 
         guard model.profile != nil else {
             if let existingActivity {
-                await existingActivity.end(
-                    using: existingActivity.content.state,
-                    dismissalPolicy: .immediate
-                )
+                await existingActivity.end(content, dismissalPolicy: .immediate)
             }
             return
         }
 
-        let state = model.makeContentState()
-
         if let existing = existingActivity {
-            await existing.update(using: state)
+            await existing.update(content)
             if state.endDate != nil {
-                await existing.end(using: state, dismissalPolicy: .immediate)
+                await existing.end(content, dismissalPolicy: .immediate)
             }
         } else if state.endDate == nil {
             do {
-                _ = try await Activity<DurationAttributes>.request(
+                _ = try Activity<DurationAttributes>.request(
                     attributes: DurationAttributes(activityID: model.id),
-                    contentState: state,
+                    content: content,
                     pushType: nil
                 )
             } catch {
@@ -58,7 +55,10 @@ enum DurationActivityController {
     @MainActor
     static func endActivities(excluding activeIDs: Set<UUID>) async {
         for activity in Activity<DurationAttributes>.activities where activeIDs.contains(activity.attributes.activityID) == false {
-            await activity.end(using: activity.content.state, dismissalPolicy: .immediate)
+            await activity.end(
+                activity.content,
+                dismissalPolicy: .immediate
+            )
         }
     }
 

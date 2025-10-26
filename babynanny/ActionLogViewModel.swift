@@ -654,7 +654,7 @@ private extension ActionLogStore {
         return task
     }
 
-    fileprivate func applyModelContextChanges(prefetchedStates: [UUID: ProfileActionState]? = nil) {
+    func applyModelContextChanges(prefetchedStates: [UUID: ProfileActionState]? = nil) {
         if let prefetchedStates {
             cachedStates = prefetchedStates
         }
@@ -755,12 +755,13 @@ private extension ActionLogStore {
             return context
         }
 
-        if let object = root as? AnyObject {
-            let identifier = ObjectIdentifier(object)
+        let mirror = Mirror(reflecting: root)
+
+        if mirror.displayStyle == .class {
+            let identifier = ObjectIdentifier(root as AnyObject)
             guard visitedObjects.insert(identifier).inserted else { return nil }
         }
 
-        let mirror = Mirror(reflecting: root)
         for child in mirror.children {
             if let context = extractManagedObjectContext(from: child.value, visitedObjects: &visitedObjects) {
                 return context
@@ -781,12 +782,13 @@ private extension ActionLogStore {
             return coordinator
         }
 
-        if let object = root as? AnyObject {
-            let identifier = ObjectIdentifier(object)
+        let mirror = Mirror(reflecting: root)
+
+        if mirror.displayStyle == .class {
+            let identifier = ObjectIdentifier(root as AnyObject)
             guard visitedObjects.insert(identifier).inserted else { return nil }
         }
 
-        let mirror = Mirror(reflecting: root)
         for child in mirror.children {
             if let coordinator = extractPersistentStoreCoordinator(from: child.value, visitedObjects: &visitedObjects) {
                 return coordinator

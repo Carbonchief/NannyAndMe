@@ -456,7 +456,7 @@ final class Profile {
     }
 
     func ensureActionOwnership() {
-        guard var currentActions = storedActions else { return }
+        guard let currentActions = storedActions else { return }
         var needsUpdate = false
         for index in currentActions.indices where currentActions[index].profile == nil {
             currentActions[index].profile = self
