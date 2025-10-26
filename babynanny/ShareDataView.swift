@@ -2,6 +2,11 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
+#if canImport(CloudKit)
+import CloudKit
+private typealias CloudSharingController = UICloudSharingController
+#endif
+
 struct ShareDataView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
@@ -476,3 +481,51 @@ struct SharedProfileData: Codable {
             .environmentObject(ShareDataCoordinator())
     }
 }
+
+#if canImport(CloudKit)
+private struct CloudSharingControllerView: UIViewControllerRepresentable {
+    let metadata: CKShare.Metadata
+    var itemTitle: String?
+    var thumbnailImage: UIImage?
+    var onStopSharing: () -> Void = {}
+    var onFailure: (Error) -> Void = { _ in }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeUIViewController(context: Context) -> CloudSharingController {
+        let container = CKContainer(identifier: metadata.containerIdentifier)
+        let controller = CloudSharingController(share: metadata.share, container: container)
+        controller.delegate = context.coordinator
+        controller.modalPresentationStyle = .formSheet
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: CloudSharingController, context: Context) {}
+
+    final class Coordinator: NSObject, UICloudSharingControllerDelegate {
+        let parent: CloudSharingControllerView
+
+        init(parent: CloudSharingControllerView) {
+            self.parent = parent
+        }
+
+        func cloudSharingControllerDidStopSharing(_ c: CloudSharingController) {
+            parent.onStopSharing()
+        }
+
+        func cloudSharingController(_ c: CloudSharingController, failedToSaveShareWithError error: Error) {
+            parent.onFailure(error)
+        }
+
+        func itemTitle(for c: CloudSharingController) -> String? {
+            parent.itemTitle
+        }
+
+        func itemThumbnailImage(for c: CloudSharingController) -> UIImage? {
+            parent.thumbnailImage
+        }
+    }
+}
+#endif

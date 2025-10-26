@@ -421,10 +421,13 @@ struct ProfileActionState: Codable, Sendable {
 @Model
 final class Profile {
     /// Stable identifier used for SwiftData uniqueness and JSON exports.
-    var profileID: UUID = UUID()
+    @Attribute(.unique, .allowsCloudEncryption)
+    var id: UUID = UUID()
+    @Attribute(.allowsCloudEncryption)
     var name: String?
+    @Attribute(.allowsCloudEncryption)
     var birthDate: Date?
-    @Attribute(.externalStorage)
+    @Attribute(.externalStorage, .allowsCloudEncryption)
     var imageData: Data?
     @Relationship(deleteRule: .cascade)
     var storedActions: [BabyAction]?
@@ -434,7 +437,7 @@ final class Profile {
          birthDate: Date? = nil,
          imageData: Data? = nil,
          actions: [BabyAction] = []) {
-        self.profileID = profileID
+        self.id = profileID
         self.name = name
         self.birthDate = birthDate?.normalizedToUTC()
         self.imageData = imageData
@@ -443,8 +446,13 @@ final class Profile {
     }
 
     var resolvedProfileID: UUID {
-        get { profileID }
-        set { profileID = newValue }
+        get { id }
+        set { id = newValue }
+    }
+
+    var profileID: UUID {
+        get { id }
+        set { id = newValue }
     }
 
     var actions: [BabyAction] {
@@ -505,17 +513,29 @@ extension ProfileActionStateModel {
 @Model
 final class BabyAction {
     /// Stable identifier used to deduplicate actions during merges and exports.
+    @Attribute(.unique, .allowsCloudEncryption)
     var id: UUID = UUID()
+    @Attribute(.allowsCloudEncryption)
     private var categoryRawValue: String = BabyActionCategory.sleep.rawValue
+    @Attribute(.allowsCloudEncryption)
     var startDateRawValue: Date = Date().normalizedToUTC()
+    @Attribute(.allowsCloudEncryption)
     private var endDateRawValue: Date?
+    @Attribute(.allowsCloudEncryption)
     var diaperTypeRawValue: String?
+    @Attribute(.allowsCloudEncryption)
     var feedingTypeRawValue: String?
+    @Attribute(.allowsCloudEncryption)
     var bottleTypeRawValue: String?
+    @Attribute(.allowsCloudEncryption)
     var bottleVolume: Int?
+    @Attribute(.allowsCloudEncryption)
     private var updatedAtRawValue: Date = Date()
+    @Attribute(.allowsCloudEncryption)
     var latitude: Double?
+    @Attribute(.allowsCloudEncryption)
     var longitude: Double?
+    @Attribute(.allowsCloudEncryption)
     var placename: String?
     @Relationship(deleteRule: .nullify, inverse: \Profile.storedActions)
     var profile: Profile?
