@@ -19,20 +19,16 @@ enum DurationActivityController {
             return
         }
 
+        let state = model.makeContentState()
+        let content = ActivityContent(state: state, staleDate: nil)
         let existingActivity = existingActivity(for: model.id)
 
         guard model.profile != nil else {
             if let existingActivity {
-                await existingActivity.end(
-                    existingActivity.content,
-                    dismissalPolicy: .immediate
-                )
+                await existingActivity.end(content, dismissalPolicy: .immediate)
             }
             return
         }
-
-        let state = model.makeContentState()
-        let content = ActivityContent(state: state, staleDate: nil)
 
         if let existing = existingActivity {
             await existing.update(content)
