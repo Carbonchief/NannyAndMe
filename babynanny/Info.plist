@@ -39,5 +39,7 @@
                 <key>ActionLoggingPreciseAccuracy</key>
                 <string>We request precise location temporarily so action pins are accurate within about 50 meters.</string>
         </dict>
+        <key>CKSharingSupported</key>
+        <true/>
 </dict>
 </plist>
