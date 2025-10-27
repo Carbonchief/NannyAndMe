@@ -74,9 +74,10 @@ final class ShareDataCoordinator: ObservableObject {
     @Published private(set) var isPerformingShareMutation = false
 
     init(modelContext: ModelContext,
-         containerIdentifier: String = AppDataStack.cloudKitContainerIdentifier) {
+         containerIdentifier: String? = nil) {
         self.modelContext = modelContext
-        self.container = CKContainer(identifier: containerIdentifier)
+        let resolvedIdentifier = containerIdentifier ?? AppDataStack.cloudKitContainerIdentifier
+        self.container = CKContainer(identifier: resolvedIdentifier)
     }
 
     func presentShareData() {

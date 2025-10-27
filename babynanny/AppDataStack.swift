@@ -4,7 +4,7 @@ import SwiftData
 
 @MainActor
 final class AppDataStack: ObservableObject {
-    static let cloudKitContainerIdentifier = "iCloud.com.prioritybit.babynanny"
+    nonisolated(unsafe) static let cloudKitContainerIdentifier = "iCloud.com.prioritybit.babynanny"
 
     private(set) var modelContainer: ModelContainer
     private(set) var mainContext: ModelContext

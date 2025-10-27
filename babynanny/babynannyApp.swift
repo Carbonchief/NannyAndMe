@@ -161,16 +161,41 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      userDidAcceptCloudKitShareWith metadata: CKShare.Metadata) {
         Task { @MainActor [weak self] in
-            guard let self, let container = self.dataStack?.modelContainer else { return }
+            guard let self else { return }
 
             do {
-                try await container.acceptShareInvitations([metadata])
+                try await self.acceptShare(metadata)
                 await self.actionStore?.performUserInitiatedRefresh()
                 self.profileStore?.reloadFromPersistentStore()
                 self.shareDataCoordinator?.refreshActiveShareState()
             } catch {
                 self.logger.error("Failed to accept share: \(error.localizedDescription, privacy: .public)")
             }
+        }
+    }
+}
+
+private extension AppDelegate {
+    func acceptShare(_ metadata: CKShare.Metadata) async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            let operation = CKAcceptSharesOperation(shareMetadatas: [metadata])
+            var perShareError: Error?
+
+            operation.perShareResultBlock = { _, result in
+                if case let .failure(error) = result {
+                    perShareError = error
+                }
+            }
+
+            operation.acceptSharesResultBlock = { error in
+                if let error = error ?? perShareError {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: ())
+                }
+            }
+
+            metadata.container.add(operation)
         }
     }
 }
