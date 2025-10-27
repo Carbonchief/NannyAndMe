@@ -548,18 +548,49 @@ enum L10n {
             return String(format: format, locale: Locale.current, count)
         }
 
-        static let exportSectionTitle = String(localized: "shareData.export.title", defaultValue: "Export")
-        static let exportButton = String(localized: "shareData.export.button", defaultValue: "Export Data")
-        static let exportFooter = String(
-            localized: "shareData.export.footer",
-            defaultValue: "Save a JSON backup of this profile and its activity logs."
+        static let collaborationSectionTitle = String(
+            localized: "shareData.collaboration.sectionTitle",
+            defaultValue: "Collaboration"
         )
-
-        static let importSectionTitle = String(localized: "shareData.import.title", defaultValue: "Import")
-        static let importButton = String(localized: "shareData.import.button", defaultValue: "Import Data")
-        static let importFooter = String(
-            localized: "shareData.import.footer",
-            defaultValue: "Select a previously exported file to merge updates into this profile."
+        static let collaborationDescription = String(
+            localized: "shareData.collaboration.description",
+            defaultValue: "Invite caregivers to collaborate. Everyone sees updates instantly."
+        )
+        static let startSharingButton = String(
+            localized: "shareData.collaboration.startButton",
+            defaultValue: "Invite Caregivers"
+        )
+        static let manageShareButton = String(
+            localized: "shareData.collaboration.manageButton",
+            defaultValue: "Manage Access"
+        )
+        static let stopSharingButton = String(
+            localized: "shareData.collaboration.stopButton",
+            defaultValue: "Stop Sharing"
+        )
+        static let leaveShareButton = String(
+            localized: "shareData.collaboration.leaveButton",
+            defaultValue: "Leave Share"
+        )
+        static let participantsSectionTitle = String(
+            localized: "shareData.participants.sectionTitle",
+            defaultValue: "Participants"
+        )
+        static let exportButton = String(
+            localized: "shareData.troubleshooting.exportButton",
+            defaultValue: "Export JSON Backup"
+        )
+        static let importButton = String(
+            localized: "shareData.troubleshooting.importButton",
+            defaultValue: "Import JSON Backup"
+        )
+        static let troubleshootingSectionTitle = String(
+            localized: "shareData.troubleshooting.sectionTitle",
+            defaultValue: "Troubleshooting"
+        )
+        static let troubleshootingFooter = String(
+            localized: "shareData.troubleshooting.footer",
+            defaultValue: "Import or export JSON backups if a collaborator cannot access CloudKit."
         )
 
         static func importSummary(_ added: Int, _ updated: Int) -> String {
@@ -574,19 +605,54 @@ enum L10n {
             localized: "shareData.import.profileUpdated",
             defaultValue: "Profile settings were updated from the import."
         )
+        static let defaultShareTitle = String(
+            localized: "shareData.share.defaultTitle",
+            defaultValue: "Nanny & Me Profile"
+        )
+        static let defaultShareTitleFormat = String(
+            localized: "shareData.share.defaultTitleFormat",
+            defaultValue: "%@ Care Log"
+        )
+        static let unknownParticipant = String(
+            localized: "shareData.participants.unknown",
+            defaultValue: "Unknown"
+        )
+        static let ownerTag = String(
+            localized: "shareData.participants.owner",
+            defaultValue: "Owner"
+        )
+        static let youTag = String(
+            localized: "shareData.participants.you",
+            defaultValue: "You"
+        )
 
-        enum AirDrop {
-            static let sectionTitle = String(
-                localized: "shareData.airdrop.title",
-                defaultValue: "Share"
+        enum Status {
+            static let pending = String(
+                localized: "shareData.status.pending",
+                defaultValue: "Awaiting acceptance"
             )
-            static let shareButton = String(
-                localized: "shareData.airdrop.button",
-                defaultValue: "Share Data"
+            static let accepted = String(
+                localized: "shareData.status.accepted",
+                defaultValue: "Active collaboration"
             )
-            static let footer = String(
-                localized: "shareData.airdrop.footer",
-                defaultValue: "Send the exported file to another device over AirDrop."
+            static let stopped = String(
+                localized: "shareData.status.stopped",
+                defaultValue: "Sharing stopped"
+            )
+        }
+
+        enum ParticipantStatus {
+            static let pending = String(
+                localized: "shareData.participants.status.pending",
+                defaultValue: "Invitation pending"
+            )
+            static let accepted = String(
+                localized: "shareData.participants.status.accepted",
+                defaultValue: "Active"
+            )
+            static let revoked = String(
+                localized: "shareData.participants.status.revoked",
+                defaultValue: "Access revoked"
             )
         }
 
@@ -606,10 +672,18 @@ enum L10n {
                 localized: "shareData.alert.exportFailure.title",
                 defaultValue: "Export failed"
             )
-            static let exportFailureMessage = String(
-                localized: "shareData.alert.exportFailure.message",
-                defaultValue: "We couldn't save your data. Please try again."
-            )
+            static func exportFailureMessage(_ reason: String) -> String {
+                let format = String(
+                    localized: "shareData.alert.exportFailure.message",
+                    defaultValue: "We couldn't save your data. (%@)"
+                )
+                let trimmed = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard trimmed.isEmpty == false else {
+                    return String(localized: "shareData.alert.exportFailure.messageDefault",
+                                   defaultValue: "We couldn't save your data. Please try again.")
+                }
+                return String(format: format, locale: Locale.current, trimmed)
+            }
             static let importSuccessTitle = String(
                 localized: "shareData.alert.importSuccess.title",
                 defaultValue: "Import complete"
@@ -618,28 +692,33 @@ enum L10n {
                 localized: "shareData.alert.importFailure.title",
                 defaultValue: "Import failed"
             )
-            static let airDropFailureTitle = String(
-                localized: "shareData.alert.airdropFailure.title",
-                defaultValue: "AirDrop failed"
+            static let shareFailureTitle = String(
+                localized: "shareData.alert.shareFailure.title",
+                defaultValue: "Sharing error"
             )
-            private static let airDropFailureDefault = String(
-                localized: "shareData.alert.airdropFailure.message",
-                defaultValue: "AirDrop could not share the export."
+            static let stopShareFailureTitle = String(
+                localized: "shareData.alert.shareFailure.stop",
+                defaultValue: "Couldn't stop sharing"
             )
-            static func airDropFailureMessage(_ reason: String) -> String {
-                let trimmed = reason.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else {
-                    return airDropFailureDefault
-                }
-                let format = String(
-                    localized: "shareData.alert.airdropFailure.messageWithReason",
-                    defaultValue: "AirDrop could not share the export. (%@)"
-                )
-                return String(format: format, locale: Locale.current, trimmed)
-            }
+            static let leaveShareFailureTitle = String(
+                localized: "shareData.alert.shareFailure.leave",
+                defaultValue: "Couldn't leave share"
+            )
         }
 
         enum Error {
+            static let missingProfile = String(
+                localized: "shareData.error.missingProfile",
+                defaultValue: "We couldn't find the active profile."
+            )
+            static let requiresOwner = String(
+                localized: "shareData.error.requiresOwner",
+                defaultValue: "Only the owner can perform this action."
+            )
+            static let requiresParticipant = String(
+                localized: "shareData.error.requiresParticipant",
+                defaultValue: "Only invited participants can perform this action."
+            )
             static let mismatchedProfile = String(
                 localized: "shareData.error.mismatchedProfile",
                 defaultValue: "This file belongs to a different profile. Switch to that profile and try again."
@@ -650,7 +729,6 @@ enum L10n {
             )
         }
     }
-
     enum Logs {
         static let title = String(localized: "logs.title", defaultValue: "All Logs")
         static let emptyTitle = String(localized: "logs.empty.title", defaultValue: "No logs yet")

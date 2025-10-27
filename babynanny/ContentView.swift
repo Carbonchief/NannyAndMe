@@ -382,6 +382,6 @@ private extension ContentView {
     return ContentView()
         .environmentObject(profileStore)
         .environmentObject(actionStore)
-        .environmentObject(ShareDataCoordinator())
+        .environmentObject(ShareDataCoordinator(modelContext: AppDataStack.preview().mainContext))
         .environmentObject(LocationManager.shared)
 }

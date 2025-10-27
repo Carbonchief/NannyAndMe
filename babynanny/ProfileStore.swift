@@ -362,6 +362,13 @@ final class ProfileStore: ObservableObject {
         synchronizeProfileMetadata()
     }
 
+    func reloadFromPersistentStore() {
+        refreshProfiles()
+        ensureActiveProfileExists()
+        scheduleReminders()
+        synchronizeProfileMetadata()
+    }
+
     func setActiveProfile(_ profile: ChildProfile) {
         guard profiles.contains(where: { $0.id == profile.id }) else { return }
         activeProfileID = profile.id

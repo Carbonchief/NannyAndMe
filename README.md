@@ -16,7 +16,7 @@ NannyAndMe is a SwiftUI-based iOS application that helps caregivers keep track o
 - **Action reminders** – Get configurable notifications for sleep, diaper, and feeding actions with per-action intervals that reset whenever you log an entry.
 - **Optional location logging** – Capture where each action was recorded and surface that context alongside entries when location tracking is enabled in Settings.
 - **Action map** – Explore logged locations on a clustered map with quick date and action filters whenever location tracking is enabled.
-- **Data sharing** – Export the active profile's logs to JSON and merge imports that include new or updated entries.
+- **Collaborative care logs** – Invite caregivers through CloudKit sharing so everyone sees real-time updates to the active profile.
 - **Localized experience** – Navigate the interface in English, German, or Spanish with fully translated caregiver-facing text.
 
 ## Project structure
@@ -67,6 +67,17 @@ NannyAndMe/
    - In the Signing & Capabilities tab ensure the `iCloud` capability is enabled with the `iCloud.com.prioritybit.babynanny` container.
    - Enable the `Push Notifications` capability so CloudKit change notifications reach the device.
    - Sign in to an iCloud account on the device before launching the app.
+
+## Collaboration workflow
+
+1. Open the side menu and choose **Share Data** while viewing the profile you want to collaborate on.
+2. Tap **Invite Caregivers** to present CloudKit's invitation UI. Select the people you'd like to collaborate with and send the invite.
+3. Use **Manage Access** to review participants, resend invites, or stop sharing when collaboration is no longer needed. Owners can stop the share, while invitees can leave it.
+4. When a caregiver receives an invite, they should tap the share link on their device, choose the Nanny & Me app, and accept the share. The app automatically downloads the shared profile and refreshes the action log.
+
+### JSON backups (troubleshooting)
+
+If a collaborator can't access iCloud or CloudKit temporarily, open **Share Data → Troubleshooting** to export a JSON backup or import a previously saved file. Imports merge new actions into the active profile and update existing entries when identifiers match.
 
 ## Testing
 

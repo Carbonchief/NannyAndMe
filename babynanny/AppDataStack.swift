@@ -4,6 +4,8 @@ import SwiftData
 
 @MainActor
 final class AppDataStack: ObservableObject {
+    static let cloudKitContainerIdentifier = "iCloud.com.prioritybit.babynanny"
+
     private(set) var modelContainer: ModelContainer
     private(set) var mainContext: ModelContext
 
@@ -28,7 +30,7 @@ final class AppDataStack: ObservableObject {
         } else {
             configuration = ModelConfiguration(
                 allowsSave: true,
-                cloudKitDatabase: .private("iCloud.com.prioritybit.babynanny")
+                cloudKitDatabase: .private(Self.cloudKitContainerIdentifier)
             )
         }
 

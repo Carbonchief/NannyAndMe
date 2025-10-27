@@ -5,6 +5,7 @@
 //  Created by Luan van der Walt on 2025/10/06.
 //
 
+import CloudKit
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
@@ -14,7 +15,7 @@ import os
 @main
 struct babynannyApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var shareDataCoordinator = ShareDataCoordinator()
+    @StateObject private var shareDataCoordinator: ShareDataCoordinator
     @StateObject private var appDataStack: AppDataStack
     @StateObject private var profileStore: ProfileStore
     @StateObject private var actionStore: ActionLogStore
@@ -34,12 +35,20 @@ struct babynannyApp: App {
         profileStore.registerActionStore(actionStore)
         actionStore.registerProfileStore(profileStore)
         let syncCoordinator = SyncCoordinator(dataStack: stack)
+        let shareCoordinator = ShareDataCoordinator(modelContext: stack.mainContext)
 
         _appDataStack = StateObject(wrappedValue: stack)
         _profileStore = StateObject(wrappedValue: profileStore)
         _actionStore = StateObject(wrappedValue: actionStore)
         _syncCoordinator = StateObject(wrappedValue: syncCoordinator)
-        appDelegate.syncCoordinator = syncCoordinator
+        _shareDataCoordinator = StateObject(wrappedValue: shareCoordinator)
+        appDelegate.configure(
+            dataStack: stack,
+            profileStore: profileStore,
+            actionStore: actionStore,
+            shareDataCoordinator: shareCoordinator,
+            syncCoordinator: syncCoordinator
+        )
         syncCoordinator.requestSyncIfNeeded(reason: .launch)
     }
 
@@ -106,7 +115,23 @@ private extension babynannyApp {
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
     var syncCoordinator: SyncCoordinator?
+    private var dataStack: AppDataStack?
+    private weak var profileStore: ProfileStore?
+    private weak var actionStore: ActionLogStore?
+    private weak var shareDataCoordinator: ShareDataCoordinator?
     private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "appdelegate")
+
+    func configure(dataStack: AppDataStack,
+                   profileStore: ProfileStore,
+                   actionStore: ActionLogStore,
+                   shareDataCoordinator: ShareDataCoordinator,
+                   syncCoordinator: SyncCoordinator) {
+        self.dataStack = dataStack
+        self.profileStore = profileStore
+        self.actionStore = actionStore
+        self.shareDataCoordinator = shareDataCoordinator
+        self.syncCoordinator = syncCoordinator
+    }
 
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
@@ -130,6 +155,22 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         Task { @MainActor [weak self] in
             self?.syncCoordinator?.handleRemoteNotification()
             completionHandler(.newData)
+        }
+    }
+
+    func application(_ application: UIApplication,
+                     userDidAcceptCloudKitShareWith metadata: CKShare.Metadata) {
+        Task { @MainActor [weak self] in
+            guard let self, let container = self.dataStack?.modelContainer else { return }
+
+            do {
+                try await container.acceptShareInvitations([metadata])
+                await self.actionStore?.performUserInitiatedRefresh()
+                self.profileStore?.reloadFromPersistentStore()
+                self.shareDataCoordinator?.refreshActiveShareState()
+            } catch {
+                self.logger.error("Failed to accept share: \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 }
