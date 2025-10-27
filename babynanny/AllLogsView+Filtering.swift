@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 extension AllLogsView {
     func groupedActions() -> [(date: Date, actions: [BabyActionSnapshot])] {
         let actions = actionStore.state(for: profileStore.activeProfile.id).history
