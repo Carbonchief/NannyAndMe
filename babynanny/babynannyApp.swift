@@ -177,7 +177,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
 private extension AppDelegate {
     func acceptShare(_ metadata: CKShare.Metadata) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        _ = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let operation = CKAcceptSharesOperation(shareMetadatas: [metadata])
             var perShareError: Error?
 
