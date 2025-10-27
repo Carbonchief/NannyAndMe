@@ -556,6 +556,10 @@ enum L10n {
             localized: "shareData.collaboration.description",
             defaultValue: "Invite caregivers to collaborate. Everyone sees updates instantly."
         )
+        static let collaborationUnavailable = String(
+            localized: "shareData.collaboration.unavailable",
+            defaultValue: "Cloud collaboration isn't supported on this device yet."
+        )
         static let startSharingButton = String(
             localized: "shareData.collaboration.startButton",
             defaultValue: "Invite Caregivers"
@@ -718,6 +722,10 @@ enum L10n {
             static let requiresParticipant = String(
                 localized: "shareData.error.requiresParticipant",
                 defaultValue: "Only invited participants can perform this action."
+            )
+            static let sharingUnavailable = String(
+                localized: "shareData.error.sharingUnavailable",
+                defaultValue: "Cloud collaboration isn't available in this build."
             )
             static let mismatchedProfile = String(
                 localized: "shareData.error.mismatchedProfile",

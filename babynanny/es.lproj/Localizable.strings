@@ -133,6 +133,7 @@
 "shareData.profileSection.logCount" = "Registros totales: %lld";
 "shareData.collaboration.sectionTitle" = "Colaboración";
 "shareData.collaboration.description" = "Invita a cuidadores a colaborar. Todos verán las actualizaciones al instante.";
+"shareData.collaboration.unavailable" = "La colaboración en la nube aún no está disponible en este dispositivo.";
 "shareData.collaboration.startButton" = "Invitar cuidadores";
 "shareData.collaboration.manageButton" = "Gestionar acceso";
 "shareData.collaboration.stopButton" = "Detener uso compartido";
@@ -189,6 +190,7 @@
 "shareData.error.missingProfile" = "No se encontró el perfil activo.";
 "shareData.error.requiresOwner" = "Solo la persona propietaria puede realizar esta acción.";
 "shareData.error.requiresParticipant" = "Solo las personas invitadas pueden realizar esta acción.";
+"shareData.error.sharingUnavailable" = "La colaboración en la nube no está disponible en esta versión.";
 "shareData.error.mismatchedProfile" = "Este archivo pertenece a otro perfil. Cambia a ese perfil e inténtalo de nuevo.";
 "shareData.error.readFailed" = "No se pudo leer el archivo. Asegúrate de seleccionar una exportación de Nanny & Me.";
 "logs.title" = "Todos los registros";

@@ -133,6 +133,7 @@
 "shareData.profileSection.logCount" = "Total logs: %lld";
 "shareData.collaboration.sectionTitle" = "Collaboration";
 "shareData.collaboration.description" = "Invite caregivers to collaborate. Everyone sees updates instantly.";
+"shareData.collaboration.unavailable" = "Cloud collaboration isn't supported on this device yet.";
 "shareData.collaboration.startButton" = "Invite Caregivers";
 "shareData.collaboration.manageButton" = "Manage Access";
 "shareData.collaboration.stopButton" = "Stop Sharing";
@@ -193,6 +194,7 @@
 "shareData.error.missingProfile" = "We couldn't find the active profile.";
 "shareData.error.requiresOwner" = "Only the owner can perform this action.";
 "shareData.error.requiresParticipant" = "Only invited participants can perform this action.";
+"shareData.error.sharingUnavailable" = "Cloud collaboration isn't available in this build.";
 "shareData.error.mismatchedProfile" = "This file belongs to a different profile. Switch to that profile and try again.";
 "shareData.error.readFailed" = "The file could not be read. Make sure you selected a Nanny & Me export.";
 "logs.title" = "All Logs";

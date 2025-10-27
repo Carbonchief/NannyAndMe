@@ -53,9 +53,10 @@ struct ShareDataView: View {
                         ? "shareData_startShare_button"
                         : "shareData_manageShare_button"
                 )
-                .disabled(shareDataCoordinator.isPerformingShareMutation)
+                .disabled(shareDataCoordinator.isPerformingShareMutation ||
+                           shareDataCoordinator.isSharingSupported == false)
 
-                if let shareState = activeShareState {
+                if shareDataCoordinator.isSharingSupported, let shareState = activeShareState {
                     statusView(for: shareState)
 
                     if shareState.isCurrentUserOwner {
@@ -79,8 +80,12 @@ struct ShareDataView: View {
                         )
                         .disabled(shareDataCoordinator.isPerformingShareMutation)
                     }
-                } else {
+                } else if shareDataCoordinator.isSharingSupported {
                     Text(L10n.ShareData.collaborationDescription)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(L10n.ShareData.collaborationUnavailable)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -88,7 +93,7 @@ struct ShareDataView: View {
                 Text(L10n.ShareData.collaborationSectionTitle)
             }
 
-            if let shareState = activeShareState {
+            if shareDataCoordinator.isSharingSupported, let shareState = activeShareState {
                 Section(header: Text(L10n.ShareData.participantsSectionTitle)) {
                     ForEach(shareState.participants) { participant in
                         participantRow(for: participant)
@@ -258,7 +263,7 @@ struct ShareDataView: View {
             return L10n.ShareData.ParticipantStatus.pending
         case .accepted:
             return L10n.ShareData.ParticipantStatus.accepted
-        case .removed, .revoked, .declined:
+        case .removed:
             return L10n.ShareData.ParticipantStatus.revoked
         @unknown default:
             return L10n.ShareData.ParticipantStatus.pending
@@ -271,7 +276,7 @@ struct ShareDataView: View {
             return .orange
         case .accepted:
             return .green
-        case .removed, .revoked, .declined:
+        case .removed:
             return .red
         @unknown default:
             return .secondary

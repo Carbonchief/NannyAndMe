@@ -38,7 +38,7 @@ final class ShareDataCoordinator: ObservableObject {
             switch participantStatus {
             case .accepted:
                 self = .accepted
-            case .removed, .revoked, .declined:
+            case .removed:
                 self = .stopped
             case .pending, .unknown:
                 fallthrough
@@ -68,11 +68,23 @@ final class ShareDataCoordinator: ObservableObject {
     private let container: CKContainer
     private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "share-data")
 
+    private static var supportsSwiftDataSharing: Bool {
+#if swift(>=6.0)
+        true
+#else
+        false
+#endif
+    }
+
     @Published var isShowingShareData = false
     @Published private(set) var externalImportRequest: ExternalImportRequest?
     @Published private(set) var shareState: ShareState?
     @Published var activeSharePresentation: SharePresentation?
     @Published private(set) var isPerformingShareMutation = false
+
+    var isSharingSupported: Bool {
+        Self.supportsSwiftDataSharing
+    }
 
     init(modelContext: ModelContext,
          containerIdentifier: String? = nil) {
@@ -100,6 +112,11 @@ final class ShareDataCoordinator: ObservableObject {
     }
 
     func loadShareState(for profileID: UUID) {
+        guard isSharingSupported else {
+            shareState = nil
+            return
+        }
+#if swift(>=6.0)
         do {
             guard let model = try profileModel(withID: profileID) else {
                 shareState = nil
@@ -116,6 +133,7 @@ final class ShareDataCoordinator: ObservableObject {
             logger.error("Failed to load share state: \(error.localizedDescription, privacy: .public)")
             shareState = nil
         }
+#endif
     }
 
     func refreshActiveShareState() {
@@ -124,6 +142,8 @@ final class ShareDataCoordinator: ObservableObject {
     }
 
     func presentShareInterface(for profileID: UUID) throws {
+        guard isSharingSupported else { throw ShareCoordinatorError.sharingUnavailable }
+#if swift(>=6.0)
         do {
             guard let model = try profileModel(withID: profileID) else {
                 throw ShareCoordinatorError.missingProfile
@@ -136,7 +156,7 @@ final class ShareDataCoordinator: ObservableObject {
                 metadata.title = resolvedShareTitle(for: model)
                 shareTitle = metadata.title
             }
-            share.publicPermission = .none
+            share.publicPermission = CKShare.ParticipantPermission.none
             shareState = makeShareState(from: share, profileID: profileID)
             activeSharePresentation = SharePresentation(share: share,
                                                         container: shareContainer,
@@ -146,6 +166,7 @@ final class ShareDataCoordinator: ObservableObject {
             logger.error("Failed to present share interface: \(error.localizedDescription, privacy: .public)")
             throw error
         }
+#endif
     }
 
     func handleShareSaved(_ share: CKShare, profileID: UUID) {
@@ -168,13 +189,19 @@ final class ShareDataCoordinator: ObservableObject {
     func stopSharingActiveShare() async throws {
         guard let state = shareState else { return }
         guard state.isCurrentUserOwner else { throw ShareCoordinatorError.requiresOwner }
+        guard isSharingSupported else { throw ShareCoordinatorError.sharingUnavailable }
+#if swift(>=6.0)
         try await performShareMutation(state: state, using: container.privateCloudDatabase)
+#endif
     }
 
     func leaveActiveShare() async throws {
         guard let state = shareState else { return }
         guard state.isCurrentUserOwner == false else { throw ShareCoordinatorError.requiresParticipant }
+        guard isSharingSupported else { throw ShareCoordinatorError.sharingUnavailable }
+#if swift(>=6.0)
         try await performShareMutation(state: state, using: container.sharedCloudDatabase)
+#endif
     }
 }
 
@@ -182,6 +209,7 @@ enum ShareCoordinatorError: LocalizedError {
     case missingProfile
     case requiresOwner
     case requiresParticipant
+    case sharingUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -191,6 +219,8 @@ enum ShareCoordinatorError: LocalizedError {
             return L10n.ShareData.Error.requiresOwner
         case .requiresParticipant:
             return L10n.ShareData.Error.requiresParticipant
+        case .sharingUnavailable:
+            return L10n.ShareData.Error.sharingUnavailable
         }
     }
 }
@@ -265,10 +295,11 @@ private extension ShareDataCoordinator {
 
 private extension CKUserIdentity {
     var displayName: String {
-        if let nameComponents,
-           let formatted = PersonNameComponentsFormatter().string(from: nameComponents),
-           formatted.isEmpty == false {
-            return formatted
+        if let nameComponents {
+            let formatted = PersonNameComponentsFormatter().string(from: nameComponents)
+            if formatted.isEmpty == false {
+                return formatted
+            }
         }
 
         if let email = lookupInfo?.emailAddress {

@@ -133,6 +133,7 @@
 "shareData.profileSection.logCount" = "Protokolle insgesamt: %lld";
 "shareData.collaboration.sectionTitle" = "Zusammenarbeit";
 "shareData.collaboration.description" = "Lade Betreuungspersonen zur Zusammenarbeit ein. Alle sehen Aktualisierungen sofort.";
+"shareData.collaboration.unavailable" = "Cloud-Zusammenarbeit wird auf diesem Gerät noch nicht unterstützt.";
 "shareData.collaboration.startButton" = "Betreuungspersonen einladen";
 "shareData.collaboration.manageButton" = "Zugriff verwalten";
 "shareData.collaboration.stopButton" = "Freigabe beenden";
@@ -189,6 +190,7 @@
 "shareData.error.missingProfile" = "Das aktive Profil wurde nicht gefunden.";
 "shareData.error.requiresOwner" = "Nur die Eigentümer:in kann diese Aktion ausführen.";
 "shareData.error.requiresParticipant" = "Nur eingeladene Teilnehmer:innen können diese Aktion ausführen.";
+"shareData.error.sharingUnavailable" = "Cloud-Zusammenarbeit ist in diesem Build nicht verfügbar.";
 "shareData.error.mismatchedProfile" = "Diese Datei gehört zu einem anderen Profil. Wechsle zu diesem Profil und versuche es erneut.";
 "shareData.error.readFailed" = "Die Datei konnte nicht gelesen werden. Bitte wähle einen Nanny & Me-Export.";
 "logs.title" = "Alle Protokolle";
