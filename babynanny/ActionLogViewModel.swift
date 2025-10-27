@@ -592,6 +592,16 @@ private extension ActionLogStore {
             }
         }
         contextObservers.append(remoteToken)
+
+        let syncToken = notificationCenter.addObserver(forName: SyncCoordinator.mergeDidCompleteNotification,
+                                                       object: nil,
+                                                       queue: nil) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                await self.performUserInitiatedRefresh()
+            }
+        }
+        contextObservers.append(syncToken)
     }
 
     private func shouldHandleExternalContextChange(from notification: Notification) -> Bool {

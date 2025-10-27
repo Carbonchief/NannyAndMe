@@ -11,11 +11,11 @@ Relationships use SwiftData's inverse tracking so that deleting a profile cascad
 
 ## Model container configuration
 
-`AppDataStack.makeModelContainer` constructs a single `ModelContainer` for `Profile` and `BabyAction`. The `ModelConfiguration` stores data on device (optionally in-memory for previews/tests) and disables autosave. The same configuration is used everywhere in the app (main context, previews, tests) to avoid divergent schemas.
+`AppDataStack.makeModelContainer` constructs a single `ModelContainer` for `Profile` and `BabyAction`. The on-device `ModelConfiguration` targets the private CloudKit database so signed-in users receive background sync, while previews/tests still opt into an in-memory store. The same configuration is used everywhere in the app (main context, previews, tests) to avoid divergent schemas.
 
 ## Local persistence lifecycle
 
-`AppDataStack` owns the shared `ModelContext` and exposes helpers to coalesce saves. UI layers call `scheduleSaveIfNeeded` and `saveIfNeeded` to throttle writes when the user makes rapid changes. All saves are gated by `ModelContext.hasChanges` and wrapped in lightweight logging so background sync work never blocks the main thread.
+`AppDataStack` owns the shared `ModelContext` and exposes helpers to coalesce saves. UI layers call `scheduleSaveIfNeeded` and `saveIfNeeded` to throttle writes when the user makes rapid changes. All saves are gated by `ModelContext.hasChanges` and wrapped in lightweight logging so background sync work never blocks the main thread. `SyncCoordinator` monitors foreground transitions and remote notifications, calls `context.sync()`, and emits merge notifications so the stores can refresh their caches.
 
 `ActionLogStore` observes the shared context for inserts/updates and keeps an in-memory cache keyed by profile. When a change notification arrives, the store rebuilds the cache so SwiftUI views can render without hitting disk. Profile metadata updates (name, avatar, birth date) stay in sync via `ProfileStore.synchronizeProfileMetadata`.
 

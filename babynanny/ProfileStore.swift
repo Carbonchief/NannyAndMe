@@ -323,15 +323,19 @@ final class ProfileStore: ObservableObject {
     private let saveURL: URL
     private var settings: ProfileStoreSettings
     private var isEnsuringProfile = false
+    private let notificationCenter: NotificationCenter
+    private var notificationObservers: [NSObjectProtocol] = []
 
     init(modelContext: ModelContext,
          dataStack: AppDataStack,
+         notificationCenter: NotificationCenter = .default,
          fileManager: FileManager = .default,
          directory: URL? = nil,
          filename: String = "childProfiles.json",
          reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler()) {
         self.modelContext = modelContext
         self.dataStack = dataStack
+        self.notificationCenter = notificationCenter
         self.fileManager = fileManager
         self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
         self.reminderScheduler = reminderScheduler
@@ -343,6 +347,13 @@ final class ProfileStore: ObservableObject {
         refreshProfiles()
         ensureActiveProfileExists()
         scheduleReminders()
+        observeSyncNotifications()
+    }
+
+    deinit {
+        for observer in notificationObservers {
+            notificationCenter.removeObserver(observer)
+        }
     }
 
     func registerActionStore(_ store: ActionLogStore) {
@@ -747,6 +758,19 @@ final class ProfileStore: ObservableObject {
 
     private func synchronizeProfileMetadata() {
         actionStore?.synchronizeProfileMetadata(profiles)
+    }
+
+    private func observeSyncNotifications() {
+        let token = notificationCenter.addObserver(forName: SyncCoordinator.mergeDidCompleteNotification,
+                                                   object: nil,
+                                                   queue: nil) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                self.refreshProfiles()
+                self.ensureActiveProfileExists()
+            }
+        }
+        notificationObservers.append(token)
     }
 
     private func mutateProfiles(reason: String, _ work: () -> Bool) {

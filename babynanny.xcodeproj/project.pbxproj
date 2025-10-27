@@ -279,9 +279,17 @@
 					EDBCCD012E9A324500C65A0E = {
 						CreatedOnToolsVersion = 16.2;
 					};
-					EDD049902E93FE1A00795772 = {
-						CreatedOnToolsVersion = 16.2;
-					};
+                                        EDD049902E93FE1A00795772 = {
+                                                CreatedOnToolsVersion = 16.2;
+                                                SystemCapabilities = {
+                                                        com.apple.Push = {
+                                                                enabled = 1;
+                                                        };
+                                                        com.apple.iCloud = {
+                                                                enabled = 1;
+                                                        };
+                                                };
+                                        };
 					EDD049A02E93FE1E00795772 = {
 						CreatedOnToolsVersion = 16.2;
 						TestTargetID = EDD049902E93FE1A00795772;
