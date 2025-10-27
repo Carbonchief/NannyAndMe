@@ -43,9 +43,9 @@ NannyAndMe/
 
 ## Requirements
 
-- macOS with Xcode 15 (or newer) installed
-- iOS 17 SDK (included with Xcode 15)
-- Swift 5.9 toolchain (bundled with the listed Xcode version)
+- macOS with Xcode 16 (or newer) installed
+- iOS 18 SDK (included with Xcode 16)
+- Swift 6 toolchain (bundled with the listed Xcode version)
 - Apple Developer account with iCloud (CloudKit) and Push Notifications enabled for the bundle identifier
 
 ## Getting started
