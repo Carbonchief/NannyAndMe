@@ -833,6 +833,7 @@ extension BabyAction {
     }
 }
 
+@MainActor
 final class BabyActionFormatter {
     static let shared = BabyActionFormatter()
 
