@@ -636,11 +636,29 @@ private struct CloudShareController: UIViewControllerRepresentable {
             nil
         }
 
+        func cloudSharingControllerDidSaveShare(_ csc: UICloudSharingController,
+                                                share: CKShare,
+                                                container: CKContainer) {
+            Task { @MainActor in
+                parent.onSave(share)
+            }
+        }
+
+        @objc
         func cloudSharingController(_ csc: UICloudSharingController,
                                     didSave share: CKShare,
                                     for container: CKContainer) {
             Task { @MainActor in
                 parent.onSave(share)
+            }
+        }
+
+        func cloudSharingController(_ csc: UICloudSharingController,
+                                    failedToSaveShareWithError error: Error,
+                                    share: CKShare?,
+                                    container: CKContainer?) {
+            Task { @MainActor in
+                parent.onFailure(error)
             }
         }
 
