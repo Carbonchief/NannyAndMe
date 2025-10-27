@@ -628,6 +628,14 @@ private struct CloudShareController: UIViewControllerRepresentable {
             self.parent = parent
         }
 
+        func itemTitle(for csc: UICloudSharingController) -> String? {
+            parent.presentation.title
+        }
+
+        func itemThumbnailData(for csc: UICloudSharingController) -> Data? {
+            nil
+        }
+
         func cloudSharingController(_ csc: UICloudSharingController,
                                     didSave share: CKShare,
                                     for container: CKContainer) {

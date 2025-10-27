@@ -61,6 +61,7 @@ final class ShareDataCoordinator: ObservableObject {
         let share: CKShare
         let container: CKContainer
         let profileID: UUID
+        let title: String?
     }
 
     private let modelContext: ModelContext
@@ -130,12 +131,17 @@ final class ShareDataCoordinator: ObservableObject {
 
             let existingShare = try modelContext.fetchShare(for: model)
             let (share, shareContainer) = try modelContext.share(model, to: existingShare)
+            var shareTitle: String?
             if let metadata = share[model] {
                 metadata.title = resolvedShareTitle(for: model)
+                shareTitle = metadata.title
             }
             share.publicPermission = .none
             shareState = makeShareState(from: share, profileID: profileID)
-            activeSharePresentation = SharePresentation(share: share, container: shareContainer, profileID: profileID)
+            activeSharePresentation = SharePresentation(share: share,
+                                                        container: shareContainer,
+                                                        profileID: profileID,
+                                                        title: shareTitle)
         } catch {
             logger.error("Failed to present share interface: \(error.localizedDescription, privacy: .public)")
             throw error
