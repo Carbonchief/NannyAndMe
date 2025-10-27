@@ -384,7 +384,7 @@ private struct ActionCluster: Identifiable, Equatable {
         lhs.id == rhs.id
     }
 
-    var accessibilityLabel: String {
+    @MainActor var accessibilityLabel: String {
         let locationName = headerTitle
         let dateDescription: String
         if let mostRecent = locations.sorted(by: { $0.timestamp > $1.timestamp }).first {
