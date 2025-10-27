@@ -62,7 +62,7 @@ final class SyncCoordinator: ObservableObject {
     private func observeApplicationLifecycle() {
         let foregroundToken = notificationCenter.addObserver(forName: UIApplication.willEnterForegroundNotification,
                                                              object: nil,
-                                                             queue: nil) { [weak self] _ in
+                                                             queue: .main) { [weak self] _ in
             guard let self else { return }
             self.requestSyncIfNeeded(reason: .foreground)
         }
