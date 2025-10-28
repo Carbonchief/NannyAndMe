@@ -240,25 +240,30 @@ struct BabyActionSnapshot: Identifiable, Codable, Equatable, Sendable {
         }
     }
 
+    @MainActor
     func durationDescription(asOf referenceDate: Date = Date()) -> String {
         let endReference = endDate ?? referenceDate
         let duration = endReference.timeIntervalSince(startDate)
         return BabyActionFormatter.shared.format(duration: duration)
     }
 
+    @MainActor
     func startTimeDescription() -> String {
         BabyActionFormatter.shared.format(time: startDate)
     }
 
+    @MainActor
     func startDateTimeDescription() -> String {
         BabyActionFormatter.shared.format(dateTime: startDate)
     }
 
+    @MainActor
     func endDateTimeDescription() -> String? {
         guard let endDate else { return nil }
         return BabyActionFormatter.shared.format(dateTime: endDate)
     }
 
+    @MainActor
     func loggedTimestampDescription(relativeTo referenceDate: Date = Date()) -> String {
         let logDate = endDate ?? startDate
         let calendar = Calendar.current
@@ -270,6 +275,7 @@ struct BabyActionSnapshot: Identifiable, Codable, Equatable, Sendable {
         return BabyActionFormatter.shared.format(dateTime: logDate)
     }
 
+    @MainActor
     func timeSinceCompletionDescription(asOf referenceDate: Date = Date()) -> String? {
         guard let endDate else { return nil }
         let interval = referenceDate.timeIntervalSince(endDate)
