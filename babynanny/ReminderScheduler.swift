@@ -39,6 +39,7 @@ private func resumeOnMain<T: Sendable, E: Error & Sendable>(
     resumeOnMain(continuation, result: .failure(error))
 }
 
+// MARK: - ReminderScheduling
 
 @MainActor
 protocol ReminderScheduling: AnyObject {
@@ -52,6 +53,8 @@ protocol ReminderScheduling: AnyObject {
                                  category: BabyActionCategory,
                                  delay: TimeInterval) async -> Bool
 }
+
+// MARK: - Models
 
 struct ReminderOverview: Equatable, Sendable {
     enum Category: Equatable, Sendable {
@@ -114,7 +117,9 @@ private extension NotificationRequestSnapshot {
     }
 }
 
-protocol UserNotificationCenterType: AnyObject {
+// MARK: - UserNotificationCenterType (non-isolated + Sendable)
+
+protocol UserNotificationCenterType: AnyObject, Sendable {
     func authorizationStatus() async -> UNAuthorizationStatus
     func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool
     func pendingNotificationRequestSnapshots() async -> [NotificationRequestSnapshot]
@@ -172,7 +177,10 @@ final class UserNotificationCenterAdapter: UserNotificationCenterType {
     }
 }
 
+// Adapter merely forwards to Apple's thread-safe API; mark as unchecked Sendable.
 extension UserNotificationCenterAdapter: @unchecked Sendable {}
+
+// MARK: - Scheduler (MainActor)
 
 @MainActor
 final class UserNotificationReminderScheduler: ReminderScheduling {
@@ -206,10 +214,11 @@ final class UserNotificationReminderScheduler: ReminderScheduling {
     private static let ageIdentifierPrefix = "age-milestone-"
     private static let previewIdentifierPrefix = "preview-reminder-"
 
-    private nonisolated(unsafe) let center: any UserNotificationCenterType
+    // Keep property actor-isolated; type is Sendable so it can be safely captured for nonisolated use when needed.
+    private let center: any (UserNotificationCenterType & Sendable)
     private var calendar: Calendar
 
-    init(center: any UserNotificationCenterType = UserNotificationCenterAdapter(),
+    init(center: any (UserNotificationCenterType & Sendable) = UserNotificationCenterAdapter(),
          calendar: Calendar = .current) {
         self.center = center
         self.calendar = calendar
@@ -236,7 +245,9 @@ final class UserNotificationReminderScheduler: ReminderScheduling {
     func refreshReminders(for profiles: [ChildProfile],
                           actionStates: [UUID: ProfileActionState]) async {
         let isAuthorized = await ensureAuthorization()
-        let existingSnapshots = await center.pendingNotificationRequestSnapshots().filter { identifierIsManaged($0.identifier) }
+        let existingSnapshots = await center
+            .pendingNotificationRequestSnapshots()
+            .filter { identifierIsManaged($0.identifier) }
 
         guard isAuthorized else {
             removeExistingIdentifiers(existingSnapshots.map(\.identifier))
@@ -246,7 +257,9 @@ final class UserNotificationReminderScheduler: ReminderScheduling {
         let plans = makeReminderPlans(for: profiles, actionStates: actionStates, reference: Date())
         let desiredIdentifiers = Set(plans.map(\.identifier))
 
-        let staleIdentifiers = existingSnapshots.map(\.identifier).filter { desiredIdentifiers.contains($0) == false }
+        let staleIdentifiers = existingSnapshots
+            .map(\.identifier)
+            .filter { desiredIdentifiers.contains($0) == false }
         removeExistingIdentifiers(staleIdentifiers)
 
         let existingByIdentifier = Dictionary(uniqueKeysWithValues: existingSnapshots.map { ($0.identifier, $0) })
@@ -284,6 +297,8 @@ final class UserNotificationReminderScheduler: ReminderScheduling {
         return await add(request)
     }
 }
+
+// MARK: - Scheduler internals
 
 private extension UserNotificationReminderScheduler {
     func makeReminderPlans(for profiles: [ChildProfile],
@@ -330,27 +345,27 @@ private extension UserNotificationReminderScheduler {
         let entry = ReminderOverview.Entry(profileID: profile.id, message: body)
 
         return ReminderPlan(identifier: Self.ageIdentifier(for: profile.id),
-                             fireDate: fireDate,
-                             title: title,
-                             body: body,
-                             category: .ageMilestone,
-                             entries: [entry])
+                            fireDate: fireDate,
+                            title: title,
+                            body: body,
+                            category: .ageMilestone,
+                            entries: [entry])
     }
 
     func makeActionReminderPlan(for profile: ChildProfile,
-                                 category: BabyActionCategory,
-                                 state: ProfileActionState?,
-                                 reference: Date) -> ReminderPlan? {
+                                category: BabyActionCategory,
+                                state: ProfileActionState?,
+                                reference: Date) -> ReminderPlan? {
         if let override = profile.actionReminderOverride(for: category), override.fireDate > reference {
             let title = L10n.Notifications.actionReminderTitle(category.title)
             let body = L10n.Notifications.actionReminderMessage(for: category, name: profile.displayName)
             let entry = ReminderOverview.Entry(profileID: profile.id, message: body)
             return ReminderPlan(identifier: Self.actionIdentifier(for: profile.id, category: category),
-                                 fireDate: override.fireDate,
-                                 title: title,
-                                 body: body,
-                                 category: .action(category),
-                                 entries: [entry])
+                                fireDate: override.fireDate,
+                                title: title,
+                                body: body,
+                                category: .action(category),
+                                entries: [entry])
         }
 
         let interval = max(profile.reminderInterval(for: category), 60)
@@ -374,11 +389,11 @@ private extension UserNotificationReminderScheduler {
         let entry = ReminderOverview.Entry(profileID: profile.id, message: body)
 
         return ReminderPlan(identifier: Self.actionIdentifier(for: profile.id, category: category),
-                             fireDate: fireDate,
-                             title: title,
-                             body: body,
-                             category: .action(category),
-                             entries: [entry])
+                            fireDate: fireDate,
+                            title: title,
+                            body: body,
+                            category: .action(category),
+                            entries: [entry])
     }
 
     func schedule(plan: ReminderPlan, existing: NotificationRequestSnapshot?) async {
@@ -399,7 +414,9 @@ private extension UserNotificationReminderScheduler {
     }
 
     func add(_ request: UNNotificationRequest) async -> Bool {
-        await withCheckedContinuation { continuation in
+        // Capture a Sendable local from the MainActor-isolated property before using it in an escaping closure.
+        let center = self.center
+        return await withCheckedContinuation { continuation in
             center.add(request) { error in
                 resumeOnMain(continuation, returning: error == nil)
             }
