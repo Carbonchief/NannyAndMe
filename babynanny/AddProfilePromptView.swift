@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import UIKit
 
+@MainActor
 struct AddProfilePromptView: View {
     let onCreate: (String, Data?) -> Void
     let onCancel: () -> Void
