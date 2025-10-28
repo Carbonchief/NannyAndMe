@@ -3,6 +3,7 @@ import Foundation
 import os
 import SwiftData
 import UIKit
+@preconcurrency import ObjectiveC
 
 @MainActor
 final class SyncCoordinator: ObservableObject {
@@ -31,6 +32,7 @@ final class SyncCoordinator: ObservableObject {
         }
     }
 
+    @MainActor
     deinit {
         for observer in observers {
             notificationCenter.removeObserver(observer)

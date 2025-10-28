@@ -166,3 +166,8 @@ private extension Color {
 }
 #endif
 #endif
+
+#if canImport(ActivityKit)
+@available(iOS 17.0, *)
+extension Activity: @unchecked Sendable where Attributes == DurationAttributes {}
+#endif
