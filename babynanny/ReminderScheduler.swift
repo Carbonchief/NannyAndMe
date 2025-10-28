@@ -5,7 +5,7 @@ private func resumeOnMain<T>(_ continuation: CheckedContinuation<T, Never>, retu
     if Thread.isMainThread {
         continuation.resume(returning: value)
     } else {
-        Task { @MainActor in
+        DispatchQueue.main.async {
             continuation.resume(returning: value)
         }
     }
@@ -15,7 +15,7 @@ private func resumeOnMain<T, E: Error>(_ continuation: CheckedContinuation<T, E>
     if Thread.isMainThread {
         continuation.resume(with: result)
     } else {
-        Task { @MainActor in
+        DispatchQueue.main.async {
             continuation.resume(with: result)
         }
     }
