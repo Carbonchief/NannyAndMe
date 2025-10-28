@@ -11,24 +11,22 @@ private func resumeOnMain<T>(_ continuation: CheckedContinuation<T, Never>, retu
     }
 }
 
-private func resumeOnMain<T, E: Error>(_ continuation: CheckedThrowingContinuation<T, E>, returning value: T) {
+private func resumeOnMain<T, E: Error>(_ continuation: CheckedContinuation<T, E>, result: Result<T, E>) {
     if Thread.isMainThread {
-        continuation.resume(returning: value)
+        continuation.resume(with: result)
     } else {
         Task { @MainActor in
-            continuation.resume(returning: value)
+            continuation.resume(with: result)
         }
     }
 }
 
-private func resumeOnMain<T, E: Error>(_ continuation: CheckedThrowingContinuation<T, E>, throwing error: E) {
-    if Thread.isMainThread {
-        continuation.resume(throwing: error)
-    } else {
-        Task { @MainActor in
-            continuation.resume(throwing: error)
-        }
-    }
+private func resumeOnMain<T, E: Error>(_ continuation: CheckedContinuation<T, E>, returning value: T) {
+    resumeOnMain(continuation, result: .success(value))
+}
+
+private func resumeOnMain<T, E: Error>(_ continuation: CheckedContinuation<T, E>, throwing error: E) {
+    resumeOnMain(continuation, result: .failure(error))
 }
 
 @MainActor
