@@ -1,8 +1,15 @@
+import CloudKit
+import SwiftData
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
+private enum ShareDataCloudKitConfiguration {
+    static let container = CKContainer(identifier: "iCloud.com.prioritybit.babynanny")
+}
+
 struct ShareDataView: View {
+    @EnvironmentObject private var appDataStack: AppDataStack
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
@@ -11,9 +18,10 @@ struct ShareDataView: View {
     @State private var lastImportSummary: ActionLogStore.MergeSummary?
     @State private var didUpdateProfile = false
     @State private var alert: ShareDataAlert?
-    @State private var airDropShareItem: AirDropShareItem?
-    @State private var isPreparingAirDropShare = false
     @State private var processedExternalImportID: ShareDataCoordinator.ExternalImportRequest.ID?
+    @State private var shareState: CloudShareState = .loading
+    @State private var sharePresentation: CloudSharePresentation?
+    @State private var isPreparingShare = false
 
     var body: some View {
         Form {
@@ -36,19 +44,35 @@ struct ShareDataView: View {
 
             Section {
                 ShareDataActionButton(
-                    title: L10n.ShareData.AirDrop.shareButton,
-                    systemImage: "airplane.circle",
+                    title: L10n.ShareData.CloudKit.inviteButton,
+                    systemImage: "person.crop.circle.badge.plus",
                     tint: .blue,
-                    action: startAirDropShare,
-                    isLoading: isPreparingAirDropShare
+                    action: startCloudShare,
+                    analyticsLabel: "shareData_invite_button_shareView",
+                    isLoading: isPreparingShare
                 )
-                .disabled(isPreparingAirDropShare)
+                .disabled(isShareButtonDisabled)
+
+                if case .shared = shareState {
+                    ShareDataActionButton(
+                        title: L10n.ShareData.CloudKit.stopButton,
+                        systemImage: "person.crop.circle.badge.xmark",
+                        tint: .red,
+                        action: stopCloudShare,
+                        analyticsLabel: "shareData_stopShare_button_shareView",
+                        isLoading: isPreparingShare
+                    )
+                    .disabled(isPreparingShare)
+                }
+
+                if shareState == .loading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             } header: {
-                Text(L10n.ShareData.AirDrop.sectionTitle)
+                Text(L10n.ShareData.CloudKit.sectionTitle)
             } footer: {
-                Text(L10n.ShareData.AirDrop.footer)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                shareFooter
             }
 
             Section {
@@ -56,14 +80,14 @@ struct ShareDataView: View {
                     title: L10n.ShareData.importButton,
                     systemImage: "square.and.arrow.down",
                     tint: .mint,
-                    action: { isImporting = true }
+                    action: { isImporting = true },
+                    analyticsLabel: "shareData_import_button_shareView"
                 )
             } header: {
                 Text(L10n.ShareData.importSectionTitle)
             } footer: {
                 importFooter
             }
-
         }
         .shareDataFormStyling()
         .navigationTitle(L10n.ShareData.title)
@@ -83,31 +107,18 @@ struct ShareDataView: View {
                 dismissButton: .default(Text(L10n.Common.done))
             )
         }
-        .sheet(item: $airDropShareItem) { item in
-            AirDropShareSheet(item: item) { outcome in
-                let shareItem = item
-                airDropShareItem = nil
-                shareItem.cleanup()
-
-                withAnimation {
-                    isPreparingAirDropShare = false
-                }
-
-                if case let .failed(error) = outcome {
-                    alert = ShareDataAlert(
-                        title: L10n.ShareData.Alert.airDropFailureTitle,
-                        message: L10n.ShareData.Alert.airDropFailureMessage(error.localizedDescription)
-                    )
-                }
-            }
-            .onAppear {
-                withAnimation {
-                    isPreparingAirDropShare = false
-                }
+        .sheet(item: $sharePresentation) { presentation in
+            CloudShareSheet(share: presentation.share, profileName: presentation.profileName) { outcome in
+                sharePresentation = nil
+                handleCloudShareOutcome(outcome)
             }
         }
         .onAppear {
+            refreshShareStatus()
             processPendingExternalImportIfNeeded()
+        }
+        .onChange(of: profileStore.activeProfile.id) { _, _ in
+            refreshShareStatus()
         }
         .onChange(of: shareDataCoordinator.externalImportRequest) { _, _ in
             processPendingExternalImportIfNeeded()
@@ -117,13 +128,23 @@ struct ShareDataView: View {
         }
     }
 
-    private var defaultExportFilename: String {
-        let name = profileStore.activeProfile.displayName
-        let sanitized = sanitizeFilename(name)
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let dateString = formatter.string(from: Date())
-        return "\(sanitized)-\(dateString)"
+    private var isShareButtonDisabled: Bool {
+        isPreparingShare || shareState == .loading
+    }
+
+    @ViewBuilder
+    private var shareFooter: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.ShareData.CloudKit.footer)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            if case let .shared(participantCount) = shareState {
+                Text(L10n.ShareData.CloudKit.sharedFooter(participantCount))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     @ViewBuilder
@@ -147,46 +168,120 @@ struct ShareDataView: View {
         }
     }
 
-    private func startAirDropShare() {
-        guard !isPreparingAirDropShare else { return }
+    private func startCloudShare() {
+        guard isPreparingShare == false else { return }
 
-        withAnimation {
-            isPreparingAirDropShare = true
-        }
+        isPreparingShare = true
 
-        do {
-            airDropShareItem?.cleanup()
-            airDropShareItem = nil
+        Task { @MainActor in
+            defer { isPreparingShare = false }
 
-            let data = try makeExportData()
-            let filename = "\(defaultExportFilename).json"
-            let destinationURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+            do {
+                guard let profileModel = try fetchActiveProfileModel() else {
+                    alert = ShareDataAlert(
+                        title: L10n.ShareData.Alert.cloudShareFailureTitle,
+                        message: L10n.ShareData.Alert.cloudShareFailureMessage()
+                    )
+                    return
+                }
 
-            if FileManager.default.fileExists(atPath: destinationURL.path) {
-                try FileManager.default.removeItem(at: destinationURL)
+                let share = try prepareShare(for: profileModel)
+                sharePresentation = CloudSharePresentation(share: share, profileName: profileStore.activeProfile.displayName)
+                refreshShareStatus()
+            } catch {
+                alert = ShareDataAlert(
+                    title: L10n.ShareData.Alert.cloudShareFailureTitle,
+                    message: L10n.ShareData.Alert.cloudShareFailureMessage(error.localizedDescription)
+                )
+                refreshShareStatus()
             }
-
-            try data.write(to: destinationURL, options: .atomic)
-            airDropShareItem = AirDropShareItem(url: destinationURL)
-        } catch {
-            withAnimation {
-                isPreparingAirDropShare = false
-            }
-            alert = ShareDataAlert(
-                title: L10n.ShareData.Alert.airDropFailureTitle,
-                message: L10n.ShareData.Alert.airDropFailureMessage(error.localizedDescription)
-            )
         }
     }
 
-    private func makeExportData() throws -> Data {
-        let profile = profileStore.activeProfile
-        let state = actionStore.state(for: profile.id)
-        let payload = SharedProfileData(profile: profile, actions: state)
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try encoder.encode(payload)
+    private func stopCloudShare() {
+        guard case .shared = shareState, isPreparingShare == false else { return }
+
+        isPreparingShare = true
+
+        Task { @MainActor in
+            defer { isPreparingShare = false }
+
+            do {
+                guard let profileModel = try fetchActiveProfileModel() else {
+                    shareState = .notShared
+                    return
+                }
+
+                try appDataStack.mainContext.stopSharing(profileModel)
+                shareState = .notShared
+            } catch {
+                alert = ShareDataAlert(
+                    title: L10n.ShareData.Alert.cloudShareStopFailureTitle,
+                    message: L10n.ShareData.Alert.cloudShareStopFailureMessage(error.localizedDescription)
+                )
+                refreshShareStatus()
+            }
+        }
+    }
+
+    private func refreshShareStatus() {
+        Task { @MainActor in
+            shareState = .loading
+
+            do {
+                guard let profileModel = try fetchActiveProfileModel() else {
+                    shareState = .notShared
+                    return
+                }
+
+                if let share = try appDataStack.mainContext.fetchShare(for: profileModel) {
+                    let participants = nonOwnerParticipantCount(from: share)
+                    shareState = .shared(participantCount: participants)
+                } else {
+                    shareState = .notShared
+                }
+            } catch {
+                shareState = .notShared
+            }
+        }
+    }
+
+    @MainActor
+    private func fetchActiveProfileModel() throws -> ProfileActionStateModel? {
+        let activeID = profileStore.activeProfile.id
+        let predicate = #Predicate<ProfileActionStateModel> { model in
+            model.profileID == activeID
+        }
+        var descriptor = FetchDescriptor<ProfileActionStateModel>(predicate: predicate)
+        descriptor.fetchLimit = 1
+        let results = try appDataStack.mainContext.fetch(descriptor)
+        return results.first
+    }
+
+    @MainActor
+    private func prepareShare(for profile: ProfileActionStateModel) throws -> CKShare {
+        if let existing = try appDataStack.mainContext.fetchShare(for: profile) {
+            return existing
+        }
+        return try appDataStack.mainContext.share(profile, to: [])
+    }
+
+    private func nonOwnerParticipantCount(from share: CKShare) -> Int {
+        share.participants.filter { $0.role != .owner }.count
+    }
+
+    private func handleCloudShareOutcome(_ outcome: CloudShareOutcome) {
+        switch outcome {
+        case .failed(let error):
+            alert = ShareDataAlert(
+                title: L10n.ShareData.Alert.cloudShareFailureTitle,
+                message: L10n.ShareData.Alert.cloudShareFailureMessage(error.localizedDescription)
+            )
+        case .saved, .stopped, .dismissed:
+            break
+        }
+
+        refreshShareStatus()
     }
 
     @MainActor
@@ -261,134 +356,71 @@ struct ShareDataView: View {
         importData(from: request.url)
         shareDataCoordinator.clearExternalImportRequest(request)
     }
-
-    private func sanitizeFilename(_ name: String) -> String {
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
-        let sanitizedScalars = name.unicodeScalars.map { scalar -> Character in
-            if allowed.contains(scalar) {
-                return Character(scalar)
-            }
-            return "-"
-        }
-        let sanitized = String(sanitizedScalars)
-        let trimmed = sanitized.trimmingCharacters(in: CharacterSet(charactersIn: "-_"))
-        let base = trimmed.isEmpty ? "Profile" : trimmed
-        return "\(base)-share"
-    }
-
 }
 
-private struct AirDropShareItem: Identifiable {
+private enum CloudShareState: Equatable {
+    case loading
+    case notShared
+    case shared(participantCount: Int)
+}
+
+private struct CloudSharePresentation: Identifiable {
     let id = UUID()
-    let url: URL
-
-    func cleanup() {
-        try? FileManager.default.removeItem(at: url)
-    }
+    let share: CKShare
+    let profileName: String
 }
 
-private final class AirDropShareItemSource: NSObject, UIActivityItemSource {
-    private let item: AirDropShareItem
-
-    init(item: AirDropShareItem) {
-        self.item = item
-    }
-
-    func activityViewControllerPlaceholderItem(_ activityViewController: UIActivityViewController) -> Any {
-        item.url
-    }
-
-    func activityViewController(
-        _ activityViewController: UIActivityViewController,
-        itemForActivityType activityType: UIActivity.ActivityType?
-    ) -> Any? {
-        item.url
-    }
-
-    func activityViewController(
-        _ activityViewController: UIActivityViewController,
-        dataTypeIdentifierForActivityType activityType: UIActivity.ActivityType?
-    ) -> String {
-        if #available(iOS 14.0, *) {
-            return UTType.json.identifier
-        }
-        return "public.json"
-    }
-}
-
-private enum AirDropShareOutcome: Sendable {
-    case completed
-    case cancelled
+private enum CloudShareOutcome {
+    case saved
+    case stopped
     case failed(Error)
+    case dismissed
 }
 
-private struct AirDropShareSheet: UIViewControllerRepresentable {
-    let item: AirDropShareItem
-    let completion: (AirDropShareOutcome) -> Void
+private struct CloudShareSheet: UIViewControllerRepresentable {
+    let share: CKShare
+    let profileName: String
+    let completion: (CloudShareOutcome) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(completion: completion)
+        Coordinator(profileName: profileName, completion: completion)
     }
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        let activityItem = AirDropShareItemSource(item: item)
-        let controller = UIActivityViewController(activityItems: [activityItem], applicationActivities: nil)
-        controller.excludedActivityTypes = Self.nonAirDropActivities
-        controller.completionWithItemsHandler = { _, completed, _, error in
-            Task { @MainActor in
-                if let error {
-                    context.coordinator.completion(.failed(error))
-                } else if completed {
-                    context.coordinator.completion(.completed)
-                } else {
-                    context.coordinator.completion(.cancelled)
-                }
-            }
-        }
-        if let popover = controller.popoverPresentationController {
-            popover.sourceView = UIApplication.shared.connectedScenes
-                .compactMap { ($0 as? UIWindowScene)?.windows.first { $0.isKeyWindow } }
-                .first
-            if let sourceView = popover.sourceView {
-                popover.sourceRect = CGRect(
-                    x: sourceView.bounds.midX,
-                    y: sourceView.bounds.midY,
-                    width: 0,
-                    height: 0
-                )
-                popover.permittedArrowDirections = []
-            }
-        }
+    func makeUIViewController(context: Context) -> UICloudSharingController {
+        let controller = UICloudSharingController(share: share, container: ShareDataCloudKitConfiguration.container)
+        controller.delegate = context.coordinator
         return controller
     }
 
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+    func updateUIViewController(_ uiViewController: UICloudSharingController, context: Context) {}
 
-    static var nonAirDropActivities: [UIActivity.ActivityType] {
-        [
-            .postToFacebook,
-            .postToTwitter,
-            .postToWeibo,
-            .message,
-            .mail,
-            .print,
-            .copyToPasteboard,
-            .assignToContact,
-            .saveToCameraRoll,
-            .addToReadingList,
-            .postToFlickr,
-            .postToVimeo,
-            .postToTencentWeibo,
-            .openInIBooks,
-            .markupAsPDF
-        ]
-    }
+    final class Coordinator: NSObject, UICloudSharingControllerDelegate {
+        let profileName: String
+        let completion: (CloudShareOutcome) -> Void
 
-    final class Coordinator {
-        let completion: (AirDropShareOutcome) -> Void
-
-        init(completion: @escaping (AirDropShareOutcome) -> Void) {
+        init(profileName: String, completion: @escaping (CloudShareOutcome) -> Void) {
+            self.profileName = profileName
             self.completion = completion
+        }
+
+        func cloudSharingController(_ c: UICloudSharingController, failedToSaveShareWithError error: Error) {
+            completion(.failed(error))
+        }
+
+        func cloudSharingControllerDidSaveShare(_ c: UICloudSharingController) {
+            completion(.saved)
+        }
+
+        func cloudSharingControllerDidStopSharing(_ c: UICloudSharingController) {
+            completion(.stopped)
+        }
+
+        func cloudSharingControllerDidFinish(_ c: UICloudSharingController) {
+            completion(.dismissed)
+        }
+
+        func itemTitle(for c: UICloudSharingController) -> String? {
+            profileName
         }
     }
 }
@@ -398,6 +430,7 @@ private struct ShareDataActionButton: View {
     let systemImage: String
     let tint: Color
     let action: () -> Void
+    let analyticsLabel: String
     var isLoading: Bool = false
 
     var body: some View {
@@ -420,6 +453,7 @@ private struct ShareDataActionButton: View {
         .controlSize(.large)
         .labelStyle(.titleAndIcon)
         .animation(.default, value: isLoading)
+        .postHogLabel(analyticsLabel)
     }
 }
 
@@ -471,6 +505,7 @@ struct SharedProfileData: Codable {
 
     return NavigationStack {
         ShareDataView()
+            .environmentObject(AppDataStack.preview())
             .environmentObject(profileStore)
             .environmentObject(actionStore)
             .environmentObject(ShareDataCoordinator())

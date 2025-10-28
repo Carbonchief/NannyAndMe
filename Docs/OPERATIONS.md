@@ -4,7 +4,7 @@ This document outlines how NannyAndMe stores data locally and how to back it up 
 
 ## Local storage
 
-1. **SwiftData on-device** – The app keeps all profiles and actions in a single SwiftData store located in the app's sandbox. There is no automatic cloud mirroring.
+1. **SwiftData + CloudKit** – The app keeps all profiles and actions in a SwiftData store backed by the private CloudKit database. When a profile is shared, SwiftData automatically mirrors updates to the shared database so invited caregivers receive changes.
 2. **Explicit saves** – `AppDataStack` coalesces save operations so bursts of edits (e.g., logging multiple actions quickly) do not block the main thread.
 3. **Model notifications** – `ActionLogStore` listens for SwiftData context changes to refresh in-memory caches that drive the UI.
 
@@ -18,11 +18,12 @@ Use this when you want to clear on-device data and start from a clean slate:
 
 > ⚠️ Removing the app also deletes any locally exported JSON backups unless they were copied outside the sandbox.
 
-## Exporting and importing data
+## Sharing, exporting, and importing data
 
 1. Open **Settings ▸ Share Data**.
-2. Tap **Export** to create a JSON archive of the active profile and its actions. You can AirDrop the file or store it with Files.app.
-3. Tap **Import** to merge a previously exported archive. The merge routine deduplicates by action identifier and updates existing entries when timestamps or metadata differ.
+2. Tap **Manage invites** to bring up the iCloud sharing sheet and send new invitations or manage existing participants. `SyncCoordinator` registers push subscriptions for both private and shared databases so background merges occur automatically.
+3. Tap **Stop sharing** to revoke access for all invitees. CloudKit removes the profile from their devices on the next sync.
+4. Tap **Import** to merge a previously exported JSON archive. The merge routine deduplicates by action identifier and updates existing entries when timestamps or metadata differ.
 
 ## Troubleshooting tips
 

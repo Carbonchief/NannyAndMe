@@ -11,7 +11,7 @@ Relationships use SwiftData's inverse tracking so that deleting a profile cascad
 
 ## Model container configuration
 
-`AppDataStack.makeModelContainer` constructs a single `ModelContainer` for `Profile` and `BabyAction`. The on-device `ModelConfiguration` targets the private CloudKit database so signed-in users receive background sync, while previews/tests still opt into an in-memory store. The same configuration is used everywhere in the app (main context, previews, tests) to avoid divergent schemas.
+`AppDataStack.makeModelContainer` constructs a single `ModelContainer` for `Profile` and `BabyAction`. On-device builds register both the private and shared CloudKit databases so personal edits and shared-zone updates flow through the same context. Previews/tests still opt into an in-memory configuration. The same set of configurations is used everywhere in the app (main context, previews, tests) to avoid divergent schemas.
 
 ## Local persistence lifecycle
 
@@ -19,9 +19,11 @@ Relationships use SwiftData's inverse tracking so that deleting a profile cascad
 
 `ActionLogStore` observes the shared context for inserts/updates and keeps an in-memory cache keyed by profile. When a change notification arrives, the store rebuilds the cache so SwiftUI views can render without hitting disk. Profile metadata updates (name, avatar, birth date) stay in sync via `ProfileStore.synchronizeProfileMetadata`.
 
-## Data export & import
+## Data sharing, export & import
 
-The Share Data screen exports the active profile and its actions to JSON. Imports run through `ActionLogStore.merge` which deduplicates by action identifier, updates existing entries when timestamps differ, and appends new actions. Profile metadata merges through `ProfileStore.mergeActiveProfile`, ensuring imported names or avatars replace the local copy only when the incoming profile matches the active profile.
+The Share Data screen now fronts the iCloud sharing UI. Tapping **Manage invites** calls `ModelContext.share(_:to:)` for the active profile and presents `UICloudSharingController` so caregivers can be invited or removed. When a recipient accepts, `AppDelegate` forwards the `CKShare.Metadata` to `ModelContext.acceptShare(_:)`, after which `SyncCoordinator` emits its merge notification so stores rebuild caches.
+
+JSON import remains available as a manual recovery path. Imports run through `ActionLogStore.merge`, which deduplicates by action identifier, updates existing entries when timestamps differ, and appends new actions. Profile metadata merges through `ProfileStore.mergeActiveProfile`, ensuring imported names or avatars replace the local copy only when the incoming profile matches the active profile.
 
 ## Debug tooling
 

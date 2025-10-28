@@ -20,7 +20,8 @@ final class SyncCoordinator: ObservableObject {
     private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "sync")
     private var observers: [NSObjectProtocol] = []
     private var syncTask: Task<Void, Never>?
-    private let subscriptionIdentifier = "com.prioritybit.babynanny.database-changes"
+    private let privateSubscriptionIdentifier = "com.prioritybit.babynanny.database-changes"
+    private let sharedSubscriptionIdentifier = "com.prioritybit.babynanny.shared-database-changes"
     private let container = CKContainer(identifier: "iCloud.com.prioritybit.babynanny")
 
     init(dataStack: AppDataStack, notificationCenter: NotificationCenter = .default) {
@@ -28,7 +29,7 @@ final class SyncCoordinator: ObservableObject {
         self.notificationCenter = notificationCenter
         observeApplicationLifecycle()
         Task { @MainActor [weak self] in
-            await self?.registerCloudKitSubscription()
+            await self?.registerCloudKitSubscriptions()
         }
     }
 
@@ -56,8 +57,31 @@ final class SyncCoordinator: ObservableObject {
         }
     }
 
-    func handleRemoteNotification() {
+    func handleRemoteNotification(userInfo: [AnyHashable: Any]) {
+        let scopeDescription: String
+        if let notification = CKNotification(fromRemoteNotificationDictionary: userInfo) {
+            switch notification.databaseScope {
+            case .private:
+                scopeDescription = "private"
+            case .shared:
+                scopeDescription = "shared"
+            case .public:
+                scopeDescription = "public"
+            @unknown default:
+                scopeDescription = "unknown"
+            }
+        } else {
+            scopeDescription = "unknown"
+        }
+
+        logger.debug("Received CloudKit push for \(scopeDescription, privacy: .public) database")
         requestSyncIfNeeded(reason: .remoteNotification)
+    }
+
+    func refreshCloudKitSubscriptions() {
+        Task { @MainActor [weak self] in
+            await self?.registerCloudKitSubscriptions()
+        }
     }
 
     private func observeApplicationLifecycle() {
@@ -71,21 +95,40 @@ final class SyncCoordinator: ObservableObject {
         observers.append(foregroundToken)
     }
 
-    private func registerCloudKitSubscription() async {
+    private func registerCloudKitSubscriptions() async {
+        await registerSubscription(database: container.privateCloudDatabase,
+                                   identifier: privateSubscriptionIdentifier,
+                                   scopeDescription: "private")
+
+        await registerSubscription(database: container.sharedCloudDatabase,
+                                   identifier: sharedSubscriptionIdentifier,
+                                   scopeDescription: "shared")
+    }
+
+    private func registerSubscription(database: CKDatabase,
+                                      identifier: String,
+                                      scopeDescription: String) async {
         do {
-            let database = container.privateCloudDatabase
-            let subscription = CKDatabaseSubscription(subscriptionID: subscriptionIdentifier)
+            let subscription = CKDatabaseSubscription(subscriptionID: identifier)
             let notificationInfo = CKSubscription.NotificationInfo()
             notificationInfo.shouldSendContentAvailable = true
             subscription.notificationInfo = notificationInfo
             _ = try await database.save(subscription)
-            logger.debug("Registered CloudKit database subscription")
+            logger.debug("Registered CloudKit subscription for \(scopeDescription, privacy: .public) database")
         } catch {
-            if let ckError = error as? CKError, ckError.code == .serverRejectedRequest {
-                logger.debug("CloudKit subscription already exists")
-            } else {
-                logger.error("Failed to register CloudKit subscription: \(error.localizedDescription, privacy: .public)")
+            if let ckError = error as? CKError {
+                switch ckError.code {
+                case .serverRejectedRequest:
+                    logger.debug("CloudKit subscription already exists for \(scopeDescription, privacy: .public) database")
+                    return
+                case .zoneNotFound where scopeDescription == "shared":
+                    logger.debug("Shared database subscription pending share acceptance")
+                    return
+                default:
+                    break
+                }
             }
+            logger.error("Failed to register CloudKit subscription for \(scopeDescription, privacy: .public) database: \(error.localizedDescription, privacy: .public)")
         }
     }
 }

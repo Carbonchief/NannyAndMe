@@ -5,6 +5,7 @@
 //  Created by Luan van der Walt on 2025/10/06.
 //
 
+import CloudKit
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
@@ -41,6 +42,7 @@ struct babynannyApp: App {
         _actionStore = StateObject(wrappedValue: actionStore)
         _syncCoordinator = StateObject(wrappedValue: syncCoordinator)
         appDelegate.syncCoordinator = syncCoordinator
+        appDelegate.dataStack = stack
         syncCoordinator.requestSyncIfNeeded(reason: .launch)
     }
 
@@ -108,6 +110,7 @@ private extension babynannyApp {
 @MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
     var syncCoordinator: SyncCoordinator?
+    var dataStack: AppDataStack?
     private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "appdelegate")
 
     func application(_ application: UIApplication,
@@ -130,8 +133,29 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                      didReceiveRemoteNotification userInfo: [AnyHashable: Any],
                      fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
         Task { @MainActor [weak self] in
-            self?.syncCoordinator?.handleRemoteNotification()
+            self?.syncCoordinator?.handleRemoteNotification(userInfo: userInfo)
             completionHandler(.newData)
+        }
+    }
+
+    func application(_ application: UIApplication,
+                     userDidAcceptCloudKitShareWith metadata: CKShare.Metadata) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            guard let context = self.dataStack?.mainContext else {
+                self.logger.error("Unable to accept CloudKit share; data stack is unavailable")
+                return
+            }
+
+            do {
+                try await context.acceptShare(metadata)
+                self.logger.debug("Accepted CloudKit share: \(metadata.shareRecordID.recordName, privacy: .public)")
+                self.syncCoordinator?.requestSyncIfNeeded(reason: .remoteNotification)
+                self.syncCoordinator?.refreshCloudKitSubscriptions()
+            } catch {
+                self.logger.error("Failed to accept CloudKit share: \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 }

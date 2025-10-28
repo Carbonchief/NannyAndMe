@@ -16,7 +16,7 @@ NannyAndMe is a SwiftUI-based iOS application that helps caregivers keep track o
 - **Action reminders** – Get configurable notifications for sleep, diaper, and feeding actions with per-action intervals that reset whenever you log an entry.
 - **Optional location logging** – Capture where each action was recorded and surface that context alongside entries when location tracking is enabled in Settings.
 - **Action map** – Explore logged locations on a clustered map with quick date and action filters whenever location tracking is enabled.
-- **Data sharing** – Export the active profile's logs to JSON and merge imports that include new or updated entries.
+- **Data sharing** – Invite caregivers to collaborate on a profile with iCloud sharing or merge JSON imports for offline backups.
 - **Localized experience** – Navigate the interface in English, German, or Spanish with fully translated caregiver-facing text.
 
 ## Project structure
@@ -64,9 +64,18 @@ NannyAndMe/
    - Choose an iOS Simulator device (e.g., iPhone 15 Pro).
    - Press <kbd>Cmd</kbd>+<kbd>R</kbd> to build and run.
 4. **Configure iCloud sync (real devices)**
-   - In the Signing & Capabilities tab ensure the `iCloud` capability is enabled with the `iCloud.com.prioritybit.babynanny` container.
+   - In the Signing & Capabilities tab ensure the `iCloud` capability is enabled with the `iCloud.com.prioritybit.babynanny` container (private and shared databases share this identifier).
    - Enable the `Push Notifications` capability so CloudKit change notifications reach the device.
-   - Sign in to an iCloud account on the device before launching the app.
+   - Sign in to an iCloud account on the device before launching the app and confirm that iCloud Drive is enabled.
+
+## Sharing data with caregivers
+
+1. Launch the app on the primary device and open **Settings ▸ Share Data**.
+2. Tap **Manage invites** to present the iCloud sharing sheet, then send an invitation via Messages, Mail, or copy the link.
+3. On the recipient device, accept the share invitation. The app automatically calls `ModelContext.acceptShare(_:)` and reloads the SwiftData stores so the shared profile appears once the CloudKit sync completes.
+4. To stop collaborating, return to **Share Data** on the original device and tap **Stop sharing**. This revokes access for all invited caregivers.
+
+> ℹ️ Testers must be signed into iCloud on real hardware (simulators do not support CloudKit sharing) and allow push notifications so merge updates arrive promptly.
 
 ## Testing
 

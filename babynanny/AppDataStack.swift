@@ -18,18 +18,26 @@ final class AppDataStack: ObservableObject {
     }
 
     static func makeModelContainer(inMemory: Bool = false) -> ModelContainer {
-        let configuration: ModelConfiguration
+        let configurations: [ModelConfiguration]
 
         if inMemory {
-            configuration = ModelConfiguration(
-                isStoredInMemoryOnly: true,
-                allowsSave: true
-            )
+            configurations = [
+                ModelConfiguration(
+                    isStoredInMemoryOnly: true,
+                    allowsSave: true
+                )
+            ]
         } else {
-            configuration = ModelConfiguration(
-                allowsSave: true,
-                cloudKitDatabase: .private("iCloud.com.prioritybit.babynanny")
-            )
+            configurations = [
+                ModelConfiguration(
+                    allowsSave: true,
+                    cloudKitDatabase: .private("iCloud.com.prioritybit.babynanny")
+                ),
+                ModelConfiguration(
+                    allowsSave: true,
+                    cloudKitDatabase: .shared("iCloud.com.prioritybit.babynanny")
+                )
+            ]
         }
 
         do {
@@ -38,7 +46,7 @@ final class AppDataStack: ObservableObject {
                     BabyActionModel.self,
                     ProfileReminderPreference.self,
                     ProfileStoreSettings.self,
-                configurations: configuration
+                configurations: configurations
             )
         } catch {
             fatalError("Failed to create ModelContainer: \(error.localizedDescription)")

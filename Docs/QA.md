@@ -16,10 +16,11 @@ Use the following script to validate core functionality after local-only persist
    - Enable "Track action locations" in Settings. Grant location access when prompted.
    - Log a new action and verify the All Logs list shows a location badge and location details in the entry drawer.
 
-4. **Share Data export/import**
-   - Export the active profile from **Settings ▸ Share Data** using AirDrop (or save to Files in the simulator).
-   - Delete the app to clear local data, reinstall, and confirm the store starts empty.
-   - Re-import the previously exported JSON and verify the profile details and logged actions return.
+4. **Share Data iCloud sharing/import**
+   - From **Settings ▸ Share Data**, tap **Manage invites** and send an invitation using the iCloud sharing sheet.
+   - Accept the invitation on a second device/account and confirm the shared profile appears after the sync completes.
+   - Tap **Stop sharing** on the origin device and verify the shared profile disappears for invitees.
+   - Import a previously exported JSON file and verify the profile details and logged actions return without duplicates.
 
 5. **Profile management**
    - Add a second profile and switch between profiles using the avatar button.
@@ -30,5 +31,5 @@ Use the following script to validate core functionality after local-only persist
    - Trigger the custom URL scheme `nannyme://activity/<action-id>/stop` from Safari or the debugger to ensure the action stops.
 
 7. **Share Data external import prompt**
-   - With the app in the foreground, AirDrop a JSON export from another device/simulator.
+   - With the app in the foreground, deliver a JSON export from another device (AirDrop, Messages, or Files).
    - Confirm the Share Data sheet appears automatically and completing the import merges new actions without duplicating existing entries.

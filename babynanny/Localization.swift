@@ -575,19 +575,45 @@ enum L10n {
             defaultValue: "Profile settings were updated from the import."
         )
 
-        enum AirDrop {
+        enum CloudKit {
             static let sectionTitle = String(
-                localized: "shareData.airdrop.title",
-                defaultValue: "Share"
+                localized: "shareData.cloudKit.title",
+                defaultValue: "iCloud sharing"
             )
-            static let shareButton = String(
-                localized: "shareData.airdrop.button",
-                defaultValue: "Share Data"
+            static let inviteButton = String(
+                localized: "shareData.cloudKit.inviteButton",
+                defaultValue: "Manage invites"
+            )
+            static let stopButton = String(
+                localized: "shareData.cloudKit.stopButton",
+                defaultValue: "Stop sharing"
             )
             static let footer = String(
-                localized: "shareData.airdrop.footer",
-                defaultValue: "Send the exported file to another device over AirDrop."
+                localized: "shareData.cloudKit.footer",
+                defaultValue: "Invite caregivers to collaborate on this profile with iCloud."
             )
+
+            static func sharedFooter(_ participantCount: Int) -> String {
+                if participantCount <= 0 {
+                    return String(
+                        localized: "shareData.cloudKit.footer.shared.none",
+                        defaultValue: "No caregivers have been invited yet. Send an invite to get started."
+                    )
+                }
+
+                if participantCount == 1 {
+                    return String(
+                        localized: "shareData.cloudKit.footer.shared.one",
+                        defaultValue: "Sharing with 1 caregiver. Open Manage Invites to update access."
+                    )
+                }
+
+                let format = String(
+                    localized: "shareData.cloudKit.footer.shared.other",
+                    defaultValue: "Sharing with %lld caregivers. Open Manage Invites to update access."
+                )
+                return String(format: format, locale: Locale.current, participantCount)
+            }
         }
 
         enum Alert {
@@ -618,22 +644,41 @@ enum L10n {
                 localized: "shareData.alert.importFailure.title",
                 defaultValue: "Import failed"
             )
-            static let airDropFailureTitle = String(
-                localized: "shareData.alert.airdropFailure.title",
-                defaultValue: "AirDrop failed"
+            static let cloudShareFailureTitle = String(
+                localized: "shareData.alert.cloudShareFailure.title",
+                defaultValue: "Sharing unavailable"
             )
-            private static let airDropFailureDefault = String(
-                localized: "shareData.alert.airdropFailure.message",
-                defaultValue: "AirDrop could not share the export."
+            private static let cloudShareFailureDefault = String(
+                localized: "shareData.alert.cloudShareFailure.message",
+                defaultValue: "We couldn't prepare an iCloud share. Please try again."
             )
-            static func airDropFailureMessage(_ reason: String) -> String {
+            static func cloudShareFailureMessage(_ reason: String = "") -> String {
                 let trimmed = reason.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else {
-                    return airDropFailureDefault
+                guard trimmed.isEmpty == false else {
+                    return cloudShareFailureDefault
                 }
                 let format = String(
-                    localized: "shareData.alert.airdropFailure.messageWithReason",
-                    defaultValue: "AirDrop could not share the export. (%@)"
+                    localized: "shareData.alert.cloudShareFailure.messageWithReason",
+                    defaultValue: "We couldn't prepare an iCloud share. (%@)"
+                )
+                return String(format: format, locale: Locale.current, trimmed)
+            }
+            static let cloudShareStopFailureTitle = String(
+                localized: "shareData.alert.cloudShareStopFailure.title",
+                defaultValue: "Could not stop sharing"
+            )
+            private static let cloudShareStopFailureDefault = String(
+                localized: "shareData.alert.cloudShareStopFailure.message",
+                defaultValue: "Nanny & Me couldn't revoke the existing share. Please try again."
+            )
+            static func cloudShareStopFailureMessage(_ reason: String = "") -> String {
+                let trimmed = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard trimmed.isEmpty == false else {
+                    return cloudShareStopFailureDefault
+                }
+                let format = String(
+                    localized: "shareData.alert.cloudShareStopFailure.messageWithReason",
+                    defaultValue: "Nanny & Me couldn't revoke the existing share. (%@)"
                 )
                 return String(format: format, locale: Locale.current, trimmed)
             }
