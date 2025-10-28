@@ -613,7 +613,11 @@
                                 PRODUCT_NAME = "$(TARGET_NAME)";
                                 OTHER_SWIFT_FLAGS = (
                                         "$(inherited)",
+                                        "-Xfrontend",
+                                        "-dump-macro-expansion",
+                                        "-Xfrontend",
                                         "-dump-macro-expansions-path",
+                                        "-Xfrontend",
                                         "$(CONFIGURATION_TEMP_DIR)/swift-generated-sources",
                                 );
                                 SWIFT_EMIT_LOC_STRINGS = YES;
