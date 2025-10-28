@@ -323,8 +323,12 @@ final class ProfileStore: ObservableObject {
     private let saveURL: URL
     private var settings: ProfileStoreSettings
     private var isEnsuringProfile = false
+    private struct NotificationObserverToken: @unchecked Sendable {
+        let token: NSObjectProtocol
+    }
+
     private let notificationCenter: NotificationCenter
-    private var notificationObservers: [NSObjectProtocol] = []
+    private var notificationObservers: [NotificationObserverToken] = []
 
     init(modelContext: ModelContext,
          dataStack: AppDataStack,
@@ -352,7 +356,7 @@ final class ProfileStore: ObservableObject {
 
     deinit {
         for observer in notificationObservers {
-            notificationCenter.removeObserver(observer)
+            notificationCenter.removeObserver(observer.token)
         }
     }
 
@@ -770,7 +774,7 @@ final class ProfileStore: ObservableObject {
                 self.ensureActiveProfileExists()
             }
         }
-        notificationObservers.append(token)
+        notificationObservers.append(.init(token: token))
     }
 
     private func mutateProfiles(reason: String, _ work: () -> Bool) {

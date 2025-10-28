@@ -1,6 +1,8 @@
 import CoreLocation
 import Foundation
 
+extension CLLocationManager: @unchecked Sendable {}
+
 /// Handles while-in-use location authorization and one-shot location capture for action logging.
 @MainActor
 final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
@@ -71,7 +73,7 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
 
     /// Requests temporary full-accuracy authorization when the system only allows reduced accuracy.
     func ensurePreciseAccuracyIfNeeded() {
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             await self?.requestPreciseAccuracyIfNeeded()
         }
     }
