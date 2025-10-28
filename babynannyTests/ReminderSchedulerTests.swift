@@ -92,6 +92,35 @@ struct ReminderSchedulerTests {
         #expect(updatedIdentifiers.contains(feedingIdentifier) == false)
         #expect(center.removedIdentifiersHistory.flatMap { $0 }.contains(feedingIdentifier))
     }
+
+    @Test
+    func clearsManagedRemindersWhenAuthorizationDenied() async throws {
+        let center = MockUserNotificationCenter()
+        center.authorizationStatusValue = .denied
+
+        let scheduler = UserNotificationReminderScheduler(center: center, calendar: .gregorianCurrent)
+
+        let profile = ChildProfile(
+            name: "Luca",
+            birthDate: Calendar.current.date(byAdding: .month, value: -2, to: Date()) ?? Date(),
+            remindersEnabled: true
+        )
+
+        let identifier = actionIdentifier(for: profile.id, category: .sleep)
+        let existingRequest = UNNotificationRequest(
+            identifier: identifier,
+            content: reminderContent(title: "Sleep", body: "Existing"),
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 60, repeats: false)
+        )
+        center.setPendingRequests([existingRequest])
+
+        await scheduler.refreshReminders(for: [profile], actionStates: [:])
+
+        #expect(center.pendingRequests.isEmpty)
+        #expect(center.addCallCounts.isEmpty)
+        let removedIdentifiers = center.removedIdentifiersHistory.flatMap { $0 }
+        #expect(removedIdentifiers.contains(identifier))
+    }
 }
 
 // MARK: - Helpers
@@ -104,6 +133,10 @@ private final class MockUserNotificationCenter: UserNotificationCenterType {
     private(set) var removedIdentifiersHistory: [[String]] = []
     var addCallCounts: [String: Int] = [:]
     var addFailures: [String: Int] = [:]
+
+    func setPendingRequests(_ requests: [UNNotificationRequest]) {
+        pendingRequests = requests
+    }
 
     func authorizationStatus() async -> UNAuthorizationStatus {
         authorizationStatusValue
@@ -152,6 +185,13 @@ private func pendingActionIdentifiers(in center: MockUserNotificationCenter) -> 
             .map(\.identifier)
             .filter { $0.hasPrefix("action-reminder-") }
     )
+}
+
+private func reminderContent(title: String, body: String) -> UNMutableNotificationContent {
+    let content = UNMutableNotificationContent()
+    content.title = title
+    content.body = body
+    return content
 }
 
 private extension Calendar {
