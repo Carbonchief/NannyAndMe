@@ -3,6 +3,7 @@ import PhotosUI
 import UIKit
 
 /// A sheet prompting the user to name the initial child profile on first launch.
+@MainActor
 struct InitialProfileNamePromptView: View {
     let onContinue: (String, Data?) -> Void
     let allowsDismissal: Bool

@@ -114,8 +114,8 @@ private final class MockUserNotificationCenter: UserNotificationCenterType {
         return requestAuthorizationResult
     }
 
-    func pendingNotificationRequests() async -> [UNNotificationRequest] {
-        pendingRequests
+    func pendingNotificationRequestSnapshots() async -> [NotificationRequestSnapshot] {
+        pendingRequests.map(NotificationRequestSnapshot.init)
     }
 
     func add(_ request: UNNotificationRequest, withCompletionHandler completionHandler: ((Error?) -> Void)?) {
