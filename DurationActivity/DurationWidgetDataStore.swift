@@ -138,10 +138,11 @@ enum BabyActionCategory: String, Codable, Sendable {
     }
 }
 
-private final class DurationWidgetFormatter {
+private final class DurationWidgetFormatter: @unchecked Sendable {
     static let shared = DurationWidgetFormatter()
 
     private let durationFormatter: DateComponentsFormatter
+    private let lock = NSLock()
 
     private init() {
         durationFormatter = DateComponentsFormatter()
@@ -151,14 +152,17 @@ private final class DurationWidgetFormatter {
     }
 
     func format(duration: TimeInterval) -> String {
-        durationFormatter.string(from: duration) ?? WidgetL10n.Formatter.justNow
+        lock.lock()
+        defer { lock.unlock() }
+        return durationFormatter.string(from: duration) ?? WidgetL10n.Formatter.justNow
     }
 }
 
-private final class DurationWidgetRelativeFormatter {
+private final class DurationWidgetRelativeFormatter: @unchecked Sendable {
     static let shared = DurationWidgetRelativeFormatter()
 
     private let formatter: RelativeDateTimeFormatter
+    private let lock = NSLock()
 
     private init() {
         formatter = RelativeDateTimeFormatter()
@@ -166,7 +170,9 @@ private final class DurationWidgetRelativeFormatter {
     }
 
     func format(start: Date, reference: Date) -> String {
-        formatter.localizedString(for: start, relativeTo: reference)
+        lock.lock()
+        defer { lock.unlock() }
+        return formatter.localizedString(for: start, relativeTo: reference)
     }
 }
 
