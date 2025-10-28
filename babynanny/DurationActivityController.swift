@@ -88,7 +88,6 @@ enum DurationActivityController {
         await endActivities(excluding: runningIDs)
     }
 
-    @MainActor
     private static func existingActivity(for id: UUID) -> Activity<DurationAttributes>? {
         Activity<DurationAttributes>.activities.first { $0.attributes.activityID == id }
     }
