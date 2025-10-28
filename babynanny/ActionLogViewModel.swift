@@ -54,7 +54,7 @@ final class ActionLogStore: ObservableObject {
         observeModelContextChanges()
     }
 
-    @MainActor deinit {
+    deinit {
         stateReloadTask?.cancel()
         for token in contextObservers {
             notificationCenter.removeObserver(token)
@@ -571,25 +571,32 @@ private extension ActionLogStore {
         let primaryToken = notificationCenter.addObserver(forName: .NSManagedObjectContextObjectsDidChange,
                                                            object: modelContext,
                                                            queue: .main) { [weak self] _ in
-            guard let self else { return }
-            let shouldReloadFromStore = self.isPerformingLocalMutation == false
-            self.handleModelContextChange(reloadFromPersistentStore: shouldReloadFromStore)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let shouldReloadFromStore = self.isPerformingLocalMutation == false
+                self.handleModelContextChange(reloadFromPersistentStore: shouldReloadFromStore)
+            }
         }
         contextObservers.append(primaryToken)
 
         let externalToken = notificationCenter.addObserver(forName: .NSManagedObjectContextDidSave,
                                                             object: nil,
                                                             queue: .main) { [weak self] notification in
-            guard let self, self.shouldHandleExternalContextChange(from: notification) else { return }
-            self.handleModelContextChange(reloadFromPersistentStore: true)
+            Task { @MainActor [weak self] in
+                guard let self,
+                      self.shouldHandleExternalContextChange(from: notification) else { return }
+                self.handleModelContextChange(reloadFromPersistentStore: true)
+            }
         }
         contextObservers.append(externalToken)
 
         let remoteToken = notificationCenter.addObserver(forName: .NSPersistentStoreRemoteChange,
                                                           object: nil,
                                                           queue: .main) { [weak self] _ in
-            guard let self else { return }
-            self.handleModelContextChange(reloadFromPersistentStore: true)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.handleModelContextChange(reloadFromPersistentStore: true)
+            }
         }
         contextObservers.append(remoteToken)
 
