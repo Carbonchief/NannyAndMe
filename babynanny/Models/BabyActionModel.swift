@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 import SwiftUI
 
-enum BabyActionCategory: String, CaseIterable, Identifiable, Codable {
+enum BabyActionCategory: String, CaseIterable, Identifiable, Codable, Sendable {
     case sleep
     case diaper
     case feeding
@@ -57,7 +57,7 @@ enum BabyActionCategory: String, CaseIterable, Identifiable, Codable {
 }
 
 struct BabyActionSnapshot: Identifiable, Codable, Equatable, Sendable {
-    enum DiaperType: String, CaseIterable, Identifiable, Codable {
+    enum DiaperType: String, CaseIterable, Identifiable, Codable, Sendable {
         case pee
         case poo
         case both
@@ -87,7 +87,7 @@ struct BabyActionSnapshot: Identifiable, Codable, Equatable, Sendable {
         }
     }
 
-    enum FeedingType: String, CaseIterable, Identifiable, Codable {
+    enum FeedingType: String, CaseIterable, Identifiable, Codable, Sendable {
         case bottle
         case leftBreast
         case rightBreast
@@ -126,7 +126,7 @@ struct BabyActionSnapshot: Identifiable, Codable, Equatable, Sendable {
         }
     }
 
-    enum BottleType: String, CaseIterable, Identifiable, Codable {
+    enum BottleType: String, CaseIterable, Identifiable, Codable, Sendable {
         case formula
         case breastMilk
 

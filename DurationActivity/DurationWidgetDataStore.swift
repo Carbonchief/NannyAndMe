@@ -1,6 +1,6 @@
 import Foundation
 
-struct DurationWidgetSnapshot: Equatable {
+struct DurationWidgetSnapshot: Equatable, Sendable {
     var profileName: String?
     var actions: [DurationWidgetAction]
 
@@ -36,21 +36,21 @@ struct DurationWidgetSnapshot: Equatable {
     }()
 }
 
-struct DurationWidgetAction: Identifiable, Codable, Equatable {
-    enum DiaperType: String, Codable {
+struct DurationWidgetAction: Identifiable, Codable, Equatable, Sendable {
+    enum DiaperType: String, Codable, Sendable {
         case pee
         case poo
         case both
     }
 
-    enum FeedingType: String, Codable {
+    enum FeedingType: String, Codable, Sendable {
         case bottle
         case leftBreast
         case rightBreast
         case meal
     }
 
-    enum BottleType: String, Codable {
+    enum BottleType: String, Codable, Sendable {
         case formula
         case breastMilk
     }
@@ -123,7 +123,7 @@ private extension DurationWidgetAction.BottleType {
     }
 }
 
-enum BabyActionCategory: String, Codable {
+enum BabyActionCategory: String, Codable, Sendable {
     case sleep
     case diaper
     case feeding

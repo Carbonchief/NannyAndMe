@@ -429,7 +429,8 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+                                SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -456,7 +457,8 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+                                SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -610,7 +612,8 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.prioritybit.babynanny;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+                                SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -645,7 +648,8 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.prioritybit.babynanny;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+                                SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -663,7 +667,8 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.prioritybit.babynannyTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+                                SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/babynanny.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/babynanny";
 			};
@@ -682,7 +687,8 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.prioritybit.babynannyTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+                                SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/babynanny.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/babynanny";
 			};
@@ -699,7 +705,8 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.prioritybit.babynannyUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+                                SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = babynanny;
 			};
@@ -716,7 +723,8 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.prioritybit.babynannyUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+                                SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = babynanny;
 			};

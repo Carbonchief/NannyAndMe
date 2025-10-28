@@ -3,7 +3,7 @@ import SwiftUI
 
 @MainActor
 final class ShareDataCoordinator: ObservableObject {
-    struct ExternalImportRequest: Identifiable, Equatable {
+    struct ExternalImportRequest: Identifiable, Equatable, Sendable {
         let id = UUID()
         let url: URL
 

@@ -6,7 +6,7 @@ import UIKit
 
 @MainActor
 final class SyncCoordinator: ObservableObject {
-    enum SyncReason: String {
+    enum SyncReason: String, Sendable {
         case launch
         case foreground
         case remoteNotification
@@ -26,7 +26,7 @@ final class SyncCoordinator: ObservableObject {
         self.dataStack = dataStack
         self.notificationCenter = notificationCenter
         observeApplicationLifecycle()
-        Task { [weak self] in
+        Task { @MainActor [weak self] in
             await self?.registerCloudKitSubscription()
         }
     }

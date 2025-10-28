@@ -11,6 +11,7 @@ import UniformTypeIdentifiers
 import UIKit
 import os
 
+@MainActor
 @main
 struct babynannyApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
@@ -104,6 +105,7 @@ private extension babynannyApp {
     }
 }
 
+@MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
     var syncCoordinator: SyncCoordinator?
     private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "appdelegate")
