@@ -63,8 +63,9 @@ final class SyncCoordinator: ObservableObject {
         let foregroundToken = notificationCenter.addObserver(forName: UIApplication.willEnterForegroundNotification,
                                                              object: nil,
                                                              queue: .main) { [weak self] _ in
-            guard let self else { return }
-            self.requestSyncIfNeeded(reason: .foreground)
+            Task { @MainActor [weak self] in
+                self?.requestSyncIfNeeded(reason: .foreground)
+            }
         }
         observers.append(foregroundToken)
     }

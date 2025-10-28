@@ -83,7 +83,11 @@ final class ShareDataCoordinator: ObservableObject {
     @Published private(set) var isPerformingShareMutation = false
 
     var isSharingSupported: Bool {
-        Self.supportsSwiftDataSharing
+        if #available(iOS 18.0, *) {
+            return Self.supportsSwiftDataSharing
+        } else {
+            return false
+        }
     }
 
     init(modelContext: ModelContext,
@@ -116,6 +120,12 @@ final class ShareDataCoordinator: ObservableObject {
             shareState = nil
             return
         }
+
+        guard #available(iOS 18.0, *) else {
+            shareState = nil
+            return
+        }
+
 #if swift(>=6.0)
         do {
             guard let model = try profileModel(withID: profileID) else {
@@ -143,6 +153,11 @@ final class ShareDataCoordinator: ObservableObject {
 
     func presentShareInterface(for profileID: UUID) throws {
         guard isSharingSupported else { throw ShareCoordinatorError.sharingUnavailable }
+
+        guard #available(iOS 18.0, *) else {
+            throw ShareCoordinatorError.sharingUnavailable
+        }
+
 #if swift(>=6.0)
         do {
             guard let model = try profileModel(withID: profileID) else {
@@ -190,6 +205,9 @@ final class ShareDataCoordinator: ObservableObject {
         guard let state = shareState else { return }
         guard state.isCurrentUserOwner else { throw ShareCoordinatorError.requiresOwner }
         guard isSharingSupported else { throw ShareCoordinatorError.sharingUnavailable }
+
+        guard #available(iOS 18.0, *) else { throw ShareCoordinatorError.sharingUnavailable }
+
 #if swift(>=6.0)
         try await performShareMutation(state: state, using: container.privateCloudDatabase)
 #endif
@@ -199,6 +217,9 @@ final class ShareDataCoordinator: ObservableObject {
         guard let state = shareState else { return }
         guard state.isCurrentUserOwner == false else { throw ShareCoordinatorError.requiresParticipant }
         guard isSharingSupported else { throw ShareCoordinatorError.sharingUnavailable }
+
+        guard #available(iOS 18.0, *) else { throw ShareCoordinatorError.sharingUnavailable }
+
 #if swift(>=6.0)
         try await performShareMutation(state: state, using: container.sharedCloudDatabase)
 #endif
