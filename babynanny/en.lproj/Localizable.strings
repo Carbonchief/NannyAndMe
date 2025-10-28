@@ -143,9 +143,12 @@
 "shareData.cloudKit.inviteButton" = "Manage invites";
 "shareData.cloudKit.stopButton" = "Stop sharing";
 "shareData.cloudKit.footer" = "Invite caregivers to collaborate on this profile with iCloud.";
+"shareData.cloudKit.footer.unsupported" = "Update to the latest iOS release to manage iCloud sharing from this device.";
 "shareData.cloudKit.footer.shared.none" = "No caregivers have been invited yet. Send an invite to get started.";
 "shareData.cloudKit.footer.shared.one" = "Sharing with 1 caregiver. Open Manage Invites to update access.";
 "shareData.cloudKit.footer.shared.other" = "Sharing with %lld caregivers. Open Manage Invites to update access.";
+"shareData.cloudKit.alert.unsupported.title" = "iCloud Sharing Unavailable";
+"shareData.cloudKit.alert.unsupported.message" = "This version of iOS doesn't support managing SwiftData shares. Please update iOS and try again.";
 "shareData.alert.exportSuccess.title" = "Export complete";
 "shareData.alert.exportSuccess.message" = "Saved file: %@";
 "shareData.alert.exportFailure.title" = "Export failed";

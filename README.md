@@ -75,7 +75,7 @@ NannyAndMe/
 3. On the recipient device, accept the share invitation. The app automatically calls `ModelContext.acceptShare(_:)` and reloads the SwiftData stores so the shared profile appears once the CloudKit sync completes.
 4. To stop collaborating, return to **Share Data** on the original device and tap **Stop sharing**. This revokes access for all invited caregivers.
 
-> ℹ️ Testers must be signed into iCloud on real hardware (simulators do not support CloudKit sharing) and allow push notifications so merge updates arrive promptly.
+> ℹ️ Testers must be signed into iCloud on real hardware (simulators do not support CloudKit sharing) and allow push notifications so merge updates arrive promptly. Managing invites requires iOS 17.4 or later; older OS versions fall back to the JSON export/import workflow.
 
 ## Testing
 

@@ -593,6 +593,19 @@ enum L10n {
                 defaultValue: "Invite caregivers to collaborate on this profile with iCloud."
             )
 
+            static let unsupportedFooter = String(
+                localized: "shareData.cloudKit.footer.unsupported",
+                defaultValue: "Update to the latest iOS release to manage iCloud sharing from this device."
+            )
+            static let unsupportedAlertTitle = String(
+                localized: "shareData.cloudKit.alert.unsupported.title",
+                defaultValue: "iCloud Sharing Unavailable"
+            )
+            static let unsupportedAlertMessage = String(
+                localized: "shareData.cloudKit.alert.unsupported.message",
+                defaultValue: "This version of iOS doesn't support managing SwiftData shares. Please update iOS and try again."
+            )
+
             static func sharedFooter(_ participantCount: Int) -> String {
                 if participantCount <= 0 {
                     return String(

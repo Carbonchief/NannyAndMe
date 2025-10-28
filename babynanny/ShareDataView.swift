@@ -129,7 +129,7 @@ struct ShareDataView: View {
     }
 
     private var isShareButtonDisabled: Bool {
-        isPreparingShare || shareState == .loading
+        isPreparingShare || shareState == .loading || shareState == .unsupported
     }
 
     @ViewBuilder
@@ -141,6 +141,12 @@ struct ShareDataView: View {
 
             if case let .shared(participantCount) = shareState {
                 Text(L10n.ShareData.CloudKit.sharedFooter(participantCount))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            if shareState == .unsupported {
+                Text(L10n.ShareData.CloudKit.unsupportedFooter)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -188,6 +194,12 @@ struct ShareDataView: View {
                 let share = try prepareShare(for: profileModel)
                 sharePresentation = CloudSharePresentation(share: share, profileName: profileStore.activeProfile.displayName)
                 refreshShareStatus()
+            } catch let error as SwiftDataCloudSharing.ShareError {
+                alert = ShareDataAlert(
+                    title: L10n.ShareData.CloudKit.unsupportedAlertTitle,
+                    message: error.localizedDescription
+                )
+                shareState = .unsupported
             } catch {
                 alert = ShareDataAlert(
                     title: L10n.ShareData.Alert.cloudShareFailureTitle,
@@ -212,8 +224,14 @@ struct ShareDataView: View {
                     return
                 }
 
-                try appDataStack.mainContext.stopSharing(profileModel)
+                try SwiftDataCloudSharing.stopSharing(profileModel, in: appDataStack.mainContext)
                 shareState = .notShared
+            } catch let error as SwiftDataCloudSharing.ShareError {
+                alert = ShareDataAlert(
+                    title: L10n.ShareData.CloudKit.unsupportedAlertTitle,
+                    message: error.localizedDescription
+                )
+                shareState = .unsupported
             } catch {
                 alert = ShareDataAlert(
                     title: L10n.ShareData.Alert.cloudShareStopFailureTitle,
@@ -234,12 +252,14 @@ struct ShareDataView: View {
                     return
                 }
 
-                if let share = try appDataStack.mainContext.fetchShare(for: profileModel) {
+                if let share = try SwiftDataCloudSharing.fetchShare(for: profileModel, in: appDataStack.mainContext) {
                     let participants = nonOwnerParticipantCount(from: share)
                     shareState = .shared(participantCount: participants)
                 } else {
                     shareState = .notShared
                 }
+            } catch is SwiftDataCloudSharing.ShareError {
+                shareState = .unsupported
             } catch {
                 shareState = .notShared
             }
@@ -260,10 +280,10 @@ struct ShareDataView: View {
 
     @MainActor
     private func prepareShare(for profile: ProfileActionStateModel) throws -> CKShare {
-        if let existing = try appDataStack.mainContext.fetchShare(for: profile) {
+        if let existing = try SwiftDataCloudSharing.fetchShare(for: profile, in: appDataStack.mainContext) {
             return existing
         }
-        return try appDataStack.mainContext.share(profile, to: [])
+        return try SwiftDataCloudSharing.share(profile, in: appDataStack.mainContext, to: [])
     }
 
     private func nonOwnerParticipantCount(from share: CKShare) -> Int {
@@ -362,6 +382,7 @@ private enum CloudShareState: Equatable {
     case loading
     case notShared
     case shared(participantCount: Int)
+    case unsupported
 }
 
 private struct CloudSharePresentation: Identifiable {

@@ -21,7 +21,7 @@ Use this when you want to clear on-device data and start from a clean slate:
 ## Sharing, exporting, and importing data
 
 1. Open **Settings ▸ Share Data**.
-2. Tap **Manage invites** to bring up the iCloud sharing sheet and send new invitations or manage existing participants. `SyncCoordinator` registers push subscriptions for both private and shared databases so background merges occur automatically.
+2. Tap **Manage invites** (requires iOS 17.4 or later) to bring up the iCloud sharing sheet and send new invitations or manage existing participants. `SyncCoordinator` registers push subscriptions for both private and shared databases so background merges occur automatically.
 3. Tap **Stop sharing** to revoke access for all invitees. CloudKit removes the profile from their devices on the next sync.
 4. Tap **Import** to merge a previously exported JSON archive. The merge routine deduplicates by action identifier and updates existing entries when timestamps or metadata differ.
 

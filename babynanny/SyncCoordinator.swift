@@ -60,14 +60,18 @@ final class SyncCoordinator: ObservableObject {
     func handleRemoteNotification(userInfo: [AnyHashable: Any]) {
         let scopeDescription: String
         if let notification = CKNotification(fromRemoteNotificationDictionary: userInfo) {
-            switch notification.databaseScope {
-            case .private:
-                scopeDescription = "private"
-            case .shared:
-                scopeDescription = "shared"
-            case .public:
-                scopeDescription = "public"
-            @unknown default:
+            if let databaseNotification = notification as? CKDatabaseNotification {
+                switch databaseNotification.databaseScope {
+                case .private:
+                    scopeDescription = "private"
+                case .shared:
+                    scopeDescription = "shared"
+                case .public:
+                    scopeDescription = "public"
+                @unknown default:
+                    scopeDescription = "unknown"
+                }
+            } else {
                 scopeDescription = "unknown"
             }
         } else {

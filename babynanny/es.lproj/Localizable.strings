@@ -143,9 +143,12 @@
 "shareData.cloudKit.inviteButton" = "Administrar invitaciones";
 "shareData.cloudKit.stopButton" = "Detener uso compartido";
 "shareData.cloudKit.footer" = "Invita a otras personas cuidadoras a colaborar en este perfil con iCloud.";
+"shareData.cloudKit.footer.unsupported" = "Actualiza a la versión más reciente de iOS para administrar las comparticiones de iCloud desde este dispositivo.";
 "shareData.cloudKit.footer.shared.none" = "Aún no se han invitado personas cuidadoras. Envía una invitación para comenzar.";
 "shareData.cloudKit.footer.shared.one" = "Compartiendo con 1 persona cuidadora. Abre \"Administrar invitaciones\" para actualizar el acceso.";
 "shareData.cloudKit.footer.shared.other" = "Compartiendo con %lld personas cuidadoras. Abre \"Administrar invitaciones\" para actualizar el acceso.";
+"shareData.cloudKit.alert.unsupported.title" = "Compartir en iCloud no disponible";
+"shareData.cloudKit.alert.unsupported.message" = "Esta versión de iOS no admite la administración de comparticiones de SwiftData. Actualiza iOS e inténtalo de nuevo.";
 "shareData.alert.exportSuccess.title" = "Exportación completada";
 "shareData.alert.exportSuccess.message" = "Archivo guardado: %@";
 "shareData.alert.exportFailure.title" = "Error al exportar";

@@ -143,9 +143,12 @@
 "shareData.cloudKit.inviteButton" = "Einladungen verwalten";
 "shareData.cloudKit.stopButton" = "Freigabe beenden";
 "shareData.cloudKit.footer" = "Lade Betreuungspersonen ein, dieses Profil über iCloud gemeinsam zu nutzen.";
+"shareData.cloudKit.footer.unsupported" = "Aktualisiere auf die neueste iOS-Version, um iCloud-Freigaben auf diesem Gerät zu verwalten.";
 "shareData.cloudKit.footer.shared.none" = "Noch keine Betreuungsperson eingeladen. Sende eine Einladung, um zu starten.";
 "shareData.cloudKit.footer.shared.one" = "Freigabe mit 1 Betreuungsperson. Öffne \"Einladungen verwalten\", um den Zugriff anzupassen.";
 "shareData.cloudKit.footer.shared.other" = "Freigabe mit %lld Betreuungspersonen. Öffne \"Einladungen verwalten\", um den Zugriff anzupassen.";
+"shareData.cloudKit.alert.unsupported.title" = "iCloud-Freigabe nicht verfügbar";
+"shareData.cloudKit.alert.unsupported.message" = "Diese iOS-Version unterstützt das Verwalten von SwiftData-Freigaben nicht. Bitte iOS aktualisieren und erneut versuchen.";
 "shareData.alert.exportSuccess.title" = "Export abgeschlossen";
 "shareData.alert.exportSuccess.message" = "Gespeicherte Datei: %@";
 "shareData.alert.exportFailure.title" = "Export fehlgeschlagen";

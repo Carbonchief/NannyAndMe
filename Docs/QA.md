@@ -17,7 +17,7 @@ Use the following script to validate core functionality after local-only persist
    - Log a new action and verify the All Logs list shows a location badge and location details in the entry drawer.
 
 4. **Share Data iCloud sharing/import**
-   - From **Settings ▸ Share Data**, tap **Manage invites** and send an invitation using the iCloud sharing sheet.
+   - From **Settings ▸ Share Data**, tap **Manage invites** (requires iOS 17.4+) and send an invitation using the iCloud sharing sheet.
    - Accept the invitation on a second device/account and confirm the shared profile appears after the sync completes.
    - Tap **Stop sharing** on the origin device and verify the shared profile disappears for invitees.
    - Import a previously exported JSON file and verify the profile details and logged actions return without duplicates.
