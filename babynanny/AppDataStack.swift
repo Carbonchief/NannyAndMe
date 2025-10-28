@@ -56,7 +56,7 @@ final class AppDataStack: ObservableObject {
                               coalescingDelay: TimeInterval = 0.35) {
         let identifier = ObjectIdentifier(context)
         coalescedSaveTasks[identifier]?.cancel()
-        let task = Task { [weak self] in
+        let task = Task { @MainActor [weak self] in
             guard let self else { return }
             try? await Task.sleep(nanoseconds: UInt64(coalescingDelay * 1_000_000_000))
             await self.performSaveIfNeeded(on: context, reason: reason)
@@ -70,7 +70,7 @@ final class AppDataStack: ObservableObject {
         coalescedSaveTasks[identifier]?.cancel()
         coalescedSaveTasks[identifier] = nil
 
-        Task { [weak self] in
+        Task { @MainActor [weak self] in
             guard let self else { return }
             await self.performSaveIfNeeded(on: context, reason: reason)
         }

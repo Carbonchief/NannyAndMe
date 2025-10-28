@@ -15,7 +15,7 @@ extension UNUserNotificationCenter: UserNotificationCenterType {
     }
 }
 
-protocol ReminderScheduling {
+protocol ReminderScheduling: Sendable {
     func ensureAuthorization() async -> Bool
     func refreshReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState]) async
     func upcomingReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState], reference: Date) async -> [ReminderOverview]

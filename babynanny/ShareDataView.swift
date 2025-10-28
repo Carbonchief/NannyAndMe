@@ -311,7 +311,7 @@ private final class AirDropShareItemSource: NSObject, UIActivityItemSource {
     }
 }
 
-private enum AirDropShareOutcome {
+private enum AirDropShareOutcome: Sendable {
     case completed
     case cancelled
     case failed(Error)
@@ -330,7 +330,7 @@ private struct AirDropShareSheet: UIViewControllerRepresentable {
         let controller = UIActivityViewController(activityItems: [activityItem], applicationActivities: nil)
         controller.excludedActivityTypes = Self.nonAirDropActivities
         controller.completionWithItemsHandler = { _, completed, _, error in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 if let error {
                     context.coordinator.completion(.failed(error))
                 } else if completed {

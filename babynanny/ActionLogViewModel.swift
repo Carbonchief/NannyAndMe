@@ -6,7 +6,7 @@ import os
 
 @MainActor
 final class ActionLogStore: ObservableObject {
-    struct LoggedLocation: Equatable {
+    struct LoggedLocation: Equatable, Sendable {
         var latitude: Double
         var longitude: Double
         var placename: String?
@@ -31,7 +31,7 @@ final class ActionLogStore: ObservableObject {
         var coordinatorIdentifier: ObjectIdentifier?
     }
 
-    struct MergeSummary: Equatable {
+    struct MergeSummary: Equatable, Sendable {
         var added: Int
         var updated: Int
 
@@ -401,6 +401,9 @@ final class ActionLogStore: ObservableObject {
     func actionStatesSnapshot() async -> [UUID: ProfileActionState] {
         let container = dataStack.modelContainer
         struct SendableContainer: @unchecked Sendable {
+            // `ModelContainer` is not `Sendable`, but we only pass the reference
+            // to create a short-lived background `ModelContext` before hopping
+            // back to the main actor.
             let container: ModelContainer
         }
         let sendableContainer = SendableContainer(container: container)

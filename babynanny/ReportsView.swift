@@ -1227,7 +1227,7 @@ private struct ChartShareItem: Identifiable {
     let chartIdentifier: String
 }
 
-private enum ChartShareOutcome {
+private enum ChartShareOutcome: Sendable {
     case completed
     case cancelled
     case failed(Error)
@@ -1244,7 +1244,7 @@ private struct ChartShareSheet: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIActivityViewController {
         let controller = UIActivityViewController(activityItems: [item.image], applicationActivities: nil)
         controller.completionWithItemsHandler = { _, completed, _, error in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 if let error {
                     context.coordinator.handle(.failed(error))
                 } else if completed {

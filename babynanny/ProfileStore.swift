@@ -7,7 +7,7 @@ enum ProfileNavigationDirection: Sendable {
     case previous
 }
 
-struct ChildProfile: Identifiable, Equatable, Codable {
+struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
     struct ActionReminderOverride: Codable, Equatable, Sendable {
         var fireDate: Date
         var isOneOff: Bool
@@ -258,7 +258,7 @@ final class ProfileStore: ObservableObject {
         let imageData: Data?
     }
 
-    enum ShareDataError: LocalizedError {
+    enum ShareDataError: LocalizedError, Sendable {
         case mismatchedProfile
 
         var errorDescription: String? {
@@ -269,13 +269,13 @@ final class ProfileStore: ObservableObject {
         }
     }
 
-    enum ReminderAuthorizationResult: Equatable {
+    enum ReminderAuthorizationResult: Equatable, Sendable {
         case enabled
         case disabled
         case authorizationDenied
     }
 
-    enum ReminderPreviewResult: Equatable {
+    enum ReminderPreviewResult: Equatable, Sendable {
         case scheduled
         case authorizationDenied
         case disabled
