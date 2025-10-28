@@ -1355,7 +1355,7 @@ private extension ReportsView {
 }
 
 private struct ChartShareContentWidthPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+    static let defaultValue: CGFloat = 0
 
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
@@ -1780,6 +1780,7 @@ private let summaryIntervalFormatter = Date.IntervalFormatStyle(date: .omitted, 
 
 private let summaryTimeFormatStyle = Date.FormatStyle.dateTime.hour().minute()
 
+@MainActor
 private let analyticsDateFormatter: ISO8601DateFormatter = {
     let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
