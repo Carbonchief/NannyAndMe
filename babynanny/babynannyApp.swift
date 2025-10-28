@@ -177,21 +177,28 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
 private extension AppDelegate {
     func acceptShare(_ metadata: CKShare.Metadata) async throws {
-        let _: Void = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) -> Void in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Swift.Void, Swift.Error>) in
             let operation = CKAcceptSharesOperation(shareMetadatas: [metadata])
-            var perShareError: Error?
+            var perShareError: Swift.Error?
 
+            // iOS 17+: (CKShare.Metadata, Result<CKShare, Error>)
             operation.perShareResultBlock = { _, result in
-                if case let .failure(error) = result {
+                if case .failure(let error) = result {
                     perShareError = error
                 }
             }
 
-            operation.acceptSharesResultBlock = { error in
-                if let error = error ?? perShareError {
+            // iOS 17+: Result<Void, Error>
+            operation.acceptSharesResultBlock = { result in
+                switch result {
+                case .success:
+                    if let error = perShareError {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(returning: ())
+                    }
+                case .failure(let error):
                     continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(returning: ())
                 }
             }
 
