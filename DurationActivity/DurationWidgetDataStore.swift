@@ -1,5 +1,25 @@
 import Foundation
 
+private struct DateComponentsFormatterBox: @unchecked Sendable {
+    let formatter: DateComponentsFormatter
+
+    init(configure: (DateComponentsFormatter) -> Void) {
+        let formatter = DateComponentsFormatter()
+        configure(formatter)
+        self.formatter = formatter
+    }
+}
+
+private struct RelativeDateFormatterBox: @unchecked Sendable {
+    let formatter: RelativeDateTimeFormatter
+
+    init(configure: (RelativeDateTimeFormatter) -> Void) {
+        let formatter = RelativeDateTimeFormatter()
+        configure(formatter)
+        self.formatter = formatter
+    }
+}
+
 struct DurationWidgetSnapshot: Equatable {
     var profileName: String?
     var actions: [DurationWidgetAction]
@@ -104,11 +124,11 @@ struct DurationWidgetAction: Identifiable, Codable, Equatable {
     func durationDescription(asOf referenceDate: Date) -> String {
         let endReference = endDate ?? referenceDate
         let duration = max(0, endReference.timeIntervalSince(startDate))
-        return DurationWidgetFormatter.shared.format(duration: duration)
+        return DurationWidgetFormatter.format(duration: duration)
     }
 
     func startDescription(asOf referenceDate: Date) -> String {
-        DurationWidgetRelativeFormatter.shared.format(start: startDate, reference: referenceDate)
+        DurationWidgetRelativeFormatter.format(start: startDate, reference: referenceDate)
     }
 }
 
@@ -138,35 +158,25 @@ enum BabyActionCategory: String, Codable {
     }
 }
 
-private final class DurationWidgetFormatter {
-    static let shared = DurationWidgetFormatter()
-
-    private let durationFormatter: DateComponentsFormatter
-
-    private init() {
-        durationFormatter = DateComponentsFormatter()
-        durationFormatter.allowedUnits = [.hour, .minute, .second]
-        durationFormatter.unitsStyle = .abbreviated
-        durationFormatter.zeroFormattingBehavior = [.dropLeading, .dropTrailing]
+private enum DurationWidgetFormatter {
+    private static let formatterBox = DateComponentsFormatterBox { formatter in
+        formatter.allowedUnits = [.hour, .minute, .second]
+        formatter.unitsStyle = .abbreviated
+        formatter.zeroFormattingBehavior = [.dropLeading, .dropTrailing]
     }
 
-    func format(duration: TimeInterval) -> String {
-        durationFormatter.string(from: duration) ?? WidgetL10n.Formatter.justNow
+    static func format(duration: TimeInterval) -> String {
+        formatterBox.formatter.string(from: duration) ?? WidgetL10n.Formatter.justNow
     }
 }
 
-private final class DurationWidgetRelativeFormatter {
-    static let shared = DurationWidgetRelativeFormatter()
-
-    private let formatter: RelativeDateTimeFormatter
-
-    private init() {
-        formatter = RelativeDateTimeFormatter()
+private enum DurationWidgetRelativeFormatter {
+    private static let formatterBox = RelativeDateFormatterBox { formatter in
         formatter.unitsStyle = .short
     }
 
-    func format(start: Date, reference: Date) -> String {
-        formatter.localizedString(for: start, relativeTo: reference)
+    static func format(start: Date, reference: Date) -> String {
+        formatterBox.formatter.localizedString(for: start, relativeTo: reference)
     }
 }
 

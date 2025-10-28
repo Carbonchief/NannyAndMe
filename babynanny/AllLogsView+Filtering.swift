@@ -7,7 +7,11 @@ extension AllLogsView {
         var grouped: [Date: [BabyActionSnapshot]] = [:]
         var orderedDates: [Date] = []
 
-        let filteredActions = actions.filter(isActionIncluded)
+        var filteredActions: [BabyActionSnapshot] = []
+        filteredActions.reserveCapacity(actions.count)
+        for action in actions where isActionIncluded(action) {
+            filteredActions.append(action)
+        }
 
         for action in filteredActions.sorted(by: { $0.startDate > $1.startDate }) {
             let day = calendar.startOfDay(for: action.startDate)
