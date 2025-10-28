@@ -1,7 +1,8 @@
 @preconcurrency import UserNotifications
 import Foundation
 
-private func resumeOnMain<T>(_ continuation: CheckedContinuation<T, Never>, returning value: T) {
+// Swift 6: make generic payloads sendable across potential thread hops.
+private func resumeOnMain<T: Sendable>(_ continuation: CheckedContinuation<T, Never>, returning value: T) {
     if Thread.isMainThread {
         continuation.resume(returning: value)
     } else {
@@ -11,7 +12,10 @@ private func resumeOnMain<T>(_ continuation: CheckedContinuation<T, Never>, retu
     }
 }
 
-private func resumeOnMain<T, E: Error>(_ continuation: CheckedContinuation<T, E>, result: Result<T, E>) {
+private func resumeOnMain<T: Sendable, E: Error & Sendable>(
+    _ continuation: CheckedContinuation<T, E>,
+    result: Result<T, E>
+) {
     if Thread.isMainThread {
         continuation.resume(with: result)
     } else {
@@ -21,13 +25,20 @@ private func resumeOnMain<T, E: Error>(_ continuation: CheckedContinuation<T, E>
     }
 }
 
-private func resumeOnMain<T, E: Error>(_ continuation: CheckedContinuation<T, E>, returning value: T) {
+private func resumeOnMain<T: Sendable, E: Error & Sendable>(
+    _ continuation: CheckedContinuation<T, E>,
+    returning value: T
+) {
     resumeOnMain(continuation, result: .success(value))
 }
 
-private func resumeOnMain<T, E: Error>(_ continuation: CheckedContinuation<T, E>, throwing error: E) {
+private func resumeOnMain<T: Sendable, E: Error & Sendable>(
+    _ continuation: CheckedContinuation<T, E>,
+    throwing error: E
+) {
     resumeOnMain(continuation, result: .failure(error))
 }
+
 
 @MainActor
 protocol ReminderScheduling: AnyObject {
