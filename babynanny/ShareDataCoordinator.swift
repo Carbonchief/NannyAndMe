@@ -2,7 +2,7 @@ import CloudKit
 import Foundation
 import os
 #if swift(>=6.0)
-@_spi(Experimental) import SwiftData
+@_spi(Experimental) @_spi(Sharing) import SwiftData
 #else
 import SwiftData
 #endif
