@@ -54,8 +54,11 @@ final class ActionLogStore: ObservableObject {
         observeModelContextChanges()
     }
 
-    deinit {
+    @MainActor deinit {
         stateReloadTask?.cancel()
+        for token in contextObservers {
+            notificationCenter.removeObserver(token)
+        }
         contextObservers.removeAll()
     }
 
@@ -567,38 +570,32 @@ private extension ActionLogStore {
     private func observeModelContextChanges() {
         let primaryToken = notificationCenter.addObserver(forName: .NSManagedObjectContextObjectsDidChange,
                                                            object: modelContext,
-                                                           queue: nil) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                let shouldReloadFromStore = self.isPerformingLocalMutation == false
-                self.handleModelContextChange(reloadFromPersistentStore: shouldReloadFromStore)
-            }
+                                                           queue: .main) { [weak self] _ in
+            guard let self else { return }
+            let shouldReloadFromStore = self.isPerformingLocalMutation == false
+            self.handleModelContextChange(reloadFromPersistentStore: shouldReloadFromStore)
         }
         contextObservers.append(primaryToken)
 
         let externalToken = notificationCenter.addObserver(forName: .NSManagedObjectContextDidSave,
                                                             object: nil,
-                                                            queue: nil) { [weak self] notification in
-            Task { @MainActor in
-                guard let self, self.shouldHandleExternalContextChange(from: notification) else { return }
-                self.handleModelContextChange(reloadFromPersistentStore: true)
-            }
+                                                            queue: .main) { [weak self] notification in
+            guard let self, self.shouldHandleExternalContextChange(from: notification) else { return }
+            self.handleModelContextChange(reloadFromPersistentStore: true)
         }
         contextObservers.append(externalToken)
 
         let remoteToken = notificationCenter.addObserver(forName: .NSPersistentStoreRemoteChange,
                                                           object: nil,
-                                                          queue: nil) { [weak self] _ in
+                                                          queue: .main) { [weak self] _ in
             guard let self else { return }
-            Task { @MainActor in
-                self.handleModelContextChange(reloadFromPersistentStore: true)
-            }
+            self.handleModelContextChange(reloadFromPersistentStore: true)
         }
         contextObservers.append(remoteToken)
 
         let syncToken = notificationCenter.addObserver(forName: SyncCoordinator.mergeDidCompleteNotification,
                                                        object: nil,
-                                                       queue: nil) { [weak self] _ in
+                                                       queue: .main) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
                 await self.performUserInitiatedRefresh()
