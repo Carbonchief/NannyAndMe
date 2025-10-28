@@ -72,7 +72,9 @@ struct ShareDataView: View {
             allowedContentTypes: [.json],
             allowsMultipleSelection: false
         ) { result in
-            handleImportResult(result)
+            Task { @MainActor in
+                handleImportResult(result)
+            }
         }
         .alert(item: $alert) { alert in
             Alert(
@@ -187,6 +189,7 @@ struct ShareDataView: View {
         return try encoder.encode(payload)
     }
 
+    @MainActor
     private func handleImportResult(_ result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
@@ -207,6 +210,7 @@ struct ShareDataView: View {
         }
     }
 
+    @MainActor
     private func importData(from url: URL) {
         let didStartAccessing = url.startAccessingSecurityScopedResource()
         defer {
@@ -249,6 +253,7 @@ struct ShareDataView: View {
         }
     }
 
+    @MainActor
     private func processPendingExternalImportIfNeeded() {
         guard let request = shareDataCoordinator.externalImportRequest else { return }
         guard processedExternalImportID != request.id else { return }
