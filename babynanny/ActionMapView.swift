@@ -354,6 +354,7 @@ private struct ActionLocation: Identifiable, Hashable {
         snapshot.icon
     }
 
+    @MainActor
     var loggedAtDescription: String {
         snapshot.loggedTimestampDescription()
     }

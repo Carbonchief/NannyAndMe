@@ -134,7 +134,7 @@ struct AddProfilePromptView: View {
         let currentImageData = imageData
         let hasImage = currentImageData != nil
 
-        ZStack(alignment: .bottomTrailing) {
+        return ZStack(alignment: .bottomTrailing) {
             PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
                 ProfileAvatarView(imageData: currentImageData, size: 72)
                     .overlay(alignment: .bottomTrailing) {
