@@ -114,7 +114,6 @@ private extension NotificationRequestSnapshot {
     }
 }
 
-@MainActor
 protocol UserNotificationCenterType: AnyObject {
     func authorizationStatus() async -> UNAuthorizationStatus
     func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool
@@ -123,8 +122,8 @@ protocol UserNotificationCenterType: AnyObject {
     func removePendingNotificationRequests(withIdentifiers identifiers: [String])
 }
 
-@MainActor
 extension UNUserNotificationCenter: UserNotificationCenterType {
+    nonisolated
     func authorizationStatus() async -> UNAuthorizationStatus {
         await withCheckedContinuation { continuation in
             let center = self
@@ -134,6 +133,7 @@ extension UNUserNotificationCenter: UserNotificationCenterType {
         }
     }
 
+    nonisolated
     func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool {
         try await withCheckedThrowingContinuation { continuation in
             let center = self
@@ -147,15 +147,25 @@ extension UNUserNotificationCenter: UserNotificationCenterType {
         }
     }
 
+    nonisolated
     func pendingNotificationRequestSnapshots() async -> [NotificationRequestSnapshot] {
-        let requests: [UNNotificationRequest] = await withCheckedContinuation { continuation in
+        await withCheckedContinuation { continuation in
             let center = self
             center.getPendingNotificationRequests { requests in
-                resumeOnMain(continuation, returning: requests)
+                let snapshots = requests.map(NotificationRequestSnapshot.init)
+                resumeOnMain(continuation, returning: snapshots)
             }
         }
+    }
 
-        return requests.map(NotificationRequestSnapshot.init)
+    nonisolated
+    func add(_ request: UNNotificationRequest, withCompletionHandler completionHandler: ((Error?) -> Void)?) {
+        self.add(request, withCompletionHandler: completionHandler)
+    }
+
+    nonisolated
+    func removePendingNotificationRequests(withIdentifiers identifiers: [String]) {
+        self.removePendingNotificationRequests(withIdentifiers: identifiers)
     }
 }
 
