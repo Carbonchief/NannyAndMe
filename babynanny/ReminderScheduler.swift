@@ -122,11 +122,16 @@ protocol UserNotificationCenterType: AnyObject {
     func removePendingNotificationRequests(withIdentifiers identifiers: [String])
 }
 
-extension UNUserNotificationCenter: UserNotificationCenterType {
+final class UserNotificationCenterAdapter: UserNotificationCenterType {
+    private let center: UNUserNotificationCenter
+
+    init(center: UNUserNotificationCenter = .current()) {
+        self.center = center
+    }
+
     nonisolated
     func authorizationStatus() async -> UNAuthorizationStatus {
         await withCheckedContinuation { continuation in
-            let center = self
             center.getNotificationSettings { settings in
                 resumeOnMain(continuation, returning: settings.authorizationStatus)
             }
@@ -136,7 +141,6 @@ extension UNUserNotificationCenter: UserNotificationCenterType {
     nonisolated
     func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool {
         try await withCheckedThrowingContinuation { continuation in
-            let center = self
             center.requestAuthorization(options: options) { granted, error in
                 if let error {
                     resumeOnMain(continuation, throwing: error)
@@ -150,7 +154,6 @@ extension UNUserNotificationCenter: UserNotificationCenterType {
     nonisolated
     func pendingNotificationRequestSnapshots() async -> [NotificationRequestSnapshot] {
         await withCheckedContinuation { continuation in
-            let center = self
             center.getPendingNotificationRequests { requests in
                 let snapshots = requests.map(NotificationRequestSnapshot.init)
                 resumeOnMain(continuation, returning: snapshots)
@@ -160,14 +163,16 @@ extension UNUserNotificationCenter: UserNotificationCenterType {
 
     nonisolated
     func add(_ request: UNNotificationRequest, withCompletionHandler completionHandler: ((Error?) -> Void)?) {
-        self.add(request, withCompletionHandler: completionHandler)
+        center.add(request, withCompletionHandler: completionHandler)
     }
 
     nonisolated
     func removePendingNotificationRequests(withIdentifiers identifiers: [String]) {
-        self.removePendingNotificationRequests(withIdentifiers: identifiers)
+        center.removePendingNotificationRequests(withIdentifiers: identifiers)
     }
 }
+
+extension UserNotificationCenterAdapter: @unchecked Sendable {}
 
 @MainActor
 final class UserNotificationReminderScheduler: ReminderScheduling {
@@ -201,10 +206,10 @@ final class UserNotificationReminderScheduler: ReminderScheduling {
     private static let ageIdentifierPrefix = "age-milestone-"
     private static let previewIdentifierPrefix = "preview-reminder-"
 
-    private let center: any UserNotificationCenterType
+    private nonisolated(unsafe) let center: any UserNotificationCenterType
     private var calendar: Calendar
 
-    init(center: any UserNotificationCenterType = UNUserNotificationCenter.current(),
+    init(center: any UserNotificationCenterType = UserNotificationCenterAdapter(),
          calendar: Calendar = .current) {
         self.center = center
         self.calendar = calendar
