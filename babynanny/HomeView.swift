@@ -679,6 +679,7 @@ private struct ActionReminderDelayDialog: View {
         return min(max(stepped, range.lowerBound), range.upperBound)
     }
 
+    @MainActor
     private struct CountdownDialer: UIViewRepresentable {
         @Binding var delay: TimeInterval
         let delayRange: ClosedRange<TimeInterval>
@@ -706,6 +707,7 @@ private struct ActionReminderDelayDialog: View {
             Coordinator(parent: self)
         }
 
+        @MainActor
         final class Coordinator: NSObject {
             private let parent: CountdownDialer
 

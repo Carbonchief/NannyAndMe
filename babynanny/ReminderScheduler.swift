@@ -1,10 +1,31 @@
 import Foundation
 import UserNotifications
 
+struct NotificationRequestSnapshot: Sendable {
+    let identifier: String
+    let contentTitle: String
+    let contentBody: String
+    let triggerDateComponents: DateComponents?
+    let repeats: Bool
+
+    init(request: UNNotificationRequest) {
+        identifier = request.identifier
+        contentTitle = request.content.title
+        contentBody = request.content.body
+        repeats = request.trigger?.repeats ?? false
+
+        if let calendarTrigger = request.trigger as? UNCalendarNotificationTrigger {
+            triggerDateComponents = calendarTrigger.dateComponents
+        } else {
+            triggerDateComponents = nil
+        }
+    }
+}
+
 protocol UserNotificationCenterType: AnyObject {
     func authorizationStatus() async -> UNAuthorizationStatus
     func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool
-    func pendingNotificationRequests() async -> [UNNotificationRequest]
+    func pendingNotificationRequestSnapshots() async -> [NotificationRequestSnapshot]
     func add(_ request: UNNotificationRequest, withCompletionHandler completionHandler: ((Error?) -> Void)?)
     func removePendingNotificationRequests(withIdentifiers identifiers: [String])
 }
@@ -12,6 +33,11 @@ protocol UserNotificationCenterType: AnyObject {
 extension UNUserNotificationCenter: UserNotificationCenterType {
     func authorizationStatus() async -> UNAuthorizationStatus {
         await notificationSettings().authorizationStatus
+    }
+
+    func pendingNotificationRequestSnapshots() async -> [NotificationRequestSnapshot] {
+        let requests = await pendingNotificationRequests()
+        return requests.map(NotificationRequestSnapshot.init)
     }
 }
 
@@ -89,7 +115,7 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
             payloads = Array(payloads.prefix(maxNotifications))
         }
 
-        let existingRequests = await center.pendingNotificationRequests()
+        let existingRequests = await center.pendingNotificationRequestSnapshots()
             .filter { $0.identifier.hasPrefix(ageIdentifierPrefix) || $0.identifier.hasPrefix(actionIdentifierPrefix) }
         let existingByIdentifier = Dictionary(uniqueKeysWithValues: existingRequests.map { ($0.identifier, $0) })
         let existingIdentifiers = Set(existingByIdentifier.keys)
@@ -368,7 +394,7 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
     }
 
     private func currentReminderIdentifiers() async -> [String] {
-        let requests = await center.pendingNotificationRequests()
+        let requests = await center.pendingNotificationRequestSnapshots()
         return requests
             .map(\.identifier)
             .filter { identifier in
@@ -384,22 +410,22 @@ actor UserNotificationReminderScheduler: ReminderScheduling {
     }
 
     private func reminderRequest(
-        _ request: UNNotificationRequest,
+        _ request: NotificationRequestSnapshot,
         matchesContent content: UNNotificationContent,
         components: DateComponents
     ) -> Bool {
-        guard let trigger = request.trigger as? UNCalendarNotificationTrigger else { return false }
-        guard trigger.repeats == false else { return false }
+        guard request.repeats == false else { return false }
+        guard let triggerComponents = request.triggerDateComponents else { return false }
 
         let fields: [Calendar.Component] = [.year, .month, .day, .hour, .minute]
         for component in fields {
-            if trigger.dateComponents.value(for: component) != components.value(for: component) {
+            if triggerComponents.value(for: component) != components.value(for: component) {
                 return false
             }
         }
 
-        return request.content.title == content.title &&
-            request.content.body == content.body
+        return request.contentTitle == content.title &&
+            request.contentBody == content.body
     }
 
     private func schedule(_ request: UNNotificationRequest, retryOnFailure: Bool) {
