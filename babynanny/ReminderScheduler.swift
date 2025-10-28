@@ -180,9 +180,10 @@ final class UserNotificationReminderScheduler: ReminderScheduling {
 
     func refreshReminders(for profiles: [ChildProfile],
                           actionStates: [UUID: ProfileActionState]) async {
+        let isAuthorized = await ensureAuthorization()
         let existingSnapshots = await center.pendingNotificationRequestSnapshots().filter { identifierIsManaged($0.identifier) }
 
-        guard await ensureAuthorization() else {
+        guard isAuthorized else {
             removeExistingIdentifiers(existingSnapshots.map(\.identifier))
             return
         }
