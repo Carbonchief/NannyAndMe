@@ -130,11 +130,13 @@ struct AddProfilePromptView: View {
     }
 
     private var profilePhotoSelector: some View {
-        ZStack(alignment: .bottomTrailing) {
+        let currentImageData = imageData
+
+        return ZStack(alignment: .bottomTrailing) {
             PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
-                ProfileAvatarView(imageData: imageData, size: 72)
+                ProfileAvatarView(imageData: currentImageData, size: 72)
                     .overlay(alignment: .bottomTrailing) {
-                        if imageData == nil {
+                        if currentImageData == nil {
                             Image(systemName: "plus.circle.fill")
                                 .symbolRenderingMode(.multicolor)
                                 .font(.system(size: 20))
@@ -150,7 +152,7 @@ struct AddProfilePromptView: View {
                 handlePhotoSelectionChange(newValue)
             }
 
-            if imageData != nil {
+            if currentImageData != nil {
                 Button {
                     imageData = nil
                 } label: {
