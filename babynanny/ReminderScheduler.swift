@@ -75,6 +75,7 @@ private extension NotificationRequestSnapshot {
     }
 }
 
+@MainActor
 protocol UserNotificationCenterType: AnyObject {
     func authorizationStatus() async -> UNAuthorizationStatus
     func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool
@@ -83,6 +84,7 @@ protocol UserNotificationCenterType: AnyObject {
     func removePendingNotificationRequests(withIdentifiers identifiers: [String])
 }
 
+@MainActor
 extension UNUserNotificationCenter: UserNotificationCenterType {
     func authorizationStatus() async -> UNAuthorizationStatus {
         await withCheckedContinuation { continuation in
