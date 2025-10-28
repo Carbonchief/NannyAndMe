@@ -371,14 +371,12 @@ struct SettingsView: View {
 
     private func handleReminderToggleChange(_ newValue: Bool) {
         isUpdatingReminders = true
-        Task {
+        Task { @MainActor in
             let result = await profileStore.setRemindersEnabled(newValue)
-            await MainActor.run {
-                isUpdatingReminders = false
-                refreshActionReminderSummaries()
-                if result == .authorizationDenied {
-                    activeAlert = .notificationsSettings
-                }
+            isUpdatingReminders = false
+            refreshActionReminderSummaries()
+            if result == .authorizationDenied {
+                activeAlert = .notificationsSettings
             }
         }
     }
@@ -422,25 +420,23 @@ struct SettingsView: View {
         actionReminderSummaries = [:]
         loadingReminderCategories = []
 
-        reminderLoadTask = Task {
+        reminderLoadTask = Task { @MainActor in
             let summaries = await profileStore.nextActionReminderSummaries(for: profileID)
 
-            await MainActor.run {
-                defer { reminderLoadTask = nil }
+            defer { reminderLoadTask = nil }
 
-                guard profileStore.activeProfile.id == profileID else {
-                    isLoadingActionReminders = false
-                    return
-                }
-
-                if Task.isCancelled {
-                    isLoadingActionReminders = false
-                    return
-                }
-
-                actionReminderSummaries = summaries
+            guard profileStore.activeProfile.id == profileID else {
                 isLoadingActionReminders = false
+                return
             }
+
+            if Task.isCancelled {
+                isLoadingActionReminders = false
+                return
+            }
+
+            actionReminderSummaries = summaries
+            isLoadingActionReminders = false
         }
     }
 
@@ -455,22 +451,20 @@ struct SettingsView: View {
         let profileID = profileStore.activeProfile.id
         loadingReminderCategories.insert(category)
 
-        Task {
+        Task { @MainActor in
             let summary = await profileStore.nextActionReminderSummary(for: profileID, category: category)
 
-            await MainActor.run {
-                defer { loadingReminderCategories.remove(category) }
+            defer { loadingReminderCategories.remove(category) }
 
-                guard profileStore.activeProfile.id == profileID else { return }
+            guard profileStore.activeProfile.id == profileID else { return }
 
-                guard profileStore.activeProfile.remindersEnabled,
-                      profileStore.activeProfile.isActionReminderEnabled(for: category) else {
-                    actionReminderSummaries[category] = nil
-                    return
-                }
-
-                actionReminderSummaries[category] = summary
+            guard profileStore.activeProfile.remindersEnabled,
+                  profileStore.activeProfile.isActionReminderEnabled(for: category) else {
+                actionReminderSummaries[category] = nil
+                return
             }
+
+            actionReminderSummaries[category] = summary
         }
     }
 }

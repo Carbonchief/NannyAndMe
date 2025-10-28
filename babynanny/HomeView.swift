@@ -396,7 +396,7 @@ struct HomeView: View {
             return
         }
 
-        Task {
+        Task { @MainActor in
             let capturedLocation = await locationManager.captureCurrentLocation()
             let loggedLocation = capturedLocation.map { capture in
                 ActionLogStore.LoggedLocation(
@@ -406,15 +406,13 @@ struct HomeView: View {
                 )
             }
 
-            await MainActor.run {
-                actionStore.startAction(for: activeProfileID,
-                                        category: category,
-                                        diaperType: configuration.diaperType,
-                                        feedingType: configuration.feedingType,
-                                        bottleType: configuration.bottleType,
-                                        bottleVolume: configuration.bottleVolume,
-                                        location: loggedLocation)
-            }
+            actionStore.startAction(for: activeProfileID,
+                                    category: category,
+                                    diaperType: configuration.diaperType,
+                                    feedingType: configuration.feedingType,
+                                    bottleType: configuration.bottleType,
+                                    bottleVolume: configuration.bottleVolume,
+                                    location: loggedLocation)
         }
     }
 
