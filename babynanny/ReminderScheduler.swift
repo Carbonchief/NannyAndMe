@@ -324,7 +324,7 @@ private extension UserNotificationReminderScheduler {
     }
 
     func schedule(plan: ReminderPlan, existing: NotificationRequestSnapshot?) async {
-        if let existing, existing.matches(plan) {
+        if let existing, existing.matches(plan: plan) {
             return
         }
 
