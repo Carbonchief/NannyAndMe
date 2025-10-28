@@ -768,8 +768,8 @@ final class ProfileStore: ObservableObject {
         let token = notificationCenter.addObserver(forName: SyncCoordinator.mergeDidCompleteNotification,
                                                    object: nil,
                                                    queue: nil) { [weak self] _ in
-            guard let self else { return }
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
                 self.refreshProfiles()
                 self.ensureActiveProfileExists()
             }
