@@ -1,6 +1,36 @@
 @preconcurrency import UserNotifications
 import Foundation
 
+private func resumeOnMain<T>(_ continuation: CheckedContinuation<T, Never>, returning value: T) {
+    if Thread.isMainThread {
+        continuation.resume(returning: value)
+    } else {
+        Task { @MainActor in
+            continuation.resume(returning: value)
+        }
+    }
+}
+
+private func resumeOnMain<T, E: Error>(_ continuation: CheckedThrowingContinuation<T, E>, returning value: T) {
+    if Thread.isMainThread {
+        continuation.resume(returning: value)
+    } else {
+        Task { @MainActor in
+            continuation.resume(returning: value)
+        }
+    }
+}
+
+private func resumeOnMain<T, E: Error>(_ continuation: CheckedThrowingContinuation<T, E>, throwing error: E) {
+    if Thread.isMainThread {
+        continuation.resume(throwing: error)
+    } else {
+        Task { @MainActor in
+            continuation.resume(throwing: error)
+        }
+    }
+}
+
 @MainActor
 protocol ReminderScheduling: AnyObject {
     func ensureAuthorization() async -> Bool
@@ -90,7 +120,7 @@ extension UNUserNotificationCenter: UserNotificationCenterType {
         await withCheckedContinuation { continuation in
             let center = self
             center.getNotificationSettings { settings in
-                continuation.resume(returning: settings.authorizationStatus)
+                resumeOnMain(continuation, returning: settings.authorizationStatus)
             }
         }
     }
@@ -100,9 +130,9 @@ extension UNUserNotificationCenter: UserNotificationCenterType {
             let center = self
             center.requestAuthorization(options: options) { granted, error in
                 if let error {
-                    continuation.resume(throwing: error)
+                    resumeOnMain(continuation, throwing: error)
                 } else {
-                    continuation.resume(returning: granted)
+                    resumeOnMain(continuation, returning: granted)
                 }
             }
         }
@@ -113,7 +143,7 @@ extension UNUserNotificationCenter: UserNotificationCenterType {
             let center = self
             center.getPendingNotificationRequests { requests in
                 let snapshots = requests.map(NotificationRequestSnapshot.init)
-                continuation.resume(returning: snapshots)
+                resumeOnMain(continuation, returning: snapshots)
             }
         }
     }
@@ -346,7 +376,7 @@ private extension UserNotificationReminderScheduler {
     func add(_ request: UNNotificationRequest) async -> Bool {
         await withCheckedContinuation { continuation in
             center.add(request) { error in
-                continuation.resume(returning: error == nil)
+                resumeOnMain(continuation, returning: error == nil)
             }
         }
     }
