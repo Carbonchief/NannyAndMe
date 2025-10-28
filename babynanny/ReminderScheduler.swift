@@ -137,13 +137,14 @@ extension UNUserNotificationCenter: UserNotificationCenterType {
     }
 
     func pendingNotificationRequestSnapshots() async -> [NotificationRequestSnapshot] {
-        await withCheckedContinuation { continuation in
+        let requests: [UNNotificationRequest] = await withCheckedContinuation { continuation in
             let center = self
             center.getPendingNotificationRequests { requests in
-                let snapshots = requests.map(NotificationRequestSnapshot.init)
-                resumeOnMain(continuation, returning: snapshots)
+                resumeOnMain(continuation, returning: requests)
             }
         }
+
+        return requests.map(NotificationRequestSnapshot.init)
     }
 }
 
