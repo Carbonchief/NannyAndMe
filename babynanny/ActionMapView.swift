@@ -385,6 +385,7 @@ private struct ActionCluster: Identifiable, Equatable {
         lhs.id == rhs.id
     }
 
+    @MainActor
     var accessibilityLabel: String {
         let locationName = headerTitle
         let dateDescription: String
