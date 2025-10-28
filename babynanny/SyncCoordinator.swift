@@ -32,7 +32,6 @@ final class SyncCoordinator: ObservableObject {
         }
     }
 
-    @MainActor
     deinit {
         for observer in observers {
             notificationCenter.removeObserver(observer)
