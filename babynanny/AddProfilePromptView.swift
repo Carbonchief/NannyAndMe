@@ -78,6 +78,7 @@ struct AddProfilePromptView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(trimmedName.isEmpty)
+                .postHogLabel("profiles_create_button_addProfilePrompt")
             }
             .padding(24)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -87,6 +88,7 @@ struct AddProfilePromptView: View {
                     Button(L10n.Common.cancel) {
                         handleCancel()
                     }
+                    .postHogLabel("profiles_cancel_button_addProfilePrompt")
                 }
             }
             .onAppear {
@@ -129,11 +131,14 @@ struct AddProfilePromptView: View {
     }
 
     private var profilePhotoSelector: some View {
+        let currentImageData = imageData
+        let hasImage = currentImageData != nil
+
         ZStack(alignment: .bottomTrailing) {
             PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
-                ProfileAvatarView(imageData: imageData, size: 72)
+                ProfileAvatarView(imageData: currentImageData, size: 72)
                     .overlay(alignment: .bottomTrailing) {
-                        if imageData == nil {
+                        if hasImage == false {
                             Image(systemName: "plus.circle.fill")
                                 .symbolRenderingMode(.multicolor)
                                 .font(.system(size: 20))
@@ -148,8 +153,9 @@ struct AddProfilePromptView: View {
             .onChange(of: selectedPhoto) { _, newValue in
                 handlePhotoSelectionChange(newValue)
             }
+            .postHogLabel("profiles_selectPhoto_photosPicker_addProfilePrompt")
 
-            if imageData != nil {
+            if hasImage {
                 Button {
                     imageData = nil
                 } label: {
@@ -164,6 +170,7 @@ struct AddProfilePromptView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(L10n.Profiles.removePhoto)
                 .padding(4)
+                .postHogLabel("profiles_removePhoto_button_addProfilePrompt")
             }
         }
     }
