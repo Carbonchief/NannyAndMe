@@ -1,4 +1,4 @@
-import CoreData
+@preconcurrency import CoreData
 import Foundation
 import SwiftData
 import SwiftUI
@@ -529,7 +529,6 @@ private extension ActionLogStore {
         dataStack.scheduleSaveIfNeeded(on: modelContext, reason: "persist-profile-state")
 
         scheduleReminders()
-
     }
 
     static func clamp(_ action: BabyActionSnapshot, avoiding conflicts: [BabyActionSnapshot]) -> BabyActionSnapshot {
@@ -568,9 +567,12 @@ private extension ActionLogStore {
     }
 
     private func observeModelContextChanges() {
-        let primaryToken = notificationCenter.addObserver(forName: .NSManagedObjectContextObjectsDidChange,
-                                                           object: modelContext,
-                                                           queue: .main) { [weak self] _ in
+        // ---------- ObjectsDidChange (same context) ----------
+        let primaryToken = notificationCenter.addObserver(
+            forName: .NSManagedObjectContextObjectsDidChange,
+            object: modelContext,
+            queue: .main
+        ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 let shouldReloadFromStore = self.isPerformingLocalMutation == false
@@ -579,20 +581,41 @@ private extension ActionLogStore {
         }
         contextObservers.append(primaryToken)
 
-        let externalToken = notificationCenter.addObserver(forName: .NSManagedObjectContextDidSave,
-                                                            object: nil,
-                                                            queue: .main) { [weak self] notification in
+        // Pre-extract identifiers so the closure doesn’t touch `self` before the Task hop.
+        let observedContainerIdentifier = self.observedContainerIdentifier
+        let observedManagedObjectContextIdentifier = self.observedManagedObjectContextIdentifier
+        let observedPersistentStoreCoordinatorIdentifier = self.observedPersistentStoreCoordinatorIdentifier
+        let observedModelContextIdentifier = ObjectIdentifier(self.modelContext)
+
+        // ---------- DidSave (other contexts in same container) ----------
+        let externalToken = notificationCenter.addObserver(
+            forName: .NSManagedObjectContextDidSave,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            // Compute the flag in a nonisolated way (no `self` used).
+            let shouldHandle = Self.shouldHandleExternalContextChange(
+                notification: notification,
+                observedContainerIdentifier: observedContainerIdentifier,
+                observedManagedObjectContextIdentifier: observedManagedObjectContextIdentifier,
+                observedPersistentStoreCoordinatorIdentifier: observedPersistentStoreCoordinatorIdentifier,
+                observedModelContextIdentifier: observedModelContextIdentifier
+            )
+            guard shouldHandle else { return }
+
             Task { @MainActor [weak self] in
-                guard let self,
-                      self.shouldHandleExternalContextChange(from: notification) else { return }
+                guard let self else { return }
                 self.handleModelContextChange(reloadFromPersistentStore: true)
             }
         }
         contextObservers.append(externalToken)
 
-        let remoteToken = notificationCenter.addObserver(forName: .NSPersistentStoreRemoteChange,
-                                                          object: nil,
-                                                          queue: .main) { [weak self] _ in
+        // ---------- RemoteChange (CloudKit, etc.) ----------
+        let remoteToken = notificationCenter.addObserver(
+            forName: .NSPersistentStoreRemoteChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.handleModelContextChange(reloadFromPersistentStore: true)
@@ -600,53 +623,18 @@ private extension ActionLogStore {
         }
         contextObservers.append(remoteToken)
 
-        let syncToken = notificationCenter.addObserver(forName: SyncCoordinator.mergeDidCompleteNotification,
-                                                       object: nil,
-                                                       queue: .main) { [weak self] _ in
-            guard let self else { return }
-            Task { @MainActor in
+        // ---------- SyncCoordinator merge completion ----------
+        let syncToken = notificationCenter.addObserver(
+            forName: SyncCoordinator.mergeDidCompleteNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
                 await self.performUserInitiatedRefresh()
             }
         }
         contextObservers.append(syncToken)
-    }
-
-    private func shouldHandleExternalContextChange(from notification: Notification) -> Bool {
-        guard let context = notification.object else { return false }
-
-        if let modelContext = context as? ModelContext {
-            guard ObjectIdentifier(modelContext.container) == observedContainerIdentifier else { return false }
-            return modelContext !== self.modelContext
-        }
-
-        if let managedObjectContext = context as? NSManagedObjectContext {
-            if let observedManagedObjectContextIdentifier,
-               ObjectIdentifier(managedObjectContext) == observedManagedObjectContextIdentifier {
-                return false
-            }
-
-            guard let observedPersistentStoreCoordinatorIdentifier else { return false }
-
-            if let coordinator = managedObjectContext.persistentStoreCoordinator {
-                return ObjectIdentifier(coordinator) == observedPersistentStoreCoordinatorIdentifier
-            }
-
-            let objectIDsKey = NSManagedObjectContext.notificationObjectIDsUserInfoKey
-            if let payload = notification.userInfo?[objectIDsKey] as? [AnyHashable: Set<NSManagedObjectID>] {
-                for objectIDs in payload.values {
-                    for objectID in objectIDs {
-                        guard let coordinator = objectID.persistentStore?.persistentStoreCoordinator else { continue }
-                        if ObjectIdentifier(coordinator) == observedPersistentStoreCoordinatorIdentifier {
-                            return true
-                        }
-                    }
-                }
-            }
-
-            return false
-        }
-
-        return false
     }
 
     private func handleModelContextChange(reloadFromPersistentStore: Bool) {
@@ -697,17 +685,15 @@ private extension ActionLogStore {
     }
 
     func scheduleReminders() {
-        guard let reminderScheduler else { return }
-        let profiles = profileStore?.profiles ?? []
-        let scheduler = reminderScheduler
-
-        Task { @MainActor [weak self, profiles, scheduler] in
-            guard let self else { return }
+        // Read everything inside the MainActor task; do not capture non-Sendable values.
+        Task { @MainActor [weak self] in
+            guard let self = self,
+                  let scheduler = self.reminderScheduler else { return }
+            let profiles = self.profileStore?.profiles ?? []
             let actionStates = await self.actionStatesSnapshot()
             await scheduler.refreshReminders(for: profiles, actionStates: actionStates)
         }
     }
-
 }
 
 private extension ActionLogStore {
@@ -723,10 +709,11 @@ private extension ActionLogStore {
     func notifyActionLogged(for categories: Set<BabyActionCategory>, profileID: UUID) {
         guard categories.isEmpty == false else { return }
 
-        Task { @MainActor [weak profileStore] in
-            guard let profileStore else { return }
+        Task { @MainActor [weak self] in
+            guard let self = self,
+                  let store = self.profileStore else { return }
             for category in categories {
-                profileStore.actionLogged(for: profileID, category: category)
+                store.actionLogged(for: profileID, category: category)
             }
         }
     }
@@ -816,6 +803,55 @@ private extension ActionLogStore {
     }
 }
 
+// Nonisolated helper so we can decide synchronously in a notification closure
+// without calling a @MainActor instance method.
+private extension ActionLogStore {
+    nonisolated static func shouldHandleExternalContextChange(
+        notification: Notification,
+        observedContainerIdentifier: ObjectIdentifier,
+        observedManagedObjectContextIdentifier: ObjectIdentifier?,
+        observedPersistentStoreCoordinatorIdentifier: ObjectIdentifier?,
+        observedModelContextIdentifier: ObjectIdentifier
+    ) -> Bool {
+        guard let context = notification.object else { return false }
+
+        if let modelContext = context as? ModelContext {
+            // Same container, but not the same ModelContext instance.
+            guard ObjectIdentifier(modelContext.container) == observedContainerIdentifier else { return false }
+            return ObjectIdentifier(modelContext) != observedModelContextIdentifier
+        }
+
+        if let managedObjectContext = context as? NSManagedObjectContext {
+            if let observedManagedObjectContextIdentifier,
+               ObjectIdentifier(managedObjectContext) == observedManagedObjectContextIdentifier {
+                return false
+            }
+
+            guard let observedPersistentStoreCoordinatorIdentifier else { return false }
+
+            if let coordinator = managedObjectContext.persistentStoreCoordinator {
+                return ObjectIdentifier(coordinator) == observedPersistentStoreCoordinatorIdentifier
+            }
+
+            let objectIDsKey = NSManagedObjectContext.notificationObjectIDsUserInfoKey
+            if let payload = notification.userInfo?[objectIDsKey] as? [AnyHashable: Set<NSManagedObjectID>] {
+                for objectIDs in payload.values {
+                    for objectID in objectIDs {
+                        guard let coordinator = objectID.persistentStore?.persistentStoreCoordinator else { continue }
+                        if ObjectIdentifier(coordinator) == observedPersistentStoreCoordinatorIdentifier {
+                            return true
+                        }
+                    }
+                }
+            }
+
+            return false
+        }
+
+        return false
+    }
+}
+
 private extension NSManagedObjectContext {
     static var notificationObjectIDsUserInfoKey: String {
         // Newer SDKs vend a typed constant for the object ID payload key, but some
@@ -825,4 +861,3 @@ private extension NSManagedObjectContext {
         return "NSManagedObjectContextDidSaveObjectIDsKey"
     }
 }
-

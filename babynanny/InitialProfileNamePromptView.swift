@@ -3,7 +3,6 @@ import PhotosUI
 import UIKit
 
 /// A sheet prompting the user to name the initial child profile on first launch.
-@MainActor
 struct InitialProfileNamePromptView: View {
     let onContinue: (String, Data?) -> Void
     let allowsDismissal: Bool
@@ -98,17 +97,22 @@ struct InitialProfileNamePromptView: View {
         .presentationDragIndicator(.hidden)
         .fullScreenCover(item: $pendingCrop) { crop in
             ImageCropperView(image: crop.image) {
-                pendingCrop = nil
-            } onCrop: { croppedImage in
-                if let data = croppedImage.compressedData() {
-                    imageData = data
+                Task { @MainActor in
+                    pendingCrop = nil
                 }
-                pendingCrop = nil
+            } onCrop: { croppedImage in
+                Task { @MainActor in
+                    if let data = croppedImage.compressedData() {
+                        imageData = data
+                    }
+                    pendingCrop = nil
+                }
             }
             .preferredColorScheme(.dark)
         }
     }
 
+    @MainActor
     private func handleContinue() {
         let value = trimmedName
         guard value.isEmpty == false else { return }
@@ -116,11 +120,16 @@ struct InitialProfileNamePromptView: View {
     }
 
     private var profilePhotoSelector: some View {
-        ZStack(alignment: .bottomTrailing) {
+        // TAKE SNAPSHOTS before entering any @Sendable closures
+        let imageDataSnapshot = imageData
+        let hasImage = imageDataSnapshot != nil
+
+        return ZStack(alignment: .bottomTrailing) {
             PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
-                ProfileAvatarView(imageData: imageData, size: 72)
+                // Use the snapshot INSIDE the closure
+                ProfileAvatarView(imageData: imageDataSnapshot, size: 72)
                     .overlay(alignment: .bottomTrailing) {
-                        if imageData == nil {
+                        if !hasImage {
                             Image(systemName: "plus.circle.fill")
                                 .symbolRenderingMode(.multicolor)
                                 .font(.system(size: 20))
@@ -136,9 +145,12 @@ struct InitialProfileNamePromptView: View {
                 handlePhotoSelectionChange(newValue)
             }
 
-            if imageData != nil {
+            if hasImage {
                 Button {
-                    imageData = nil
+                    // Mutate on main
+                    Task { @MainActor in
+                        imageData = nil
+                    }
                 } label: {
                     Image(systemName: "trash.fill")
                         .font(.system(size: 12, weight: .bold))
@@ -171,35 +183,37 @@ struct InitialProfileNamePromptView: View {
         photoLoadingTask?.cancel()
         guard let newValue else { return }
 
+        Task { @MainActor in
+            isProcessingPhoto = true
+            let requestID = UUID()
+            activePhotoRequestID = requestID
 
-        isProcessingPhoto = true
-        let requestID = UUID()
-        activePhotoRequestID = requestID
-        photoLoadingTask = Task {
-            var loadedImage: UIImage?
+            photoLoadingTask = Task {
+                var loadedImage: UIImage?
 
-            do {
-                if let data = try await newValue.loadTransferable(type: Data.self),
-                   let image = UIImage(data: data) {
-                    loadedImage = image
+                do {
+                    if let data = try await newValue.loadTransferable(type: Data.self),
+                       let image = UIImage(data: data) {
+                        loadedImage = image
+                    }
+                } catch {
+                    // Optionally log the error
                 }
-            } catch {
-                // Ignore errors for now
-            }
 
-            if Task.isCancelled == false, let image = loadedImage {
+                if Task.isCancelled == false, let image = loadedImage {
+                    await MainActor.run {
+                        guard activePhotoRequestID == requestID else { return }
+                        pendingCrop = PendingCropImage(image: image)
+                    }
+                }
+
                 await MainActor.run {
                     guard activePhotoRequestID == requestID else { return }
-                    pendingCrop = PendingCropImage(image: image)
+                    selectedPhoto = nil
+                    isProcessingPhoto = false
+                    activePhotoRequestID = nil
+                    photoLoadingTask = nil
                 }
-            }
-
-            await MainActor.run {
-                guard activePhotoRequestID == requestID else { return }
-                selectedPhoto = nil
-                isProcessingPhoto = false
-                activePhotoRequestID = nil
-                photoLoadingTask = nil
             }
         }
     }
