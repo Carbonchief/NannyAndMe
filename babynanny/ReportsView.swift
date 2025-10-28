@@ -35,7 +35,9 @@ struct ReportsView: View {
             }
         }
         .onPreferenceChange(ChartShareContentWidthPreferenceKey.self) { width in
-            shareContentWidth = width
+            Task { @MainActor in
+                shareContentWidth = width
+            }
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .onAppear(perform: initializeTabIfNeeded)
