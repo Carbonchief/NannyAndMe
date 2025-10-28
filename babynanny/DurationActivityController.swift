@@ -166,5 +166,3 @@ private extension Color {
 }
 #endif
 #endif
-
-#endif
