@@ -957,7 +957,8 @@ private extension ProfileStore {
         }
     }
 
-    struct PreviewReminderScheduler: ReminderScheduling {
+    @MainActor
+    final class PreviewReminderScheduler: ReminderScheduling {
         func ensureAuthorization() async -> Bool { true }
         func refreshReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState]) async {}
         func upcomingReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState], reference: Date) async -> [ReminderOverview] {

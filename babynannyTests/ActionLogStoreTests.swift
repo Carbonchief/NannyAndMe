@@ -121,7 +121,8 @@ struct ActionLogStoreTests {
     }
 }
 
-private actor MockReminderScheduler: ReminderScheduling {
+@MainActor
+private final class MockReminderScheduler: ReminderScheduling {
     private var authorizationResult: Bool
 
     init(authorizationResult: Bool) {
