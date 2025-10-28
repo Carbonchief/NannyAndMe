@@ -182,29 +182,30 @@ struct ProfileStoreTests {
         return (store, stack)
     }
 
-    private actor MockReminderScheduler: ReminderScheduling {
-    private var authorizationResult: Bool
-    private(set) var ensureAuthorizationInvocations: Int = 0
+    @MainActor
+    private final class MockReminderScheduler: ReminderScheduling {
+        private var authorizationResult: Bool
+        private(set) var ensureAuthorizationInvocations: Int = 0
 
-    init(authorizationResult: Bool) {
-        self.authorizationResult = authorizationResult
+        init(authorizationResult: Bool) {
+            self.authorizationResult = authorizationResult
+        }
+
+        func ensureAuthorization() async -> Bool {
+            ensureAuthorizationInvocations += 1
+            return authorizationResult
+        }
+
+        func refreshReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState]) async {}
+
+        func upcomingReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState], reference: Date) async -> [ReminderOverview] {
+            []
+        }
+
+        func schedulePreviewReminder(for profile: ChildProfile,
+                                     category: BabyActionCategory,
+                                     delay: TimeInterval) async -> Bool {
+            false
+        }
     }
-
-    func ensureAuthorization() async -> Bool {
-        ensureAuthorizationInvocations += 1
-        return authorizationResult
-    }
-
-    func refreshReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState]) async {}
-
-    func upcomingReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState], reference: Date) async -> [ReminderOverview] {
-        []
-    }
-
-    func schedulePreviewReminder(for profile: ChildProfile,
-                                 category: BabyActionCategory,
-                                 delay: TimeInterval) async -> Bool {
-        false
-    }
-}
 

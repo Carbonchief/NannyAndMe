@@ -1,6 +1,7 @@
 @preconcurrency import UserNotifications
 import Foundation
 
+@MainActor
 protocol ReminderScheduling: AnyObject {
     func ensureAuthorization() async -> Bool
     func refreshReminders(for profiles: [ChildProfile],
