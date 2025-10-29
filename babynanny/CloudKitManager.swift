@@ -2,6 +2,10 @@ import CloudKit
 import Foundation
 import os
 
+private struct SendableUserDefaultsBox: @unchecked Sendable {
+    let value: UserDefaults
+}
+
 /// Centralizes CloudKit zone management, sharing, and incremental syncing.
 @MainActor
 final class CloudKitManager {
@@ -20,7 +24,8 @@ final class CloudKitManager {
         self.privateCloudDatabase = container.privateCloudDatabase
         self.sharedCloudDatabase = container.sharedCloudDatabase
         self.bridge = bridge
-        self.tokenStore = CloudKitTokenStore(userDefaults: userDefaults)
+        let userDefaultsBox = SendableUserDefaultsBox(value: userDefaults)
+        self.tokenStore = CloudKitTokenStore(userDefaultsBox: userDefaultsBox)
     }
 
     // MARK: - Zones
@@ -480,12 +485,12 @@ private struct ZoneChangeResult {
 }
 
 private actor CloudKitTokenStore {
-    private let userDefaultsBox: UserDefaultsBox
+    private let userDefaultsBox: SendableUserDefaultsBox
     private let databaseKeyPrefix = "com.prioritybit.nannyandme.token.database."
     private let zoneKeyPrefix = "com.prioritybit.nannyandme.token.zone."
 
-    init(userDefaults: UserDefaults) {
-        self.userDefaultsBox = UserDefaultsBox(value: userDefaults)
+    init(userDefaultsBox: SendableUserDefaultsBox) {
+        self.userDefaultsBox = userDefaultsBox
     }
 
     private var userDefaults: UserDefaults { userDefaultsBox.value }
@@ -527,8 +532,5 @@ private actor CloudKitTokenStore {
 
     private func zoneKey(for zoneID: CKRecordZone.ID) -> String {
         zoneKeyPrefix + zoneID.zoneName
-    }
-    private struct UserDefaultsBox: @unchecked Sendable {
-        let value: UserDefaults
     }
 }
