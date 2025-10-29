@@ -260,8 +260,13 @@ final class CloudKitManager {
             var capturedMoreComing = false
             var capturedError: Error?
 
-            operation.recordChangedBlock = { record in
-                changedRecords.append(record)
+            operation.recordWasChangedBlock = { [logger] recordID, result in
+                switch result {
+                case .success(let record):
+                    changedRecords.append(record)
+                case .failure(let error):
+                    logger.error("Failed to fetch changed record \(recordID.recordName, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                }
             }
 
             operation.recordWithIDWasDeletedBlock = { recordID, _ in
