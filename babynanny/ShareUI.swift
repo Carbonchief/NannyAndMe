@@ -88,15 +88,10 @@ struct ShareProfileSection: View {
                     .font(.subheadline)
                     .fontWeight(.semibold)
                 ForEach(Array(context.participants.enumerated()), id: \.offset) { _, participant in
-                    let removeAction: (() -> Void)?
-                    if context.isOwner, let share = context.share, participant != share.owner {
-                        removeAction = {
-                            Task { await sharingCoordinator.removeParticipant(participant, from: profileID) }
-                        }
-                    } else {
-                        removeAction = nil
-                    }
-                    ParticipantRow(participant: participant, onRemove: removeAction)
+                    ParticipantRow(
+                        participant: participant,
+                        onRemove: removalAction(for: participant, in: context)
+                    )
                 }
             }
             .padding(.top, 4)
@@ -127,6 +122,18 @@ struct ShareProfileSection: View {
     private func dismissShareSheet() {
         sharingCoordinator.activeShareController = nil
         sharingCoordinator.isPresentingShareSheet = false
+    }
+
+    private func removalAction(
+        for participant: CKShare.Participant,
+        in context: SharingCoordinator.ShareContext
+    ) -> (() -> Void)? {
+        guard context.isOwner, let share = context.share, participant != share.owner else {
+            return nil
+        }
+        return {
+            Task { await sharingCoordinator.removeParticipant(participant, from: profileID) }
+        }
     }
 }
 
