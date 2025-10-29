@@ -401,9 +401,11 @@ final class CloudKitManager {
             container.add(operation)
         }
 
-        guard let zoneID = metadata.share?.recordID.zoneID ?? metadata.rootRecord?.recordID.zoneID else {
-            logger.error("Unable to resolve zone ID from accepted share metadata")
-            return
+        let zoneID: CKRecordZone.ID
+        if let rootRecord = metadata.rootRecord {
+            zoneID = rootRecord.recordID.zoneID
+        } else {
+            zoneID = metadata.share.recordID.zoneID
         }
         await fetchZoneChanges(zoneID: zoneID, scope: .shared)
     }
