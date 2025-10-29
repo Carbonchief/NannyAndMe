@@ -183,6 +183,8 @@ private struct ParticipantRow: View {
             role = L10n.ShareUI.memberRole
         case .publicUser:
             role = L10n.ShareUI.publicRole
+        case .unknown:
+            role = L10n.ShareUI.memberRole
         @unknown default:
             role = L10n.ShareUI.memberRole
         }
