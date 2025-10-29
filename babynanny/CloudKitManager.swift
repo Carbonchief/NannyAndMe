@@ -480,13 +480,15 @@ private struct ZoneChangeResult {
 }
 
 private actor CloudKitTokenStore {
-    private let userDefaults: UserDefaults
+    private let userDefaultsBox: UserDefaultsBox
     private let databaseKeyPrefix = "com.prioritybit.nannyandme.token.database."
     private let zoneKeyPrefix = "com.prioritybit.nannyandme.token.zone."
 
     init(userDefaults: UserDefaults) {
-        self.userDefaults = userDefaults
+        self.userDefaultsBox = UserDefaultsBox(value: userDefaults)
     }
+
+    private var userDefaults: UserDefaults { userDefaultsBox.value }
 
     func databaseToken(for scope: CKDatabase.Scope) async -> CKServerChangeToken? {
         guard let data = userDefaults.data(forKey: databaseKey(for: scope)) else { return nil }
@@ -526,6 +528,7 @@ private actor CloudKitTokenStore {
     private func zoneKey(for zoneID: CKRecordZone.ID) -> String {
         zoneKeyPrefix + zoneID.zoneName
     }
+    private struct UserDefaultsBox: @unchecked Sendable {
+        let value: UserDefaults
+    }
 }
-
-extension UserDefaults: @unchecked Sendable {}
