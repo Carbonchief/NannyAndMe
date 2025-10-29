@@ -90,7 +90,7 @@ final class SharingCoordinator: NSObject, ObservableObject {
             controller.delegate = self
             presentationProfileID = profileID
 
-            var context = ShareContext(id: profileID,
+            let context = ShareContext(id: profileID,
                                        zoneID: result.root.recordID.zoneID,
                                        shareRecordID: share.recordID,
                                        share: share,
