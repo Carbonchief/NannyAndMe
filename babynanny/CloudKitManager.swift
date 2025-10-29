@@ -527,3 +527,5 @@ private actor CloudKitTokenStore {
         zoneKeyPrefix + zoneID.zoneName
     }
 }
+
+extension UserDefaults: @unchecked Sendable {}
