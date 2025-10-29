@@ -17,6 +17,7 @@ final class ActionLogStore: ObservableObject {
     private weak var profileStore: ProfileStore?
     private let notificationCenter: NotificationCenter
     private let dataStack: AppDataStack
+    private weak var sharingCoordinator: SharingCoordinator?
     private let observedContainerIdentifier: ObjectIdentifier
     private let observedManagedObjectContextIdentifier: ObjectIdentifier?
     private let observedPersistentStoreCoordinatorIdentifier: ObjectIdentifier?
@@ -84,6 +85,10 @@ final class ActionLogStore: ObservableObject {
         synchronizeMetadataFromModelContext()
     }
 
+    func registerSharingCoordinator(_ coordinator: SharingCoordinator) {
+        sharingCoordinator = coordinator
+    }
+
     func performUserInitiatedRefresh() async {
         await dataStack.flushPendingSaves()
         let reloadTask = reloadStateFromPersistentStore()
@@ -95,21 +100,29 @@ final class ActionLogStore: ObservableObject {
             var hasChanges = false
 
             for profile in profiles {
+                var didMutateCurrent = false
                 let trimmedName = profile.name.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard trimmedName.isEmpty == false else { continue }
 
                 let model = profileModel(for: profile.id)
                 if model.name != trimmedName {
                     model.name = trimmedName
-                    hasChanges = true
+                    didMutateCurrent = true
                 }
                 let normalizedBirthDate = profile.birthDate.normalizedToUTC()
                 if model.birthDate != normalizedBirthDate {
                     model.setBirthDate(profile.birthDate)
-                    hasChanges = true
+                    didMutateCurrent = true
                 }
                 if model.imageData != profile.imageData {
                     model.imageData = profile.imageData
+                    didMutateCurrent = true
+                }
+                if didMutateCurrent {
+                    model.touch()
+                }
+
+                if didMutateCurrent {
                     hasChanges = true
                 }
             }
@@ -529,6 +542,7 @@ private extension ActionLogStore {
         dataStack.scheduleSaveIfNeeded(on: modelContext, reason: "persist-profile-state")
 
         scheduleReminders()
+        sharingCoordinator?.scheduleActionSync(profileID: profileID)
     }
 
     static func clamp(_ action: BabyActionSnapshot, avoiding conflicts: [BabyActionSnapshot]) -> BabyActionSnapshot {

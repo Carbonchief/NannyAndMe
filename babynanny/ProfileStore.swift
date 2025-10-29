@@ -319,6 +319,7 @@ final class ProfileStore: ObservableObject {
     private let dataStack: AppDataStack
     private let reminderScheduler: ReminderScheduling
     private weak var actionStore: ActionLogStore?
+    private weak var sharingCoordinator: SharingCoordinator?
     private let fileManager: FileManager
     private let saveURL: URL
     private var settings: ProfileStoreSettings
@@ -364,6 +365,10 @@ final class ProfileStore: ObservableObject {
         actionStore = store
         scheduleReminders()
         synchronizeProfileMetadata()
+    }
+
+    func registerSharingCoordinator(_ coordinator: SharingCoordinator) {
+        sharingCoordinator = coordinator
     }
 
     func setActiveProfile(_ profile: ChildProfile) {
@@ -417,6 +422,16 @@ final class ProfileStore: ObservableObject {
     }
 
     func deleteProfile(_ profile: ChildProfile) {
+        if let context = sharingCoordinator?.shareContext(for: profile.id) {
+            Task { [weak sharingCoordinator] in
+                if context.isOwner {
+                    await sharingCoordinator?.stopSharing(profileID: profile.id)
+                } else {
+                    await sharingCoordinator?.leaveShare(for: profile.id)
+                }
+            }
+        }
+
         mutateProfiles(reason: "profile-delete") {
             guard let model = profileModel(withID: profile.id) else { return false }
             modelContext.delete(model)
@@ -440,6 +455,8 @@ final class ProfileStore: ObservableObject {
             guard let model = profileModel(withID: id) else { return false }
             updates(model)
             model.normalizeReminderPreferences()
+            model.touch()
+            sharingCoordinator?.scheduleProfileSync(profileID: id)
             return true
         }
     }
@@ -465,6 +482,10 @@ final class ProfileStore: ObservableObject {
                     if model.imageData != update.imageData {
                         model.imageData = update.imageData
                         didChange = true
+                    }
+                    if didChange {
+                        model.touch()
+                        sharingCoordinator?.scheduleProfileSync(profileID: model.resolvedProfileID)
                     }
                 } else {
                     let trimmedName = update.name.trimmingCharacters(in: .whitespacesAndNewlines)

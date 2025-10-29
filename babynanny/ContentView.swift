@@ -378,10 +378,16 @@ private extension ContentView {
     ]
 
     let actionStore = ActionLogStore.previewStore(profiles: [profile.id: state])
+    let previewStack = AppDataStack.preview()
+    let previewBridge = SwiftDataBridge(dataStack: previewStack)
+    let sharingCoordinator = SharingCoordinator(cloudKitManager: CloudKitManager(bridge: previewBridge),
+                                                dataStack: previewStack,
+                                                autoLoad: false)
 
     return ContentView()
         .environmentObject(profileStore)
         .environmentObject(actionStore)
+        .environmentObject(sharingCoordinator)
         .environmentObject(ShareDataCoordinator())
         .environmentObject(LocationManager.shared)
 }

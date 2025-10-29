@@ -493,6 +493,7 @@ final class Profile {
     @Attribute(.externalStorage)
     var imageData: Data?
     var remindersEnabled: Bool = false
+    private var updatedAtRawValue: Date = Date()
     @Relationship(deleteRule: .cascade)
     var storedActions: [BabyAction]?
     @Relationship(deleteRule: .cascade)
@@ -511,6 +512,7 @@ final class Profile {
         self.imageData = imageData
         self.remindersEnabled = remindersEnabled
         self.storedActions = actions
+        self.updatedAtRawValue = Date()
         if let reminderPreferences {
             self.reminderPreferences = reminderPreferences
         } else {
@@ -547,6 +549,15 @@ final class Profile {
         if needsUpdate {
             storedActions = currentActions
         }
+    }
+
+    var updatedAt: Date {
+        get { updatedAtRawValue }
+        set { updatedAtRawValue = newValue }
+    }
+
+    func touch(_ date: Date = Date()) {
+        updatedAt = date
     }
 }
 

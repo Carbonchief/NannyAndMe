@@ -1,0 +1,492 @@
+import CloudKit
+import Foundation
+import os
+
+/// Centralizes CloudKit zone management, sharing, and incremental syncing.
+final class CloudKitManager {
+    let container: CKContainer
+    let privateCloudDatabase: CKDatabase
+    let sharedCloudDatabase: CKDatabase
+
+    private let bridge: SwiftDataBridge
+    private let tokenStore: CloudKitTokenStore
+    private let logger = Logger(subsystem: "com.prioritybit.nannyandme", category: "cloudkit")
+
+    init(containerIdentifier: String = "iCloud.com.prioritybit.nannyandme",
+         bridge: SwiftDataBridge,
+         userDefaults: UserDefaults = .standard) {
+        self.container = CKContainer(identifier: containerIdentifier)
+        self.privateCloudDatabase = container.privateCloudDatabase
+        self.sharedCloudDatabase = container.sharedCloudDatabase
+        self.bridge = bridge
+        self.tokenStore = CloudKitTokenStore(userDefaults: userDefaults)
+    }
+
+    // MARK: - Zones
+
+    func ensureZone(for profile: Profile) async throws -> CKRecordZone.ID {
+        let zoneID = CloudKitSchema.zoneID(for: profile.resolvedProfileID)
+        let zone = CKRecordZone(zoneID: zoneID)
+        do {
+            _ = try await privateCloudDatabase.save(zone)
+        } catch {
+            if let ckError = error as? CKError, ckError.code == .zoneAlreadyExists {
+                logger.debug("Zone already exists for profile \(profile.resolvedProfileID.uuidString, privacy: .public)")
+            } else {
+                throw error
+            }
+        }
+        return zoneID
+    }
+
+    func deleteZone(for profileID: UUID) async throws {
+        let zoneID = CloudKitSchema.zoneID(for: profileID)
+        do {
+            try await privateCloudDatabase.deleteRecordZone(withID: zoneID)
+            await tokenStore.removeZoneToken(for: zoneID)
+        } catch {
+            if let ckError = error as? CKError, ckError.code == .zoneNotFound {
+                logger.debug("Zone already removed for profile \(profileID.uuidString, privacy: .public)")
+            } else {
+                throw error
+            }
+        }
+    }
+
+    // MARK: - CRUD
+
+    func saveProfile(_ profile: Profile,
+                     scope: CKDatabase.Scope = .private,
+                     zoneID providedZoneID: CKRecordZone.ID? = nil) async throws {
+        let zoneID: CKRecordZone.ID
+        if let providedZoneID {
+            zoneID = providedZoneID
+        } else {
+            zoneID = CloudKitSchema.zoneID(for: profile.resolvedProfileID)
+        }
+        let database = database(for: scope)
+        if scope == .private {
+            _ = try await ensureZone(for: profile)
+        }
+
+        let record = await MainActor.run { bridge.makeProfileRecord(from: profile, in: zoneID) }
+        _ = try await database.modifyRecords(saving: [record], deleting: [])
+    }
+
+    func saveActions(_ actions: [BabyAction],
+                     for profile: Profile,
+                     scope: CKDatabase.Scope = .private,
+                     zoneID providedZoneID: CKRecordZone.ID? = nil) async throws {
+        guard actions.isEmpty == false else { return }
+        let zoneID: CKRecordZone.ID
+        if let providedZoneID {
+            zoneID = providedZoneID
+        } else {
+            zoneID = CloudKitSchema.zoneID(for: profile.resolvedProfileID)
+        }
+        let profileRecordID = CloudKitSchema.profileRecordID(for: profile.resolvedProfileID, zoneID: zoneID)
+        let records = await MainActor.run {
+            actions.map { action in
+                bridge.makeActionRecord(from: action, zoneID: zoneID, profileRecordID: profileRecordID)
+            }
+        }
+        let database = database(for: scope)
+        _ = try await database.modifyRecords(saving: records, deleting: [])
+    }
+
+    func deleteRecords(_ recordIDs: [CKRecord.ID], scope: CKDatabase.Scope = .private) async throws {
+        guard recordIDs.isEmpty == false else { return }
+        let database = database(for: scope)
+        _ = try await database.modifyRecords(saving: [], deleting: recordIDs)
+    }
+
+    // MARK: - Subscriptions
+
+    func ensureSubscriptions() async {
+        await ensureSubscription(scope: .private, identifier: "com.prioritybit.nannyandme.private-changes")
+        await ensureSubscription(scope: .shared, identifier: "com.prioritybit.nannyandme.shared-changes")
+    }
+
+    private func ensureSubscription(scope: CKDatabase.Scope, identifier: String) async {
+        let database = database(for: scope)
+        do {
+            let subscription = CKDatabaseSubscription(subscriptionID: identifier)
+            let info = CKSubscription.NotificationInfo()
+            info.shouldSendContentAvailable = true
+            subscription.notificationInfo = info
+            _ = try await database.save(subscription)
+            logger.debug("Registered subscription for scope \(scope.rawValue, privacy: .public)")
+        } catch {
+            if let ckError = error as? CKError, ckError.code == .serverRejectedRequest {
+                logger.debug("Subscription already exists for \(identifier, privacy: .public)")
+            } else {
+                logger.error("Failed to register subscription for \(identifier, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
+    // MARK: - Notifications
+
+    func handleNotification(_ notification: CKNotification) async {
+        guard let databaseNotification = notification as? CKDatabaseNotification else { return }
+        await fetchChanges(database: databaseNotification.databaseScope)
+    }
+
+    // MARK: - Fetching
+
+    func fetchChanges(database scope: CKDatabase.Scope, since token: CKServerChangeToken? = nil) async {
+        let database = database(for: scope)
+        var changedZoneIDs: Set<CKRecordZone.ID> = []
+        var deletedZoneIDs: [CKRecordZone.ID] = []
+
+        var previousToken = token ?? await tokenStore.databaseToken(for: scope)
+        var moreComing = true
+
+        while moreComing {
+            do {
+                let result = try await fetchDatabaseChanges(database: database,
+                                                             scope: scope,
+                                                             previousToken: previousToken)
+                changedZoneIDs.formUnion(result.changedZoneIDs)
+                deletedZoneIDs.append(contentsOf: result.deletedZoneIDs)
+                previousToken = result.newToken
+                moreComing = result.moreComing
+            } catch {
+                logger.error("Database changes fetch failed: \(error.localizedDescription, privacy: .public)")
+                return
+            }
+        }
+
+        for zoneID in deletedZoneIDs {
+            await tokenStore.removeZoneToken(for: zoneID)
+            if let profileID = CloudKitSchema.profileID(from: zoneID) {
+                await MainActor.run { bridge.deleteProfile(withID: profileID) }
+            }
+        }
+
+        for zoneID in changedZoneIDs {
+            await fetchZoneChanges(zoneID: zoneID, scope: scope)
+        }
+    }
+
+    private func fetchZoneChanges(zoneID: CKRecordZone.ID, scope: CKDatabase.Scope) async {
+        let database = database(for: scope)
+        var moreComing = true
+        var accumulatedRecords: [CKRecord] = []
+        var deletedRecordIDs: [CKRecord.ID] = []
+        var previousToken: CKServerChangeToken? = await tokenStore.zoneToken(for: zoneID)
+
+        while moreComing {
+            do {
+                let result = try await fetchZoneChanges(database: database,
+                                                        zoneID: zoneID,
+                                                        previousToken: previousToken)
+                accumulatedRecords.append(contentsOf: result.records)
+                deletedRecordIDs.append(contentsOf: result.deletedRecordIDs)
+                previousToken = result.newToken
+                moreComing = result.moreComing
+                if let token = result.newToken {
+                    await tokenStore.setZoneToken(token, for: zoneID)
+                }
+            } catch {
+                logger.error("Zone changes fetch failed for \(zoneID.zoneName, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                return
+            }
+        }
+
+        if accumulatedRecords.isEmpty == false {
+            await MainActor.run {
+                bridge.apply(records: accumulatedRecords, scope: scope)
+            }
+        }
+
+        if deletedRecordIDs.isEmpty == false {
+            await MainActor.run {
+                bridge.delete(recordIDs: deletedRecordIDs)
+            }
+        }
+    }
+
+    private func fetchDatabaseChanges(database: CKDatabase,
+                                      scope: CKDatabase.Scope,
+                                      previousToken: CKServerChangeToken?) async throws -> DatabaseChangeResult {
+        try await withCheckedThrowingContinuation { continuation in
+            let operation = CKFetchDatabaseChangesOperation(previousServerChangeToken: previousToken)
+            var changedZoneIDs: [CKRecordZone.ID] = []
+            var deletedZoneIDs: [CKRecordZone.ID] = []
+
+            operation.recordZoneWithIDChangedBlock = { zoneID in
+                changedZoneIDs.append(zoneID)
+            }
+
+            operation.recordZoneWithIDWasDeletedBlock = { zoneID in
+                deletedZoneIDs.append(zoneID)
+            }
+
+            operation.changeTokenUpdatedBlock = { token in
+                Task { await self.tokenStore.setDatabaseToken(token, scope: scope) }
+            }
+
+            operation.fetchDatabaseChangesResultBlock = { newToken, moreComing, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    if let newToken {
+                        Task { await self.tokenStore.setDatabaseToken(newToken, scope: scope) }
+                    }
+                    let result = DatabaseChangeResult(changedZoneIDs: changedZoneIDs,
+                                                      deletedZoneIDs: deletedZoneIDs,
+                                                      newToken: newToken,
+                                                      moreComing: moreComing)
+                    continuation.resume(returning: result)
+                }
+            }
+
+            operation.qualityOfService = .userInitiated
+            database.add(operation)
+        }
+    }
+
+    private func fetchZoneChanges(database: CKDatabase,
+                                  zoneID: CKRecordZone.ID,
+                                  previousToken: CKServerChangeToken?) async throws -> ZoneChangeResult {
+        try await withCheckedThrowingContinuation { continuation in
+            let configuration = CKFetchRecordZoneChangesOperation.ZoneConfiguration(previousServerChangeToken: previousToken)
+            let operation = CKFetchRecordZoneChangesOperation(recordZoneIDs: [zoneID], configurationsByRecordZoneID: [zoneID: configuration])
+            var changedRecords: [CKRecord] = []
+            var deletedRecordIDs: [CKRecord.ID] = []
+            var capturedToken: CKServerChangeToken?
+            var capturedMoreComing = false
+            var capturedError: Error?
+
+            operation.recordChangedBlock = { record in
+                changedRecords.append(record)
+            }
+
+            operation.recordWithIDWasDeletedBlock = { recordID, _ in
+                deletedRecordIDs.append(recordID)
+            }
+
+            operation.recordZoneFetchResultBlock = { _, token, _, moreComing, error in
+                if let error {
+                    capturedError = error
+                } else {
+                    capturedToken = token
+                    capturedMoreComing = moreComing
+                }
+            }
+
+            operation.fetchRecordZoneChangesResultBlock = { error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                if let capturedError {
+                    continuation.resume(throwing: capturedError)
+                    return
+                }
+
+                let result = ZoneChangeResult(records: changedRecords,
+                                              deletedRecordIDs: deletedRecordIDs,
+                                              newToken: capturedToken,
+                                              moreComing: capturedMoreComing)
+                continuation.resume(returning: result)
+            }
+
+            operation.qualityOfService = .userInitiated
+            database.add(operation)
+        }
+    }
+
+    // MARK: - Sharing
+
+    func createShare(for profile: Profile) async throws -> (root: CKRecord, share: CKShare) {
+        let zoneID = try await ensureZone(for: profile)
+        let profileRecordID = CloudKitSchema.profileRecordID(for: profile.resolvedProfileID, zoneID: zoneID)
+
+        var rootRecord: CKRecord
+        do {
+            rootRecord = try await privateCloudDatabase.record(for: profileRecordID)
+        } catch {
+            if let ckError = error as? CKError, ckError.code == .unknownItem {
+                rootRecord = await MainActor.run {
+                    bridge.makeProfileRecord(from: profile, in: zoneID)
+                }
+            } else {
+                throw error
+            }
+        }
+
+        if let existingShareReference = rootRecord.share {
+            do {
+                let shareRecord = try await privateCloudDatabase.record(for: existingShareReference.recordID)
+                if let share = shareRecord as? CKShare {
+                    return (rootRecord, share)
+                }
+            } catch {
+                logger.error("Failed to fetch existing share: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+
+        let share = CKShare(rootRecord: rootRecord)
+        share.publicPermission = .none
+        share[CKShare.SystemFieldKey.title] = profile.name as CKRecordValue?
+        share[CKShare.SystemFieldKey.shareType] = "com.prioritybit.nannyandme.profile" as CKRecordValue
+
+        let actions = profile.actions
+        let actionRecords = await MainActor.run {
+            actions.map { action in
+                bridge.makeActionRecord(from: action, zoneID: zoneID, profileRecordID: profileRecordID)
+            }
+        }
+
+        let (savedRecords, _) = try await privateCloudDatabase.modifyRecords(saving: [rootRecord, share] + actionRecords,
+                                                                             deleting: [])
+        let savedRoot = savedRecords.compactMap { $0 as? CKRecord }.first(where: { $0.recordID == rootRecord.recordID }) ?? rootRecord
+        guard let savedShare = savedRecords.compactMap({ $0 as? CKShare }).first else {
+            throw CKError(.internalError, userInfo: [NSLocalizedDescriptionKey: "Share did not persist"])
+        }
+        return (savedRoot, savedShare)
+    }
+
+    func updateShare(_ share: CKShare, participants: [CKShare.Participant]) async throws -> CKShare {
+        for existing in share.participants where existing != share.owner {
+            share.removeParticipant(existing)
+        }
+        for participant in participants {
+            share.addParticipant(participant)
+        }
+        share.publicPermission = .none
+        let (records, _) = try await privateCloudDatabase.modifyRecords(saving: [share], deleting: [])
+        guard let updated = records.compactMap({ $0 as? CKShare }).first else {
+            throw CKError(.internalError, userInfo: [NSLocalizedDescriptionKey: "Failed to update share participants"])
+        }
+        return updated
+    }
+
+    func acceptShare(metadata: CKShare.Metadata) async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            let operation = CKAcceptSharesOperation(shareMetadatas: [metadata])
+            var caughtError: Error?
+
+            operation.perShareResultBlock = { _, result in
+                if case let .failure(error) = result {
+                    caughtError = error
+                }
+            }
+
+            operation.acceptSharesResultBlock = { error in
+                if let error { continuation.resume(throwing: error) }
+                else if let caughtError { continuation.resume(throwing: caughtError) }
+                else { continuation.resume(returning: ()) }
+            }
+
+            operation.qualityOfService = .userInitiated
+            container.add(operation)
+        }
+
+        await fetchZoneChanges(zoneID: metadata.rootRecordID.zoneID, scope: .shared)
+    }
+
+    func purgeLocalProfileData(profileID: UUID) async {
+        await MainActor.run {
+            bridge.deleteProfile(withID: profileID)
+        }
+    }
+
+    func fetchAllZones(scope: CKDatabase.Scope) async throws -> [CKRecordZone] {
+        let database = database(for: scope)
+        return try await withCheckedThrowingContinuation { continuation in
+            let operation = CKFetchRecordZonesOperation(fetchAllRecordZones: true)
+            operation.fetchRecordZonesResultBlock = { result in
+                switch result {
+                case .success(let zones):
+                    continuation.resume(returning: Array(zones.values))
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+            operation.qualityOfService = .userInitiated
+            database.add(operation)
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func database(for scope: CKDatabase.Scope) -> CKDatabase {
+        switch scope {
+        case .private:
+            return privateCloudDatabase
+        case .shared:
+            return sharedCloudDatabase
+        case .public:
+            return container.publicCloudDatabase
+        @unknown default:
+            return privateCloudDatabase
+        }
+    }
+}
+
+private struct DatabaseChangeResult {
+    var changedZoneIDs: [CKRecordZone.ID]
+    var deletedZoneIDs: [CKRecordZone.ID]
+    var newToken: CKServerChangeToken?
+    var moreComing: Bool
+}
+
+private struct ZoneChangeResult {
+    var records: [CKRecord]
+    var deletedRecordIDs: [CKRecord.ID]
+    var newToken: CKServerChangeToken?
+    var moreComing: Bool
+}
+
+private actor CloudKitTokenStore {
+    private let userDefaults: UserDefaults
+    private let databaseKeyPrefix = "com.prioritybit.nannyandme.token.database."
+    private let zoneKeyPrefix = "com.prioritybit.nannyandme.token.zone."
+
+    init(userDefaults: UserDefaults) {
+        self.userDefaults = userDefaults
+    }
+
+    func databaseToken(for scope: CKDatabase.Scope) async -> CKServerChangeToken? {
+        guard let data = userDefaults.data(forKey: databaseKey(for: scope)) else { return nil }
+        return try? NSKeyedUnarchiver.unarchivedObject(ofClass: CKServerChangeToken.self, from: data)
+    }
+
+    func setDatabaseToken(_ token: CKServerChangeToken?, scope: CKDatabase.Scope) async {
+        let key = databaseKey(for: scope)
+        if let token {
+            if let data = try? NSKeyedArchiver.archivedData(withRootObject: token, requiringSecureCoding: true) {
+                userDefaults.set(data, forKey: key)
+            }
+        } else {
+            userDefaults.removeObject(forKey: key)
+        }
+    }
+
+    func zoneToken(for zoneID: CKRecordZone.ID) async -> CKServerChangeToken? {
+        guard let data = userDefaults.data(forKey: zoneKey(for: zoneID)) else { return nil }
+        return try? NSKeyedUnarchiver.unarchivedObject(ofClass: CKServerChangeToken.self, from: data)
+    }
+
+    func setZoneToken(_ token: CKServerChangeToken, for zoneID: CKRecordZone.ID) async {
+        if let data = try? NSKeyedArchiver.archivedData(withRootObject: token, requiringSecureCoding: true) {
+            userDefaults.set(data, forKey: zoneKey(for: zoneID))
+        }
+    }
+
+    func removeZoneToken(for zoneID: CKRecordZone.ID) async {
+        userDefaults.removeObject(forKey: zoneKey(for: zoneID))
+    }
+
+    private func databaseKey(for scope: CKDatabase.Scope) -> String {
+        databaseKeyPrefix + String(scope.rawValue)
+    }
+
+    private func zoneKey(for zoneID: CKRecordZone.ID) -> String {
+        zoneKeyPrefix + zoneID.zoneName
+    }
+}
