@@ -391,10 +391,18 @@ final class CloudKitManager {
                 }
             }
 
-            operation.acceptSharesResultBlock = { error in
-                if let error { continuation.resume(throwing: error) }
-                else if let caughtError { continuation.resume(throwing: caughtError) }
-                else { continuation.resume(returning: ()) }
+            operation.acceptSharesResultBlock = { result in
+                if let caughtError {
+                    continuation.resume(throwing: caughtError)
+                    return
+                }
+
+                switch result {
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                case .success:
+                    continuation.resume(returning: ())
+                }
             }
 
             operation.qualityOfService = .userInitiated
