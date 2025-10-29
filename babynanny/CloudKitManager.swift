@@ -381,7 +381,7 @@ final class CloudKitManager {
     }
 
     func acceptShare(metadata: CKShare.Metadata) async throws {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let operation = CKAcceptSharesOperation(shareMetadatas: [metadata])
             var caughtError: Error?
 
