@@ -146,10 +146,7 @@ final class SharingCoordinator: NSObject, ObservableObject {
     }
 
     func registerAcceptedShare(metadata: CKShare.Metadata) {
-        guard let shareRecord = metadata.share else {
-            logger.error("Received share metadata without share record")
-            return
-        }
+        let shareRecord = metadata.share
 
         let rootRecordID = metadata.rootRecord?.recordID
         let zoneID = shareRecord.recordID.zoneID
