@@ -383,25 +383,21 @@ final class CloudKitManager {
     func acceptShare(metadata: CKShare.Metadata) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let operation = CKAcceptSharesOperation(shareMetadatas: [metadata])
-            var caughtError: Error?
+            let gate = ContinuationGate()
 
             operation.perShareResultBlock = { _, result in
-                if case let .failure(error) = result {
-                    caughtError = error
-                }
+                guard case let .failure(error) = result else { return }
+                Task { await gate.resume(.failure(error), continuation: continuation) }
             }
 
             operation.acceptSharesResultBlock = { result in
-                if let caughtError {
-                    continuation.resume(throwing: caughtError)
-                    return
-                }
-
-                switch result {
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                case .success:
-                    continuation.resume(returning: ())
+                Task {
+                    switch result {
+                    case .failure(let error):
+                        await gate.resume(.failure(error), continuation: continuation)
+                    case .success:
+                        await gate.resume(.success(()), continuation: continuation)
+                    }
                 }
             }
 
@@ -451,6 +447,21 @@ final class CloudKitManager {
             return container.publicCloudDatabase
         @unknown default:
             return privateCloudDatabase
+        }
+    }
+}
+
+private actor ContinuationGate {
+    private var hasResumed = false
+
+    func resume(_ result: Result<Void, Error>, continuation: CheckedContinuation<Void, Error>) {
+        guard !hasResumed else { return }
+        hasResumed = true
+        switch result {
+        case .success:
+            continuation.resume(returning: ())
+        case .failure(let error):
+            continuation.resume(throwing: error)
         }
     }
 }
