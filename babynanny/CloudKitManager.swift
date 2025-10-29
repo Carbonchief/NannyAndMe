@@ -415,9 +415,7 @@ final class CloudKitManager {
     }
 
     func purgeLocalProfileData(profileID: UUID) async {
-        await MainActor.run {
-            bridge.deleteProfile(withID: profileID)
-        }
+        await bridge.deleteProfile(withID: profileID)
     }
 
     func fetchAllZones(scope: CKDatabase.Scope) async throws -> [CKRecordZone] {
