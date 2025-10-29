@@ -3,6 +3,7 @@ import Foundation
 import os
 
 /// Centralizes CloudKit zone management, sharing, and incremental syncing.
+@MainActor
 final class CloudKitManager {
     let container: CKContainer
     let privateCloudDatabase: CKDatabase
