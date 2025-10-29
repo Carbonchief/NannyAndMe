@@ -417,8 +417,7 @@ final class CloudKitManager {
     func fetchAllZones(scope: CKDatabase.Scope) async throws -> [CKRecordZone] {
         let database = database(for: scope)
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[CKRecordZone], Error>) in
-            let operation = CKFetchRecordZonesOperation()
-            operation.fetchAllRecordZones = true
+            let operation = CKFetchRecordZonesOperation(recordZoneIDs: nil)
             operation.fetchRecordZonesResultBlock = { result in
                 switch result {
                 case .success(let zones):
