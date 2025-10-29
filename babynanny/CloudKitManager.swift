@@ -28,13 +28,10 @@ final class CloudKitManager {
         let zoneID = CloudKitSchema.zoneID(for: profile.resolvedProfileID)
         let zone = CKRecordZone(zoneID: zoneID)
         do {
-            _ = try await privateCloudDatabase.save(zone)
+            _ = try await privateCloudDatabase.modifyRecordZones(saving: [zone], deleting: [])
         } catch {
-            if let ckError = error as? CKError, ckError.code == .zoneAlreadyExists {
-                logger.debug("Zone already exists for profile \(profile.resolvedProfileID.uuidString, privacy: .public)")
-            } else {
-                throw error
-            }
+            logger.error("Failed to ensure zone for profile \(profile.resolvedProfileID.uuidString): \(error.localizedDescription)")
+            throw error
         }
         return zoneID
     }
@@ -139,7 +136,12 @@ final class CloudKitManager {
         var changedZoneIDs: Set<CKRecordZone.ID> = []
         var deletedZoneIDs: [CKRecordZone.ID] = []
 
-        var previousToken = token ?? await tokenStore.databaseToken(for: scope)
+        var previousToken: CKServerChangeToken?
+        if let token {
+            previousToken = token
+        } else {
+            previousToken = await tokenStore.databaseToken(for: scope)
+        }
         var moreComing = true
 
         while moreComing {
@@ -210,7 +212,7 @@ final class CloudKitManager {
     private func fetchDatabaseChanges(database: CKDatabase,
                                       scope: CKDatabase.Scope,
                                       previousToken: CKServerChangeToken?) async throws -> DatabaseChangeResult {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<DatabaseChangeResult, Error>) in
             let operation = CKFetchDatabaseChangesOperation(previousServerChangeToken: previousToken)
             var changedZoneIDs: [CKRecordZone.ID] = []
             var deletedZoneIDs: [CKRecordZone.ID] = []
@@ -227,18 +229,17 @@ final class CloudKitManager {
                 Task { await self.tokenStore.setDatabaseToken(token, scope: scope) }
             }
 
-            operation.fetchDatabaseChangesResultBlock = { newToken, moreComing, error in
-                if let error {
+            operation.fetchDatabaseChangesResultBlock = { result in
+                switch result {
+                case .failure(let error):
                     continuation.resume(throwing: error)
-                } else {
-                    if let newToken {
-                        Task { await self.tokenStore.setDatabaseToken(newToken, scope: scope) }
-                    }
-                    let result = DatabaseChangeResult(changedZoneIDs: changedZoneIDs,
-                                                      deletedZoneIDs: deletedZoneIDs,
-                                                      newToken: newToken,
-                                                      moreComing: moreComing)
-                    continuation.resume(returning: result)
+                case .success(let context):
+                    Task { await self.tokenStore.setDatabaseToken(context.serverChangeToken, scope: scope) }
+                    let databaseResult = DatabaseChangeResult(changedZoneIDs: changedZoneIDs,
+                                                              deletedZoneIDs: deletedZoneIDs,
+                                                              newToken: context.serverChangeToken,
+                                                              moreComing: context.moreComing)
+                    continuation.resume(returning: databaseResult)
                 }
             }
 
@@ -250,7 +251,7 @@ final class CloudKitManager {
     private func fetchZoneChanges(database: CKDatabase,
                                   zoneID: CKRecordZone.ID,
                                   previousToken: CKServerChangeToken?) async throws -> ZoneChangeResult {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ZoneChangeResult, Error>) in
             let configuration = CKFetchRecordZoneChangesOperation.ZoneConfiguration(previousServerChangeToken: previousToken)
             let operation = CKFetchRecordZoneChangesOperation(recordZoneIDs: [zoneID], configurationsByRecordZoneID: [zoneID: configuration])
             var changedRecords: [CKRecord] = []
@@ -267,31 +268,32 @@ final class CloudKitManager {
                 deletedRecordIDs.append(recordID)
             }
 
-            operation.recordZoneFetchResultBlock = { _, token, _, moreComing, error in
-                if let error {
+            operation.recordZoneFetchResultBlock = { _, result in
+                switch result {
+                case .failure(let error):
                     capturedError = error
-                } else {
-                    capturedToken = token
-                    capturedMoreComing = moreComing
+                case .success(let context):
+                    capturedToken = context.serverChangeToken
+                    capturedMoreComing = context.moreComing
                 }
             }
 
-            operation.fetchRecordZoneChangesResultBlock = { error in
-                if let error {
+            operation.fetchRecordZoneChangesResultBlock = { result in
+                switch result {
+                case .failure(let error):
                     continuation.resume(throwing: error)
-                    return
-                }
+                case .success:
+                    if let capturedError {
+                        continuation.resume(throwing: capturedError)
+                        return
+                    }
 
-                if let capturedError {
-                    continuation.resume(throwing: capturedError)
-                    return
+                    let zoneResult = ZoneChangeResult(records: changedRecords,
+                                                       deletedRecordIDs: deletedRecordIDs,
+                                                       newToken: capturedToken,
+                                                       moreComing: capturedMoreComing)
+                    continuation.resume(returning: zoneResult)
                 }
-
-                let result = ZoneChangeResult(records: changedRecords,
-                                              deletedRecordIDs: deletedRecordIDs,
-                                              newToken: capturedToken,
-                                              moreComing: capturedMoreComing)
-                continuation.resume(returning: result)
             }
 
             operation.qualityOfService = .userInitiated
@@ -341,10 +343,17 @@ final class CloudKitManager {
             }
         }
 
-        let (savedRecords, _) = try await privateCloudDatabase.modifyRecords(saving: [rootRecord, share] + actionRecords,
-                                                                             deleting: [])
-        let savedRoot = savedRecords.compactMap { $0 as? CKRecord }.first(where: { $0.recordID == rootRecord.recordID }) ?? rootRecord
-        guard let savedShare = savedRecords.compactMap({ $0 as? CKShare }).first else {
+        let modificationResult = try await privateCloudDatabase.modifyRecords(saving: [rootRecord, share] + actionRecords,
+                                                                              deleting: [])
+        let savedRoot: CKRecord
+        if case let .success(record)? = modificationResult.saveResults[rootRecord.recordID] {
+            savedRoot = record
+        } else {
+            savedRoot = rootRecord
+        }
+
+        guard case let .success(shareRecord)? = modificationResult.saveResults[share.recordID],
+              let savedShare = shareRecord as? CKShare else {
             throw CKError(.internalError, userInfo: [NSLocalizedDescriptionKey: "Share did not persist"])
         }
         return (savedRoot, savedShare)
@@ -358,11 +367,12 @@ final class CloudKitManager {
             share.addParticipant(participant)
         }
         share.publicPermission = .none
-        let (records, _) = try await privateCloudDatabase.modifyRecords(saving: [share], deleting: [])
-        guard let updated = records.compactMap({ $0 as? CKShare }).first else {
+        let modificationResult = try await privateCloudDatabase.modifyRecords(saving: [share], deleting: [])
+        guard case let .success(shareRecord)? = modificationResult.saveResults[share.recordID],
+              let updatedShare = shareRecord as? CKShare else {
             throw CKError(.internalError, userInfo: [NSLocalizedDescriptionKey: "Failed to update share participants"])
         }
-        return updated
+        return updatedShare
     }
 
     func acceptShare(metadata: CKShare.Metadata) async throws {
@@ -386,7 +396,11 @@ final class CloudKitManager {
             container.add(operation)
         }
 
-        await fetchZoneChanges(zoneID: metadata.rootRecordID.zoneID, scope: .shared)
+        guard let zoneID = metadata.share?.recordID.zoneID ?? metadata.rootRecord?.recordID.zoneID else {
+            logger.error("Unable to resolve zone ID from accepted share metadata")
+            return
+        }
+        await fetchZoneChanges(zoneID: zoneID, scope: .shared)
     }
 
     func purgeLocalProfileData(profileID: UUID) async {
@@ -397,8 +411,9 @@ final class CloudKitManager {
 
     func fetchAllZones(scope: CKDatabase.Scope) async throws -> [CKRecordZone] {
         let database = database(for: scope)
-        return try await withCheckedThrowingContinuation { continuation in
-            let operation = CKFetchRecordZonesOperation(fetchAllRecordZones: true)
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[CKRecordZone], Error>) in
+            let operation = CKFetchRecordZonesOperation()
+            operation.fetchAllRecordZones = true
             operation.fetchRecordZonesResultBlock = { result in
                 switch result {
                 case .success(let zones):

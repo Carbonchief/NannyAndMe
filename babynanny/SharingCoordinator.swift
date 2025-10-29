@@ -142,18 +142,26 @@ final class SharingCoordinator: NSObject, ObservableObject {
     }
 
     func registerAcceptedShare(metadata: CKShare.Metadata) {
-        guard let profileID = CloudKitSchema.profileID(from: metadata.rootRecordID) ?? CloudKitSchema.profileID(from: metadata.rootRecordID.zoneID) else {
+        guard let shareRecord = metadata.share else {
+            logger.error("Received share metadata without share record")
+            return
+        }
+
+        let rootRecordID = metadata.rootRecord?.recordID
+        let zoneID = shareRecord.recordID.zoneID
+
+        guard let profileID = rootRecordID.flatMap(CloudKitSchema.profileID(from:)) ?? CloudKitSchema.profileID(from: zoneID) else {
             logger.error("Received share metadata without resolvable profile ID")
             return
         }
 
         let existingActions = fetchProfileModel(id: profileID)?.actions ?? []
         let context = ShareContext(id: profileID,
-                                   zoneID: metadata.rootRecordID.zoneID,
-                                   shareRecordID: metadata.share.recordID,
-                                   share: metadata.share,
+                                   zoneID: zoneID,
+                                   shareRecordID: shareRecord.recordID,
+                                   share: shareRecord,
                                    isOwner: metadata.participantRole == .owner,
-                                   lastKnownTitle: metadata.share[CKShare.SystemFieldKey.title] as? String,
+                                   lastKnownTitle: shareRecord[CKShare.SystemFieldKey.title] as? String,
                                    lastSyncedActionIDs: Set(existingActions.map { $0.id }))
         shareContexts[profileID] = context
     }
