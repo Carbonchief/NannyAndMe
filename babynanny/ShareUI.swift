@@ -191,6 +191,8 @@ private struct ParticipantRow: View {
 
         let permission: String
         switch participant.permission {
+        case .none:
+            permission = L10n.ShareUI.unknownPermission
         case .readOnly:
             permission = L10n.ShareUI.readOnlyPermission
         case .readWrite:
