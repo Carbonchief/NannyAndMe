@@ -124,7 +124,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     var cloudKitManager: CloudKitManager?
     var sharingCoordinator: SharingCoordinator?
     var pushHandling: PushHandling?
-    fileprivate let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "appdelegate")
+    let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "appdelegate")
 
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
