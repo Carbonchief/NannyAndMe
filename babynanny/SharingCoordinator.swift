@@ -25,9 +25,13 @@ final class SharingCoordinator: NSObject, ObservableObject {
         }
     }
 
-    struct SharingError: Identifiable {
+    struct SharingError: Identifiable, Equatable {
         let id = UUID()
         let message: String
+
+        static func == (lhs: SharingError, rhs: SharingError) -> Bool {
+            lhs.id == rhs.id
+        }
     }
 
     @Published private(set) var shareContexts: [UUID: ShareContext] = [:]

@@ -67,23 +67,17 @@ struct ShareProfileSection: View {
         .disabled(isProcessingShare)
     }
 
-    @ViewBuilder
     private var shareStatus: some View {
-        if let context = sharingCoordinator.shareContext(for: profileID) {
-            let stateText: String
-            if context.isOwner {
-                stateText = L10n.ShareUI.ownerStatus
-            } else {
-                stateText = L10n.ShareUI.participantStatus
-            }
-            Text(stateText)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        } else {
-            Text(L10n.ShareUI.notSharedDescription)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        Text(shareStatusText)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+    }
+
+    private var shareStatusText: String {
+        guard let context = sharingCoordinator.shareContext(for: profileID) else {
+            return L10n.ShareUI.notSharedDescription
         }
+        return context.isOwner ? L10n.ShareUI.ownerStatus : L10n.ShareUI.participantStatus
     }
 
     @ViewBuilder
