@@ -8,11 +8,8 @@ extension AppDelegate {
             do {
                 try await cloudKitManager.acceptShare(metadata: metadata)
                 sharingCoordinator?.registerAcceptedShare(metadata: metadata)
-                if let zoneName = metadata.share?.recordID.zoneID.zoneName {
-                    logger.debug("Accepted CloudKit share for zone \(zoneName)")
-                } else {
-                    logger.debug("Accepted CloudKit share")
-                }
+                let zoneName = metadata.share.recordID.zoneID.zoneName
+                logger.debug("Accepted CloudKit share for zone \(zoneName)")
             } catch {
                 logger.error("Failed to accept CloudKit share: \(error.localizedDescription)")
             }
