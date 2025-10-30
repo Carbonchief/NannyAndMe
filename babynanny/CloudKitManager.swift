@@ -244,7 +244,7 @@ final class CloudKitManager {
                 }
             }
 
-            operation.fetchDatabaseChangesCompletionBlock = { [weak self] newToken, moreComing, error in
+            operation.fetchDatabaseChangesResultBlock = { [weak self] result in
                 Task { @MainActor in
                     guard let self else {
                         continuation.resume(throwing: CancellationError())
@@ -253,17 +253,17 @@ final class CloudKitManager {
 
                     await Task.yield()
 
-                    if let error {
+                    switch result {
+                    case .failure(let error):
                         continuation.resume(throwing: error)
-                        return
+                    case .success(let context):
+                        await self.tokenStore.setDatabaseToken(context.serverChangeToken, scope: scope)
+                        let changeResult = DatabaseChangeResult(changedZoneIDs: changedZoneIDs,
+                                                                deletedZoneIDs: deletedZoneIDs,
+                                                                newToken: context.serverChangeToken,
+                                                                moreComing: context.moreComing)
+                        continuation.resume(returning: changeResult)
                     }
-
-                    await self.tokenStore.setDatabaseToken(newToken, scope: scope)
-                    let result = DatabaseChangeResult(changedZoneIDs: changedZoneIDs,
-                                                       deletedZoneIDs: deletedZoneIDs,
-                                                       newToken: newToken,
-                                                       moreComing: moreComing)
-                    continuation.resume(returning: result)
                 }
             }
 
