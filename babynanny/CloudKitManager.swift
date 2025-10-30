@@ -238,28 +238,28 @@ final class CloudKitManager {
             let operation = CKFetchDatabaseChangesOperation(previousServerChangeToken: previousToken)
 
             operation.recordZoneWithIDChangedBlock = { [weak self] zoneID in
-                Task { [weak self] in
+                Task { @MainActor [weak self] in
                     guard let self else { return }
-                    await self.noteDatabaseZoneChange(zoneID, accumulator: accumulator)
+                    self.noteDatabaseZoneChange(zoneID, accumulator: accumulator)
                 }
             }
 
             operation.recordZoneWithIDWasDeletedBlock = { [weak self] zoneID in
-                Task { [weak self] in
+                Task { @MainActor [weak self] in
                     guard let self else { return }
-                    await self.noteDatabaseZoneDeletion(zoneID, accumulator: accumulator)
+                    self.noteDatabaseZoneDeletion(zoneID, accumulator: accumulator)
                 }
             }
 
             operation.changeTokenUpdatedBlock = { [weak self] token in
-                Task { [weak self] in
+                Task { @MainActor [weak self] in
                     guard let self else { return }
                     await self.persistDatabaseChangeToken(token, scope: scope)
                 }
             }
 
             operation.fetchDatabaseChangesResultBlock = { [weak self] result in
-                Task { [weak self] in
+                Task { @MainActor [weak self] in
                     guard let self else {
                         continuation.resume(throwing: CancellationError())
                         return
@@ -286,30 +286,30 @@ final class CloudKitManager {
                                                               configurationsByRecordZoneID: [zoneID: configuration])
 
             operation.recordWasChangedBlock = { [weak self] recordID, result in
-                Task { [weak self] in
+                Task { @MainActor [weak self] in
                     guard let self else { return }
-                    await self.handleZoneRecordChange(recordID: recordID,
-                                                       result: result,
-                                                       accumulator: accumulator)
+                    self.handleZoneRecordChange(recordID: recordID,
+                                                result: result,
+                                                accumulator: accumulator)
                 }
             }
 
             operation.recordWithIDWasDeletedBlock = { [weak self] recordID, _ in
-                Task { [weak self] in
+                Task { @MainActor [weak self] in
                     guard let self else { return }
-                    await self.noteZoneRecordDeletion(recordID: recordID, accumulator: accumulator)
+                    self.noteZoneRecordDeletion(recordID: recordID, accumulator: accumulator)
                 }
             }
 
             operation.recordZoneFetchResultBlock = { [weak self] _, result in
-                Task { [weak self] in
+                Task { @MainActor [weak self] in
                     guard let self else { return }
-                    await self.handleZoneFetchResult(result, accumulator: accumulator)
+                    self.handleZoneFetchResult(result, accumulator: accumulator)
                 }
             }
 
             operation.fetchRecordZoneChangesResultBlock = { [weak self] result in
-                Task { [weak self] in
+                Task { @MainActor [weak self] in
                     guard let self else {
                         continuation.resume(throwing: CancellationError())
                         return
@@ -342,7 +342,7 @@ final class CloudKitManager {
         await tokenStore.setDatabaseToken(token, scope: scope)
     }
 
-    private func finishDatabaseChangeFetch(result: Result<CKFetchDatabaseChangesOperation.Context, Error>,
+    private func finishDatabaseChangeFetch(result: Result<CKFetchDatabaseChangesOperation.Result, Error>,
                                            accumulator: DatabaseChangeAccumulator,
                                            scope: CKDatabase.Scope,
                                            continuation: CheckedContinuation<DatabaseChangeResult, Error>) async {
@@ -351,12 +351,12 @@ final class CloudKitManager {
         switch result {
         case .failure(let error):
             continuation.resume(throwing: error)
-        case .success(let context):
-            await tokenStore.setDatabaseToken(context.serverChangeToken, scope: scope)
+        case .success(let fetchResult):
+            await tokenStore.setDatabaseToken(fetchResult.serverChangeToken, scope: scope)
             let changeResult = DatabaseChangeResult(changedZoneIDs: accumulator.changedZoneIDs,
                                                     deletedZoneIDs: accumulator.deletedZoneIDs,
-                                                    newToken: context.serverChangeToken,
-                                                    moreComing: context.moreComing)
+                                                    newToken: fetchResult.serverChangeToken,
+                                                    moreComing: fetchResult.moreComing)
             continuation.resume(returning: changeResult)
         }
     }
@@ -377,7 +377,7 @@ final class CloudKitManager {
         accumulator.deletedRecordIDs.append(recordID)
     }
 
-    private func handleZoneFetchResult(_ result: Result<CKFetchRecordZoneChangesOperation.ZoneResult, Error>,
+    private func handleZoneFetchResult(_ result: Result<CKFetchRecordZoneChangesOperation.ZoneFetchResult, Error>,
                                        accumulator: ZoneChangeAccumulator) {
         switch result {
         case .failure(let error):
