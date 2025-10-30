@@ -219,7 +219,7 @@ final class CloudKitManager {
                                       scope: CKDatabase.Scope,
                                       previousToken: CKServerChangeToken?) async throws -> DatabaseChangeResult {
         let tokenStore = tokenStore
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<DatabaseChangeResult, Error>) in
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<DatabaseChangeResult, Error>) in
             let operation = CKFetchDatabaseChangesOperation(previousServerChangeToken: previousToken)
             var changedZoneIDs: [CKRecordZone.ID] = []
             var deletedZoneIDs: [CKRecordZone.ID] = []
