@@ -388,6 +388,19 @@ final class CloudKitManager {
         accumulator.deletedRecordIDs.append(recordID)
     }
 
+    @MainActor
+    private func handleShareAcceptanceFailure(_ error: Error,
+                                              gate: ContinuationGate,
+                                              continuation: CheckedContinuation<Void, Error>) async {
+        await gate.resume(.failure(error), continuation: continuation)
+    }
+
+    @MainActor
+    private func handleShareAcceptanceSuccess(gate: ContinuationGate,
+                                              continuation: CheckedContinuation<Void, Error>) async {
+        await gate.resume(.success(()), continuation: continuation)
+    }
+
     // MARK: - Sharing
 
     func createShare(for profile: Profile) async throws -> (root: CKRecord, share: CKShare) {
@@ -467,18 +480,28 @@ final class CloudKitManager {
             let operation = CKAcceptSharesOperation(shareMetadatas: [metadata])
             let gate = ContinuationGate()
 
-            operation.perShareResultBlock = { _, result in
-                guard case let .failure(error) = result else { return }
-                Task { await gate.resume(.failure(error), continuation: continuation) }
+            operation.perShareResultBlock = { [weak self] _, result in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    if case let .failure(error) = result {
+                        await self.handleShareAcceptanceFailure(error,
+                                                                gate: gate,
+                                                                continuation: continuation)
+                    }
+                }
             }
 
-            operation.acceptSharesResultBlock = { result in
-                Task {
+            operation.acceptSharesResultBlock = { [weak self] result in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
                     switch result {
                     case .failure(let error):
-                        await gate.resume(.failure(error), continuation: continuation)
+                        await self.handleShareAcceptanceFailure(error,
+                                                                gate: gate,
+                                                                continuation: continuation)
                     case .success:
-                        await gate.resume(.success(()), continuation: continuation)
+                        await self.handleShareAcceptanceSuccess(gate: gate,
+                                                                 continuation: continuation)
                     }
                 }
             }
