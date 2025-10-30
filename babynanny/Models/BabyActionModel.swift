@@ -431,8 +431,7 @@ struct ProfileActionReminderOverride: Codable, Equatable, Sendable {
 
 @Model
 final class ProfileReminderPreference {
-    @Attribute(.rawRepresentable)
-    var category: BabyActionCategory = .sleep
+    var categoryRawValue: String = BabyActionCategory.sleep.rawValue
     var interval: TimeInterval = 3 * 60 * 60
     var isEnabled: Bool = true
     var overrideFireDate: Date?
@@ -445,12 +444,17 @@ final class ProfileReminderPreference {
          isEnabled: Bool = true,
          override: ProfileActionReminderOverride? = nil,
          profile: Profile? = nil) {
-        self.category = category
+        self.categoryRawValue = category.rawValue
         self.interval = max(0, interval)
         self.isEnabled = isEnabled
         self.overrideFireDate = override?.fireDate
         self.overrideIsOneOff = override?.isOneOff ?? false
         self.profile = profile
+    }
+
+    var category: BabyActionCategory {
+        get { BabyActionCategory(rawValue: categoryRawValue) ?? .sleep }
+        set { categoryRawValue = newValue.rawValue }
     }
 
     var override: ProfileActionReminderOverride? {
