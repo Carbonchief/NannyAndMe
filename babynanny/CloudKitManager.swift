@@ -6,6 +6,54 @@ private struct SendableUserDefaultsBox: @unchecked Sendable {
     let value: UserDefaults
 }
 
+private final class WeakCloudKitManagerBox: @unchecked Sendable {
+    weak var value: CloudKitManager?
+
+    init(value: CloudKitManager) {
+        self.value = value
+    }
+}
+
+@MainActor
+private final class DatabaseChangeAccumulator {
+    private(set) var changedZoneIDs: [CKRecordZone.ID] = []
+    private(set) var deletedZoneIDs: [CKRecordZone.ID] = []
+
+    func recordZoneChange(_ zoneID: CKRecordZone.ID) {
+        changedZoneIDs.append(zoneID)
+    }
+
+    func recordZoneDeletion(_ zoneID: CKRecordZone.ID) {
+        deletedZoneIDs.append(zoneID)
+    }
+}
+
+@MainActor
+private final class ZoneChangeAccumulator {
+    private(set) var changedRecords: [CKRecord] = []
+    private(set) var deletedRecordIDs: [CKRecord.ID] = []
+    private(set) var fetchedToken: CKServerChangeToken?
+    private(set) var fetchedMoreComing = false
+    private(set) var recordedError: Error?
+
+    func recordChangedRecord(_ record: CKRecord) {
+        changedRecords.append(record)
+    }
+
+    func recordDeletedRecordID(_ recordID: CKRecord.ID) {
+        deletedRecordIDs.append(recordID)
+    }
+
+    func recordZoneSummary(serverChangeToken: CKServerChangeToken?, moreComing: Bool) {
+        fetchedToken = serverChangeToken
+        fetchedMoreComing = moreComing
+    }
+
+    func recordError(_ error: Error) {
+        recordedError = error
+    }
+}
+
 /// Centralizes CloudKit zone management, sharing, and incremental syncing.
 @MainActor
 final class CloudKitManager {
@@ -16,6 +64,7 @@ final class CloudKitManager {
     private let bridge: SwiftDataBridge
     private let tokenStore: CloudKitTokenStore
     private let logger = Logger(subsystem: "com.prioritybit.nannyandme", category: "cloudkit")
+    private var currentDatabaseTokens: [CKDatabase.Scope: CKServerChangeToken?] = [:]
 
     init(containerIdentifier: String = "iCloud.com.prioritybit.nannyandme",
          bridge: SwiftDataBridge,
@@ -142,12 +191,14 @@ final class CloudKitManager {
         var changedZoneIDs: Set<CKRecordZone.ID> = []
         var deletedZoneIDs: [CKRecordZone.ID] = []
 
-        var previousToken: CKServerChangeToken?
+        let storedToken: CKServerChangeToken?
         if let token {
-            previousToken = token
+            storedToken = token
         } else {
-            previousToken = await tokenStore.databaseToken(for: scope)
+            storedToken = await tokenStore.databaseToken(for: scope)
         }
+        var previousToken = storedToken
+        let shouldBootstrapAllZones = storedToken == nil
         var moreComing = true
 
         while moreComing {
@@ -157,7 +208,7 @@ final class CloudKitManager {
                                                              previousToken: previousToken)
                 changedZoneIDs.formUnion(result.changedZoneIDs)
                 deletedZoneIDs.append(contentsOf: result.deletedZoneIDs)
-                previousToken = result.newToken
+                previousToken = result.serverChangeToken
                 moreComing = result.moreComing
             } catch {
                 logger.error("Database changes fetch failed: \(error.localizedDescription, privacy: .public)")
@@ -169,6 +220,22 @@ final class CloudKitManager {
             await tokenStore.removeZoneToken(for: zoneID)
             if let profileID = CloudKitSchema.profileID(from: zoneID) {
                 await MainActor.run { bridge.deleteProfile(withID: profileID) }
+            }
+        }
+
+        if shouldBootstrapAllZones && changedZoneIDs.isEmpty {
+            do {
+                let zones = try await fetchAllZones(scope: scope)
+                let deletedZoneIDSet = Set(deletedZoneIDs)
+                let bootstrapZoneIDs = zones
+                    .map(\.zoneID)
+                    .filter { CloudKitSchema.isProfileZone($0) && deletedZoneIDSet.contains($0) == false }
+                if bootstrapZoneIDs.isEmpty == false {
+                    changedZoneIDs.formUnion(bootstrapZoneIDs)
+                    logger.debug("Bootstrapping \(bootstrapZoneIDs.count, privacy: .public) CloudKit zones for scope \(scope.rawValue, privacy: .public)")
+                }
+            } catch {
+                logger.error("Failed to enumerate CloudKit zones for bootstrap: \(error.localizedDescription, privacy: .public)")
             }
         }
 
@@ -191,9 +258,9 @@ final class CloudKitManager {
                                                         previousToken: previousToken)
                 accumulatedRecords.append(contentsOf: result.records)
                 deletedRecordIDs.append(contentsOf: result.deletedRecordIDs)
-                previousToken = result.newToken
+                previousToken = result.serverChangeToken
                 moreComing = result.moreComing
-                if let token = result.newToken {
+                if let token = result.serverChangeToken {
                     await tokenStore.setZoneToken(token, for: zoneID)
                 }
             } catch {
@@ -218,36 +285,21 @@ final class CloudKitManager {
     private func fetchDatabaseChanges(database: CKDatabase,
                                       scope: CKDatabase.Scope,
                                       previousToken: CKServerChangeToken?) async throws -> DatabaseChangeResult {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<DatabaseChangeResult, Error>) in
+        let accumulator = DatabaseChangeAccumulator()
+        let weakManager = WeakCloudKitManagerBox(value: self)
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<DatabaseChangeResult, Error>) in
             let operation = CKFetchDatabaseChangesOperation(previousServerChangeToken: previousToken)
-            var changedZoneIDs: [CKRecordZone.ID] = []
-            var deletedZoneIDs: [CKRecordZone.ID] = []
 
-            operation.recordZoneWithIDChangedBlock = { zoneID in
-                changedZoneIDs.append(zoneID)
-            }
-
-            operation.recordZoneWithIDWasDeletedBlock = { zoneID in
-                deletedZoneIDs.append(zoneID)
-            }
-
-            operation.changeTokenUpdatedBlock = { token in
-                Task { await self.tokenStore.setDatabaseToken(token, scope: scope) }
-            }
-
-            operation.fetchDatabaseChangesResultBlock = { result in
-                switch result {
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                case .success(let context):
-                    Task { await self.tokenStore.setDatabaseToken(context.serverChangeToken, scope: scope) }
-                    let databaseResult = DatabaseChangeResult(changedZoneIDs: changedZoneIDs,
-                                                              deletedZoneIDs: deletedZoneIDs,
-                                                              newToken: context.serverChangeToken,
-                                                              moreComing: context.moreComing)
-                    continuation.resume(returning: databaseResult)
-                }
-            }
+            operation.recordZoneWithIDChangedBlock = makeDatabaseZoneChangedHandler(weakManager: weakManager,
+                                                                                    accumulator: accumulator)
+            operation.recordZoneWithIDWasDeletedBlock = makeDatabaseZoneDeletedHandler(weakManager: weakManager,
+                                                                                       accumulator: accumulator)
+            operation.changeTokenUpdatedBlock = makeDatabaseChangeTokenUpdateHandler(weakManager: weakManager,
+                                                                                     scope: scope)
+            operation.fetchDatabaseChangesResultBlock = makeDatabaseChangesCompletionHandler(weakManager: weakManager,
+                                                                                             scope: scope,
+                                                                                             accumulator: accumulator,
+                                                                                             continuation: continuation)
 
             operation.qualityOfService = .userInitiated
             database.add(operation)
@@ -257,59 +309,121 @@ final class CloudKitManager {
     private func fetchZoneChanges(database: CKDatabase,
                                   zoneID: CKRecordZone.ID,
                                   previousToken: CKServerChangeToken?) async throws -> ZoneChangeResult {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ZoneChangeResult, Error>) in
+        let accumulator = ZoneChangeAccumulator()
+        let weakManager = WeakCloudKitManagerBox(value: self)
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ZoneChangeResult, Error>) in
             let configuration = CKFetchRecordZoneChangesOperation.ZoneConfiguration(previousServerChangeToken: previousToken)
-            let operation = CKFetchRecordZoneChangesOperation(recordZoneIDs: [zoneID], configurationsByRecordZoneID: [zoneID: configuration])
-            var changedRecords: [CKRecord] = []
-            var deletedRecordIDs: [CKRecord.ID] = []
-            var capturedToken: CKServerChangeToken?
-            var capturedMoreComing = false
-            var capturedError: Error?
+            let operation = CKFetchRecordZoneChangesOperation(recordZoneIDs: [zoneID],
+                                                              configurationsByRecordZoneID: [zoneID: configuration])
 
-            operation.recordWasChangedBlock = { [logger] recordID, result in
-                switch result {
-                case .success(let record):
-                    changedRecords.append(record)
-                case .failure(let error):
-                    logger.error("Failed to fetch changed record \(recordID.recordName, privacy: .public): \(error.localizedDescription, privacy: .public)")
-                }
-            }
-
-            operation.recordWithIDWasDeletedBlock = { recordID, _ in
-                deletedRecordIDs.append(recordID)
-            }
-
-            operation.recordZoneFetchResultBlock = { _, result in
-                switch result {
-                case .failure(let error):
-                    capturedError = error
-                case .success(let context):
-                    capturedToken = context.serverChangeToken
-                    capturedMoreComing = context.moreComing
-                }
-            }
-
-            operation.fetchRecordZoneChangesResultBlock = { result in
-                switch result {
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                case .success:
-                    if let capturedError {
-                        continuation.resume(throwing: capturedError)
-                        return
-                    }
-
-                    let zoneResult = ZoneChangeResult(records: changedRecords,
-                                                       deletedRecordIDs: deletedRecordIDs,
-                                                       newToken: capturedToken,
-                                                       moreComing: capturedMoreComing)
-                    continuation.resume(returning: zoneResult)
-                }
-            }
+            operation.recordWasChangedBlock = makeZoneRecordChangedHandler(weakManager: weakManager,
+                                                                           accumulator: accumulator)
+            operation.recordWithIDWasDeletedBlock = makeZoneRecordDeletedHandler(weakManager: weakManager,
+                                                                                 accumulator: accumulator)
+            operation.recordZoneFetchResultBlock = makeZoneFetchResultHandler(weakManager: weakManager,
+                                                                              accumulator: accumulator)
+            operation.fetchRecordZoneChangesResultBlock = makeZoneChangesCompletionHandler(weakManager: weakManager,
+                                                                                           accumulator: accumulator,
+                                                                                           continuation: continuation)
 
             operation.qualityOfService = .userInitiated
             database.add(operation)
         }
+    }
+
+    // MARK: - CloudKit Callback Helpers
+
+    @MainActor
+    fileprivate func noteDatabaseZoneChange(_ zoneID: CKRecordZone.ID,
+                                            accumulator: DatabaseChangeAccumulator) {
+        accumulator.recordZoneChange(zoneID)
+    }
+
+    @MainActor
+    fileprivate func noteDatabaseZoneDeletion(_ zoneID: CKRecordZone.ID,
+                                              accumulator: DatabaseChangeAccumulator) {
+        accumulator.recordZoneDeletion(zoneID)
+    }
+
+    @MainActor
+    fileprivate func handleDatabaseChangeTokenUpdate(_ token: CKServerChangeToken?,
+                                                     scope: CKDatabase.Scope) async {
+        currentDatabaseTokens[scope] = token
+        await tokenStore.setDatabaseToken(token, scope: scope)
+    }
+
+    @MainActor
+    fileprivate func handleDatabaseChangesCompletion(newToken: CKServerChangeToken?,
+                                                     moreComing: Bool,
+                                                     error: Error?,
+                                                     scope: CKDatabase.Scope,
+                                                     accumulator: DatabaseChangeAccumulator,
+                                                     continuation: CheckedContinuation<DatabaseChangeResult, Error>) async {
+        if let error {
+            continuation.resume(throwing: error)
+            return
+        }
+
+        currentDatabaseTokens[scope] = newToken
+        await tokenStore.setDatabaseToken(newToken, scope: scope)
+
+        let result = DatabaseChangeResult(changedZoneIDs: accumulator.changedZoneIDs,
+                                          deletedZoneIDs: accumulator.deletedZoneIDs,
+                                          serverChangeToken: newToken,
+                                          moreComing: moreComing)
+        continuation.resume(returning: result)
+    }
+
+    @MainActor
+    fileprivate func handleZoneRecordChange(recordID: CKRecord.ID,
+                                            result: Result<CKRecord, Error>,
+                                            accumulator: ZoneChangeAccumulator) {
+        switch result {
+        case .success(let record):
+            accumulator.recordChangedRecord(record)
+        case .failure(let error):
+            logger.error("Failed to fetch changed record \(recordID.recordName, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    @MainActor
+    fileprivate func noteZoneRecordDeletion(recordID: CKRecord.ID,
+                                            accumulator: ZoneChangeAccumulator) {
+        accumulator.recordDeletedRecordID(recordID)
+    }
+
+    @MainActor
+    fileprivate func handleZoneFetchCompletion(result: Result<Void, Error>,
+                                               accumulator: ZoneChangeAccumulator,
+                                               continuation: CheckedContinuation<ZoneChangeResult, Error>) async {
+        switch result {
+        case .failure(let error):
+            continuation.resume(throwing: error)
+        case .success:
+            if let recordedError = accumulator.recordedError {
+                continuation.resume(throwing: recordedError)
+                return
+            }
+
+            let zoneResult = ZoneChangeResult(records: accumulator.changedRecords,
+                                              deletedRecordIDs: accumulator.deletedRecordIDs,
+                                              serverChangeToken: accumulator.fetchedToken,
+                                              moreComing: accumulator.fetchedMoreComing)
+            continuation.resume(returning: zoneResult)
+        }
+    }
+
+    @MainActor
+    fileprivate func handleShareAcceptanceFailure(_ error: Error,
+                                                  gate: ContinuationGate,
+                                                  continuation: CheckedContinuation<Void, Error>) async {
+        await gate.resume(.failure(error), continuation: continuation)
+    }
+
+    @MainActor
+    fileprivate func handleShareAcceptanceSuccess(gate: ContinuationGate,
+                                                  continuation: CheckedContinuation<Void, Error>) async {
+        await gate.resume(.success(()), continuation: continuation)
     }
 
     // MARK: - Sharing
@@ -390,22 +504,14 @@ final class CloudKitManager {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let operation = CKAcceptSharesOperation(shareMetadatas: [metadata])
             let gate = ContinuationGate()
+            let weakManager = WeakCloudKitManagerBox(value: self)
 
-            operation.perShareResultBlock = { _, result in
-                guard case let .failure(error) = result else { return }
-                Task { await gate.resume(.failure(error), continuation: continuation) }
-            }
-
-            operation.acceptSharesResultBlock = { result in
-                Task {
-                    switch result {
-                    case .failure(let error):
-                        await gate.resume(.failure(error), continuation: continuation)
-                    case .success:
-                        await gate.resume(.success(()), continuation: continuation)
-                    }
-                }
-            }
+            operation.perShareResultBlock = makeSharePerResultHandler(weakManager: weakManager,
+                                                                      gate: gate,
+                                                                      continuation: continuation)
+            operation.acceptSharesResultBlock = makeShareAcceptCompletionHandler(weakManager: weakManager,
+                                                                                 gate: gate,
+                                                                                 continuation: continuation)
 
             operation.qualityOfService = .userInitiated
             container.add(operation)
@@ -455,6 +561,170 @@ final class CloudKitManager {
     }
 }
 
+// MARK: - CloudKit Callback Factory Helpers
+
+private func makeDatabaseZoneChangedHandler(weakManager: WeakCloudKitManagerBox,
+                                            accumulator: DatabaseChangeAccumulator) -> (CKRecordZone.ID) -> Void {
+    { zoneID in
+        Task { @MainActor in
+            guard let manager = weakManager.value else { return }
+            manager.noteDatabaseZoneChange(zoneID, accumulator: accumulator)
+        }
+    }
+}
+
+private func makeDatabaseZoneDeletedHandler(weakManager: WeakCloudKitManagerBox,
+                                            accumulator: DatabaseChangeAccumulator) -> (CKRecordZone.ID) -> Void {
+    { zoneID in
+        Task { @MainActor in
+            guard let manager = weakManager.value else { return }
+            manager.noteDatabaseZoneDeletion(zoneID, accumulator: accumulator)
+        }
+    }
+}
+
+private func makeDatabaseChangeTokenUpdateHandler(weakManager: WeakCloudKitManagerBox,
+                                                  scope: CKDatabase.Scope) -> (CKServerChangeToken?) -> Void {
+    { token in
+        Task { @MainActor in
+            guard let manager = weakManager.value else { return }
+            await manager.handleDatabaseChangeTokenUpdate(token, scope: scope)
+        }
+    }
+}
+
+private func makeDatabaseChangesCompletionHandler(
+    weakManager: WeakCloudKitManagerBox,
+    scope: CKDatabase.Scope,
+    accumulator: DatabaseChangeAccumulator,
+    continuation: CheckedContinuation<DatabaseChangeResult, Error>
+) -> (Result<(serverChangeToken: CKServerChangeToken, moreComing: Bool), Error>) -> Void {
+    { result in
+        Task { @MainActor in
+            guard let manager = weakManager.value else {
+                continuation.resume(throwing: CancellationError())
+                return
+            }
+            switch result {
+            case .failure(let error):
+                await manager.handleDatabaseChangesCompletion(newToken: nil,
+                                                              moreComing: false,
+                                                              error: error,
+                                                              scope: scope,
+                                                              accumulator: accumulator,
+                                                              continuation: continuation)
+            case .success(let fetchResult):
+                await manager.handleDatabaseChangesCompletion(newToken: fetchResult.serverChangeToken,
+                                                              moreComing: fetchResult.moreComing,
+                                                              error: nil,
+                                                              scope: scope,
+                                                              accumulator: accumulator,
+                                                              continuation: continuation)
+            }
+        }
+    }
+}
+
+private func makeZoneRecordChangedHandler(
+    weakManager: WeakCloudKitManagerBox,
+    accumulator: ZoneChangeAccumulator
+) -> (CKRecord.ID, Result<CKRecord, Error>) -> Void {
+    { recordID, result in
+        Task { @MainActor in
+            guard let manager = weakManager.value else { return }
+            manager.handleZoneRecordChange(recordID: recordID,
+                                           result: result,
+                                           accumulator: accumulator)
+        }
+    }
+}
+
+private func makeZoneRecordDeletedHandler<T>(
+    weakManager: WeakCloudKitManagerBox,
+    accumulator: ZoneChangeAccumulator
+) -> (CKRecord.ID, T) -> Void {
+    { recordID, _ in
+        Task { @MainActor in
+            guard let manager = weakManager.value else { return }
+            manager.noteZoneRecordDeletion(recordID: recordID, accumulator: accumulator)
+        }
+    }
+}
+
+private func makeZoneFetchResultHandler(
+    weakManager: WeakCloudKitManagerBox,
+    accumulator: ZoneChangeAccumulator
+) -> (CKRecordZone.ID, Result<(serverChangeToken: CKServerChangeToken, clientChangeTokenData: Data?, moreComing: Bool), Error>) -> Void {
+    { _, result in
+        Task { @MainActor in
+            guard weakManager.value != nil else { return }
+            switch result {
+            case .failure(let error):
+                accumulator.recordError(error)
+            case .success(let context):
+                accumulator.recordZoneSummary(serverChangeToken: context.serverChangeToken,
+                                              moreComing: context.moreComing)
+            }
+        }
+    }
+}
+
+private func makeZoneChangesCompletionHandler(
+    weakManager: WeakCloudKitManagerBox,
+    accumulator: ZoneChangeAccumulator,
+    continuation: CheckedContinuation<ZoneChangeResult, Error>
+) -> (Result<Void, Error>) -> Void {
+    { result in
+        Task { @MainActor in
+            guard let manager = weakManager.value else {
+                continuation.resume(throwing: CancellationError())
+                return
+            }
+            await manager.handleZoneFetchCompletion(result: result,
+                                                    accumulator: accumulator,
+                                                    continuation: continuation)
+        }
+    }
+}
+
+private func makeSharePerResultHandler(
+    weakManager: WeakCloudKitManagerBox,
+    gate: ContinuationGate,
+    continuation: CheckedContinuation<Void, Error>
+) -> (CKShare.Metadata, Result<CKShare, Error>) -> Void {
+    { _, result in
+        Task { @MainActor in
+            guard let manager = weakManager.value else { return }
+            if case let .failure(error) = result {
+                await manager.handleShareAcceptanceFailure(error,
+                                                           gate: gate,
+                                                           continuation: continuation)
+            }
+        }
+    }
+}
+
+private func makeShareAcceptCompletionHandler(
+    weakManager: WeakCloudKitManagerBox,
+    gate: ContinuationGate,
+    continuation: CheckedContinuation<Void, Error>
+) -> (Result<Void, Error>) -> Void {
+    { result in
+        Task { @MainActor in
+            guard let manager = weakManager.value else { return }
+            switch result {
+            case .failure(let error):
+                await manager.handleShareAcceptanceFailure(error,
+                                                           gate: gate,
+                                                           continuation: continuation)
+            case .success:
+                await manager.handleShareAcceptanceSuccess(gate: gate,
+                                                           continuation: continuation)
+            }
+        }
+    }
+}
+
 private actor ContinuationGate {
     private var hasResumed = false
 
@@ -473,14 +743,14 @@ private actor ContinuationGate {
 private struct DatabaseChangeResult {
     var changedZoneIDs: [CKRecordZone.ID]
     var deletedZoneIDs: [CKRecordZone.ID]
-    var newToken: CKServerChangeToken?
+    var serverChangeToken: CKServerChangeToken?
     var moreComing: Bool
 }
 
 private struct ZoneChangeResult {
     var records: [CKRecord]
     var deletedRecordIDs: [CKRecord.ID]
-    var newToken: CKServerChangeToken?
+    var serverChangeToken: CKServerChangeToken?
     var moreComing: Bool
 }
 

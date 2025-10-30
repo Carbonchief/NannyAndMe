@@ -1,3 +1,4 @@
+import CloudKit
 import Foundation
 import SwiftData
 import SwiftUI
@@ -320,10 +321,12 @@ final class ProfileStore: ObservableObject {
     private let reminderScheduler: ReminderScheduling
     private weak var actionStore: ActionLogStore?
     private weak var sharingCoordinator: SharingCoordinator?
+    private let cloudKitManager: CloudKitManager?
     private let fileManager: FileManager
     private let saveURL: URL
     private var settings: ProfileStoreSettings
     private var isEnsuringProfile = false
+    private var cloudBootstrapState: CloudBootstrapState?
     private struct NotificationObserverToken: @unchecked Sendable {
         let token: NSObjectProtocol
     }
@@ -337,7 +340,8 @@ final class ProfileStore: ObservableObject {
          fileManager: FileManager = .default,
          directory: URL? = nil,
          filename: String = "childProfiles.json",
-         reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler()) {
+         reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler(),
+         cloudKitManager: CloudKitManager? = nil) {
         self.modelContext = modelContext
         self.dataStack = dataStack
         self.notificationCenter = notificationCenter
@@ -347,6 +351,7 @@ final class ProfileStore: ObservableObject {
         self.settings = Self.fetchOrCreateSettings(in: modelContext)
         self.showRecentActivityOnHome = settings.showRecentActivityOnHome
         self.activeProfileID = settings.activeProfileID
+        self.cloudKitManager = cloudKitManager
 
         migrateLegacyProfilesIfNeeded()
         refreshProfiles()
@@ -755,12 +760,11 @@ final class ProfileStore: ObservableObject {
             isEnsuringProfile = true
             defer { isEnsuringProfile = false }
 
-            let model = ProfileActionStateModel(name: "", birthDate: Date())
-            model.normalizeReminderPreferences()
-            modelContext.insert(model)
-            persistContextIfNeeded(reason: "profile-ensure-default")
-            refreshProfiles()
-            activeProfileID = model.resolvedProfileID
+            if attemptCloudBootstrapIfNeeded() {
+                return
+            }
+
+            createDefaultProfile()
             return
         }
 
@@ -853,6 +857,48 @@ final class ProfileStore: ObservableObject {
         let settings = ProfileStoreSettings()
         context.insert(settings)
         return settings
+    }
+}
+
+private extension ProfileStore {
+    @discardableResult
+    func attemptCloudBootstrapIfNeeded() -> Bool {
+        guard cloudKitManager != nil else { return false }
+        if let bootstrapState = cloudBootstrapState, bootstrapState == .inProgress {
+            return true
+        }
+        if cloudBootstrapState == .completed {
+            return false
+        }
+
+        cloudBootstrapState = .inProgress
+        Task { @MainActor [weak self] in
+            guard let self, let manager = self.cloudKitManager else { return }
+            defer {
+                self.cloudBootstrapState = .completed
+                self.ensureActiveProfileExists()
+            }
+
+            await manager.fetchChanges(database: .private)
+            await manager.fetchChanges(database: .shared)
+            self.refreshProfiles()
+        }
+
+        return true
+    }
+
+    func createDefaultProfile() {
+        let model = ProfileActionStateModel(name: "", birthDate: Date())
+        model.normalizeReminderPreferences()
+        modelContext.insert(model)
+        persistContextIfNeeded(reason: "profile-ensure-default")
+        refreshProfiles()
+        activeProfileID = model.resolvedProfileID
+    }
+
+    enum CloudBootstrapState {
+        case inProgress
+        case completed
     }
 }
 

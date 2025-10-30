@@ -27,17 +27,18 @@ struct babynannyApp: App {
 
         let stack = AppDataStack()
         let scheduler = UserNotificationReminderScheduler()
+        let bridge = SwiftDataBridge(dataStack: stack)
+        let cloudKitManager = CloudKitManager(bridge: bridge)
         let profileStore = ProfileStore(modelContext: stack.mainContext,
                                         dataStack: stack,
-                                        reminderScheduler: scheduler)
+                                        reminderScheduler: scheduler,
+                                        cloudKitManager: cloudKitManager)
         let actionStore = ActionLogStore(modelContext: stack.mainContext,
                                          reminderScheduler: scheduler,
                                          dataStack: stack)
         profileStore.registerActionStore(actionStore)
         actionStore.registerProfileStore(profileStore)
         let syncCoordinator = SyncCoordinator(dataStack: stack)
-        let bridge = SwiftDataBridge(dataStack: stack)
-        let cloudKitManager = CloudKitManager(bridge: bridge)
         let sharingCoordinator = SharingCoordinator(cloudKitManager: cloudKitManager, dataStack: stack)
         let pushHandling = PushHandling(syncCoordinator: syncCoordinator, cloudKitManager: cloudKitManager)
         profileStore.registerSharingCoordinator(sharingCoordinator)
