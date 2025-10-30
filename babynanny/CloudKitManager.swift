@@ -224,33 +224,42 @@ final class CloudKitManager {
             var changedZoneIDs: [CKRecordZone.ID] = []
             var deletedZoneIDs: [CKRecordZone.ID] = []
 
-            operation.recordZoneWithIDChangedBlock = { zoneID in
-                changedZoneIDs.append(zoneID)
-            }
-
-            operation.recordZoneWithIDWasDeletedBlock = { zoneID in
-                deletedZoneIDs.append(zoneID)
-            }
-
-            operation.changeTokenUpdatedBlock = { token in
-                Task.detached(priority: .userInitiated) {
-                    await tokenStore.setDatabaseToken(token, scope: scope)
+            operation.recordZoneWithIDChangedBlock = { [weak self] zoneID in
+                Task { @MainActor in
+                    guard self != nil else { return }
+                    changedZoneIDs.append(zoneID)
                 }
             }
 
-            operation.fetchDatabaseChangesResultBlock = { result in
-                switch result {
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                case .success(let context):
-                    Task.detached(priority: .userInitiated) {
-                        await tokenStore.setDatabaseToken(context.serverChangeToken, scope: scope)
+            operation.recordZoneWithIDWasDeletedBlock = { [weak self] zoneID in
+                Task { @MainActor in
+                    guard self != nil else { return }
+                    deletedZoneIDs.append(zoneID)
+                }
+            }
+
+            operation.changeTokenUpdatedBlock = { [weak self] token in
+                Task { [weak self] in
+                    guard let self else { return }
+                    await self.tokenStore.setDatabaseToken(token, scope: scope)
+                }
+            }
+
+            operation.fetchDatabaseChangesResultBlock = { [weak self] result in
+                Task { @MainActor in
+                    switch result {
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    case .success(let context):
+                        if let self {
+                            await self.tokenStore.setDatabaseToken(context.serverChangeToken, scope: scope)
+                        }
+                        let databaseResult = DatabaseChangeResult(changedZoneIDs: changedZoneIDs,
+                                                                  deletedZoneIDs: deletedZoneIDs,
+                                                                  newToken: context.serverChangeToken,
+                                                                  moreComing: context.moreComing)
+                        continuation.resume(returning: databaseResult)
                     }
-                    let databaseResult = DatabaseChangeResult(changedZoneIDs: changedZoneIDs,
-                                                              deletedZoneIDs: deletedZoneIDs,
-                                                              newToken: context.serverChangeToken,
-                                                              moreComing: context.moreComing)
-                    continuation.resume(returning: databaseResult)
                 }
             }
 
@@ -271,44 +280,55 @@ final class CloudKitManager {
             var capturedMoreComing = false
             var capturedError: Error?
 
-            operation.recordWasChangedBlock = { [logger] recordID, result in
-                switch result {
-                case .success(let record):
-                    changedRecords.append(record)
-                case .failure(let error):
-                    logger.error("Failed to fetch changed record \(recordID.recordName, privacy: .public): \(error.localizedDescription, privacy: .public)")
-                }
-            }
-
-            operation.recordWithIDWasDeletedBlock = { recordID, _ in
-                deletedRecordIDs.append(recordID)
-            }
-
-            operation.recordZoneFetchResultBlock = { _, result in
-                switch result {
-                case .failure(let error):
-                    capturedError = error
-                case .success(let context):
-                    capturedToken = context.serverChangeToken
-                    capturedMoreComing = context.moreComing
-                }
-            }
-
-            operation.fetchRecordZoneChangesResultBlock = { result in
-                switch result {
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                case .success:
-                    if let capturedError {
-                        continuation.resume(throwing: capturedError)
-                        return
+            operation.recordWasChangedBlock = { [weak self, logger] recordID, result in
+                Task { @MainActor in
+                    guard self != nil else { return }
+                    switch result {
+                    case .success(let record):
+                        changedRecords.append(record)
+                    case .failure(let error):
+                        logger.error("Failed to fetch changed record \(recordID.recordName, privacy: .public): \(error.localizedDescription, privacy: .public)")
                     }
+                }
+            }
 
-                    let zoneResult = ZoneChangeResult(records: changedRecords,
-                                                       deletedRecordIDs: deletedRecordIDs,
-                                                       newToken: capturedToken,
-                                                       moreComing: capturedMoreComing)
-                    continuation.resume(returning: zoneResult)
+            operation.recordWithIDWasDeletedBlock = { [weak self] recordID, _ in
+                Task { @MainActor in
+                    guard self != nil else { return }
+                    deletedRecordIDs.append(recordID)
+                }
+            }
+
+            operation.recordZoneFetchResultBlock = { [weak self] _, result in
+                Task { @MainActor in
+                    guard self != nil else { return }
+                    switch result {
+                    case .failure(let error):
+                        capturedError = error
+                    case .success(let context):
+                        capturedToken = context.serverChangeToken
+                        capturedMoreComing = context.moreComing
+                    }
+                }
+            }
+
+            operation.fetchRecordZoneChangesResultBlock = { [weak self] result in
+                Task { @MainActor in
+                    switch result {
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    case .success:
+                        if let capturedError {
+                            continuation.resume(throwing: capturedError)
+                            return
+                        }
+
+                        let zoneResult = ZoneChangeResult(records: changedRecords,
+                                                           deletedRecordIDs: deletedRecordIDs,
+                                                           newToken: capturedToken,
+                                                           moreComing: capturedMoreComing)
+                        continuation.resume(returning: zoneResult)
+                    }
                 }
             }
 
