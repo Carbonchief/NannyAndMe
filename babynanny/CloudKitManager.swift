@@ -545,6 +545,19 @@ final class CloudKitManager {
         }
     }
 
+    func fetchProfileRecord(profileID: UUID,
+                            zoneID: CKRecordZone.ID,
+                            scope: CKDatabase.Scope) async throws -> CKRecord {
+        let database = database(for: scope)
+        let recordID = CloudKitSchema.profileRecordID(for: profileID, zoneID: zoneID)
+        do {
+            return try await database.record(for: recordID)
+        } catch {
+            guard let ckError = error as? CKError, ckError.code == .unknownItem else { throw error }
+            return try await queryProfileRecord(profileID: profileID, zoneID: zoneID, database: database)
+        }
+    }
+
     // MARK: - Helpers
 
     private func database(for scope: CKDatabase.Scope) -> CKDatabase {
@@ -557,6 +570,50 @@ final class CloudKitManager {
             return container.publicCloudDatabase
         @unknown default:
             return privateCloudDatabase
+        }
+    }
+
+    private func queryProfileRecord(profileID: UUID,
+                                    zoneID: CKRecordZone.ID,
+                                    database: CKDatabase) async throws -> CKRecord {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKRecord, Error>) in
+            let predicate = NSPredicate(format: "%K == %@", CloudKitSchema.ProfileField.uuid, profileID.uuidString)
+            let query = CKQuery(recordType: CloudKitSchema.RecordType.profile, predicate: predicate)
+            let operation = CKQueryOperation(query: query)
+            operation.zoneID = zoneID
+            operation.resultsLimit = 1
+
+            var matchedRecord: CKRecord?
+            var matchedError: Error?
+
+            operation.recordMatchedBlock = { _, result in
+                switch result {
+                case .success(let record):
+                    matchedRecord = record
+                case .failure(let error):
+                    matchedError = error
+                }
+            }
+
+            operation.queryCompletionBlock = { _, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                if let record = matchedRecord {
+                    continuation.resume(returning: record)
+                    return
+                }
+                if let matchedError {
+                    continuation.resume(throwing: matchedError)
+                    return
+                }
+                let notFoundError = CKError(.unknownItem, userInfo: [NSLocalizedDescriptionKey: "Profile record not found in zone \(zoneID.zoneName)"])
+                continuation.resume(throwing: notFoundError)
+            }
+
+            operation.qualityOfService = .userInitiated
+            database.add(operation)
         }
     }
 }
