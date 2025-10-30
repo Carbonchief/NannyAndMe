@@ -264,10 +264,20 @@ final class CloudKitManager {
                         continuation.resume(throwing: CancellationError())
                         return
                     }
-                    await self.finishDatabaseChangeFetch(result: result,
-                                                         accumulator: accumulator,
-                                                         scope: scope,
-                                                         continuation: continuation)
+
+                    await Task.yield()
+
+                    switch result {
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    case .success(let fetchResult):
+                        await self.tokenStore.setDatabaseToken(fetchResult.serverChangeToken, scope: scope)
+                        let changeResult = DatabaseChangeResult(changedZoneIDs: accumulator.changedZoneIDs,
+                                                                deletedZoneIDs: accumulator.deletedZoneIDs,
+                                                                newToken: fetchResult.serverChangeToken,
+                                                                moreComing: fetchResult.moreComing)
+                        continuation.resume(returning: changeResult)
+                    }
                 }
             }
 
@@ -304,7 +314,13 @@ final class CloudKitManager {
             operation.recordZoneFetchResultBlock = { [weak self] _, result in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
-                    self.handleZoneFetchResult(result, accumulator: accumulator)
+                    switch result {
+                    case .failure(let error):
+                        accumulator.recordedError = error
+                    case .success(let context):
+                        accumulator.fetchedToken = context.serverChangeToken
+                        accumulator.fetchedMoreComing = context.moreComing
+                    }
                 }
             }
 
@@ -314,9 +330,23 @@ final class CloudKitManager {
                         continuation.resume(throwing: CancellationError())
                         return
                     }
-                    await self.finishZoneChangeFetch(result: result,
-                                                     accumulator: accumulator,
-                                                     continuation: continuation)
+                    await Task.yield()
+
+                    switch result {
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    case .success:
+                        if let recordedError = accumulator.recordedError {
+                            continuation.resume(throwing: recordedError)
+                            return
+                        }
+
+                        let zoneResult = ZoneChangeResult(records: accumulator.changedRecords,
+                                                           deletedRecordIDs: accumulator.deletedRecordIDs,
+                                                           newToken: accumulator.fetchedToken,
+                                                           moreComing: accumulator.fetchedMoreComing)
+                        continuation.resume(returning: zoneResult)
+                    }
                 }
             }
 
@@ -342,25 +372,6 @@ final class CloudKitManager {
         await tokenStore.setDatabaseToken(token, scope: scope)
     }
 
-    private func finishDatabaseChangeFetch(result: Result<CKFetchDatabaseChangesOperation.Result, Error>,
-                                           accumulator: DatabaseChangeAccumulator,
-                                           scope: CKDatabase.Scope,
-                                           continuation: CheckedContinuation<DatabaseChangeResult, Error>) async {
-        await Task.yield()
-
-        switch result {
-        case .failure(let error):
-            continuation.resume(throwing: error)
-        case .success(let fetchResult):
-            await tokenStore.setDatabaseToken(fetchResult.serverChangeToken, scope: scope)
-            let changeResult = DatabaseChangeResult(changedZoneIDs: accumulator.changedZoneIDs,
-                                                    deletedZoneIDs: accumulator.deletedZoneIDs,
-                                                    newToken: fetchResult.serverChangeToken,
-                                                    moreComing: fetchResult.moreComing)
-            continuation.resume(returning: changeResult)
-        }
-    }
-
     private func handleZoneRecordChange(recordID: CKRecord.ID,
                                         result: Result<CKRecord, Error>,
                                         accumulator: ZoneChangeAccumulator) {
@@ -375,39 +386,6 @@ final class CloudKitManager {
     private func noteZoneRecordDeletion(recordID: CKRecord.ID,
                                         accumulator: ZoneChangeAccumulator) {
         accumulator.deletedRecordIDs.append(recordID)
-    }
-
-    private func handleZoneFetchResult(_ result: Result<CKFetchRecordZoneChangesOperation.ZoneFetchResult, Error>,
-                                       accumulator: ZoneChangeAccumulator) {
-        switch result {
-        case .failure(let error):
-            accumulator.recordedError = error
-        case .success(let context):
-            accumulator.fetchedToken = context.serverChangeToken
-            accumulator.fetchedMoreComing = context.moreComing
-        }
-    }
-
-    private func finishZoneChangeFetch(result: Result<Void, Error>,
-                                       accumulator: ZoneChangeAccumulator,
-                                       continuation: CheckedContinuation<ZoneChangeResult, Error>) async {
-        await Task.yield()
-
-        switch result {
-        case .failure(let error):
-            continuation.resume(throwing: error)
-        case .success:
-            if let recordedError = accumulator.recordedError {
-                continuation.resume(throwing: recordedError)
-                return
-            }
-
-            let zoneResult = ZoneChangeResult(records: accumulator.changedRecords,
-                                               deletedRecordIDs: accumulator.deletedRecordIDs,
-                                               newToken: accumulator.fetchedToken,
-                                               moreComing: accumulator.fetchedMoreComing)
-            continuation.resume(returning: zoneResult)
-        }
     }
 
     // MARK: - Sharing
