@@ -218,6 +218,7 @@ final class CloudKitManager {
     private func fetchDatabaseChanges(database: CKDatabase,
                                       scope: CKDatabase.Scope,
                                       previousToken: CKServerChangeToken?) async throws -> DatabaseChangeResult {
+        let tokenStore = tokenStore
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<DatabaseChangeResult, Error>) in
             let operation = CKFetchDatabaseChangesOperation(previousServerChangeToken: previousToken)
             var changedZoneIDs: [CKRecordZone.ID] = []
@@ -232,7 +233,9 @@ final class CloudKitManager {
             }
 
             operation.changeTokenUpdatedBlock = { token in
-                Task { await self.tokenStore.setDatabaseToken(token, scope: scope) }
+                Task {
+                    await tokenStore.setDatabaseToken(token, scope: scope)
+                }
             }
 
             operation.fetchDatabaseChangesResultBlock = { result in
@@ -240,7 +243,9 @@ final class CloudKitManager {
                 case .failure(let error):
                     continuation.resume(throwing: error)
                 case .success(let context):
-                    Task { await self.tokenStore.setDatabaseToken(context.serverChangeToken, scope: scope) }
+                    Task {
+                        await tokenStore.setDatabaseToken(context.serverChangeToken, scope: scope)
+                    }
                     let databaseResult = DatabaseChangeResult(changedZoneIDs: changedZoneIDs,
                                                               deletedZoneIDs: deletedZoneIDs,
                                                               newToken: context.serverChangeToken,
