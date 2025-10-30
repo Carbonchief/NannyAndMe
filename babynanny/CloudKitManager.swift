@@ -250,6 +250,7 @@ final class CloudKitManager {
                         continuation.resume(throwing: CancellationError())
                         return
                     }
+                    await Task.yield()
                     switch result {
                     case .failure(let error):
                         continuation.resume(throwing: error)
@@ -319,6 +320,7 @@ final class CloudKitManager {
                         continuation.resume(throwing: CancellationError())
                         return
                     }
+                    await Task.yield()
                     switch result {
                     case .failure(let error):
                         continuation.resume(throwing: error)
