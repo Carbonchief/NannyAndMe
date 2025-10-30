@@ -6,8 +6,8 @@ extension TimeZone {
 
 extension Date {
     private static let utcFormatStyle = Date.ISO8601FormatStyle(
-        timeZone: .utc,
-        includingFractionalSeconds: true
+        includingFractionalSeconds: true,
+        timeZone: .utc
     )
 
     /// Normalizes the date using an ISO-8601 representation in UTC to ensure
