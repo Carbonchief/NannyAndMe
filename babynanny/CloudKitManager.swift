@@ -233,7 +233,7 @@ final class CloudKitManager {
             }
 
             operation.changeTokenUpdatedBlock = { token in
-                Task {
+                Task.detached(priority: .userInitiated) {
                     await tokenStore.setDatabaseToken(token, scope: scope)
                 }
             }
@@ -243,7 +243,7 @@ final class CloudKitManager {
                 case .failure(let error):
                     continuation.resume(throwing: error)
                 case .success(let context):
-                    Task {
+                    Task.detached(priority: .userInitiated) {
                         await tokenStore.setDatabaseToken(context.serverChangeToken, scope: scope)
                     }
                     let databaseResult = DatabaseChangeResult(changedZoneIDs: changedZoneIDs,
