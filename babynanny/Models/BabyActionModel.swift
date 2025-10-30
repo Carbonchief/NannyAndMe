@@ -444,7 +444,7 @@ final class ProfileReminderPreference {
          isEnabled: Bool = true,
          override: ProfileActionReminderOverride? = nil,
          profile: Profile? = nil) {
-        self.categoryRawValue = category.rawValue
+        self.category = category
         self.interval = max(0, interval)
         self.isEnabled = isEnabled
         self.overrideFireDate = override?.fireDate
@@ -704,8 +704,7 @@ extension ProfileActionStateModel {
 final class BabyAction {
     /// Stable identifier used to deduplicate actions during merges and exports.
     var id: UUID = UUID()
-    @Attribute(.rawRepresentable)
-    var category: BabyActionCategory = .sleep
+    private var categoryRawValue: String = BabyActionCategory.sleep.rawValue
     var startDateRawValue: Date = Date().normalizedToUTC()
     private var endDateRawValue: Date?
     var diaperTypeRawValue: String?
@@ -750,6 +749,11 @@ final class BabyAction {
     var startDate: Date {
         get { startDateRawValue }
         set { startDateRawValue = newValue.normalizedToUTC() }
+    }
+
+    var category: BabyActionCategory {
+        get { BabyActionCategory(rawValue: categoryRawValue) ?? .sleep }
+        set { categoryRawValue = newValue.rawValue }
     }
 
     var endDate: Date? {
