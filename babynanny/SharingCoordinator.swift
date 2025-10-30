@@ -154,15 +154,20 @@ final class SharingCoordinator: NSObject, ObservableObject {
 
     func registerAcceptedShare(metadata: CKShare.Metadata) {
         let shareRecord = metadata.share
-
-        let rootRecordID = metadata.rootRecordID
         let zoneID = shareRecord.recordID.zoneID
+        let profileIDFromRoot: UUID?
+        if let rootRecord = metadata.rootRecord {
+            profileIDFromRoot = CloudKitSchema.profileID(from: rootRecord.recordID)
+        } else {
+            profileIDFromRoot = nil
+        }
 
-        guard let profileID = CloudKitSchema.profileID(from: rootRecordID) ?? CloudKitSchema.profileID(from: zoneID) else {
+        guard let profileID = profileIDFromRoot ?? CloudKitSchema.profileID(from: zoneID) else {
             logger.error("Received share metadata without resolvable profile ID")
             return
         }
 
+        let rootRecordID = CloudKitSchema.profileRecordID(for: profileID, zoneID: zoneID)
         let existingActions = fetchProfileModel(id: profileID)?.actions ?? []
         let context = ShareContext(id: profileID,
                                    zoneID: zoneID,

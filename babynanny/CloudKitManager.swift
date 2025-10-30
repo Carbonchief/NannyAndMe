@@ -573,9 +573,9 @@ final class CloudKitManager {
         }
     }
 
-    private func queryProfileRecord(profileID: UUID,
-                                    zoneID: CKRecordZone.ID,
-                                    database: CKDatabase) async throws -> CKRecord {
+    nonisolated private func queryProfileRecord(profileID: UUID,
+                                                zoneID: CKRecordZone.ID,
+                                                database: CKDatabase) async throws -> CKRecord {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKRecord, Error>) in
             let predicate = NSPredicate(format: "%K == %@", CloudKitSchema.ProfileField.uuid, profileID.uuidString)
             let query = CKQuery(recordType: CloudKitSchema.RecordType.profile, predicate: predicate)
@@ -595,21 +595,23 @@ final class CloudKitManager {
                 }
             }
 
-            operation.queryCompletionBlock = { _, error in
-                if let error {
+            operation.queryResultBlock = { result in
+                switch result {
+                case .success:
+                    if let record = matchedRecord {
+                        continuation.resume(returning: record)
+                        return
+                    }
+                    if let matchedError {
+                        continuation.resume(throwing: matchedError)
+                        return
+                    }
+                    let message = "Profile record not found in zone \(zoneID.zoneName)"
+                    let notFoundError = CKError(.unknownItem, userInfo: [NSLocalizedDescriptionKey: message])
+                    continuation.resume(throwing: notFoundError)
+                case .failure(let error):
                     continuation.resume(throwing: error)
-                    return
                 }
-                if let record = matchedRecord {
-                    continuation.resume(returning: record)
-                    return
-                }
-                if let matchedError {
-                    continuation.resume(throwing: matchedError)
-                    return
-                }
-                let notFoundError = CKError(.unknownItem, userInfo: [NSLocalizedDescriptionKey: "Profile record not found in zone \(zoneID.zoneName)"])
-                continuation.resume(throwing: notFoundError)
             }
 
             operation.qualityOfService = .userInitiated
