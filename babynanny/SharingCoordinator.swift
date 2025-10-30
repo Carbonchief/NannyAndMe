@@ -10,6 +10,7 @@ final class SharingCoordinator: NSObject, ObservableObject {
     struct ShareContext: Identifiable, Equatable {
         let id: UUID
         var zoneID: CKRecordZone.ID
+        var rootRecordID: CKRecord.ID
         var shareRecordID: CKRecord.ID
         var share: CKShare?
         var isOwner: Bool
@@ -21,7 +22,12 @@ final class SharingCoordinator: NSObject, ObservableObject {
         }
 
         static func == (lhs: ShareContext, rhs: ShareContext) -> Bool {
-            lhs.id == rhs.id && lhs.zoneID == rhs.zoneID && lhs.shareRecordID == rhs.shareRecordID && lhs.isOwner == rhs.isOwner && lhs.lastSyncedActionIDs == rhs.lastSyncedActionIDs
+            lhs.id == rhs.id &&
+                lhs.zoneID == rhs.zoneID &&
+                lhs.rootRecordID == rhs.rootRecordID &&
+                lhs.shareRecordID == rhs.shareRecordID &&
+                lhs.isOwner == rhs.isOwner &&
+                lhs.lastSyncedActionIDs == rhs.lastSyncedActionIDs
         }
     }
 
@@ -92,6 +98,7 @@ final class SharingCoordinator: NSObject, ObservableObject {
 
             let context = ShareContext(id: profileID,
                                        zoneID: result.root.recordID.zoneID,
+                                       rootRecordID: result.root.recordID,
                                        shareRecordID: share.recordID,
                                        share: share,
                                        isOwner: true,
@@ -147,18 +154,24 @@ final class SharingCoordinator: NSObject, ObservableObject {
 
     func registerAcceptedShare(metadata: CKShare.Metadata) {
         let shareRecord = metadata.share
-
-        let rootRecordID = metadata.rootRecord?.recordID
         let zoneID = shareRecord.recordID.zoneID
+        let profileIDFromRoot: UUID?
+        if let rootRecord = metadata.rootRecord {
+            profileIDFromRoot = CloudKitSchema.profileID(from: rootRecord.recordID)
+        } else {
+            profileIDFromRoot = nil
+        }
 
-        guard let profileID = rootRecordID.flatMap(CloudKitSchema.profileID(from:)) ?? CloudKitSchema.profileID(from: zoneID) else {
+        guard let profileID = profileIDFromRoot ?? CloudKitSchema.profileID(from: zoneID) else {
             logger.error("Received share metadata without resolvable profile ID")
             return
         }
 
+        let rootRecordID = CloudKitSchema.profileRecordID(for: profileID, zoneID: zoneID)
         let existingActions = fetchProfileModel(id: profileID)?.actions ?? []
         let context = ShareContext(id: profileID,
                                    zoneID: zoneID,
+                                   rootRecordID: rootRecordID,
                                    shareRecordID: shareRecord.recordID,
                                    share: shareRecord,
                                    isOwner: metadata.participantRole == .owner,
@@ -239,20 +252,26 @@ final class SharingCoordinator: NSObject, ObservableObject {
         if shareContexts[profileID] != nil { return }
         do {
             let database = scope == .private ? cloudKitManager.privateCloudDatabase : cloudKitManager.sharedCloudDatabase
-            let profileRecordID = CloudKitSchema.profileRecordID(for: profileID, zoneID: zoneID)
-            let rootRecord = try await database.record(for: profileRecordID)
+            let rootRecord = try await cloudKitManager.fetchProfileRecord(profileID: profileID,
+                                                                          zoneID: zoneID,
+                                                                          scope: scope)
             guard let shareReference = rootRecord.share else { return }
             let shareRecord = try await database.record(for: shareReference.recordID)
             guard let share = shareRecord as? CKShare else { return }
-            let actions = fetchProfileModel(id: profileID)?.actions ?? []
-            let context = ShareContext(id: profileID,
+            let remoteProfileID = (rootRecord[CloudKitSchema.ProfileField.uuid] as? String).flatMap(UUID.init) ?? profileID
+            let actions = fetchProfileModel(id: remoteProfileID)?.actions ?? []
+            let context = ShareContext(id: remoteProfileID,
                                        zoneID: zoneID,
+                                       rootRecordID: rootRecord.recordID,
                                        shareRecordID: share.recordID,
                                        share: share,
                                        isOwner: scope == .private,
                                        lastKnownTitle: share[CKShare.SystemFieldKey.title] as? String,
                                        lastSyncedActionIDs: Set(actions.map { $0.id }))
-            shareContexts[profileID] = context
+            shareContexts[remoteProfileID] = context
+            if remoteProfileID != profileID {
+                shareContexts.removeValue(forKey: profileID)
+            }
         } catch {
             logger.error("Failed to load share context for profile \(profileID.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
