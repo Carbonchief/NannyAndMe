@@ -520,6 +520,8 @@ final class CloudKitManager {
         let zoneID: CKRecordZone.ID
         if let rootRecord = metadata.rootRecord {
             zoneID = rootRecord.recordID.zoneID
+        } else if let rootRecordID = metadata.rootRecordID {
+            zoneID = rootRecordID.zoneID
         } else {
             zoneID = metadata.share.recordID.zoneID
         }

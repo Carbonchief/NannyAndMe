@@ -154,12 +154,22 @@ final class SharingCoordinator: NSObject, ObservableObject {
 
     func registerAcceptedShare(metadata: CKShare.Metadata) {
         let shareRecord = metadata.share
-        let zoneID = shareRecord.recordID.zoneID
-        let profileIDFromRoot: UUID?
+        let resolvedRootRecordID: CKRecord.ID?
         if let rootRecord = metadata.rootRecord {
-            profileIDFromRoot = CloudKitSchema.profileID(from: rootRecord.recordID)
+            resolvedRootRecordID = rootRecord.recordID
         } else {
-            profileIDFromRoot = nil
+            resolvedRootRecordID = metadata.rootRecordID
+        }
+
+        let zoneID: CKRecordZone.ID
+        if let rootRecordID = resolvedRootRecordID {
+            zoneID = rootRecordID.zoneID
+        } else {
+            zoneID = shareRecord.recordID.zoneID
+        }
+
+        let profileIDFromRoot = resolvedRootRecordID.flatMap { recordID in
+            CloudKitSchema.profileID(from: recordID)
         }
 
         guard let profileID = profileIDFromRoot ?? CloudKitSchema.profileID(from: zoneID) else {
@@ -167,7 +177,7 @@ final class SharingCoordinator: NSObject, ObservableObject {
             return
         }
 
-        let rootRecordID = CloudKitSchema.profileRecordID(for: profileID, zoneID: zoneID)
+        let rootRecordID = resolvedRootRecordID ?? CloudKitSchema.profileRecordID(for: profileID, zoneID: zoneID)
         let existingActions = fetchProfileModel(id: profileID)?.actions ?? []
         let context = ShareContext(id: profileID,
                                    zoneID: zoneID,
