@@ -651,6 +651,74 @@ enum L10n {
         }
     }
 
+    enum ShareUI {
+        static let sectionTitle = String(localized: "share.ui.section.title", defaultValue: "Family sharing")
+        static let sectionFooter = String(
+            localized: "share.ui.section.footer",
+            defaultValue: "Invite caregivers to collaborate in real time with CloudKit."
+        )
+        static let shareButtonTitle = String(localized: "share.ui.shareButtonTitle", defaultValue: "Share profile")
+        static let ownerStatus = String(localized: "share.ui.ownerStatus", defaultValue: "You are sharing this profile.")
+        static let participantStatus = String(
+            localized: "share.ui.participantStatus",
+            defaultValue: "You have access to this shared profile."
+        )
+        static let notSharedDescription = String(
+            localized: "share.ui.notSharedDescription",
+            defaultValue: "Share to collaborate with other caregivers."
+        )
+        static let participantHeader = String(localized: "share.ui.participantHeader", defaultValue: "Participants")
+        static let stopSharingButton = String(
+            localized: "share.ui.stopSharingButton",
+            defaultValue: "Stop sharing"
+        )
+        static let leaveShareButton = String(
+            localized: "share.ui.leaveShareButton",
+            defaultValue: "Leave shared profile"
+        )
+        static let errorTitle = String(localized: "share.ui.error.title", defaultValue: "Sharing Error")
+        static let errorProfileMissing = String(
+            localized: "share.ui.error.profileMissing",
+            defaultValue: "We couldn't find the profile to share."
+        )
+        static let errorStartSharing = String(
+            localized: "share.ui.error.startSharing",
+            defaultValue: "We couldn't prepare the share. Try again in a moment."
+        )
+        static let errorStopSharing = String(
+            localized: "share.ui.error.stopSharing",
+            defaultValue: "We couldn't stop sharing right now. Try again."
+        )
+        static let errorRemoveParticipant = String(
+            localized: "share.ui.error.removeParticipant",
+            defaultValue: "Removing that participant failed. Try again later."
+        )
+        static let errorLeaveShare = String(
+            localized: "share.ui.error.leaveShare",
+            defaultValue: "We couldn't leave the shared profile. Try again shortly."
+        )
+        static let defaultProfileName = String(localized: "share.ui.defaultProfileName", defaultValue: "Profile")
+        static let unknownParticipant = String(
+            localized: "share.ui.unknownParticipant",
+            defaultValue: "Unknown participant"
+        )
+        static let ownerRole = String(localized: "share.ui.ownerRole", defaultValue: "Owner")
+        static let memberRole = String(localized: "share.ui.memberRole", defaultValue: "Member")
+        static let publicRole = String(localized: "share.ui.publicRole", defaultValue: "Public user")
+        static let readOnlyPermission = String(
+            localized: "share.ui.readOnlyPermission",
+            defaultValue: "Can view"
+        )
+        static let readWritePermission = String(
+            localized: "share.ui.readWritePermission",
+            defaultValue: "Can edit"
+        )
+        static let unknownPermission = String(
+            localized: "share.ui.unknownPermission",
+            defaultValue: "Unknown access"
+        )
+    }
+
     enum Logs {
         static let title = String(localized: "logs.title", defaultValue: "All Logs")
         static let emptyTitle = String(localized: "logs.empty.title", defaultValue: "No logs yet")

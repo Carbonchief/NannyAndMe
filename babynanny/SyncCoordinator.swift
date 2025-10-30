@@ -20,8 +20,8 @@ final class SyncCoordinator: ObservableObject {
     private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "sync")
     private var observers: [NSObjectProtocol] = []
     private var syncTask: Task<Void, Never>?
-    private let subscriptionIdentifier = "com.prioritybit.babynanny.database-changes"
-    private let container = CKContainer(identifier: "iCloud.com.prioritybit.babynanny")
+    private let subscriptionIdentifier = "com.prioritybit.nannyandme.database-changes"
+    private let container = CKContainer(identifier: "iCloud.com.prioritybit.nannyandme")
 
     init(dataStack: AppDataStack, notificationCenter: NotificationCenter = .default) {
         self.dataStack = dataStack
