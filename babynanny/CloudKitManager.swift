@@ -225,20 +225,20 @@ final class CloudKitManager {
 
             operation.recordZoneWithIDChangedBlock = { [weak self] zoneID in
                 Task { @MainActor in
-                    guard let _ = self else { return }
+                    guard self != nil else { return }
                     changedZoneIDs.append(zoneID)
                 }
             }
 
             operation.recordZoneWithIDWasDeletedBlock = { [weak self] zoneID in
                 Task { @MainActor in
-                    guard let _ = self else { return }
+                    guard self != nil else { return }
                     deletedZoneIDs.append(zoneID)
                 }
             }
 
             operation.changeTokenUpdatedBlock = { [weak self] token in
-                Task { [weak self] in
+                Task { @MainActor in
                     guard let self else { return }
                     await self.tokenStore.setDatabaseToken(token, scope: scope)
                 }
@@ -246,12 +246,15 @@ final class CloudKitManager {
 
             operation.fetchDatabaseChangesResultBlock = { [weak self] result in
                 Task { @MainActor in
-                    guard let strongSelf = self else { return }
+                    guard let self else {
+                        continuation.resume(throwing: CancellationError())
+                        return
+                    }
                     switch result {
                     case .failure(let error):
                         continuation.resume(throwing: error)
                     case .success(let context):
-                        await strongSelf.tokenStore.setDatabaseToken(context.serverChangeToken, scope: scope)
+                        await self.tokenStore.setDatabaseToken(context.serverChangeToken, scope: scope)
                         let databaseResult = DatabaseChangeResult(changedZoneIDs: changedZoneIDs,
                                                                   deletedZoneIDs: deletedZoneIDs,
                                                                   newToken: context.serverChangeToken,
@@ -280,7 +283,7 @@ final class CloudKitManager {
 
             operation.recordWasChangedBlock = { [weak self, logger] recordID, result in
                 Task { @MainActor in
-                    guard let _ = self else { return }
+                    guard self != nil else { return }
                     switch result {
                     case .success(let record):
                         changedRecords.append(record)
@@ -292,14 +295,14 @@ final class CloudKitManager {
 
             operation.recordWithIDWasDeletedBlock = { [weak self] recordID, _ in
                 Task { @MainActor in
-                    guard let _ = self else { return }
+                    guard self != nil else { return }
                     deletedRecordIDs.append(recordID)
                 }
             }
 
             operation.recordZoneFetchResultBlock = { [weak self] _, result in
                 Task { @MainActor in
-                    guard let _ = self else { return }
+                    guard self != nil else { return }
                     switch result {
                     case .failure(let error):
                         capturedError = error
@@ -312,7 +315,10 @@ final class CloudKitManager {
 
             operation.fetchRecordZoneChangesResultBlock = { [weak self] result in
                 Task { @MainActor in
-                    guard let _ = self else { return }
+                    guard self != nil else {
+                        continuation.resume(throwing: CancellationError())
+                        return
+                    }
                     switch result {
                     case .failure(let error):
                         continuation.resume(throwing: error)
