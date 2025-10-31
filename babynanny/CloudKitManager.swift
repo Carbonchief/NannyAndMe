@@ -520,8 +520,10 @@ final class CloudKitManager {
         let zoneID: CKRecordZone.ID
         if let rootRecord = metadata.rootRecord {
             zoneID = rootRecord.recordID.zoneID
-        } else {
+        } else if #available(iOS 16.0, *) {
             zoneID = metadata.share.recordID.zoneID
+        } else {
+            zoneID = metadata.rootRecordID.zoneID
         }
         await fetchZoneChanges(zoneID: zoneID, scope: .shared)
     }
