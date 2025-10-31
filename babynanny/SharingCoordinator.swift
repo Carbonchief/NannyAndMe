@@ -15,10 +15,14 @@ final class SharingCoordinator: NSObject, ObservableObject {
         var share: CKShare?
         var isOwner: Bool
         var lastKnownTitle: String?
-        var lastSyncedActionIDs: Set<UUID>
+        var lastSyncedActions: [UUID: Date]
 
         var participants: [CKShare.Participant] {
             share?.participants ?? []
+        }
+
+        static func makeActionMetadata(from actions: [BabyAction]) -> [UUID: Date] {
+            Dictionary(uniqueKeysWithValues: actions.map { ($0.id, $0.updatedAt) })
         }
 
         static func == (lhs: ShareContext, rhs: ShareContext) -> Bool {
@@ -27,7 +31,7 @@ final class SharingCoordinator: NSObject, ObservableObject {
                 lhs.rootRecordID == rhs.rootRecordID &&
                 lhs.shareRecordID == rhs.shareRecordID &&
                 lhs.isOwner == rhs.isOwner &&
-                lhs.lastSyncedActionIDs == rhs.lastSyncedActionIDs
+                lhs.lastSyncedActions == rhs.lastSyncedActions
         }
     }
 
@@ -64,6 +68,16 @@ final class SharingCoordinator: NSObject, ObservableObject {
     func shareContext(for profileID: UUID) -> ShareContext? {
         shareContexts[profileID]
     }
+
+#if DEBUG
+    func debugSetShareContext(_ context: ShareContext) {
+        shareContexts[context.id] = context
+    }
+
+    func synchronizeActionsForTesting(profileID: UUID) async {
+        await synchronizeActions(profileID: profileID)
+    }
+#endif
 
     func zoneID(for profileID: UUID) -> CKRecordZone.ID? {
         if let context = shareContexts[profileID] {
@@ -103,7 +117,7 @@ final class SharingCoordinator: NSObject, ObservableObject {
                                        share: share,
                                        isOwner: true,
                                        lastKnownTitle: profileModel.name,
-                                       lastSyncedActionIDs: Set(profileModel.actions.map { $0.id }))
+                                       lastSyncedActions: ShareContext.makeActionMetadata(from: profileModel.actions))
             shareContexts[profileID] = context
 
             activeShareController = controller
@@ -188,7 +202,7 @@ final class SharingCoordinator: NSObject, ObservableObject {
                                    share: shareRecord,
                                    isOwner: metadata.participantRole == .owner,
                                    lastKnownTitle: shareRecord[CKShare.SystemFieldKey.title] as? String,
-                                   lastSyncedActionIDs: Set(existingActions.map { $0.id }))
+                                   lastSyncedActions: ShareContext.makeActionMetadata(from: existingActions))
         shareContexts[profileID] = context
     }
 
@@ -215,15 +229,42 @@ final class SharingCoordinator: NSObject, ObservableObject {
     private func synchronizeActions(profileID: UUID) async {
         guard var context = shareContexts[profileID], let profile = fetchProfileModel(id: profileID) else { return }
         let scope: CKDatabase.Scope = context.isOwner ? .private : .shared
-        let currentIDs = Set(profile.actions.map { $0.id })
-        let deletedIDs = context.lastSyncedActionIDs.subtracting(currentIDs)
+        let actions = profile.actions
+        let existingMetadata = context.lastSyncedActions
+        let currentIDs = Set(actions.map { $0.id })
+        let previouslySyncedIDs = Set(existingMetadata.keys)
+        let deletedIDs = previouslySyncedIDs.subtracting(currentIDs)
+        let pendingActions = actions.filter { action in
+            guard let lastUploaded = existingMetadata[action.id] else { return true }
+            return action.updatedAt > lastUploaded
+        }
+
+        if deletedIDs.isEmpty && pendingActions.isEmpty {
+            return
+        }
+
         do {
             if deletedIDs.isEmpty == false {
                 let recordIDs = deletedIDs.map { CloudKitSchema.actionRecordID(for: $0, zoneID: context.zoneID) }
                 try await cloudKitManager.deleteRecords(recordIDs, scope: scope)
             }
-            try await cloudKitManager.saveActions(profile.actions, for: profile, scope: scope, zoneID: context.zoneID)
-            context.lastSyncedActionIDs = currentIDs
+
+            if pendingActions.isEmpty == false {
+                let chunkSize = 200
+                var startIndex = 0
+                while startIndex < pendingActions.count {
+                    let endIndex = min(startIndex + chunkSize, pendingActions.count)
+                    let chunk = Array(pendingActions[startIndex..<endIndex])
+                    try await cloudKitManager.saveActions(chunk,
+                                                          for: profile,
+                                                          scope: scope,
+                                                          zoneID: context.zoneID)
+                    startIndex = endIndex
+                }
+            }
+
+            let updatedMetadata = ShareContext.makeActionMetadata(from: actions)
+            context.lastSyncedActions = updatedMetadata
             shareContexts[profileID] = context
         } catch {
             logger.error("Failed to sync actions to CloudKit: \(error.localizedDescription, privacy: .public)")
@@ -279,7 +320,7 @@ final class SharingCoordinator: NSObject, ObservableObject {
                                        share: share,
                                        isOwner: scope == .private,
                                        lastKnownTitle: share[CKShare.SystemFieldKey.title] as? String,
-                                       lastSyncedActionIDs: Set(actions.map { $0.id }))
+                                       lastSyncedActions: ShareContext.makeActionMetadata(from: actions))
             shareContexts[remoteProfileID] = context
             if remoteProfileID != profileID {
                 shareContexts.removeValue(forKey: profileID)
