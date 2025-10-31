@@ -157,6 +157,8 @@ final class SharingCoordinator: NSObject, ObservableObject {
         let resolvedRootRecordID: CKRecord.ID?
         if let rootRecord = metadata.rootRecord {
             resolvedRootRecordID = rootRecord.recordID
+        } else if #available(iOS 16.0, *) {
+            resolvedRootRecordID = nil
         } else {
             resolvedRootRecordID = metadata.rootRecordID
         }
