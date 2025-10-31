@@ -127,6 +127,7 @@
 "menu.allLogs" = "All Logs";
 "menu.shareData" = "Share Data";
 "menu.settings" = "Settings";
+"menu.version" = "Version %@";
 "shareData.title" = "Share Data";
 "shareData.profileSection.title" = "Active Profile";
 "shareData.profileSection.name" = "Profile: %@";

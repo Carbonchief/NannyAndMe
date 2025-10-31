@@ -46,6 +46,12 @@ struct SideMenu: View {
             }
 
             Spacer()
+
+            if let versionText {
+                Text(versionText)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 32)
@@ -53,6 +59,23 @@ struct SideMenu: View {
         .frame(maxHeight: .infinity)
         .background(.ultraThinMaterial)
         .ignoresSafeArea()
+    }
+
+    private var versionText: String? {
+        guard let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String else {
+            return nil
+        }
+
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
+
+        let displayVersion: String
+        if let build, build != version {
+            displayVersion = "\(version) (\(build))"
+        } else {
+            displayVersion = version
+        }
+
+        return L10n.Menu.version(displayVersion)
     }
 }
 

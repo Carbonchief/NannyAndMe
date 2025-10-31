@@ -127,6 +127,7 @@
 "menu.allLogs" = "Alle Protokolle";
 "menu.shareData" = "Daten teilen";
 "menu.settings" = "Einstellungen";
+"menu.version" = "Version %@";
 "shareData.title" = "Daten teilen";
 "shareData.profileSection.title" = "Aktives Profil";
 "shareData.profileSection.name" = "Profil: %@";
