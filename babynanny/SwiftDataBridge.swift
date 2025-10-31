@@ -95,13 +95,26 @@ final class SwiftDataBridge {
             throw CKError(.partialFailure, userInfo: [NSLocalizedDescriptionKey: "Profile record missing UUID"])
         }
 
-        let profile = fetchProfile(profileID: profileID) ?? Profile(profileID: profileID)
-        if profile.modelContext == nil {
+        let profile: Profile
+        let isPlaceholder: Bool
+        if let existingProfile = fetchProfile(profileID: profileID) {
+            profile = existingProfile
+            isPlaceholder = false
+        } else {
+            let newProfile = Profile(profileID: profileID)
+            context.insert(newProfile)
+            profile = newProfile
+            isPlaceholder = true
+        }
+
+        if isPlaceholder {
+            profile.updatedAt = .distantPast
+        } else if profile.modelContext == nil {
             context.insert(profile)
         }
 
         let recordEditedAt = (record[CloudKitSchema.ProfileField.lastEditedAt] as? Date) ?? record.modificationDate ?? Date()
-        guard recordEditedAt >= profile.updatedAt else {
+        guard isPlaceholder || recordEditedAt >= profile.updatedAt else {
             logger.debug("Skipping profile \(profileID.uuidString, privacy: .public) merge; local newer")
             return false
         }
