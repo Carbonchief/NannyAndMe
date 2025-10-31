@@ -235,6 +235,15 @@ enum L10n {
         )
     }
 
+    enum ManualEntry {
+        static let title = String(localized: "manualEntry.title", defaultValue: "Manual Entry")
+        static let saveButton = String(localized: "manualEntry.saveButton", defaultValue: "Save Entry")
+        static let accessibilityHint = String(
+            localized: "manualEntry.accessibilityHint",
+            defaultValue: "Add a manual log entry."
+        )
+    }
+
     enum Profiles {
         static let activeSection = String(localized: "profiles.activeSection", defaultValue: "Active Profiles")
         static let addProfile = String(localized: "profiles.add", defaultValue: "Add Profile")

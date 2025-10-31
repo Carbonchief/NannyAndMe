@@ -18,6 +18,7 @@ struct ContentView: View {
     @State private var showAllLogs = false
     @State private var isProfileSwitcherPresented = false
     @State private var isInitialProfilePromptPresented = false
+    @State private var isManualEntryPresented = false
 
     private var visibleTabs: [Tab] {
         var tabs: [Tab] = [.home, .reports]
@@ -63,34 +64,57 @@ struct ContentView: View {
                             }
                     )
 
-                    Divider()
-
-                    HStack(spacing: 0) {
-                        ForEach(tabs, id: \.self) { tab in
-                            VStack(spacing: 4) {
-                                Image(systemName: tab.icon)
-                                    .font(.system(size: 18, weight: .semibold))
-
-                                Text(tab.title)
-                                    .font(.footnote)
-                            }
-                            .padding(.vertical, 10)
-                            .foregroundStyle(selectedTab == tab ? Color.accentColor : Color.secondary)
-                            .frame(maxWidth: .infinity)
-                            .contentShape(Rectangle())
-                            .postHogLabel("navigation_select_tabBar_\(tab.analyticsIdentifier)")
-                            .onTapGesture {
-                                guard tab != selectedTab else { return }
-                                let oldValue = selectedTab
-                                previousTab = oldValue
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    selectedTab = tab
+                    VStack(spacing: 16) {
+                        HStack(spacing: 16) {
+                            HStack(spacing: 8) {
+                                ForEach(tabs, id: \.self) { tab in
+                                    Button {
+                                        guard tab != selectedTab else { return }
+                                        let oldValue = selectedTab
+                                        previousTab = oldValue
+                                        withAnimation(.easeInOut(duration: 0.3)) {
+                                            selectedTab = tab
+                                        }
+                                    } label: {
+                                        Image(systemName: tab.icon)
+                                            .font(.system(size: 18, weight: .semibold))
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 44)
+                                            .foregroundStyle(selectedTab == tab ? Color.accentColor : Color.secondary)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                                    .fill(selectedTab == tab ? Color.accentColor.opacity(0.12) : Color.clear)
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                    .postHogLabel("navigation_select_tabBar_\(tab.analyticsIdentifier)")
+                                    .accessibilityLabel(tab.title)
+                                    .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
                                 }
                             }
                             .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .background(.ultraThinMaterial, in: Capsule())
+
+                            Button {
+                                isManualEntryPresented = true
+                            } label: {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .frame(width: 48, height: 48)
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                            .buttonStyle(.plain)
+                            .background(.ultraThinMaterial, in: Circle())
+                            .postHogLabel("navigation_manualEntry_button_tabBar")
+                            .accessibilityLabel(L10n.ManualEntry.title)
+                            .accessibilityHint(L10n.ManualEntry.accessibilityHint)
                         }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
                     }
-                    .background(.ultraThinMaterial)
+                    .background(Color(.systemBackground).ignoresSafeArea(edges: .bottom))
                 }
                 .disabled(isMenuVisible)
                 .toolbar {
@@ -146,6 +170,9 @@ struct ContentView: View {
             .sheet(isPresented: $isProfileSwitcherPresented) {
                 ProfileSwitcherView()
                     .environmentObject(profileStore)
+            }
+            .sheet(isPresented: $isManualEntryPresented) {
+                ManualActionEntrySheet()
             }
 
             if isMenuVisible == false {

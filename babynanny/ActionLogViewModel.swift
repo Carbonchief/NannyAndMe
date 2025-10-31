@@ -317,6 +317,31 @@ final class ActionLogStore: ObservableObject {
         refreshDurationActivities()
     }
 
+    func addManualAction(for profileID: UUID, action manualAction: BabyActionSnapshot) {
+        notifyChange()
+        var profileState = state(for: profileID)
+        var sanitized = manualAction.withValidatedDates()
+        sanitized.updatedAt = Date()
+
+        if sanitized.category.isInstant {
+            sanitized.endDate = sanitized.startDate
+        }
+
+        profileState.history.removeAll { $0.id == sanitized.id }
+
+        if sanitized.endDate == nil && sanitized.category.isInstant == false {
+            profileState.activeActions[sanitized.category] = sanitized
+            synchronizeDurationActivityIfNeeded(for: sanitized)
+        } else {
+            profileState.history.append(sanitized)
+            profileState.history.sort { $0.startDate > $1.startDate }
+        }
+
+        persist(profileState: profileState, for: profileID)
+        refreshDurationActivities()
+        notifyActionLogged(for: [sanitized.category], profileID: profileID)
+    }
+
     func continueAction(for profileID: UUID, actionID: UUID) {
         guard canContinueAction(for: profileID, actionID: actionID) else { return }
         notifyChange()
