@@ -19,11 +19,10 @@ struct HomeView: View {
     @AppStorage("trackActionLocations") private var trackActionLocations = false
     @State private var presentedCategory: BabyActionCategory?
     @State private var editingAction: BabyActionSnapshot?
-    @State private var pendingStartAction: PendingStartAction?
+    @State private var activeAlert: HomeAlert?
     @State private var categoryClearedForSheet: BabyActionCategory?
     @State private var throttledCategories: Set<BabyActionCategory> = []
     @State private var reminderPrompt: ReminderPromptState?
-    @State private var reminderAuthorizationAlert: ReminderAuthorizationAlert?
     @State private var recentActionDetail: RecentActionDetailState?
     private let onShowAllLogs: () -> Void
 
@@ -51,32 +50,36 @@ struct HomeView: View {
                 editingAction = nil
             }
         }
-        .alert(item: $pendingStartAction) { pending in
-            let runningList = ListFormatter.localizedString(byJoining: pending.interruptedActionTitles)
-            return Alert(
-                title: Text(L10n.Home.interruptionAlertTitle),
-                message: Text(L10n.Home.interruptionAlertMessage(pending.category.title, runningList)),
-                primaryButton: .destructive(Text(L10n.Home.interruptionAlertConfirm)) {
-                    completePendingStartAction(pending)
-                    pendingStartAction = nil
-                },
-                secondaryButton: .cancel {
-                    pendingStartAction = nil
-                }
-            )
-        }
-        .alert(item: $reminderAuthorizationAlert) { alert in
-            Alert(
-                title: Text(L10n.Home.customReminderNotificationsDeniedTitle),
-                message: Text(L10n.Home.customReminderNotificationsDeniedMessage),
-                primaryButton: .default(Text(L10n.Home.customReminderNotificationsDeniedSettings)) {
-                    if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
-                        openURL(settingsURL)
+        .alert(item: $activeAlert) { alert in
+            switch alert {
+            case let .pendingStart(pending):
+                let runningList = ListFormatter.localizedString(byJoining: pending.interruptedActionTitles)
+                return Alert(
+                    title: Text(L10n.Home.interruptionAlertTitle),
+                    message: Text(L10n.Home.interruptionAlertMessage(pending.category.title, runningList)),
+                    primaryButton: .destructive(Text(L10n.Home.interruptionAlertConfirm)) {
+                        completePendingStartAction(pending)
+                        activeAlert = nil
+                    },
+                    secondaryButton: .cancel {
+                        activeAlert = nil
                     }
-                },
-                secondaryButton: .cancel(Text(L10n.Home.customReminderNotificationsDeniedCancel)) {
-                }
-            )
+                )
+            case .reminderAuthorization:
+                return Alert(
+                    title: Text(L10n.Home.customReminderNotificationsDeniedTitle),
+                    message: Text(L10n.Home.customReminderNotificationsDeniedMessage),
+                    primaryButton: .default(Text(L10n.Home.customReminderNotificationsDeniedSettings)) {
+                        if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                            openURL(settingsURL)
+                        }
+                        activeAlert = nil
+                    },
+                    secondaryButton: .cancel(Text(L10n.Home.customReminderNotificationsDeniedCancel)) {
+                        activeAlert = nil
+                    }
+                )
+            }
         }
         .disabled(reminderPrompt != nil || recentActionDetail != nil)
         .overlay {
@@ -338,11 +341,12 @@ struct HomeView: View {
             let interruptedTitles = interruptedActionTitles(for: category)
 
             guard interruptedTitles.isEmpty else {
-                pendingStartAction = PendingStartAction(
+                let pendingAction = PendingStartAction(
                     category: category,
                     interruptedActionTitles: interruptedTitles,
                     nextStep: .presentCategorySheet
                 )
+                activeAlert = .pendingStart(pendingAction)
                 return false
             }
 
@@ -365,11 +369,12 @@ struct HomeView: View {
         let shouldBypassWarning = categoryClearedForSheet == category
 
         guard interruptedTitles.isEmpty || shouldBypassWarning else {
-            pendingStartAction = PendingStartAction(
+            let pendingAction = PendingStartAction(
                 category: category,
                 interruptedActionTitles: interruptedTitles,
                 nextStep: .start(configuration: configuration, dismissSheet: dismissingSheet)
             )
+            activeAlert = .pendingStart(pendingAction)
             return false
         }
 
@@ -435,7 +440,7 @@ struct HomeView: View {
             if isAuthorized {
                 showReminderDialog(for: category)
             } else {
-                reminderAuthorizationAlert = ReminderAuthorizationAlert(category: category)
+                activeAlert = .reminderAuthorization(ReminderAuthorizationAlert(category: category))
             }
         }
     }
@@ -1389,6 +1394,20 @@ private struct PendingStartAction: Identifiable {
     let category: BabyActionCategory
     let interruptedActionTitles: [String]
     let nextStep: NextStep
+}
+
+private enum HomeAlert: Identifiable {
+    case pendingStart(PendingStartAction)
+    case reminderAuthorization(ReminderAuthorizationAlert)
+
+    var id: UUID {
+        switch self {
+        case let .pendingStart(pending):
+            return pending.id
+        case let .reminderAuthorization(alert):
+            return alert.id
+        }
+    }
 }
 
 private protocol ActionTypeOption: Identifiable, Hashable {
