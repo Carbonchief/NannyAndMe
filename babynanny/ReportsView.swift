@@ -1674,10 +1674,17 @@ private struct CalendarActionRow: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.systemBackground))
-                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .threeDCardBackground(
+            baseColor: Color(.systemBackground),
+            borderColor: Color.black.opacity(0.04),
+            cornerRadius: 18,
+            highlightOpacity: 0.16,
+            highlightShadowOpacity: 0.32,
+            highlightShadowRadius: 6,
+            highlightShadowOffset: CGSize(width: -4, height: -4),
+            dropShadowOpacity: 0.14,
+            dropShadowRadius: 14,
+            dropShadowOffset: CGSize(width: 8, height: 10)
         )
     }
 }
@@ -1726,10 +1733,17 @@ private struct StatCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.systemBackground))
-                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .threeDCardBackground(
+            baseColor: Color(.systemBackground),
+            borderColor: Color.black.opacity(0.04),
+            cornerRadius: 18,
+            highlightOpacity: 0.16,
+            highlightShadowOpacity: 0.32,
+            highlightShadowRadius: 6,
+            highlightShadowOffset: CGSize(width: -4, height: -4),
+            dropShadowOpacity: 0.14,
+            dropShadowRadius: 14,
+            dropShadowOffset: CGSize(width: 8, height: 10)
         )
     }
 }

@@ -202,8 +202,6 @@ struct HomeView: View {
         let trailingTransition = AnyTransition.move(edge: .trailing)
             .combined(with: .opacity)
 
-        let cardShape = RoundedRectangle(cornerRadius: 16, style: .continuous)
-
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 12) {
                 AnimatedActionIcon(
@@ -241,15 +239,19 @@ struct HomeView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            cardShape
-                .fill(Color(.secondarySystemGroupedBackground))
+        .threeDCardBackground(
+            baseColor: Color(.secondarySystemGroupedBackground),
+            borderColor: recent.category.accentColor.opacity(0.6),
+            borderLineWidth: 1.5,
+            cornerRadius: 16,
+            highlightOpacity: 0.16,
+            highlightShadowOpacity: 0.32,
+            highlightShadowRadius: 8,
+            highlightShadowOffset: CGSize(width: -5, height: -5),
+            dropShadowOpacity: 0.18,
+            dropShadowRadius: 16,
+            dropShadowOffset: CGSize(width: 8, height: 10)
         )
-        .overlay(
-            cardShape
-                .stroke(recent.category.accentColor, lineWidth: 2)
-        )
-        .clipShape(cardShape)
         .contentShape(Rectangle())
         .onTapGesture {
             editingAction = recent
@@ -778,47 +780,49 @@ private struct ActionCard: View {
                 }
             }
         } label: {
-            ZStack {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(backgroundColor)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(borderColor, lineWidth: 1)
-                    )
-                    .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
-
-                VStack(spacing: 10) {
-                    ZStack {
-                        iconView
-                    }
-                    .id(iconTransitionID)
-                    .transition(cardContentTransition)
-
-                    Text(category.title)
-                        .font(.headline)
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.primary)
-
-                    detailSection
-
-                    Spacer(minLength: 0)
-
-                    ZStack {
-                        Text(callToActionText)
-                            .font(.footnote)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(category.accentColor)
-                            .multilineTextAlignment(.center)
-                    }
-                    .id(callToActionText)
-                    .transition(cardContentTransition)
+            VStack(spacing: 10) {
+                ZStack {
+                    iconView
                 }
-                .padding(16)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .animation(cardAnimation, value: iconTransitionID)
-                .animation(cardAnimation, value: callToActionText)
-                .animation(cardAnimation, value: activeAction?.id)
+                .id(iconTransitionID)
+                .transition(cardContentTransition)
+
+                Text(category.title)
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.primary)
+
+                detailSection
+
+                Spacer(minLength: 0)
+
+                ZStack {
+                    Text(callToActionText)
+                        .font(.footnote)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(category.accentColor)
+                        .multilineTextAlignment(.center)
+                }
+                .id(callToActionText)
+                .transition(cardContentTransition)
             }
+            .padding(16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .threeDCardBackground(
+                baseColor: backgroundColor,
+                borderColor: borderColor,
+                cornerRadius: 18,
+                highlightOpacity: isActive ? 0.12 : 0.18,
+                highlightShadowOpacity: isActive ? 0.26 : 0.36,
+                highlightShadowRadius: 7,
+                highlightShadowOffset: CGSize(width: -6, height: -6),
+                dropShadowOpacity: isActive ? 0.22 : 0.18,
+                dropShadowRadius: 18,
+                dropShadowOffset: CGSize(width: 10, height: 12)
+            )
+            .animation(cardAnimation, value: iconTransitionID)
+            .animation(cardAnimation, value: callToActionText)
+            .animation(cardAnimation, value: activeAction?.id)
         }
         .buttonStyle(.plain)
         .disabled(isInteractionDisabled)
@@ -1200,9 +1204,17 @@ private struct HistoryRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(minHeight: 60, alignment: .center)
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.tertiarySystemBackground))
+        .threeDCardBackground(
+            baseColor: Color(.tertiarySystemBackground),
+            borderColor: Color.black.opacity(0.04),
+            cornerRadius: 14,
+            highlightOpacity: 0.16,
+            highlightShadowOpacity: 0.32,
+            highlightShadowRadius: 6,
+            highlightShadowOffset: CGSize(width: -4, height: -4),
+            dropShadowOpacity: 0.14,
+            dropShadowRadius: 12,
+            dropShadowOffset: CGSize(width: 6, height: 8)
         )
         .contentShape(Rectangle())
         .onLongPressGesture(minimumDuration: 0.6) {
