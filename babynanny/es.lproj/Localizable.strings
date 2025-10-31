@@ -255,6 +255,9 @@
 "stats.calendar.diaper.subtitle" = "Cambios registrados";
 "stats.calendar.total.title" = "Registros totales";
 "stats.calendar.total.subtitle" = "Todas las actividades";
+"manualEntry.title" = "Registro manual";
+"manualEntry.saveButton" = "Guardar registro";
+"manualEntry.accessibilityHint" = "Agregar un registro manual.";
 "stats.calendar.timeline.title" = "Acciones registradas";
 "stats.calendar.duration.zero" = "0 min";
 "stats.calendar.datePicker.label" = "Seleccionar fecha";

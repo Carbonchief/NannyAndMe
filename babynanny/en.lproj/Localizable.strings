@@ -258,6 +258,9 @@
 "stats.calendar.feeding.subtitle.noBottle" = "No bottle feeds logged";
 "stats.calendar.diaper.subtitle" = "Changes logged";
 "stats.calendar.total.title" = "Total Logs";
+"manualEntry.title" = "Manual Entry";
+"manualEntry.saveButton" = "Save Entry";
+"manualEntry.accessibilityHint" = "Add a manual log entry.";
 "stats.calendar.total.subtitle" = "Across all activities";
 "stats.calendar.timeline.title" = "Logged actions";
 "stats.calendar.duration.zero" = "0m";

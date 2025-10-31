@@ -255,6 +255,9 @@
 "stats.calendar.diaper.subtitle" = "Wechsel protokolliert";
 "stats.calendar.total.title" = "Gesamtanzahl";
 "stats.calendar.total.subtitle" = "Alle Aktivitäten zusammen";
+"manualEntry.title" = "Manueller Eintrag";
+"manualEntry.saveButton" = "Eintrag speichern";
+"manualEntry.accessibilityHint" = "Manuellen Eintrag hinzufügen.";
 "stats.calendar.timeline.title" = "Protokollierte Aktionen";
 "stats.calendar.duration.zero" = "0 Min";
 "stats.calendar.datePicker.label" = "Datum auswählen";
