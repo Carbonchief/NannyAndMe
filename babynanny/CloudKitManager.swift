@@ -517,13 +517,14 @@ final class CloudKitManager {
             container.add(operation)
         }
 
+        let resolvedRootRecordID: CKRecord.ID? = metadata.rootRecord?.recordID ?? metadata.rootRecordID
         let zoneID: CKRecordZone.ID
-        if let rootRecord = metadata.rootRecord {
-            zoneID = rootRecord.recordID.zoneID
-        } else if #available(iOS 16.0, *) {
-            zoneID = metadata.share.recordID.zoneID
+        if let resolvedRootRecordID {
+            zoneID = resolvedRootRecordID.zoneID
         } else {
-            zoneID = metadata.rootRecordID.zoneID
+            let fallbackZoneID = metadata.share.recordID.zoneID
+            logger.error("Accepted share metadata missing root record identifiers; falling back to share zone \(fallbackZoneID.zoneName, privacy: .public)")
+            zoneID = fallbackZoneID
         }
         await fetchZoneChanges(zoneID: zoneID, scope: .shared)
     }

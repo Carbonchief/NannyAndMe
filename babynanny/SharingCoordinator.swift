@@ -168,20 +168,15 @@ final class SharingCoordinator: NSObject, ObservableObject {
 
     func registerAcceptedShare(metadata: CKShare.Metadata) {
         let shareRecord = metadata.share
-        let resolvedRootRecordID: CKRecord.ID?
-        if let rootRecord = metadata.rootRecord {
-            resolvedRootRecordID = rootRecord.recordID
-        } else if #available(iOS 16.0, *) {
-            resolvedRootRecordID = nil
-        } else {
-            resolvedRootRecordID = metadata.rootRecordID
-        }
+        let resolvedRootRecordID: CKRecord.ID? = metadata.rootRecord?.recordID ?? metadata.rootRecordID
 
         let zoneID: CKRecordZone.ID
-        if let rootRecordID = resolvedRootRecordID {
-            zoneID = rootRecordID.zoneID
+        if let resolvedRootRecordID {
+            zoneID = resolvedRootRecordID.zoneID
         } else {
-            zoneID = shareRecord.recordID.zoneID
+            let fallbackZoneID = shareRecord.recordID.zoneID
+            logger.error("Accepted share metadata missing root record identifiers; falling back to share zone \(fallbackZoneID.zoneName, privacy: .public)")
+            zoneID = fallbackZoneID
         }
 
         let profileIDFromRoot = resolvedRootRecordID.flatMap { recordID in
