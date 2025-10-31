@@ -18,6 +18,7 @@ struct ContentView: View {
     @State private var showAllLogs = false
     @State private var isProfileSwitcherPresented = false
     @State private var isInitialProfilePromptPresented = false
+    @State private var showFireworks = false
 
     private var visibleTabs: [Tab] {
         var tabs: [Tab] = [.home, .reports]
@@ -204,6 +205,22 @@ struct ContentView: View {
                 .zIndex(2)
             }
         }
+        .overlay(alignment: .center) {
+            if showFireworks {
+                FireworksCelebrationView {
+                    Task { @MainActor in
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showFireworks = false
+                        }
+                    }
+                }
+                .ignoresSafeArea()
+                .transition(.opacity)
+                .accessibilityHidden(true)
+                .allowsHitTesting(false)
+                .zIndex(4)
+            }
+        }
         .sheet(isPresented: $isInitialProfilePromptPresented) {
             InitialProfileNamePromptView(
                 initialName: profileStore.activeProfile.name,
@@ -212,11 +229,19 @@ struct ContentView: View {
             ) { newName, imageData in
                 let trimmedName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard trimmedName.isEmpty == false else { return }
+                let wasFirstProfileUnnamed = profileStore.profiles.count == 1 &&
+                    profileStore.activeProfile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 profileStore.updateActiveProfile { profile in
                     profile.name = trimmedName
                     profile.imageData = imageData
                 }
                 isInitialProfilePromptPresented = false
+                Task { @MainActor in
+                    guard wasFirstProfileUnnamed else { return }
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showFireworks = true
+                    }
+                }
             }
         }
         .onAppear {
