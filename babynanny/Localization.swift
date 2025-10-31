@@ -532,6 +532,11 @@ enum L10n {
         static let allLogs = String(localized: "menu.allLogs", defaultValue: "All Logs")
         static let settings = String(localized: "menu.settings", defaultValue: "Settings")
         static let shareData = String(localized: "menu.shareData", defaultValue: "Share Data")
+
+        static func version(_ value: String) -> String {
+            let format = String(localized: "menu.version", defaultValue: "Version %@")
+            return String(format: format, locale: Locale.current, value)
+        }
     }
 
     enum ShareData {
