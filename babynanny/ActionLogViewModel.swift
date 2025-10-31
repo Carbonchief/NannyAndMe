@@ -17,7 +17,6 @@ final class ActionLogStore: ObservableObject {
     private weak var profileStore: ProfileStore?
     private let notificationCenter: NotificationCenter
     private let dataStack: AppDataStack
-    private weak var sharingCoordinator: SharingCoordinator?
     private let observedContainerIdentifier: ObjectIdentifier
     private let observedManagedObjectContextIdentifier: ObjectIdentifier?
     private let observedPersistentStoreCoordinatorIdentifier: ObjectIdentifier?
@@ -83,10 +82,6 @@ final class ActionLogStore: ObservableObject {
         scheduleReminders()
         refreshDurationActivityOnLaunch()
         synchronizeMetadataFromModelContext()
-    }
-
-    func registerSharingCoordinator(_ coordinator: SharingCoordinator) {
-        sharingCoordinator = coordinator
     }
 
     func performUserInitiatedRefresh() async {
@@ -567,7 +562,6 @@ private extension ActionLogStore {
         dataStack.scheduleSaveIfNeeded(on: modelContext, reason: "persist-profile-state")
 
         scheduleReminders()
-        sharingCoordinator?.scheduleActionSync(profileID: profileID)
     }
 
     static func clamp(_ action: BabyActionSnapshot, avoiding conflicts: [BabyActionSnapshot]) -> BabyActionSnapshot {
@@ -649,7 +643,7 @@ private extension ActionLogStore {
         }
         contextObservers.append(externalToken)
 
-        // ---------- RemoteChange (CloudKit, etc.) ----------
+        // ---------- RemoteChange (external persistent changes) ----------
         let remoteToken = notificationCenter.addObserver(
             forName: .NSPersistentStoreRemoteChange,
             object: nil,
@@ -661,19 +655,6 @@ private extension ActionLogStore {
             }
         }
         contextObservers.append(remoteToken)
-
-        // ---------- SyncCoordinator merge completion ----------
-        let syncToken = notificationCenter.addObserver(
-            forName: SyncCoordinator.mergeDidCompleteNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                await self.performUserInitiatedRefresh()
-            }
-        }
-        contextObservers.append(syncToken)
     }
 
     private func handleModelContextChange(reloadFromPersistentStore: Bool) {

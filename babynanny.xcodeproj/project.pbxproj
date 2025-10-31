@@ -115,13 +115,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-                EDD0498E2E93FE1A00795772 /* Frameworks */ = {
-                        isa = PBXFrameworksBuildPhase;
-                        buildActionMask = 2147483647;
-                        files = (
-                        );
-                        runOnlyForDeploymentPostprocessing = 0;
-                };
+		EDD0498E2E93FE1A00795772 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EDD0499E2E93FE1E00795772 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -214,8 +214,8 @@
 				EDD049932E93FE1A00795772 /* babynanny */,
 			);
 			name = babynanny;
-                        packageProductDependencies = (
-                        );
+			packageProductDependencies = (
+			);
 			productName = babynanny;
 			productReference = EDD049912E93FE1A00795772 /* babynanny.app */;
 			productType = "com.apple.product-type.application";
@@ -279,17 +279,17 @@
 					EDBCCD012E9A324500C65A0E = {
 						CreatedOnToolsVersion = 16.2;
 					};
-                                        EDD049902E93FE1A00795772 = {
-                                                CreatedOnToolsVersion = 16.2;
-                                                SystemCapabilities = {
-                                                        com.apple.Push = {
-                                                                enabled = 1;
-                                                        };
-                                                        com.apple.iCloud = {
-                                                                enabled = 1;
-                                                        };
-                                                };
-                                        };
+					EDD049902E93FE1A00795772 = {
+						CreatedOnToolsVersion = 16.2;
+						SystemCapabilities = {
+							com.apple.Push = {
+								enabled = 0;
+							};
+							com.apple.iCloud = {
+								enabled = 0;
+							};
+						};
+					};
 					EDD049A02E93FE1E00795772 = {
 						CreatedOnToolsVersion = 16.2;
 						TestTargetID = EDD049902E93FE1A00795772;
@@ -311,8 +311,8 @@
 			);
 			mainGroup = EDD049882E93FE1A00795772;
 			minimizedProjectReferenceProxies = 1;
-                        packageReferences = (
-                        );
+			packageReferences = (
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = EDD049922E93FE1A00795772 /* Products */;
 			projectDirPath = "";
@@ -430,7 +430,7 @@
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
-                                SWIFT_VERSION = 6.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -458,7 +458,7 @@
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
-                                SWIFT_VERSION = 6.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -613,7 +613,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
-                                SWIFT_VERSION = 6.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -649,7 +649,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
-                                SWIFT_VERSION = 6.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -668,7 +668,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
-                                SWIFT_VERSION = 6.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/babynanny.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/babynanny";
 			};
@@ -688,7 +688,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
-                                SWIFT_VERSION = 6.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/babynanny.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/babynanny";
 			};
@@ -706,7 +706,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
-                                SWIFT_VERSION = 6.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = babynanny;
 			};
@@ -724,7 +724,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
-                                SWIFT_VERSION = 6.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = babynanny;
 			};
@@ -779,12 +779,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = EDD049892E93FE1A00795772 /* Project object */;
 }

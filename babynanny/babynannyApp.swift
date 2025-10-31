@@ -19,42 +19,23 @@ struct babynannyApp: App {
     @StateObject private var appDataStack: AppDataStack
     @StateObject private var profileStore: ProfileStore
     @StateObject private var actionStore: ActionLogStore
-    @StateObject private var syncCoordinator: SyncCoordinator
-    @StateObject private var sharingCoordinator: SharingCoordinator
     @State private var isShowingSplashScreen = true
 
     init() {
-
         let stack = AppDataStack()
         let scheduler = UserNotificationReminderScheduler()
-        let bridge = SwiftDataBridge(dataStack: stack)
-        let cloudKitManager = CloudKitManager(bridge: bridge)
         let profileStore = ProfileStore(modelContext: stack.mainContext,
                                         dataStack: stack,
-                                        reminderScheduler: scheduler,
-                                        cloudKitManager: cloudKitManager)
+                                        reminderScheduler: scheduler)
         let actionStore = ActionLogStore(modelContext: stack.mainContext,
                                          reminderScheduler: scheduler,
                                          dataStack: stack)
         profileStore.registerActionStore(actionStore)
         actionStore.registerProfileStore(profileStore)
-        let syncCoordinator = SyncCoordinator(dataStack: stack)
-        let sharingCoordinator = SharingCoordinator(cloudKitManager: cloudKitManager, dataStack: stack)
-        let pushHandling = PushHandling(syncCoordinator: syncCoordinator, cloudKitManager: cloudKitManager)
-        profileStore.registerSharingCoordinator(sharingCoordinator)
-        actionStore.registerSharingCoordinator(sharingCoordinator)
 
         _appDataStack = StateObject(wrappedValue: stack)
         _profileStore = StateObject(wrappedValue: profileStore)
         _actionStore = StateObject(wrappedValue: actionStore)
-        _syncCoordinator = StateObject(wrappedValue: syncCoordinator)
-        _sharingCoordinator = StateObject(wrappedValue: sharingCoordinator)
-        appDelegate.syncCoordinator = syncCoordinator
-        appDelegate.cloudKitManager = cloudKitManager
-        appDelegate.sharingCoordinator = sharingCoordinator
-        appDelegate.pushHandling = pushHandling
-        syncCoordinator.requestSyncIfNeeded(reason: .launch)
-        Task { await cloudKitManager.ensureSubscriptions() }
     }
 
     var body: some Scene {
@@ -64,10 +45,8 @@ struct babynannyApp: App {
                     .environmentObject(appDataStack)
                     .environmentObject(profileStore)
                     .environmentObject(actionStore)
-                    .environmentObject(sharingCoordinator)
                     .environmentObject(shareDataCoordinator)
                     .environmentObject(LocationManager.shared)
-                    .environmentObject(syncCoordinator)
                     .onOpenURL { url in
                         if handleDurationActivityURL(url) {
                             return
@@ -121,34 +100,10 @@ private extension babynannyApp {
 
 @MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    var syncCoordinator: SyncCoordinator?
-    var cloudKitManager: CloudKitManager?
-    var sharingCoordinator: SharingCoordinator?
-    var pushHandling: PushHandling?
     let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "appdelegate")
 
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        pushHandling?.registerForRemoteNotifications()
         return true
-    }
-
-    func application(_ application: UIApplication,
-                     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        logger.debug("Remote notification registration succeeded")
-    }
-
-    func application(_ application: UIApplication,
-                     didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        logger.error("Remote notification registration failed: \(error.localizedDescription, privacy: .public)")
-    }
-
-    func application(_ application: UIApplication,
-                     didReceiveRemoteNotification userInfo: [AnyHashable: Any],
-                     fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
-        Task { @MainActor [weak self] in
-            await self?.pushHandling?.handleRemoteNotification(userInfo: userInfo)
-            completionHandler(.newData)
-        }
     }
 }

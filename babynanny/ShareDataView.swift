@@ -17,8 +17,6 @@ struct ShareDataView: View {
 
     var body: some View {
         Form {
-            ShareProfileSection()
-
             Section(header: Text(L10n.ShareData.profileSectionTitle)) {
                 let profile = profileStore.activeProfile
                 let historyCount = actionStore.state(for: profile.id).history.count

@@ -16,7 +16,7 @@ NannyAndMe is a SwiftUI-based iOS application that helps caregivers keep track o
 - **Action reminders** – Get configurable notifications for sleep, diaper, and feeding actions with per-action intervals that reset whenever you log an entry.
 - **Optional location logging** – Capture where each action was recorded and surface that context alongside entries when location tracking is enabled in Settings.
 - **Action map** – Explore logged locations on a clustered map with quick date and action filters whenever location tracking is enabled.
-- **Data sharing** – Export the active profile's logs to JSON, merge imports that include new or updated entries, and collaborate live with CloudKit sharing.
+- **Data sharing** – Export the active profile's logs to JSON and merge imports that include new or updated entries.
 - **Localized experience** – Navigate the interface in English, German, or Spanish with fully translated caregiver-facing text.
 
 ## Project structure
@@ -46,7 +46,7 @@ NannyAndMe/
 - macOS with Xcode 16 (or newer) installed
 - iOS 18 SDK (included with Xcode 16)
 - Swift 6 toolchain (bundled with the listed Xcode version)
-- Apple Developer account with iCloud (CloudKit) and Push Notifications enabled for the bundle identifier
+- Apple Developer account (required for running on devices)
 
 ## Getting started
 
@@ -63,10 +63,7 @@ NannyAndMe/
    - Select the `babynanny` scheme.
    - Choose an iOS Simulator device (e.g., iPhone 15 Pro).
    - Press <kbd>Cmd</kbd>+<kbd>R</kbd> to build and run.
-4. **Configure iCloud sync (real devices)**
-   - In the Signing & Capabilities tab ensure the `iCloud` capability is enabled with the `iCloud.com.prioritybit.nannyandme` container.
-   - Enable the `Push Notifications` capability and the `Remote notifications` background mode so CloudKit change notifications reach the device.
-   - Sign in to an iCloud account on the device before launching the app.
+4. **That's it.** The app stores data locally; no additional iCloud setup is required.
 
 ## Testing
 
@@ -78,14 +75,6 @@ xcodebuild test \
   -scheme babynanny \
   -destination 'platform=iOS Simulator,name=iPhone 15 Pro'
 ```
-
-## CloudKit sharing
-
-1. Open the side menu and choose **Share Data**, then tap **Share profile** in the CloudKit section.
-2. Send the invitation with the system share sheet. Invitees need an iCloud account.
-3. When an invitee accepts, the shared profile and actions appear automatically on their devices after the silent CloudKit push arrives.
-4. All participants can edit logs; updates sync in the background through database subscriptions.
-5. Owners can stop sharing or remove participants from the same Share Data screen. Participants can leave the share if they no longer need access.
 
 ## Development tips
 

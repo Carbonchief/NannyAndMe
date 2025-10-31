@@ -1,4 +1,3 @@
-import CloudKit
 import Foundation
 import SwiftData
 import SwiftUI
@@ -320,60 +319,36 @@ final class ProfileStore: ObservableObject {
     private let dataStack: AppDataStack
     private let reminderScheduler: ReminderScheduling
     private weak var actionStore: ActionLogStore?
-    private weak var sharingCoordinator: SharingCoordinator?
-    private let cloudKitManager: CloudKitManager?
     private let fileManager: FileManager
     private let saveURL: URL
     private var settings: ProfileStoreSettings
     private var isEnsuringProfile = false
-    private var cloudBootstrapState: CloudBootstrapState?
-    private struct NotificationObserverToken: @unchecked Sendable {
-        let token: NSObjectProtocol
-    }
-
-    private let notificationCenter: NotificationCenter
-    private var notificationObservers: [NotificationObserverToken] = []
 
     init(modelContext: ModelContext,
          dataStack: AppDataStack,
-         notificationCenter: NotificationCenter = .default,
          fileManager: FileManager = .default,
          directory: URL? = nil,
          filename: String = "childProfiles.json",
-         reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler(),
-         cloudKitManager: CloudKitManager? = nil) {
+         reminderScheduler: ReminderScheduling = UserNotificationReminderScheduler()) {
         self.modelContext = modelContext
         self.dataStack = dataStack
-        self.notificationCenter = notificationCenter
         self.fileManager = fileManager
         self.saveURL = Self.resolveSaveURL(fileManager: fileManager, directory: directory, filename: filename)
         self.reminderScheduler = reminderScheduler
         self.settings = Self.fetchOrCreateSettings(in: modelContext)
         self.showRecentActivityOnHome = settings.showRecentActivityOnHome
         self.activeProfileID = settings.activeProfileID
-        self.cloudKitManager = cloudKitManager
 
         migrateLegacyProfilesIfNeeded()
         refreshProfiles()
         ensureActiveProfileExists()
         scheduleReminders()
-        observeSyncNotifications()
-    }
-
-    deinit {
-        for observer in notificationObservers {
-            notificationCenter.removeObserver(observer.token)
-        }
     }
 
     func registerActionStore(_ store: ActionLogStore) {
         actionStore = store
         scheduleReminders()
         synchronizeProfileMetadata()
-    }
-
-    func registerSharingCoordinator(_ coordinator: SharingCoordinator) {
-        sharingCoordinator = coordinator
     }
 
     func setActiveProfile(_ profile: ChildProfile) {
@@ -427,16 +402,6 @@ final class ProfileStore: ObservableObject {
     }
 
     func deleteProfile(_ profile: ChildProfile) {
-        if let context = sharingCoordinator?.shareContext(for: profile.id) {
-            Task { [weak sharingCoordinator] in
-                if context.isOwner {
-                    await sharingCoordinator?.stopSharing(profileID: profile.id)
-                } else {
-                    await sharingCoordinator?.leaveShare(for: profile.id)
-                }
-            }
-        }
-
         mutateProfiles(reason: "profile-delete") {
             guard let model = profileModel(withID: profile.id) else { return false }
             modelContext.delete(model)
@@ -461,7 +426,6 @@ final class ProfileStore: ObservableObject {
             updates(model)
             model.normalizeReminderPreferences()
             model.touch()
-            sharingCoordinator?.scheduleProfileSync(profileID: id)
             return true
         }
     }
@@ -490,7 +454,6 @@ final class ProfileStore: ObservableObject {
                     }
                     if didChange {
                         model.touch()
-                        sharingCoordinator?.scheduleProfileSync(profileID: model.resolvedProfileID)
                     }
                 } else {
                     let trimmedName = update.name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -760,10 +723,6 @@ final class ProfileStore: ObservableObject {
             isEnsuringProfile = true
             defer { isEnsuringProfile = false }
 
-            if attemptCloudBootstrapIfNeeded() {
-                return
-            }
-
             createDefaultProfile()
             return
         }
@@ -787,19 +746,6 @@ final class ProfileStore: ObservableObject {
 
     private func synchronizeProfileMetadata() {
         actionStore?.synchronizeProfileMetadata(profiles)
-    }
-
-    private func observeSyncNotifications() {
-        let token = notificationCenter.addObserver(forName: SyncCoordinator.mergeDidCompleteNotification,
-                                                   object: nil,
-                                                   queue: nil) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                self.refreshProfiles()
-                self.ensureActiveProfileExists()
-            }
-        }
-        notificationObservers.append(.init(token: token))
     }
 
     private func mutateProfiles(reason: String, _ work: () -> Bool) {
@@ -861,32 +807,6 @@ final class ProfileStore: ObservableObject {
 }
 
 private extension ProfileStore {
-    @discardableResult
-    func attemptCloudBootstrapIfNeeded() -> Bool {
-        guard cloudKitManager != nil else { return false }
-        if let bootstrapState = cloudBootstrapState, bootstrapState == .inProgress {
-            return true
-        }
-        if cloudBootstrapState == .completed {
-            return false
-        }
-
-        cloudBootstrapState = .inProgress
-        Task { @MainActor [weak self] in
-            guard let self, let manager = self.cloudKitManager else { return }
-            defer {
-                self.cloudBootstrapState = .completed
-                self.ensureActiveProfileExists()
-            }
-
-            await manager.fetchChanges(database: .private)
-            await manager.fetchChanges(database: .shared)
-            self.refreshProfiles()
-        }
-
-        return true
-    }
-
     func createDefaultProfile() {
         let model = ProfileActionStateModel(name: "", birthDate: Date())
         model.normalizeReminderPreferences()
@@ -894,11 +814,6 @@ private extension ProfileStore {
         persistContextIfNeeded(reason: "profile-ensure-default")
         refreshProfiles()
         activeProfileID = model.resolvedProfileID
-    }
-
-    enum CloudBootstrapState {
-        case inProgress
-        case completed
     }
 }
 
