@@ -88,11 +88,13 @@ private extension OnboardingFlowView {
     }
 
     var welcomePage: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 64))
-                .foregroundStyle(Color.accentColor)
-                .symbolRenderingMode(.hierarchical)
+        VStack(spacing: 24) {
+            Image("Logo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 120, height: 120)
+                .shadow(color: Color.accentColor.opacity(0.1), radius: 16, x: 0, y: 12)
+                .accessibilityHidden(true)
 
             Text(L10n.Onboarding.FirstLaunch.welcomeTitle)
                 .font(.largeTitle.weight(.bold))
@@ -104,13 +106,15 @@ private extension OnboardingFlowView {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
+
+            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     var benefitsPage: some View {
         VStack(spacing: 20) {
-            Image(systemName: "chart.line.uptrend.xyaxis")
+            Image(systemName: "map.circle")
                 .font(.system(size: 64))
                 .foregroundStyle(Color.accentColor)
                 .symbolRenderingMode(.hierarchical)
@@ -128,7 +132,7 @@ private extension OnboardingFlowView {
 
                 VStack(alignment: .leading, spacing: 10) {
                     benefitRow(icon: "checkmark.seal", text: L10n.Onboarding.FirstLaunch.benefitPointOne)
-                    benefitRow(icon: "bell.badge", text: L10n.Onboarding.FirstLaunch.benefitPointTwo)
+                    benefitRow(icon: "chart.bar", text: L10n.Onboarding.FirstLaunch.benefitPointTwo)
                 }
                 .frame(maxWidth: 420)
                 .padding(.top, 8)
@@ -140,28 +144,7 @@ private extension OnboardingFlowView {
 
     var paywallPage: some View {
         VStack(spacing: 24) {
-            Image(systemName: "creditcard")
-                .font(.system(size: 64))
-                .foregroundStyle(Color.accentColor)
-                .symbolRenderingMode(.hierarchical)
-
-            Text(L10n.Onboarding.FirstLaunch.paywallTitle)
-                .font(.largeTitle.weight(.bold))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 12)
-
-            Text(L10n.Onboarding.FirstLaunch.paywallSubtitle)
-                .font(.body)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 12)
-
-            VStack(alignment: .leading, spacing: 12) {
-                benefitRow(icon: "infinity", text: L10n.Onboarding.FirstLaunch.paywallFeatureOne)
-                benefitRow(icon: "arrow.triangle.2.circlepath", text: L10n.Onboarding.FirstLaunch.paywallFeatureTwo)
-                benefitRow(icon: "person.2.badge.gearshape", text: L10n.Onboarding.FirstLaunch.paywallFeatureThree)
-            }
-            .frame(maxWidth: 420)
+            PaywallCard()
 
             Text(L10n.Onboarding.FirstLaunch.termsDisclaimer)
                 .font(.footnote)
@@ -253,6 +236,152 @@ private extension OnboardingFlowView {
     func completeOnboarding() {
         hasCompletedOnboarding = true
         isPresented = false
+    }
+}
+
+private struct PaywallCard: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            VStack(spacing: 12) {
+                Image("Logo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 72, height: 72)
+                    .shadow(color: Color.accentColor.opacity(0.08), radius: 12, x: 0, y: 8)
+                    .accessibilityHidden(true)
+
+                VStack(spacing: 8) {
+                    Text(L10n.Onboarding.FirstLaunch.paywallTitle)
+                        .font(.title2.weight(.bold))
+                        .multilineTextAlignment(.center)
+
+                    Text(L10n.Onboarding.FirstLaunch.paywallSubtitle)
+                        .font(.body)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                PaywallFeatureRow(icon: "checkmark.circle.fill", text: L10n.Onboarding.FirstLaunch.paywallFeatureOne)
+                PaywallFeatureRow(icon: "checkmark.circle.fill", text: L10n.Onboarding.FirstLaunch.paywallFeatureTwo)
+                PaywallFeatureRow(icon: "checkmark.circle.fill", text: L10n.Onboarding.FirstLaunch.paywallFeatureThree)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(spacing: 12) {
+                PaywallPlanRow(
+                    title: L10n.Onboarding.FirstLaunch.paywallPlanAnnualTitle,
+                    detail: L10n.Onboarding.FirstLaunch.paywallPlanAnnualPrice,
+                    badge: L10n.Onboarding.FirstLaunch.paywallPlanAnnualBadge,
+                    isHighlighted: false
+                )
+
+                PaywallPlanRow(
+                    title: L10n.Onboarding.FirstLaunch.paywallPlanMonthlyTitle,
+                    detail: L10n.Onboarding.FirstLaunch.paywallPlanMonthlyPrice,
+                    badge: L10n.Onboarding.FirstLaunch.paywallPlanMonthlyBadge,
+                    isHighlighted: true
+                )
+            }
+
+            VStack(spacing: 8) {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(Color.accentColor)
+                    Text(L10n.Onboarding.FirstLaunch.paywallFreeTrialToggle)
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                }
+
+                Text(L10n.Onboarding.FirstLaunch.paywallTrialDisclaimer)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.08))
+            )
+        }
+        .padding(24)
+        .frame(maxWidth: 420)
+        .background(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.08), radius: 28, x: 0, y: 24)
+        )
+        .accessibilityElement(children: .contain)
+    }
+}
+
+private struct PaywallFeatureRow: View {
+    let icon: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
+            Text(text)
+                .font(.body)
+                .foregroundStyle(.primary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct PaywallPlanRow: View {
+    let title: String
+    let detail: String
+    let badge: String
+    let isHighlighted: Bool
+
+    var body: some View {
+        HStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(isHighlighted ? Color.white : .primary)
+
+                    if !badge.isEmpty {
+                        Text(badge.uppercased())
+                            .font(.caption2.weight(.bold))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(isHighlighted ? Color.white.opacity(0.16) : Color.accentColor.opacity(0.15))
+                            )
+                            .foregroundStyle(isHighlighted ? Color.white : Color.accentColor)
+                    }
+                }
+
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(isHighlighted ? Color.white.opacity(0.85) : .secondary)
+            }
+
+            Spacer()
+
+            Image(systemName: isHighlighted ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(isHighlighted ? Color.white : Color.accentColor)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(isHighlighted ? Color.accentColor : Color.accentColor.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.accentColor.opacity(isHighlighted ? 0 : 0.2), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
     }
 }
 

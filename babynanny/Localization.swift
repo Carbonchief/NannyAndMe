@@ -62,31 +62,63 @@ enum L10n {
             )
             static let benefitPointOne = String(
                 localized: "onboarding.firstLaunch.benefitsPoint.one",
-                defaultValue: "Personalized insights show patterns that keep your family in sync."
+                defaultValue: "Action location tracking pins each log so you know where care happens."
             )
             static let benefitPointTwo = String(
                 localized: "onboarding.firstLaunch.benefitsPoint.two",
-                defaultValue: "Smart reminders help you stay on top of naps, bottles, and changes."
+                defaultValue: "Share caregiver-ready reports that keep everyone aligned."
             )
             static let paywallTitle = String(
                 localized: "onboarding.firstLaunch.paywallTitle",
-                defaultValue: "Unlock your first week on us"
+                defaultValue: "Premium Access"
             )
             static let paywallSubtitle = String(
                 localized: "onboarding.firstLaunch.paywallSubtitle",
-                defaultValue: "Start a 7-day free trial of Nanny & Me Premium and keep the routines running smoothly."
+                defaultValue: "Coordinate your family's care with every premium feature—starting with a free 7-day trial."
             )
             static let paywallFeatureOne = String(
                 localized: "onboarding.firstLaunch.paywallFeature.one",
-                defaultValue: "Unlimited activity history for every caregiver."
+                defaultValue: "Unlimited activity history with full-resolution exports."
             )
             static let paywallFeatureTwo = String(
                 localized: "onboarding.firstLaunch.paywallFeature.two",
-                defaultValue: "Real-time syncing across all of your devices."
+                defaultValue: "Real-time sync across devices with action location trails."
             )
             static let paywallFeatureThree = String(
                 localized: "onboarding.firstLaunch.paywallFeature.three",
-                defaultValue: "Priority support from our family care team."
+                defaultValue: "Advanced caregiver reports and proactive reminders."
+            )
+            static let paywallPlanAnnualTitle = String(
+                localized: "onboarding.firstLaunch.paywallPlan.annualTitle",
+                defaultValue: "Family Annual"
+            )
+            static let paywallPlanAnnualPrice = String(
+                localized: "onboarding.firstLaunch.paywallPlan.annualPrice",
+                defaultValue: "$59.99 per year"
+            )
+            static let paywallPlanAnnualBadge = String(
+                localized: "onboarding.firstLaunch.paywallPlan.annualBadge",
+                defaultValue: "Best Value"
+            )
+            static let paywallPlanMonthlyTitle = String(
+                localized: "onboarding.firstLaunch.paywallPlan.monthlyTitle",
+                defaultValue: "Monthly"
+            )
+            static let paywallPlanMonthlyPrice = String(
+                localized: "onboarding.firstLaunch.paywallPlan.monthlyPrice",
+                defaultValue: "7-day trial, then $7.99 per month"
+            )
+            static let paywallPlanMonthlyBadge = String(
+                localized: "onboarding.firstLaunch.paywallPlan.monthlyBadge",
+                defaultValue: "Most Popular"
+            )
+            static let paywallFreeTrialToggle = String(
+                localized: "onboarding.firstLaunch.paywall.freeTrialToggle",
+                defaultValue: "Free Trial Enabled"
+            )
+            static let paywallTrialDisclaimer = String(
+                localized: "onboarding.firstLaunch.paywall.trialDisclaimer",
+                defaultValue: "No payment required today. Cancel anytime before your 7-day trial ends."
             )
             static let skip = String(
                 localized: "onboarding.firstLaunch.skip",
