@@ -45,7 +45,10 @@ struct HomeView: View {
             }
         }
         .sheet(item: $editingAction) { action in
-            ActionEditSheet(action: action) { updatedAction in
+            ActionEditSheet(
+                action: action,
+                showsContinueButton: action.category != .diaper
+            ) { updatedAction in
                 actionStore.updateAction(for: activeProfileID, action: updatedAction)
                 editingAction = nil
             }
@@ -1538,6 +1541,7 @@ private enum BottleVolumeOption: Hashable, Identifiable {
 struct ActionEditSheet: View {
     let action: BabyActionSnapshot
     let onSave: (BabyActionSnapshot) -> Void
+    private let showsContinueButton: Bool
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var profileStore: ProfileStore
@@ -1551,9 +1555,14 @@ struct ActionEditSheet: View {
     @State private var customBottleVolume: String
     @State private var endDate: Date?
 
-    init(action: BabyActionSnapshot, onSave: @escaping (BabyActionSnapshot) -> Void) {
+    init(
+        action: BabyActionSnapshot,
+        showsContinueButton: Bool = true,
+        onSave: @escaping (BabyActionSnapshot) -> Void
+    ) {
         self.action = action
         self.onSave = onSave
+        self.showsContinueButton = showsContinueButton
 
         _startDate = State(initialValue: action.startDate)
         _diaperSelection = State(initialValue: action.diaperType ?? .pee)
@@ -1738,7 +1747,7 @@ struct ActionEditSheet: View {
 
     @ViewBuilder
     private var continueSection: some View {
-        if canContinueAction {
+        if showsContinueButton && canContinueAction {
             Section(
                 footer: Text(L10n.Logs.continueActionInfo)
                     .font(.footnote)
