@@ -42,6 +42,77 @@ enum L10n {
             localized: "onboarding.profilePrompt.continue",
             defaultValue: "Continue"
         )
+
+        enum FirstLaunch {
+            static let welcomeTitle = String(
+                localized: "onboarding.firstLaunch.welcomeTitle",
+                defaultValue: "Welcome to Nanny & Me!"
+            )
+            static let welcomeMessage = String(
+                localized: "onboarding.firstLaunch.welcomeMessage",
+                defaultValue: "We're thrilled to have you—your little one just got a new teammate."
+            )
+            static let benefitsTitle = String(
+                localized: "onboarding.firstLaunch.benefitsTitle",
+                defaultValue: "Stay ahead with smart tracking"
+            )
+            static let benefitsMessage = String(
+                localized: "onboarding.firstLaunch.benefitsMessage",
+                defaultValue: "Log sleep, diapers, and feeds in seconds so you can focus on the cuddles."
+            )
+            static let benefitPointOne = String(
+                localized: "onboarding.firstLaunch.benefitsPoint.one",
+                defaultValue: "Personalized insights show patterns that keep your family in sync."
+            )
+            static let benefitPointTwo = String(
+                localized: "onboarding.firstLaunch.benefitsPoint.two",
+                defaultValue: "Smart reminders help you stay on top of naps, bottles, and changes."
+            )
+            static let paywallTitle = String(
+                localized: "onboarding.firstLaunch.paywallTitle",
+                defaultValue: "Unlock your first week on us"
+            )
+            static let paywallSubtitle = String(
+                localized: "onboarding.firstLaunch.paywallSubtitle",
+                defaultValue: "Start a 7-day free trial of Nanny & Me Premium and keep the routines running smoothly."
+            )
+            static let paywallFeatureOne = String(
+                localized: "onboarding.firstLaunch.paywallFeature.one",
+                defaultValue: "Unlimited activity history for every caregiver."
+            )
+            static let paywallFeatureTwo = String(
+                localized: "onboarding.firstLaunch.paywallFeature.two",
+                defaultValue: "Real-time syncing across all of your devices."
+            )
+            static let paywallFeatureThree = String(
+                localized: "onboarding.firstLaunch.paywallFeature.three",
+                defaultValue: "Priority support from our family care team."
+            )
+            static let skip = String(
+                localized: "onboarding.firstLaunch.skip",
+                defaultValue: "Skip"
+            )
+            static let next = String(
+                localized: "onboarding.firstLaunch.next",
+                defaultValue: "Next"
+            )
+            static let back = String(
+                localized: "onboarding.firstLaunch.back",
+                defaultValue: "Back"
+            )
+            static let startTrial = String(
+                localized: "onboarding.firstLaunch.startTrial",
+                defaultValue: "Start Free 7-Day Trial"
+            )
+            static let maybeLater = String(
+                localized: "onboarding.firstLaunch.maybeLater",
+                defaultValue: "Maybe Later"
+            )
+            static let termsDisclaimer = String(
+                localized: "onboarding.firstLaunch.termsDisclaimer",
+                defaultValue: "Cancel anytime before the trial ends to avoid being charged."
+            )
+        }
     }
 
     enum Home {
