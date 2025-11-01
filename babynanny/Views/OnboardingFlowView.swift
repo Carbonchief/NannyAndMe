@@ -139,13 +139,6 @@ private extension OnboardingFlowView {
 
     var paywallPage: some View {
         VStack(spacing: 24) {
-            Image("Logo")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 96, height: 96)
-                .shadow(color: Color.accentColor.opacity(0.08), radius: 12, x: 0, y: 8)
-                .accessibilityHidden(true)
-
             PaywallCard()
 
             Text(L10n.Onboarding.FirstLaunch.termsDisclaimer)
@@ -243,7 +236,14 @@ private extension OnboardingFlowView {
 
 private struct PaywallCard: View {
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 24) {
+            Image("Logo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 96, height: 96)
+                .shadow(color: Color.accentColor.opacity(0.08), radius: 12, x: 0, y: 8)
+                .accessibilityHidden(true)
+
             VStack(spacing: 8) {
                 Text(L10n.Onboarding.FirstLaunch.paywallTitle)
                     .font(.title2.weight(.bold))
@@ -298,8 +298,8 @@ private struct PaywallCard: View {
                     .fill(Color.accentColor.opacity(0.08))
             )
         }
-        .padding(24)
-        .frame(maxWidth: 480)
+        .padding(28)
+        .frame(maxWidth: 560)
         .background(
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(Color(.systemBackground))
@@ -339,6 +339,8 @@ private struct PaywallPlanRow: View {
                     Text(title)
                         .font(.headline)
                         .foregroundStyle(isHighlighted ? Color.white : .primary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     if !badge.isEmpty {
                         Text(badge.uppercased())
@@ -356,6 +358,8 @@ private struct PaywallPlanRow: View {
                 Text(detail)
                     .font(.subheadline)
                     .foregroundStyle(isHighlighted ? Color.white.opacity(0.85) : .secondary)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer()
