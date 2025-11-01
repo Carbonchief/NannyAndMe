@@ -26,20 +26,6 @@ struct OnboardingFlowView: View {
                 pageIndicator
 
                 primaryActionButton
-
-                if selection == .paywall {
-                    Button {
-                        completeOnboarding()
-                    } label: {
-                        Text(L10n.Onboarding.FirstLaunch.maybeLater)
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .padding(.vertical, 8)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.plain)
-                    .postHogLabel("onboarding_maybeLater_button_firstLaunch")
-                }
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 32)
@@ -71,7 +57,18 @@ private extension OnboardingFlowView {
 
             Spacer()
 
-            if selection != .paywall {
+            if selection == .paywall {
+                Button {
+                    completeOnboarding()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 18, weight: .semibold))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .postHogLabel("onboarding_close_button_paywall")
+            } else {
                 Button {
                     completeOnboarding()
                 } label: {
@@ -81,8 +78,6 @@ private extension OnboardingFlowView {
                 }
                 .buttonStyle(.plain)
                 .postHogLabel("onboarding_skip_button_firstLaunch")
-            } else {
-                Spacer().frame(width: 44)
             }
         }
     }
@@ -144,6 +139,13 @@ private extension OnboardingFlowView {
 
     var paywallPage: some View {
         VStack(spacing: 24) {
+            Image("Logo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 96, height: 96)
+                .shadow(color: Color.accentColor.opacity(0.08), radius: 12, x: 0, y: 8)
+                .accessibilityHidden(true)
+
             PaywallCard()
 
             Text(L10n.Onboarding.FirstLaunch.termsDisclaimer)
@@ -242,24 +244,15 @@ private extension OnboardingFlowView {
 private struct PaywallCard: View {
     var body: some View {
         VStack(spacing: 20) {
-            VStack(spacing: 12) {
-                Image("Logo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 72, height: 72)
-                    .shadow(color: Color.accentColor.opacity(0.08), radius: 12, x: 0, y: 8)
-                    .accessibilityHidden(true)
+            VStack(spacing: 8) {
+                Text(L10n.Onboarding.FirstLaunch.paywallTitle)
+                    .font(.title2.weight(.bold))
+                    .multilineTextAlignment(.center)
 
-                VStack(spacing: 8) {
-                    Text(L10n.Onboarding.FirstLaunch.paywallTitle)
-                        .font(.title2.weight(.bold))
-                        .multilineTextAlignment(.center)
-
-                    Text(L10n.Onboarding.FirstLaunch.paywallSubtitle)
-                        .font(.body)
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.secondary)
-                }
+                Text(L10n.Onboarding.FirstLaunch.paywallSubtitle)
+                    .font(.body)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
             }
 
             VStack(alignment: .leading, spacing: 12) {
@@ -271,17 +264,17 @@ private struct PaywallCard: View {
 
             VStack(spacing: 12) {
                 PaywallPlanRow(
-                    title: L10n.Onboarding.FirstLaunch.paywallPlanAnnualTitle,
-                    detail: L10n.Onboarding.FirstLaunch.paywallPlanAnnualPrice,
-                    badge: L10n.Onboarding.FirstLaunch.paywallPlanAnnualBadge,
-                    isHighlighted: false
+                    title: L10n.Onboarding.FirstLaunch.paywallPlanLifetimeTitle,
+                    detail: L10n.Onboarding.FirstLaunch.paywallPlanLifetimePrice,
+                    badge: L10n.Onboarding.FirstLaunch.paywallPlanLifetimeBadge,
+                    isHighlighted: true
                 )
 
                 PaywallPlanRow(
                     title: L10n.Onboarding.FirstLaunch.paywallPlanMonthlyTitle,
                     detail: L10n.Onboarding.FirstLaunch.paywallPlanMonthlyPrice,
                     badge: L10n.Onboarding.FirstLaunch.paywallPlanMonthlyBadge,
-                    isHighlighted: true
+                    isHighlighted: false
                 )
             }
 
@@ -306,7 +299,7 @@ private struct PaywallCard: View {
             )
         }
         .padding(24)
-        .frame(maxWidth: 420)
+        .frame(maxWidth: 480)
         .background(
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(Color(.systemBackground))

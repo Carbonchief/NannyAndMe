@@ -70,34 +70,34 @@ enum L10n {
             )
             static let paywallTitle = String(
                 localized: "onboarding.firstLaunch.paywallTitle",
-                defaultValue: "Premium Access"
+                defaultValue: "Unlock Nanny & Me+"
             )
             static let paywallSubtitle = String(
                 localized: "onboarding.firstLaunch.paywallSubtitle",
-                defaultValue: "Coordinate your family's care with every premium feature—starting with a free 7-day trial."
+                defaultValue: "Keep every caregiver aligned with premium planning tools."
             )
             static let paywallFeatureOne = String(
                 localized: "onboarding.firstLaunch.paywallFeature.one",
-                defaultValue: "Unlimited activity history with full-resolution exports."
+                defaultValue: "3-day premium trial included with every plan."
             )
             static let paywallFeatureTwo = String(
                 localized: "onboarding.firstLaunch.paywallFeature.two",
-                defaultValue: "Real-time sync across devices with action location trails."
+                defaultValue: "Precise location trails for each action log."
             )
             static let paywallFeatureThree = String(
                 localized: "onboarding.firstLaunch.paywallFeature.three",
-                defaultValue: "Advanced caregiver reports and proactive reminders."
+                defaultValue: "Weekly caregiver reports that highlight progress."
             )
-            static let paywallPlanAnnualTitle = String(
-                localized: "onboarding.firstLaunch.paywallPlan.annualTitle",
-                defaultValue: "Family Annual"
+            static let paywallPlanLifetimeTitle = String(
+                localized: "onboarding.firstLaunch.paywallPlan.lifetimeTitle",
+                defaultValue: "Lifetime"
             )
-            static let paywallPlanAnnualPrice = String(
-                localized: "onboarding.firstLaunch.paywallPlan.annualPrice",
-                defaultValue: "$59.99 per year"
+            static let paywallPlanLifetimePrice = String(
+                localized: "onboarding.firstLaunch.paywallPlan.lifetimePrice",
+                defaultValue: "One-time $149.99"
             )
-            static let paywallPlanAnnualBadge = String(
-                localized: "onboarding.firstLaunch.paywallPlan.annualBadge",
+            static let paywallPlanLifetimeBadge = String(
+                localized: "onboarding.firstLaunch.paywallPlan.lifetimeBadge",
                 defaultValue: "Best Value"
             )
             static let paywallPlanMonthlyTitle = String(
@@ -106,19 +106,19 @@ enum L10n {
             )
             static let paywallPlanMonthlyPrice = String(
                 localized: "onboarding.firstLaunch.paywallPlan.monthlyPrice",
-                defaultValue: "7-day trial, then $7.99 per month"
+                defaultValue: "3-day trial, then $7.99 per month"
             )
             static let paywallPlanMonthlyBadge = String(
                 localized: "onboarding.firstLaunch.paywallPlan.monthlyBadge",
-                defaultValue: "Most Popular"
+                defaultValue: ""
             )
             static let paywallFreeTrialToggle = String(
                 localized: "onboarding.firstLaunch.paywall.freeTrialToggle",
-                defaultValue: "Free Trial Enabled"
+                defaultValue: "3-Day Trial Active"
             )
             static let paywallTrialDisclaimer = String(
                 localized: "onboarding.firstLaunch.paywall.trialDisclaimer",
-                defaultValue: "No payment required today. Cancel anytime before your 7-day trial ends."
+                defaultValue: "Cancel within 3 days to avoid charges."
             )
             static let skip = String(
                 localized: "onboarding.firstLaunch.skip",
@@ -134,7 +134,7 @@ enum L10n {
             )
             static let startTrial = String(
                 localized: "onboarding.firstLaunch.startTrial",
-                defaultValue: "Start Free 7-Day Trial"
+                defaultValue: "Start Free 3-Day Trial"
             )
             static let maybeLater = String(
                 localized: "onboarding.firstLaunch.maybeLater",
@@ -142,7 +142,7 @@ enum L10n {
             )
             static let termsDisclaimer = String(
                 localized: "onboarding.firstLaunch.termsDisclaimer",
-                defaultValue: "Cancel anytime before the trial ends to avoid being charged."
+                defaultValue: "Cancel within 3 days to avoid charges."
             )
         }
     }
