@@ -14,6 +14,7 @@ NannyAndMe is a SwiftUI-based iOS application that helps caregivers keep track o
 - **Settings and stats views** – Review caregiver preferences and explore insights like weekly trends and daily patterns.
 - **Monthly age reminders** – Receive 10 a.m. notifications on each child's monthly milestones, with combined alerts when multiple profiles share the same celebration.
 - **Action reminders** – Get configurable notifications for sleep, diaper, and feeding actions with per-action intervals that reset whenever you log an entry.
+- **First-launch onboarding** – Celebrate new caregivers, highlight the core benefits, and introduce the Premium free trial with a dedicated welcome flow.
 - **Optional location logging** – Capture where each action was recorded and surface that context alongside entries when location tracking is enabled in Settings.
 - **Action map** – Explore logged locations on a clustered map with quick date and action filters whenever location tracking is enabled.
 - **Data sharing** – Export the active profile's logs to JSON and merge imports that include new or updated entries.
