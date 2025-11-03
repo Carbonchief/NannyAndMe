@@ -14,6 +14,7 @@ struct ContentView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var selectedTab: Tab = .home
     @State private var previousTab: Tab = .home
+    @State private var tabResetID = UUID()
     @State private var isMenuVisible = false
     @State private var showSettings = false
     @State private var showAllLogs = false
@@ -40,6 +41,7 @@ struct ContentView: View {
                     AnimatedTabContent(
                         selectedTab: selectedTab,
                         previousTab: previousTab,
+                        tabResetID: tabResetID,
                         onShowAllLogs: { showAllLogs = true }
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -72,11 +74,14 @@ struct ContentView: View {
                             HStack(spacing: 8) {
                                 ForEach(tabs, id: \.self) { tab in
                                     Button {
-                                        guard tab != selectedTab else { return }
-                                        let oldValue = selectedTab
-                                        previousTab = oldValue
-                                        withAnimation(.easeInOut(duration: 0.3)) {
-                                            selectedTab = tab
+                                        if tab == selectedTab {
+                                            tabResetID = UUID()
+                                        } else {
+                                            let oldValue = selectedTab
+                                            previousTab = oldValue
+                                            withAnimation(.easeInOut(duration: 0.3)) {
+                                                selectedTab = tab
+                                            }
                                         }
                                     } label: {
                                         Image(systemName: tab.icon)
@@ -326,6 +331,7 @@ struct ContentView: View {
 private struct AnimatedTabContent: View {
     let selectedTab: Tab
     let previousTab: Tab
+    let tabResetID: UUID
     let onShowAllLogs: () -> Void
 
     private var transition: AnyTransition {
@@ -345,15 +351,15 @@ private struct AnimatedTabContent: View {
         ZStack {
             switch selectedTab {
             case .home:
-                HomeView(onShowAllLogs: onShowAllLogs)
+                HomeView(tabResetID: tabResetID, onShowAllLogs: onShowAllLogs)
                     .transition(transition)
 
             case .map:
-                ActionMapView()
+                ActionMapView(tabResetID: tabResetID)
                     .transition(transition)
 
             case .reports:
-                ReportsView()
+                ReportsView(tabResetID: tabResetID)
                     .transition(transition)
             }
         }

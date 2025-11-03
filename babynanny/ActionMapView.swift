@@ -12,6 +12,11 @@ struct ActionMapView: View {
     @State private var hasInitializedCamera = false
 
     private let clusterRadius: CLLocationDistance = 150
+    private let tabResetID: UUID
+
+    init(tabResetID: UUID) {
+        self.tabResetID = tabResetID
+    }
 
     var body: some View {
         let clusters = filteredClusters
@@ -67,6 +72,16 @@ struct ActionMapView: View {
         .onChange(of: selectedCluster) { _, newValue in
             guard let cluster = newValue else { return }
             centerCamera(on: cluster)
+        }
+        .onChange(of: tabResetID) { _, _ in
+            withAnimation(.easeInOut(duration: 0.25)) {
+                selectedCluster = nil
+                selectedCategory = nil
+                dateFilter = .sevenDays
+                cameraPosition = .automatic
+            }
+            hasInitializedCamera = false
+            initializeCameraIfNeeded(for: clusters)
         }
     }
 }
@@ -555,7 +570,7 @@ private enum ActionMapDateFilter: Hashable, CaseIterable, Identifiable {
     UserDefaults.standard.set(true, forKey: "trackActionLocations")
 
     return NavigationStack {
-        ActionMapView()
+        ActionMapView(tabResetID: UUID())
             .environmentObject(profileStore)
             .environmentObject(actionStore)
     }

@@ -20,6 +20,15 @@ struct ReportsView: View {
     @State private var shareItem: ChartShareItem?
     @State private var shareContentWidth: CGFloat = 0
     @State private var highlightedTrendDay: Date?
+    private let tabResetID: UUID
+
+    private enum ScrollAnchor {
+        static let top = "reports_scroll_top"
+    }
+
+    init(tabResetID: UUID) {
+        self.tabResetID = tabResetID
+    }
 
     var body: some View {
         let state = currentState
@@ -27,12 +36,25 @@ struct ReportsView: View {
             tabBar()
             tabHeader()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    tabContent(for: state)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    Color.clear
+                        .frame(height: 0)
+                        .id(ScrollAnchor.top)
+
+                    VStack(alignment: .leading, spacing: 24) {
+                        tabContent(for: state)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(24)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(24)
+                .onChange(of: tabResetID) { _, _ in
+                    highlightedTrendDay = nil
+                    shareItem = nil
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        proxy.scrollTo(ScrollAnchor.top, anchor: .top)
+                    }
+                }
             }
         }
         .onPreferenceChange(ChartShareContentWidthPreferenceKey.self) { width in
@@ -1784,7 +1806,7 @@ private extension ReportsView {
 
     let actionStore = ActionLogStore.previewStore(profiles: [profile.id: state])
 
-    return ReportsView()
+    return ReportsView(tabResetID: UUID())
         .environmentObject(profileStore)
         .environmentObject(actionStore)
 }

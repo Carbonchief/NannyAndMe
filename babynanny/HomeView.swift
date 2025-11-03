@@ -25,9 +25,15 @@ struct HomeView: View {
     @State private var throttledCategories: Set<BabyActionCategory> = []
     @State private var reminderPrompt: ReminderPromptState?
     @State private var recentActionDetail: RecentActionDetailState?
+    private let tabResetID: UUID
     private let onShowAllLogs: () -> Void
 
-    init(onShowAllLogs: @escaping () -> Void = {}) {
+    private enum ScrollAnchor {
+        static let top = "home_scroll_top"
+    }
+
+    init(tabResetID: UUID, onShowAllLogs: @escaping () -> Void = {}) {
+        self.tabResetID = tabResetID
         self.onShowAllLogs = onShowAllLogs
     }
 
@@ -111,64 +117,82 @@ struct HomeView: View {
         let state = currentState
         let recentHistory = state.latestHistoryEntriesPerCategory()
 
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                headerSection(for: state)
+        ScrollViewReader { proxy in
+            ScrollView {
+                Color.clear
+                    .frame(height: 0)
+                    .id(ScrollAnchor.top)
 
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
-                    ForEach(BabyActionCategory.allCases) { category in
-                        ActionCard(
-                            category: category,
-                            activeAction: state.activeAction(for: category),
-                            lastCompleted: state.lastCompletedAction(for: category),
-                            isInteractionDisabled: throttledCategories.contains(category),
-                            onStart: { handleStartTap(for: category) },
-                            onStop: { handleStopTap(for: category) },
-                            onLongPress: { handleReminderLongPress(for: category) }
-                        )
-                    }
-                }
+                VStack(alignment: .leading, spacing: 24) {
+                    headerSection(for: state)
 
-                if profileStore.showRecentActivityOnHome {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text(L10n.Home.recentActivity)
-                                .font(.headline)
-
-                            Spacer()
-
-                            Button(L10n.Home.recentActivityShowAll) {
-                                onShowAllLogs()
-                            }
-                            .tint(.accentColor)
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
+                        ForEach(BabyActionCategory.allCases) { category in
+                            ActionCard(
+                                category: category,
+                                activeAction: state.activeAction(for: category),
+                                lastCompleted: state.lastCompletedAction(for: category),
+                                isInteractionDisabled: throttledCategories.contains(category),
+                                onStart: { handleStartTap(for: category) },
+                                onStop: { handleStopTap(for: category) },
+                                onLongPress: { handleReminderLongPress(for: category) }
+                            )
                         }
+                    }
 
-                        if recentHistory.isEmpty {
-                            recentActivityPlaceholder()
-                        } else {
-                            VStack(spacing: 12) {
-                                ForEach(recentHistory) { action in
-                                    HistoryRow(
-                                        action: action,
-                                        onEdit: { actionToEdit in
-                                            editingAction = actionToEdit
-                                        },
-                                        onLongPress: { pressedAction in
-                                            handleHistoryLongPress(for: pressedAction)
-                                        }
-                                    )
+                    if profileStore.showRecentActivityOnHome {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text(L10n.Home.recentActivity)
+                                    .font(.headline)
+
+                                Spacer()
+
+                                Button(L10n.Home.recentActivityShowAll) {
+                                    onShowAllLogs()
+                                }
+                                .tint(.accentColor)
+                            }
+
+                            if recentHistory.isEmpty {
+                                recentActivityPlaceholder()
+                            } else {
+                                VStack(spacing: 12) {
+                                    ForEach(recentHistory) { action in
+                                        HistoryRow(
+                                            action: action,
+                                            onEdit: { actionToEdit in
+                                                editingAction = actionToEdit
+                                            },
+                                            onLongPress: { pressedAction in
+                                                handleHistoryLongPress(for: pressedAction)
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
             }
-            .padding(.horizontal)
-            .padding(.top, 8)
-            .padding(.bottom, 24)
-        }
-        .refreshable {
-            await actionStore.performUserInitiatedRefresh()
+            .refreshable {
+                await actionStore.performUserInitiatedRefresh()
+            }
+            .onChange(of: tabResetID) { _, _ in
+                presentedCategory = nil
+                editingAction = nil
+                activeAlert = nil
+                categoryClearedForSheet = nil
+                reminderPrompt = nil
+                recentActionDetail = nil
+
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    proxy.scrollTo(ScrollAnchor.top, anchor: .top)
+                }
+            }
         }
     }
 
@@ -2166,7 +2190,7 @@ private struct ActionDetailSheet: View {
 
     let actionStore = ActionLogStore.previewStore(profiles: [profile.id: state])
 
-    return HomeView()
+    return HomeView(tabResetID: UUID())
         .environmentObject(profileStore)
         .environmentObject(actionStore)
         .environmentObject(LocationManager.shared)
