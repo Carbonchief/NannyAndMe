@@ -32,6 +32,7 @@ struct ContentView: View {
 
     var body: some View {
         let tabs = visibleTabs
+        let tabShortcuts: [Character] = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
         return ZStack(alignment: .leading) {
             NavigationStack {
@@ -51,17 +52,9 @@ struct ContentView: View {
                                 guard abs(horizontal) > abs(vertical), abs(horizontal) > 40 else { return }
 
                                 if horizontal < 0, let nextTab = nextTab(after: selectedTab, in: tabs) {
-                                    let oldValue = selectedTab
-                                    previousTab = oldValue
-                                    withAnimation(.easeInOut(duration: 0.3)) {
-                                        selectedTab = nextTab
-                                    }
+                                    handleShortcut(.selectTab(nextTab))
                                 } else if horizontal > 0, let previous = previousTab(before: selectedTab, in: tabs) {
-                                    let oldValue = selectedTab
-                                    previousTab = oldValue
-                                    withAnimation(.easeInOut(duration: 0.3)) {
-                                        selectedTab = previous
-                                    }
+                                    handleShortcut(.selectTab(previous))
                                 }
                             }
                     )
@@ -69,14 +62,9 @@ struct ContentView: View {
                     VStack(spacing: 16) {
                         HStack(spacing: 16) {
                             HStack(spacing: 8) {
-                                ForEach(tabs, id: \.self) { tab in
+                                ForEach(Array(tabs.enumerated()), id: \.element) { index, tab in
                                     Button {
-                                        guard tab != selectedTab else { return }
-                                        let oldValue = selectedTab
-                                        previousTab = oldValue
-                                        withAnimation(.easeInOut(duration: 0.3)) {
-                                            selectedTab = tab
-                                        }
+                                        handleShortcut(.selectTab(tab))
                                     } label: {
                                         Image(systemName: tab.icon)
                                             .font(.system(size: 18, weight: .semibold))
@@ -88,6 +76,10 @@ struct ContentView: View {
                                                     .fill(selectedTab == tab ? Color.accentColor.opacity(0.12) : Color.clear)
                                             )
                                     }
+                                    .keyboardShortcut(
+                                        KeyEquivalent(tabShortcuts[index]),
+                                        modifiers: .command
+                                    )
                                     .buttonStyle(.plain)
                                     .postHogLabel("navigation_select_tabBar_\(tab.analyticsIdentifier)")
                                     .accessibilityLabel(tab.title)
@@ -100,13 +92,14 @@ struct ContentView: View {
                             .background(.ultraThinMaterial, in: Capsule())
 
                             Button {
-                                isManualEntryPresented = true
+                                handleShortcut(.presentManualEntry)
                             } label: {
                                 Image(systemName: "plus")
                                     .font(.system(size: 18, weight: .semibold))
                                     .frame(width: 48, height: 48)
                                     .foregroundStyle(Color.accentColor)
                             }
+                            .keyboardShortcut("n", modifiers: .command)
                             .buttonStyle(.plain)
                             .background(.ultraThinMaterial, in: Circle())
                             .postHogLabel("navigation_manualEntry_button_tabBar")
@@ -283,10 +276,26 @@ struct ContentView: View {
         .onAppear {
             ensureSelectionIsVisible(in: visibleTabs)
         }
+        .focusedSceneValue(\.contentShortcutHandler, handleShortcut)
     }
 
     private func handleProfileCycle(direction: ProfileNavigationDirection) {
         _ = profileStore.cycleActiveProfile(direction: direction)
+    }
+
+    private func handleShortcut(_ action: ContentShortcut) {
+        switch action {
+        case .selectTab(let tab):
+            guard visibleTabs.contains(tab), tab != selectedTab else { return }
+            let oldValue = selectedTab
+            previousTab = oldValue
+            withAnimation(.easeInOut(duration: 0.3)) {
+                selectedTab = tab
+            }
+
+        case .presentManualEntry:
+            isManualEntryPresented = true
+        }
     }
 }
 
@@ -405,6 +414,22 @@ private extension ContentView {
     func previousTab(before tab: Tab, in tabs: [Tab]) -> Tab? {
         guard let index = tabs.firstIndex(of: tab), index > 0 else { return nil }
         return tabs[index - 1]
+    }
+}
+
+enum ContentShortcut: Hashable {
+    case selectTab(Tab)
+    case presentManualEntry
+}
+
+struct ContentShortcutHandlerKey: FocusedValueKey {
+    typealias Value = (ContentShortcut) -> Void
+}
+
+extension FocusedValues {
+    var contentShortcutHandler: ((ContentShortcut) -> Void)? {
+        get { self[ContentShortcutHandlerKey.self] }
+        set { self[ContentShortcutHandlerKey.self] = newValue }
     }
 }
 

@@ -71,6 +71,9 @@ struct babynannyApp: App {
             }
             .modelContainer(appDataStack.modelContainer)
         }
+        .commands {
+            ContentViewCommands()
+        }
     }
 }
 
@@ -105,5 +108,46 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         return true
+    }
+}
+
+private struct ContentViewCommands: Commands {
+    @FocusedValue(\.contentShortcutHandler) private var handleShortcut
+    @AppStorage("trackActionLocations") private var trackActionLocations = false
+
+    var body: some Commands {
+        CommandGroup(after: .sidebar) {
+            Button(L10n.Tab.home) {
+                handleShortcut?(.selectTab(.home))
+            }
+            .keyboardShortcut("1", modifiers: .command)
+            .disabled(handleShortcut == nil)
+
+            Button(L10n.Tab.reports) {
+                handleShortcut?(.selectTab(.reports))
+            }
+            .keyboardShortcut("2", modifiers: .command)
+            .disabled(handleShortcut == nil)
+
+            if trackActionLocations {
+                Button(L10n.Tab.map) {
+                    handleShortcut?(.selectTab(.map))
+                }
+                .keyboardShortcut("3", modifiers: .command)
+                .disabled(handleShortcut == nil)
+            }
+        }
+
+        CommandGroup(after: .newItem) {
+            if handleShortcut != nil {
+                Divider()
+            }
+
+            Button(L10n.ManualEntry.title) {
+                handleShortcut?(.presentManualEntry)
+            }
+            .keyboardShortcut("n", modifiers: .command)
+            .disabled(handleShortcut == nil)
+        }
     }
 }
