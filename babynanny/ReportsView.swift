@@ -12,6 +12,7 @@ import UIKit
 struct ReportsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @AppStorage("reports.lastSelectedTab") private var persistedTabIdentifier = ReportsTab.dailySnapshot.persistenceIdentifier
     @State private var selectedTab: ReportsTab = .dailySnapshot
     @State private var calendarSelectedDate = Date()
@@ -89,6 +90,10 @@ struct ReportsView: View {
         let today = todayActions(for: state)
         let todaySummary = daySummary(for: Date(), state: state)
         statsGrid(for: state, todayActions: today, todaySummary: todaySummary)
+            .frame(maxWidth: shouldCenterSnapshotContent ? centeredSnapshotContentWidth : nil,
+                   alignment: .leading)
+            .frame(maxWidth: .infinity,
+                   alignment: shouldCenterSnapshotContent ? .center : .leading)
     }
 
     private func tabBar() -> some View {
@@ -253,6 +258,10 @@ struct ReportsView: View {
                 }
             }
         }
+        .frame(maxWidth: shouldCenterSnapshotContent ? centeredSnapshotContentWidth : nil,
+               alignment: .leading)
+        .frame(maxWidth: .infinity,
+               alignment: shouldCenterSnapshotContent ? .center : .leading)
     }
 
     private func calendarSummaryCards(for summary: DaySummary) -> some View {
@@ -1731,6 +1740,16 @@ private struct StatCard: View {
                 .fill(Color(.systemBackground))
                 .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
         )
+    }
+}
+
+private extension ReportsView {
+    var shouldCenterSnapshotContent: Bool {
+        verticalSizeClass == .compact
+    }
+
+    var centeredSnapshotContentWidth: CGFloat {
+        520
     }
 }
 
