@@ -274,6 +274,7 @@ struct ContentView: View {
         .onChange(of: hasCompletedOnboarding) { _, completed in
             if completed {
                 isOnboardingPresented = false
+                profileStore.rescheduleRemindersAfterOnboarding()
             }
         }
         .onChange(of: trackActionLocations) { _, _ in

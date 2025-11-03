@@ -50,51 +50,63 @@ enum L10n {
             )
             static let welcomeMessage = String(
                 localized: "onboarding.firstLaunch.welcomeMessage",
-                defaultValue: "We're thrilled to have you—your little one just got a new teammate."
+                defaultValue: "We're thrilled to have you, you just gained a new teammate for caring for your little one."
             )
             static let benefitsTitle = String(
                 localized: "onboarding.firstLaunch.benefitsTitle",
-                defaultValue: "Stay ahead with smart tracking"
+                defaultValue: "Stay ahead with smart tools"
             )
             static let benefitsMessage = String(
                 localized: "onboarding.firstLaunch.benefitsMessage",
-                defaultValue: "Log sleep, diapers, and feeds in seconds so you can focus on the cuddles."
+                defaultValue: "Log care in seconds, share profiles, and generate daily snapshots."
             )
             static let benefitPointOne = String(
                 localized: "onboarding.firstLaunch.benefitsPoint.one",
-                defaultValue: "Action location tracking pins each log so you know where care happens."
+                defaultValue: "Tap once to log day-to-day care, no clutter or guesswork."
             )
             static let benefitPointTwo = String(
                 localized: "onboarding.firstLaunch.benefitsPoint.two",
                 defaultValue: "Share caregiver-ready reports that keep everyone aligned."
             )
+            static let benefitPointThree = String(
+                localized: "onboarding.firstLaunch.benefitsPoint.three",
+                defaultValue: "Daily snapshots highlight what caregivers need to know."
+            )
             static let paywallTitle = String(
                 localized: "onboarding.firstLaunch.paywallTitle",
                 defaultValue: "Unlock Nanny & Me+"
-            )
-            static let paywallSubtitle = String(
-                localized: "onboarding.firstLaunch.paywallSubtitle",
-                defaultValue: "Keep every caregiver aligned with premium planning tools."
-            )
+        )
+        static let paywallSubtitle = String(
+            localized: "onboarding.firstLaunch.paywallSubtitle",
+            defaultValue: "Keep everyone updated!"
+        )
             static let paywallFeatureOne = String(
                 localized: "onboarding.firstLaunch.paywallFeature.one",
                 defaultValue: "3-day premium trial included with every plan."
             )
             static let paywallFeatureTwo = String(
                 localized: "onboarding.firstLaunch.paywallFeature.two",
-                defaultValue: "Precise location trails for each action log."
+                defaultValue: "Location tracking for every log."
             )
             static let paywallFeatureThree = String(
                 localized: "onboarding.firstLaunch.paywallFeature.three",
-                defaultValue: "Weekly caregiver reports that highlight progress."
+                defaultValue: "Share profiles with caregivers."
+            )
+            static let paywallFeatureFour = String(
+                localized: "onboarding.firstLaunch.paywallFeature.four",
+                defaultValue: "Smart reminders keep care on track."
+            )
+            static let paywallFeatureFive = String(
+                localized: "onboarding.firstLaunch.paywallFeature.five",
+                defaultValue: "Remove annoying paywalls."
             )
             static let paywallPlanLifetimeTitle = String(
                 localized: "onboarding.firstLaunch.paywallPlan.lifetimeTitle",
-                defaultValue: "Lifetime"
+                defaultValue: "Lifetime Plan"
             )
             static let paywallPlanLifetimePrice = String(
                 localized: "onboarding.firstLaunch.paywallPlan.lifetimePrice",
-                defaultValue: "One-time $149.99"
+                defaultValue: "$149.99"
             )
             static let paywallPlanLifetimeBadge = String(
                 localized: "onboarding.firstLaunch.paywallPlan.lifetimeBadge",
@@ -102,11 +114,11 @@ enum L10n {
             )
             static let paywallPlanMonthlyTitle = String(
                 localized: "onboarding.firstLaunch.paywallPlan.monthlyTitle",
-                defaultValue: "Monthly"
+                defaultValue: "3-Day Trial"
             )
             static let paywallPlanMonthlyPrice = String(
                 localized: "onboarding.firstLaunch.paywallPlan.monthlyPrice",
-                defaultValue: "3-day trial, then $7.99 per month"
+                defaultValue: "Then $7.99 per week"
             )
             static let paywallPlanMonthlyBadge = String(
                 localized: "onboarding.firstLaunch.paywallPlan.monthlyBadge",
@@ -119,6 +131,10 @@ enum L10n {
             static let paywallTrialDisclaimer = String(
                 localized: "onboarding.firstLaunch.paywall.trialDisclaimer",
                 defaultValue: "Cancel within 3 days to avoid charges."
+            )
+            static let purchaseLifetime = String(
+                localized: "onboarding.firstLaunch.purchaseLifetime",
+                defaultValue: "Purchase Lifetime Plan"
             )
             static let skip = String(
                 localized: "onboarding.firstLaunch.skip",
@@ -501,7 +517,7 @@ enum L10n {
             )
             static let permissionDenied = String(
                 localized: "settings.privacy.trackLocations.denied",
-                defaultValue: "Location access denied — tap to open Settings."
+                defaultValue: "Location access denied. Tap to open Settings."
             )
             static let openSettings = String(localized: "settings.privacy.openSettings", defaultValue: "Open Settings")
         }

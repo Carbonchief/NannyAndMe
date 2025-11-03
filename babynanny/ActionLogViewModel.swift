@@ -706,6 +706,7 @@ private extension ActionLogStore {
 
     func scheduleReminders() {
         // Read everything inside the MainActor task; do not capture non-Sendable values.
+        guard UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") else { return }
         Task { @MainActor [weak self] in
             guard let self = self,
                   let scheduler = self.reminderScheduler else { return }
