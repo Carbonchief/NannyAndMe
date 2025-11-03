@@ -545,6 +545,10 @@ enum L10n {
                 localized: "settings.privacy.trackLocations.description",
                 defaultValue: "When enabled, the app saves your precise location (within about 50 meters) with each logged action. You can turn this off anytime."
             )
+            static let trackActionLocationsPremium = String(
+                localized: "settings.privacy.trackLocations.premium",
+                defaultValue: "Unlock Nanny & Me+ to save where care happens."
+            )
             static let permissionDenied = String(
                 localized: "settings.privacy.trackLocations.denied",
                 defaultValue: "Location access denied. Tap to open Settings."
