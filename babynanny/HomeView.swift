@@ -128,7 +128,7 @@ struct HomeView: View {
                     }
                 }
 
-                if profileStore.showRecentActivityOnHome && !recentHistory.isEmpty {
+                if profileStore.showRecentActivityOnHome {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Text(L10n.Home.recentActivity)
@@ -142,17 +142,21 @@ struct HomeView: View {
                             .tint(.accentColor)
                         }
 
-                        VStack(spacing: 12) {
-                            ForEach(recentHistory) { action in
-                                HistoryRow(
-                                    action: action,
-                                    onEdit: { actionToEdit in
-                                        editingAction = actionToEdit
-                                    },
-                                    onLongPress: { pressedAction in
-                                        handleHistoryLongPress(for: pressedAction)
-                                    }
-                                )
+                        if recentHistory.isEmpty {
+                            recentActivityPlaceholder()
+                        } else {
+                            VStack(spacing: 12) {
+                                ForEach(recentHistory) { action in
+                                    HistoryRow(
+                                        action: action,
+                                        onEdit: { actionToEdit in
+                                            editingAction = actionToEdit
+                                        },
+                                        onLongPress: { pressedAction in
+                                            handleHistoryLongPress(for: pressedAction)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -184,6 +188,33 @@ struct HomeView: View {
             }
             .animation(headerCardAnimation, value: state.mostRecentAction?.category)
         }
+    }
+
+    private func recentActivityPlaceholder() -> some View {
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+
+        return VStack(spacing: 8) {
+            Text(L10n.Home.recentActivityEmptyTitle)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            Text(L10n.Home.recentActivityEmptyDescription)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.vertical, 24)
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity)
+        .background(
+            shape
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+        .overlay(
+            shape
+                .stroke(Color(.separator), lineWidth: 1)
+        )
+        .clipShape(shape)
     }
 
     private var headerCardTransition: AnyTransition {
