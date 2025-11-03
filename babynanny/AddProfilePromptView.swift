@@ -3,10 +3,11 @@ import PhotosUI
 import UIKit
 
 struct AddProfilePromptView: View {
-    let onCreate: (String, Data?) -> Void
+    let onCreate: (String, Date, Data?) -> Void
     let onCancel: () -> Void
 
     @State private var name: String
+    @State private var birthDate: Date
     @State private var imageData: Data?
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var pendingCrop: PendingCropImage?
@@ -20,12 +21,14 @@ struct AddProfilePromptView: View {
     init(
         initialName: String = "",
         initialImageData: Data? = nil,
-        onCreate: @escaping (String, Data?) -> Void,
+        initialBirthDate: Date = Date(),
+        onCreate: @escaping (String, Date, Data?) -> Void,
         onCancel: @escaping () -> Void = {}
     ) {
         self.onCreate = onCreate
         self.onCancel = onCancel
         _name = State(initialValue: initialName)
+        _birthDate = State(initialValue: initialBirthDate)
         _imageData = State(initialValue: initialImageData)
     }
 
@@ -66,7 +69,27 @@ struct AddProfilePromptView: View {
                         .fontWeight(.semibold)
                         .foregroundStyle(.secondary)
 
-                    profilePhotoSelector
+                    HStack(alignment: .center, spacing: 16) {
+                        profilePhotoSelector
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L10n.Profiles.birthDate)
+                                .font(.footnote)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.secondary)
+
+                            DatePicker(
+                                L10n.Profiles.birthDate,
+                                selection: $birthDate,
+                                in: Date.distantPast...Date(),
+                                displayedComponents: .date
+                            )
+                            .datePickerStyle(.compact)
+                            .labelsHidden()
+                            .postHogLabel("profiles_birthDate_datePicker_addProfilePrompt")
+                        }
+                    }
+
                     processingPhotoIndicator
                 }
 
@@ -121,7 +144,7 @@ struct AddProfilePromptView: View {
     private func handleCreate() {
         let value = trimmedName
         guard value.isEmpty == false else { return }
-        onCreate(value, imageData)
+        onCreate(value, birthDate, imageData)
         dismiss()
     }
 
@@ -226,7 +249,7 @@ struct AddProfilePromptView: View {
 }
 
 #Preview {
-    AddProfilePromptView { _, _ in }
+    AddProfilePromptView { _, _, _ in }
 }
 
 private extension AddProfilePromptView {
