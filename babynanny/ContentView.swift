@@ -21,6 +21,7 @@ struct ContentView: View {
     @State private var isInitialProfilePromptPresented = false
     @State private var isManualEntryPresented = false
     @State private var isOnboardingPresented = false
+    @State private var menuDragOffset: CGFloat = 0
 
     private var visibleTabs: [Tab] {
         var tabs: [Tab] = [.home, .reports]
@@ -129,6 +130,7 @@ struct ContentView: View {
                         Button {
                             withAnimation(.easeInOut) {
                                 isMenuVisible.toggle()
+                                menuDragOffset = 0
                             }
                         } label: {
                             Image(systemName: "line.3.horizontal")
@@ -202,37 +204,68 @@ struct ContentView: View {
             }
 
             if isMenuVisible {
-                Color.black.opacity(0.25)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        withAnimation(.easeInOut) {
-                            isMenuVisible = false
+                ZStack(alignment: .leading) {
+                    Color.black.opacity(0.25)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.easeInOut) {
+                                isMenuVisible = false
+                                menuDragOffset = 0
+                            }
                         }
-                    }
-                    .zIndex(1)
+                        .zIndex(1)
 
-                SideMenu(
-                    onSelectAllLogs: {
-                        withAnimation(.easeInOut) {
-                            isMenuVisible = false
-                            showAllLogs = true
+                    SideMenu(
+                        onSelectAllLogs: {
+                            withAnimation(.easeInOut) {
+                                isMenuVisible = false
+                                showAllLogs = true
+                                menuDragOffset = 0
+                            }
+                        },
+                        onSelectSettings: {
+                            withAnimation(.easeInOut) {
+                                isMenuVisible = false
+                                showSettings = true
+                                menuDragOffset = 0
+                            }
+                        },
+                        onSelectShareData: {
+                            withAnimation(.easeInOut) {
+                                isMenuVisible = false
+                                shareDataCoordinator.presentShareData()
+                                menuDragOffset = 0
+                            }
                         }
-                    },
-                    onSelectSettings: {
-                        withAnimation(.easeInOut) {
-                            isMenuVisible = false
-                            showSettings = true
+                    )
+                    .offset(x: menuDragOffset)
+                    .transition(.move(edge: .leading))
+                    .zIndex(2)
+                }
+                .simultaneousGesture(
+                    DragGesture()
+                        .onChanged { value in
+                            guard isMenuVisible else { return }
+                            let horizontal = value.translation.width
+                            menuDragOffset = min(0, horizontal)
                         }
-                    },
-                    onSelectShareData: {
-                        withAnimation(.easeInOut) {
-                            isMenuVisible = false
-                            shareDataCoordinator.presentShareData()
+                        .onEnded { value in
+                            guard isMenuVisible else { return }
+                            let horizontal = value.translation.width
+                            let dismissThreshold: CGFloat = -80
+
+                            if horizontal <= dismissThreshold {
+                                withAnimation(.easeInOut) {
+                                    isMenuVisible = false
+                                }
+                                menuDragOffset = 0
+                            } else {
+                                withAnimation(.easeInOut) {
+                                    menuDragOffset = 0
+                                }
+                            }
                         }
-                    }
                 )
-                .transition(.move(edge: .leading))
-                .zIndex(2)
             }
         }
         .sheet(isPresented: $isInitialProfilePromptPresented) {
