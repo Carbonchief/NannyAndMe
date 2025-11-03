@@ -29,10 +29,12 @@
 "onboarding.firstLaunch.paywallFeature.four" = "Alertas inteligentes mantienen el cuidado al día.";
 "onboarding.firstLaunch.paywallFeature.five" = "Elimina paywalls molestos.";
 "onboarding.firstLaunch.paywallPlan.lifetimeTitle" = "Plan de por vida";
-"onboarding.firstLaunch.paywallPlan.lifetimePrice" = "$149.99";
+"onboarding.firstLaunch.paywallPlan.lifetimeDetail" = "Pago único de %1$@";
+"onboarding.firstLaunch.paywallPlan.lifetimeFallbackDetail" = "Pago único de $149.99";
 "onboarding.firstLaunch.paywallPlan.lifetimeBadge" = "Mejor valor";
 "onboarding.firstLaunch.paywallPlan.monthlyTitle" = "Prueba de 3 días";
-"onboarding.firstLaunch.paywallPlan.monthlyPrice" = "Luego $7.99 por semana";
+"onboarding.firstLaunch.paywallPlan.monthlyDetail" = "Luego %1$@ cada %2$@";
+"onboarding.firstLaunch.paywallPlan.monthlyFallbackDetail" = "Luego $7.99 por semana";
 "onboarding.firstLaunch.paywallPlan.monthlyBadge" = "";
 "onboarding.firstLaunch.paywall.freeTrialToggle" = "Prueba de 3 días activada";
 "onboarding.firstLaunch.paywall.trialDisclaimer" = "Cancela dentro de los primeros 3 días para evitar cargos.";
@@ -43,6 +45,10 @@
 "onboarding.firstLaunch.startTrial" = "Iniciar prueba gratis de 3 días";
 "onboarding.firstLaunch.maybeLater" = "Quizás después";
 "onboarding.firstLaunch.termsDisclaimer" = "Cancela dentro de los primeros 3 días para evitar cargos.";
+"onboarding.firstLaunch.restorePurchases" = "Restaurar compras";
+"onboarding.firstLaunch.paywall.loading" = "Cargando precios…";
+"onboarding.firstLaunch.processingPurchase" = "Procesando…";
+"onboarding.firstLaunch.paywall.error.generic" = "Algo salió mal. Inténtalo nuevamente.";
 "home.recentActivity" = "Actividad reciente";
 "home.recentActivity.showAll" = "Ver todo";
 "home.header.edit" = "Editar";

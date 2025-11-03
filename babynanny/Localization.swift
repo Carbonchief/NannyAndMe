@@ -104,9 +104,16 @@ enum L10n {
                 localized: "onboarding.firstLaunch.paywallPlan.lifetimeTitle",
                 defaultValue: "Lifetime Plan"
             )
-            static let paywallPlanLifetimePrice = String(
-                localized: "onboarding.firstLaunch.paywallPlan.lifetimePrice",
-                defaultValue: "$149.99"
+            static func paywallPlanLifetimeDetail(_ price: String) -> String {
+                let format = String(
+                    localized: "onboarding.firstLaunch.paywallPlan.lifetimeDetail",
+                    defaultValue: "One-time payment of %1$@"
+                )
+                return String(format: format, locale: Locale.current, price)
+            }
+            static let paywallPlanLifetimeFallbackDetail = String(
+                localized: "onboarding.firstLaunch.paywallPlan.lifetimeFallbackDetail",
+                defaultValue: "One-time payment of $149.99"
             )
             static let paywallPlanLifetimeBadge = String(
                 localized: "onboarding.firstLaunch.paywallPlan.lifetimeBadge",
@@ -116,8 +123,15 @@ enum L10n {
                 localized: "onboarding.firstLaunch.paywallPlan.monthlyTitle",
                 defaultValue: "3-Day Trial"
             )
-            static let paywallPlanMonthlyPrice = String(
-                localized: "onboarding.firstLaunch.paywallPlan.monthlyPrice",
+            static func paywallPlanMonthlyDetail(_ price: String, _ period: String) -> String {
+                let format = String(
+                    localized: "onboarding.firstLaunch.paywallPlan.monthlyDetail",
+                    defaultValue: "Then %1$@ every %2$@"
+                )
+                return String(format: format, locale: Locale.current, price, period)
+            }
+            static let paywallPlanMonthlyFallbackDetail = String(
+                localized: "onboarding.firstLaunch.paywallPlan.monthlyFallbackDetail",
                 defaultValue: "Then $7.99 per week"
             )
             static let paywallPlanMonthlyBadge = String(
@@ -159,6 +173,22 @@ enum L10n {
             static let termsDisclaimer = String(
                 localized: "onboarding.firstLaunch.termsDisclaimer",
                 defaultValue: "Cancel within 3 days to avoid charges."
+            )
+            static let restorePurchases = String(
+                localized: "onboarding.firstLaunch.restorePurchases",
+                defaultValue: "Restore Purchases"
+            )
+            static let paywallLoading = String(
+                localized: "onboarding.firstLaunch.paywall.loading",
+                defaultValue: "Loading pricing…"
+            )
+            static let processingPurchase = String(
+                localized: "onboarding.firstLaunch.processingPurchase",
+                defaultValue: "Processing…"
+            )
+            static let paywallErrorGeneric = String(
+                localized: "onboarding.firstLaunch.paywall.error.generic",
+                defaultValue: "Something went wrong. Please try again."
             )
         }
     }
