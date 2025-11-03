@@ -388,10 +388,10 @@ final class ProfileStore: ObservableObject {
         return targetProfile
     }
 
-    func addProfile(name: String, imageData: Data? = nil) {
+    func addProfile(name: String, birthDate: Date = Date(), imageData: Data? = nil) {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let profile = ProfileActionStateModel(name: trimmedName,
-                                              birthDate: Date(),
+                                              birthDate: birthDate,
                                               imageData: imageData)
         profile.normalizeReminderPreferences()
         modelContext.insert(profile)
@@ -401,7 +401,7 @@ final class ProfileStore: ObservableObject {
     }
 
     func addProfile() {
-        addProfile(name: "")
+        addProfile(name: "", birthDate: Date())
     }
 
     func setShowRecentActivityOnHome(_ newValue: Bool) {

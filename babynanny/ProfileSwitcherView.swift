@@ -59,8 +59,8 @@ struct ProfileSwitcherView: View {
             }
         }
         .sheet(isPresented: $isAddProfilePromptPresented) {
-            AddProfilePromptView { name, imageData in
-                profileStore.addProfile(name: name, imageData: imageData)
+            AddProfilePromptView { name, birthDate, imageData in
+                profileStore.addProfile(name: name, birthDate: birthDate, imageData: imageData)
             }
         }
         .presentationDetents([.medium, .large])
