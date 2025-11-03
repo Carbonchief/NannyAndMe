@@ -111,7 +111,14 @@ struct SettingsView: View {
                     selectedPlan: $selectedPaywallPlan,
                     viewModel: paywallViewModel,
                     onClose: { isPaywallPresented = false }
-                )
+                ) {
+                    PaywallPurchaseButton(
+                        selectedPlan: $selectedPaywallPlan,
+                        viewModel: paywallViewModel,
+                        analyticsLabel: "settings_purchase_button_paywall"
+                    )
+                    .padding(.top, 12)
+                }
                 .padding(.horizontal, 24)
                 .padding(.top, 24)
                 .background(Color(.systemBackground).ignoresSafeArea())

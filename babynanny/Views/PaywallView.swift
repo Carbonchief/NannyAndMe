@@ -1,9 +1,22 @@
 import SwiftUI
 
-struct PaywallContentView: View {
+struct PaywallContentView<Footer: View>: View {
     @Binding var selectedPlan: PaywallPlan
     @ObservedObject var viewModel: OnboardingPaywallViewModel
     let onClose: () -> Void
+    private let footer: Footer
+
+    init(
+        selectedPlan: Binding<PaywallPlan>,
+        viewModel: OnboardingPaywallViewModel,
+        onClose: @escaping () -> Void,
+        @ViewBuilder footer: () -> Footer = { EmptyView() }
+    ) {
+        self._selectedPlan = selectedPlan
+        self.viewModel = viewModel
+        self.onClose = onClose
+        self.footer = footer()
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -28,6 +41,8 @@ struct PaywallContentView: View {
                         .multilineTextAlignment(.center)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 12)
+
+                    footer
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.top, 12)
@@ -262,6 +277,65 @@ struct PaywallPlanRow: View {
         }
         .buttonStyle(.plain)
         .postHogLabel(plan.analyticsLabel)
+    }
+}
+
+struct PaywallPurchaseButton: View {
+    @Binding var selectedPlan: PaywallPlan
+    @ObservedObject var viewModel: OnboardingPaywallViewModel
+    let analyticsLabel: String
+
+    var body: some View {
+        Button {
+            Task {
+                await viewModel.purchase(plan: selectedPlan)
+            }
+        } label: {
+            ZStack {
+                if viewModel.isProcessingPurchase {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .tint(Color.white)
+
+                        Text(buttonTitle)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                } else {
+                    Text(buttonTitle)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(height: 48)
+            .background(Color.accentColor)
+            .foregroundStyle(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .postHogLabel(analyticsLabel)
+    }
+
+    private var buttonTitle: String {
+        if viewModel.isProcessingPurchase {
+            return L10n.Onboarding.FirstLaunch.processingPurchase
+        }
+
+        if selectedPlan == .lifetime {
+            return L10n.Onboarding.FirstLaunch.purchaseLifetime
+        }
+
+        return L10n.Onboarding.FirstLaunch.startTrial
+    }
+
+    private var isDisabled: Bool {
+        viewModel.isProcessingPurchase
+            || viewModel.isRestoringPurchases
+            || viewModel.isLoadingProducts
     }
 }
 

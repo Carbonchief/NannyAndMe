@@ -547,7 +547,7 @@ enum L10n {
             )
             static let trackActionLocationsPremium = String(
                 localized: "settings.privacy.trackLocations.premium",
-                defaultValue: "Unlock Nanny & Me+ to save where care happens."
+                defaultValue: "Unlock Premium Access for location tracking."
             )
             static let permissionDenied = String(
                 localized: "settings.privacy.trackLocations.denied",

@@ -245,6 +245,8 @@ private extension OnboardingFlowView {
         hasCompletedOnboarding = true
         isPresented = false
     }
+}
+
 private extension OnboardingFlowView {
     enum Page: Int, CaseIterable {
         case welcome

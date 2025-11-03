@@ -142,7 +142,7 @@
 "settings.privacy.section" = "Privacy";
 "settings.privacy.trackLocations" = "Track Action Locations";
 "settings.privacy.trackLocations.description" = "When enabled, the app saves your precise location (within about 50 meters) with each logged action. You can turn this off anytime.";
-"settings.privacy.trackLocations.premium" = "Unlock Nanny & Me+ to save where care happens.";
+"settings.privacy.trackLocations.premium" = "Unlock Premium Access for location tracking.";
 "settings.privacy.trackLocations.denied" = "Location access denied — tap to open Settings.";
 "settings.privacy.openSettings" = "Open Settings";
 "settings.about.section" = "About";
