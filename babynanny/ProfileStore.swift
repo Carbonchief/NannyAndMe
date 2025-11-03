@@ -323,6 +323,9 @@ final class ProfileStore: ObservableObject {
     private let saveURL: URL
     private var settings: ProfileStoreSettings
     private var isEnsuringProfile = false
+    private var hasCompletedOnboarding: Bool {
+        UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+    }
 
     init(modelContext: ModelContext,
          dataStack: AppDataStack,
@@ -349,6 +352,10 @@ final class ProfileStore: ObservableObject {
         actionStore = store
         scheduleReminders()
         synchronizeProfileMetadata()
+    }
+
+    func rescheduleRemindersAfterOnboarding() {
+        scheduleReminders()
     }
 
     func setActiveProfile(_ profile: ChildProfile) {
@@ -736,6 +743,7 @@ final class ProfileStore: ObservableObject {
     }
 
     private func scheduleReminders() {
+        guard hasCompletedOnboarding else { return }
         let profiles = profiles
         Task { @MainActor [weak self, profiles] in
             guard let self else { return }

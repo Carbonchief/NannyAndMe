@@ -11,6 +11,7 @@ struct ContentView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
     @AppStorage("trackActionLocations") private var trackActionLocations = false
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var selectedTab: Tab = .home
     @State private var previousTab: Tab = .home
     @State private var isMenuVisible = false
@@ -19,6 +20,7 @@ struct ContentView: View {
     @State private var isProfileSwitcherPresented = false
     @State private var isInitialProfilePromptPresented = false
     @State private var isManualEntryPresented = false
+    @State private var isOnboardingPresented = false
 
     private var visibleTabs: [Tab] {
         var tabs: [Tab] = [.home, .reports]
@@ -174,6 +176,9 @@ struct ContentView: View {
             .sheet(isPresented: $isManualEntryPresented) {
                 ManualActionEntrySheet()
             }
+            .fullScreenCover(isPresented: $isOnboardingPresented) {
+                OnboardingFlowView(isPresented: $isOnboardingPresented)
+            }
 
             if isMenuVisible == false {
                 Color.clear
@@ -187,7 +192,6 @@ struct ContentView: View {
                                 let vertical = value.translation.height
 
                                 guard horizontal > 40, abs(horizontal) > abs(vertical) else { return }
-
 
                                 withAnimation(.easeInOut) {
                                     isMenuVisible = true
@@ -251,6 +255,9 @@ struct ContentView: View {
                 for: profileStore.activeProfile,
                 profileCount: profileStore.profiles.count
             )
+            if hasCompletedOnboarding == false {
+                isOnboardingPresented = true
+            }
         }
         .onChange(of: profileStore.activeProfile) { _, profile in
             isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(
@@ -263,6 +270,12 @@ struct ContentView: View {
                 for: profileStore.activeProfile,
                 profileCount: profiles.count
             )
+        }
+        .onChange(of: hasCompletedOnboarding) { _, completed in
+            if completed {
+                isOnboardingPresented = false
+                profileStore.rescheduleRemindersAfterOnboarding()
+            }
         }
         .onChange(of: trackActionLocations) { _, _ in
             ensureSelectionIsVisible(in: visibleTabs)

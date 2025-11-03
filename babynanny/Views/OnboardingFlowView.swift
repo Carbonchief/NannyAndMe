@@ -1,0 +1,446 @@
+import SwiftUI
+
+struct OnboardingFlowView: View {
+    @Binding var isPresented: Bool
+    @State private var selection: Page = .welcome
+    @State private var selectedPlan: PaywallPlan = .trial
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+
+    private let pages = Page.allCases
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                TabView(selection: $selection) {
+                    welcomePage
+                        .tag(Page.welcome)
+
+                    benefitsPage
+                        .tag(Page.benefits)
+
+                    paywallPage
+                        .tag(Page.paywall)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+
+                pageIndicator
+
+                primaryActionButton
+            }
+            .padding(.horizontal, 24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(.systemBackground).ignoresSafeArea())
+        }
+        .interactiveDismissDisabled()
+    }
+}
+
+private extension OnboardingFlowView {
+    var welcomePage: some View {
+        GeometryReader { proxy in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 24) {
+                    Image(.logo)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 120, height: 120)
+                        .shadow(color: Color.accentColor.opacity(0.1), radius: 16, x: 0, y: 12)
+                        .accessibilityHidden(true)
+
+                    Text(L10n.Onboarding.FirstLaunch.welcomeTitle)
+                        .font(.largeTitle.weight(.bold))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .padding(.horizontal, 12)
+
+                    Text(L10n.Onboarding.FirstLaunch.welcomeMessage)
+                        .font(.body)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 32)
+            }
+            .frame(width: proxy.size.width)
+            .frame(minHeight: proxy.size.height, alignment: .top)
+        }
+    }
+
+    var benefitsPage: some View {
+        GeometryReader { proxy in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    Image(systemName: "map.circle")
+                        .font(.system(size: 64))
+                        .foregroundStyle(Color.accentColor)
+                        .symbolRenderingMode(.hierarchical)
+
+                    Text(L10n.Onboarding.FirstLaunch.benefitsTitle)
+                        .font(.largeTitle.weight(.bold))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 12)
+
+                    VStack(spacing: 12) {
+                        Text(L10n.Onboarding.FirstLaunch.benefitsMessage)
+                            .font(.body)
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(.secondary)
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            benefitRow(icon: "checkmark.seal", text: L10n.Onboarding.FirstLaunch.benefitPointOne)
+                            benefitRow(icon: "doc.richtext", text: L10n.Onboarding.FirstLaunch.benefitPointTwo)
+                            benefitRow(icon: "sparkles", text: L10n.Onboarding.FirstLaunch.benefitPointThree)
+                        }
+                        .frame(maxWidth: 420)
+                        .padding(.top, 8)
+                    }
+                    .padding(.horizontal, 12)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 32)
+            }
+            .frame(width: proxy.size.width)
+            .frame(minHeight: proxy.size.height, alignment: .top)
+        }
+    }
+
+    var paywallPage: some View {
+        GeometryReader { proxy in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    PaywallCard(selectedPlan: $selectedPlan, onClose: completeOnboarding)
+
+                    Text(L10n.Onboarding.FirstLaunch.termsDisclaimer)
+                        .font(.footnote)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 12)
+                .padding(.bottom, 36)
+            }
+            .frame(width: proxy.size.width)
+            .frame(minHeight: proxy.size.height, alignment: .top)
+        }
+    }
+
+    func benefitRow(icon: String, text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 28, height: 28)
+            Text(text)
+                .font(.body)
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    var pageIndicator: some View {
+        HStack(spacing: 8) {
+            ForEach(pages, id: \.self) { page in
+                Capsule()
+                    .fill(page == selection ? Color.accentColor : Color.accentColor.opacity(0.2))
+                    .frame(width: page == selection ? 28 : 12, height: 6)
+                    .animation(.easeInOut(duration: 0.2), value: selection)
+            }
+        }
+        .padding(.top, 8)
+    }
+
+    var primaryActionButton: some View {
+        Button {
+            handlePrimaryAction()
+        } label: {
+            Text(primaryButtonTitle)
+                .font(.headline)
+                .fontWeight(.semibold)
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background(Color.accentColor)
+                .foregroundStyle(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .postHogLabel(primaryButtonAnalyticsLabel)
+    }
+
+    var primaryButtonTitle: String {
+        switch selection {
+        case .welcome, .benefits:
+            return L10n.Onboarding.FirstLaunch.next
+        case .paywall:
+            if selectedPlan == .lifetime {
+                return L10n.Onboarding.FirstLaunch.purchaseLifetime
+            } else {
+                return L10n.Onboarding.FirstLaunch.startTrial
+            }
+        }
+    }
+
+    var primaryButtonAnalyticsLabel: String {
+        switch selection {
+        case .welcome:
+            return "onboarding_next_button_welcome"
+        case .benefits:
+            return "onboarding_next_button_benefits"
+        case .paywall:
+            switch selectedPlan {
+            case .trial:
+                return "onboarding_confirmPlan_trial_paywall"
+            case .lifetime:
+                return "onboarding_confirmPlan_lifetime_paywall"
+            }
+        }
+    }
+
+    func handlePrimaryAction() {
+        switch selection {
+        case .welcome:
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                selection = .benefits
+            }
+        case .benefits:
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                selection = .paywall
+            }
+        case .paywall:
+            completeOnboarding()
+        }
+    }
+
+    func completeOnboarding() {
+        hasCompletedOnboarding = true
+        isPresented = false
+    }
+}
+
+private struct PaywallCard: View {
+    @Binding var selectedPlan: OnboardingFlowView.PaywallPlan
+    let onClose: () -> Void
+
+    var body: some View {
+        let isTrialSelected = selectedPlan == .trial
+
+        VStack(spacing: 16) {
+            ZStack(alignment: .topTrailing) {
+                Image(.logo)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 96, height: 96)
+                    .shadow(color: Color.accentColor.opacity(0.08), radius: 12, x: 0, y: 8)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityHidden(true)
+
+                Button {
+                    onClose()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.secondary)
+                        .padding(5)
+                        .background(
+                            Circle()
+                                .fill(Color(.systemBackground))
+                                .shadow(color: Color.black.opacity(0.05), radius: 3, x: 0, y: 2)
+                        )
+                }
+                .buttonStyle(.plain)
+                .contentShape(Circle())
+                .postHogLabel("onboarding_close_button_paywall")
+            }
+
+            VStack(spacing: 6) {
+                Text(L10n.Onboarding.FirstLaunch.paywallTitle)
+                    .font(.title2.weight(.bold))
+                    .multilineTextAlignment(.center)
+
+                Text(L10n.Onboarding.FirstLaunch.paywallSubtitle)
+                    .font(.body)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .center, spacing: 12) {
+                PaywallFeatureRow(icon: "map.circle.fill", text: L10n.Onboarding.FirstLaunch.paywallFeatureTwo)
+                PaywallFeatureRow(icon: "person.2.fill", text: L10n.Onboarding.FirstLaunch.paywallFeatureThree)
+                PaywallFeatureRow(icon: "bell.badge.fill", text: L10n.Onboarding.FirstLaunch.paywallFeatureFour)
+                PaywallFeatureRow(icon: "lock.open.fill", text: L10n.Onboarding.FirstLaunch.paywallFeatureFive)
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+
+            VStack(spacing: 8) {
+                PaywallPlanRow(
+                    title: L10n.Onboarding.FirstLaunch.paywallPlanLifetimeTitle,
+                    detail: L10n.Onboarding.FirstLaunch.paywallPlanLifetimePrice,
+                    badge: L10n.Onboarding.FirstLaunch.paywallPlanLifetimeBadge,
+                    isSelected: selectedPlan == .lifetime,
+                    analyticsLabel: OnboardingFlowView.PaywallPlan.lifetime.analyticsLabel,
+                    action: {
+                        selectedPlan = .lifetime
+                    }
+                )
+
+                PaywallPlanRow(
+                    title: L10n.Onboarding.FirstLaunch.paywallPlanMonthlyTitle,
+                    detail: L10n.Onboarding.FirstLaunch.paywallPlanMonthlyPrice,
+                    badge: L10n.Onboarding.FirstLaunch.paywallPlanMonthlyBadge,
+                    isSelected: selectedPlan == .trial,
+                    analyticsLabel: OnboardingFlowView.PaywallPlan.trial.analyticsLabel,
+                    action: {
+                        selectedPlan = .trial
+                    }
+                )
+            }
+
+            VStack(spacing: 8) {
+                HStack {
+                    Image(systemName: isTrialSelected ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(isTrialSelected ? Color.accentColor : Color.secondary)
+                    Text(L10n.Onboarding.FirstLaunch.paywallFreeTrialToggle)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(isTrialSelected ? Color.primary : .secondary)
+                    Spacer()
+                }
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.08))
+            )
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .background(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.08), radius: 28, x: 0, y: 24)
+        )
+        .accessibilityElement(children: .contain)
+    }
+}
+
+private struct PaywallFeatureRow: View {
+    let icon: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
+            Text(text)
+                .font(.body)
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct PaywallPlanRow: View {
+    let title: String
+    let detail: String
+    let badge: String
+    let isSelected: Bool
+    let analyticsLabel: String
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            action()
+        } label: {
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(isSelected ? Color.white : .primary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(detail)
+                        .font(.body)
+                        .foregroundStyle(isSelected ? Color.white.opacity(0.85) : .secondary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+
+                HStack(spacing: 8) {
+                    if !badge.isEmpty {
+                        Text(badge.uppercased())
+                            .font(.caption2.weight(.bold))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(Color.orange.opacity(isSelected ? 0.2 : 0.15))
+                            )
+                            .foregroundStyle(isSelected ? Color.white : Color.orange)
+                    }
+
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(isSelected ? Color.white : Color.accentColor)
+                }
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(isSelected ? Color.accentColor : Color.accentColor.opacity(0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(Color.accentColor.opacity(isSelected ? 0 : 0.2), lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .postHogLabel(analyticsLabel)
+    }
+}
+
+private extension OnboardingFlowView {
+    enum Page: Int, CaseIterable {
+        case welcome
+        case benefits
+        case paywall
+
+        func previous() -> Page {
+            switch self {
+            case .welcome:
+                return .welcome
+            case .benefits:
+                return .welcome
+            case .paywall:
+                return .benefits
+            }
+        }
+    }
+
+    enum PaywallPlan {
+        case lifetime
+        case trial
+
+        var analyticsLabel: String {
+            switch self {
+            case .lifetime:
+                return "onboarding_selectPlan_lifetime_paywall"
+            case .trial:
+                return "onboarding_selectPlan_trial_paywall"
+            }
+        }
+    }
+}
+
+#Preview {
+    OnboardingFlowView(isPresented: .constant(true))
+}
