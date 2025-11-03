@@ -182,11 +182,7 @@ final class OnboardingPaywallViewModel: ObservableObject {
         case .verified(let transaction):
             return transaction
         case .unverified(_, let error):
-            if let error {
-                throw error
-            } else {
-                throw StoreKitError(.unknown)
-            }
+            throw error
         }
     }
 
@@ -209,7 +205,7 @@ final class OnboardingPaywallViewModel: ObservableObject {
         formatter.unitsStyle = .full
         formatter.allowedUnits = [.day, .weekOfMonth, .month, .year]
         formatter.maximumUnitCount = 1
-        formatter.locale = Locale.current
+        formatter.calendar = Calendar.current
 
         return formatter.string(from: components) ?? ""
     }
