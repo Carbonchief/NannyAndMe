@@ -9,11 +9,12 @@ final class OnboardingPaywallViewModel: ObservableObject {
     @Published private(set) var isLoadingProducts = false
     @Published private(set) var isProcessingPurchase = false
     @Published private(set) var isRestoringPurchases = false
-    @Published private(set) var hasUnlockedPremium = false
+    @Published private(set) var hasUnlockedPremium = UserDefaults.standard.bool(forKey: OnboardingPaywallViewModel.premiumAccessKey)
     @Published var errorMessage: String?
 
     private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "paywall")
     private var transactionUpdatesTask: Task<Void, Never>?
+    private static let premiumAccessKey = "hasUnlockedPremium"
 
     init() {
         transactionUpdatesTask = Task { [weak self] in
@@ -151,7 +152,7 @@ final class OnboardingPaywallViewModel: ObservableObject {
             break
         }
 
-        hasUnlockedPremium = unlocked
+        updatePremiumAccess(unlocked)
     }
 
     private func observeTransactionUpdates() async {
@@ -172,7 +173,7 @@ final class OnboardingPaywallViewModel: ObservableObject {
         }
 
         errorMessage = nil
-        hasUnlockedPremium = true
+        updatePremiumAccess(true)
         await transaction.finish()
     }
 
@@ -207,5 +208,12 @@ final class OnboardingPaywallViewModel: ObservableObject {
         formatter.calendar = Calendar.current
 
         return formatter.string(from: components) ?? ""
+    }
+}
+
+private extension OnboardingPaywallViewModel {
+    func updatePremiumAccess(_ value: Bool) {
+        hasUnlockedPremium = value
+        UserDefaults.standard.set(value, forKey: Self.premiumAccessKey)
     }
 }

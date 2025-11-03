@@ -15,6 +15,8 @@ struct SettingsView: View {
     @EnvironmentObject private var locationManager: LocationManager
     @Environment(\.openURL) private var openURL
     @AppStorage("trackActionLocations") private var trackActionLocations = false
+    @AppStorage("hasUnlockedPremium") private var hasUnlockedPremium = false
+    @StateObject private var paywallViewModel = OnboardingPaywallViewModel()
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var pendingCrop: PendingCropImage?
     @State private var isProcessingPhoto = false
@@ -28,6 +30,9 @@ struct SettingsView: View {
     @State private var activeAlert: ActiveAlert?
     @State private var profilePendingDeletion: ChildProfile?
     @State private var isAddProfilePromptPresented = false
+    @State private var isPaywallPresented = false
+    @State private var selectedPaywallPlan: PaywallPlan = .trial
+    @State private var pendingLocationUnlock = false
 
     var body: some View {
         Form {
@@ -96,6 +101,52 @@ struct SettingsView: View {
             }
             .preferredColorScheme(.dark)
         }
+        .sheet(isPresented: $isPaywallPresented, onDismiss: {
+            if !hasUnlockedPremium {
+                pendingLocationUnlock = false
+            }
+        }) {
+            NavigationStack {
+                PaywallContentView(
+                    selectedPlan: $selectedPaywallPlan,
+                    viewModel: paywallViewModel,
+                    onClose: { isPaywallPresented = false }
+                ) {
+                    PaywallPurchaseButton(
+                        selectedPlan: $selectedPaywallPlan,
+                        viewModel: paywallViewModel,
+                        analyticsLabel: "settings_purchase_button_paywall"
+                    )
+                    .padding(.top, 12)
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .background(Color(.systemBackground).ignoresSafeArea())
+            }
+            .task {
+                await paywallViewModel.loadProductsIfNeeded()
+            }
+        }
+        .onChange(of: hasUnlockedPremium) { _, newValue in
+            if newValue {
+                if pendingLocationUnlock {
+                    if trackActionLocations == false {
+                        withAnimation {
+                            trackActionLocations = true
+                        }
+                    }
+                    locationManager.requestPermissionIfNeeded()
+                    locationManager.ensurePreciseAccuracyIfNeeded()
+                    pendingLocationUnlock = false
+                }
+                isPaywallPresented = false
+            } else {
+                if trackActionLocations {
+                    trackActionLocations = false
+                }
+                pendingLocationUnlock = false
+            }
+        }
     }
 
     private var privacySection: some View {
@@ -105,14 +156,34 @@ struct SettingsView: View {
             }
             .onChange(of: trackActionLocations) { _, newValue in
                 if newValue {
+                    guard hasUnlockedPremium else {
+                        pendingLocationUnlock = true
+                        withAnimation {
+                            trackActionLocations = false
+                        }
+                        selectedPaywallPlan = .trial
+                        paywallViewModel.errorMessage = nil
+                        isPaywallPresented = true
+                        return
+                    }
+
                     locationManager.requestPermissionIfNeeded()
                     locationManager.ensurePreciseAccuracyIfNeeded()
+                } else if hasUnlockedPremium {
+                    pendingLocationUnlock = false
                 }
             }
+            .postHogLabel("settings_trackLocations_toggle_privacy")
 
-            Text(L10n.Settings.Privacy.trackActionLocationsDescription)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            if hasUnlockedPremium {
+                Text(L10n.Settings.Privacy.trackActionLocationsDescription)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text(L10n.Settings.Privacy.trackActionLocationsPremium)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
 
             if trackActionLocations,
                locationManager.authorizationStatus == .denied ||
