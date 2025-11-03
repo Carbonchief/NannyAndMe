@@ -2,6 +2,7 @@ import SwiftUI
 
 struct OnboardingFlowView: View {
     @Binding var isPresented: Bool
+    @StateObject private var paywallViewModel = OnboardingPaywallViewModel()
     @State private var selection: Page = .welcome
     @State private var selectedPlan: PaywallPlan = .trial
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
@@ -32,6 +33,16 @@ struct OnboardingFlowView: View {
             .background(Color(.systemBackground).ignoresSafeArea())
         }
         .interactiveDismissDisabled()
+        .task {
+            await paywallViewModel.loadProductsIfNeeded()
+        }
+        .onChange(of: paywallViewModel.hasUnlockedPremium) { _, newValue in
+            guard newValue else { return }
+            completeOnboarding()
+        }
+        .onChange(of: selectedPlan) { _, _ in
+            paywallViewModel.errorMessage = nil
+        }
     }
 }
 
@@ -110,7 +121,17 @@ private extension OnboardingFlowView {
         GeometryReader { proxy in
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
-                    PaywallCard(selectedPlan: $selectedPlan, onClose: completeOnboarding)
+                    PaywallCard(selectedPlan: $selectedPlan,
+                                viewModel: paywallViewModel,
+                                onClose: completeOnboarding)
+
+                    if let errorMessage = paywallViewModel.errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(Color.red)
+                            .padding(.horizontal, 12)
+                    }
 
                     Text(L10n.Onboarding.FirstLaunch.termsDisclaimer)
                         .font(.footnote)
@@ -157,16 +178,32 @@ private extension OnboardingFlowView {
         Button {
             handlePrimaryAction()
         } label: {
-            Text(primaryButtonTitle)
-                .font(.headline)
-                .fontWeight(.semibold)
-                .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background(Color.accentColor)
-                .foregroundStyle(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            ZStack {
+                if selection == .paywall && paywallViewModel.isProcessingPurchase {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .tint(Color.white)
+
+                        Text(primaryButtonTitle)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                } else {
+                    Text(primaryButtonTitle)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(height: 48)
+            .background(Color.accentColor)
+            .foregroundStyle(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
+        .disabled(isPrimaryButtonDisabled)
         .postHogLabel(primaryButtonAnalyticsLabel)
     }
 
@@ -175,11 +212,25 @@ private extension OnboardingFlowView {
         case .welcome, .benefits:
             return L10n.Onboarding.FirstLaunch.next
         case .paywall:
+            if paywallViewModel.isProcessingPurchase {
+                return L10n.Onboarding.FirstLaunch.processingPurchase
+            }
             if selectedPlan == .lifetime {
                 return L10n.Onboarding.FirstLaunch.purchaseLifetime
             } else {
                 return L10n.Onboarding.FirstLaunch.startTrial
             }
+        }
+    }
+
+    var isPrimaryButtonDisabled: Bool {
+        switch selection {
+        case .welcome, .benefits:
+            return false
+        case .paywall:
+            return paywallViewModel.isProcessingPurchase
+                || paywallViewModel.isRestoringPurchases
+                || paywallViewModel.isLoadingProducts
         }
     }
 
@@ -190,12 +241,7 @@ private extension OnboardingFlowView {
         case .benefits:
             return "onboarding_next_button_benefits"
         case .paywall:
-            switch selectedPlan {
-            case .trial:
-                return "onboarding_confirmPlan_trial_paywall"
-            case .lifetime:
-                return "onboarding_confirmPlan_lifetime_paywall"
-            }
+            return selectedPlan.analyticsLabel
         }
     }
 
@@ -210,7 +256,9 @@ private extension OnboardingFlowView {
                 selection = .paywall
             }
         case .paywall:
-            completeOnboarding()
+            Task {
+                await paywallViewModel.purchase(plan: selectedPlan)
+            }
         }
     }
 
@@ -221,7 +269,8 @@ private extension OnboardingFlowView {
 }
 
 private struct PaywallCard: View {
-    @Binding var selectedPlan: OnboardingFlowView.PaywallPlan
+    @Binding var selectedPlan: PaywallPlan
+    @ObservedObject var viewModel: OnboardingPaywallViewModel
     let onClose: () -> Void
 
     var body: some View {
@@ -274,24 +323,33 @@ private struct PaywallCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .center)
 
+            if viewModel.isLoadingProducts {
+                ProgressView {
+                    Text(L10n.Onboarding.FirstLaunch.paywallLoading)
+                }
+                .progressViewStyle(.circular)
+                .tint(Color.accentColor)
+                .padding(.vertical, 8)
+            }
+
             VStack(spacing: 8) {
                 PaywallPlanRow(
+                    plan: .lifetime,
                     title: L10n.Onboarding.FirstLaunch.paywallPlanLifetimeTitle,
-                    detail: L10n.Onboarding.FirstLaunch.paywallPlanLifetimePrice,
+                    detail: viewModel.detailText(for: .lifetime),
                     badge: L10n.Onboarding.FirstLaunch.paywallPlanLifetimeBadge,
                     isSelected: selectedPlan == .lifetime,
-                    analyticsLabel: OnboardingFlowView.PaywallPlan.lifetime.analyticsLabel,
                     action: {
                         selectedPlan = .lifetime
                     }
                 )
 
                 PaywallPlanRow(
+                    plan: .trial,
                     title: L10n.Onboarding.FirstLaunch.paywallPlanMonthlyTitle,
-                    detail: L10n.Onboarding.FirstLaunch.paywallPlanMonthlyPrice,
+                    detail: viewModel.detailText(for: .trial),
                     badge: L10n.Onboarding.FirstLaunch.paywallPlanMonthlyBadge,
                     isSelected: selectedPlan == .trial,
-                    analyticsLabel: OnboardingFlowView.PaywallPlan.trial.analyticsLabel,
                     action: {
                         selectedPlan = .trial
                     }
@@ -307,12 +365,40 @@ private struct PaywallCard: View {
                         .foregroundStyle(isTrialSelected ? Color.primary : .secondary)
                     Spacer()
                 }
+                if isTrialSelected {
+                    Text(L10n.Onboarding.FirstLaunch.paywallTrialDisclaimer)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(Color.accentColor.opacity(0.08))
             )
+
+            Button {
+                Task {
+                    await viewModel.restorePurchases()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    if viewModel.isRestoringPurchases {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .tint(Color.accentColor)
+                    }
+                    Text(L10n.Onboarding.FirstLaunch.restorePurchases)
+                        .font(.footnote.weight(.semibold))
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Color.accentColor)
+            .padding(.top, 4)
+            .disabled(viewModel.isRestoringPurchases)
+            .postHogLabel("onboarding_restore_button_paywall")
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .center)
@@ -345,11 +431,11 @@ private struct PaywallFeatureRow: View {
 }
 
 private struct PaywallPlanRow: View {
+    let plan: PaywallPlan
     let title: String
     let detail: String
     let badge: String
     let isSelected: Bool
-    let analyticsLabel: String
     let action: () -> Void
 
     var body: some View {
@@ -404,7 +490,7 @@ private struct PaywallPlanRow: View {
             .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
         .buttonStyle(.plain)
-        .postHogLabel(analyticsLabel)
+        .postHogLabel(plan.analyticsLabel)
     }
 }
 
@@ -426,19 +512,6 @@ private extension OnboardingFlowView {
         }
     }
 
-    enum PaywallPlan {
-        case lifetime
-        case trial
-
-        var analyticsLabel: String {
-            switch self {
-            case .lifetime:
-                return "onboarding_selectPlan_lifetime_paywall"
-            case .trial:
-                return "onboarding_selectPlan_trial_paywall"
-            }
-        }
-    }
 }
 
 #Preview {
