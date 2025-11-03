@@ -51,6 +51,8 @@
 "onboarding.firstLaunch.paywall.error.generic" = "Algo salió mal. Inténtalo nuevamente.";
 "home.recentActivity" = "Actividad reciente";
 "home.recentActivity.showAll" = "Ver todo";
+"home.recentActivity.empty.title" = "Sin actividad reciente";
+"home.recentActivity.empty.description" = "Los registros que agregues aparecerán aquí para un acceso rápido.";
 "home.header.edit" = "Editar";
 "home.header.placeholder" = "Inicia una acción abajo para comenzar a registrar el día de tu bebé.";
 "home.noEntries" = "Aún no hay registros";

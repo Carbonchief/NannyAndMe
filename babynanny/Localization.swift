@@ -198,6 +198,8 @@ enum L10n {
         static let recentActivityShowAll = String(localized: "home.recentActivity.showAll", defaultValue: "Show All")
         static let placeholder = String(localized: "home.header.placeholder", defaultValue: "Start an action below to begin tracking your baby's day.")
         static let noEntries = String(localized: "home.noEntries", defaultValue: "No entries yet")
+        static let recentActivityEmptyTitle = String(localized: "home.recentActivity.empty.title", defaultValue: "No recent activity yet")
+        static let recentActivityEmptyDescription = String(localized: "home.recentActivity.empty.description", defaultValue: "Logs you add will appear here for quick access.")
         static let customReminderTitle = String(localized: "home.customReminder.title", defaultValue: "Schedule reminder")
 
         static func customReminderMessage(for name: String, category: BabyActionCategory) -> String {

@@ -5,6 +5,7 @@
 //  Created by OpenAI Assistant on 2024/10/07.
 //
 
+import Combine
 import Foundation
 import SwiftUI
 import UIKit
@@ -128,7 +129,7 @@ struct HomeView: View {
                     }
                 }
 
-                if profileStore.showRecentActivityOnHome && !recentHistory.isEmpty {
+                if profileStore.showRecentActivityOnHome {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Text(L10n.Home.recentActivity)
@@ -142,17 +143,21 @@ struct HomeView: View {
                             .tint(.accentColor)
                         }
 
-                        VStack(spacing: 12) {
-                            ForEach(recentHistory) { action in
-                                HistoryRow(
-                                    action: action,
-                                    onEdit: { actionToEdit in
-                                        editingAction = actionToEdit
-                                    },
-                                    onLongPress: { pressedAction in
-                                        handleHistoryLongPress(for: pressedAction)
-                                    }
-                                )
+                        if recentHistory.isEmpty {
+                            recentActivityPlaceholder()
+                        } else {
+                            VStack(spacing: 12) {
+                                ForEach(recentHistory) { action in
+                                    HistoryRow(
+                                        action: action,
+                                        onEdit: { actionToEdit in
+                                            editingAction = actionToEdit
+                                        },
+                                        onLongPress: { pressedAction in
+                                            handleHistoryLongPress(for: pressedAction)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -185,6 +190,36 @@ struct HomeView: View {
             .animation(headerCardAnimation, value: state.mostRecentAction?.category)
         }
     }
+
+    private func recentActivityPlaceholder() -> some View {
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+
+        return VStack(spacing: 16) {
+            Text(L10n.Home.recentActivityEmptyTitle)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            RecentActivityPlaceholderIconView()
+
+            Text(L10n.Home.recentActivityEmptyDescription)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.vertical, 24)
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity)
+        .background(
+            shape
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+        .overlay(
+            shape
+                .stroke(Color(.separator), lineWidth: 1)
+        )
+        .clipShape(shape)
+    }
+
 
     private var headerCardTransition: AnyTransition {
         .asymmetric(
@@ -1113,6 +1148,113 @@ private struct RecentActionDetailRow: View {
                 .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct RecentActivityPlaceholderIconView: View {
+    @State private var currentIndex = 0
+
+    private let icons = PlaceholderIconDescriptor.sequence
+    private let iconSize: CGFloat = 72
+    private let containerSize: CGFloat = 132
+    private let timer = Timer.publish(every: 1.8, tolerance: 0.2, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        let icon = icons[currentIndex]
+
+        return ZStack {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(icon.backgroundColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .stroke(icon.foregroundColor.opacity(0.35), lineWidth: 1)
+                )
+                .frame(width: containerSize, height: containerSize)
+
+            Image(systemName: icon.systemName)
+                .font(.system(size: iconSize, weight: .semibold))
+                .foregroundStyle(icon.foregroundColor)
+                .transition(.scale(scale: 0.92).combined(with: .opacity))
+                .id(icon.id)
+        }
+        .frame(maxWidth: .infinity)
+        .animation(.easeInOut(duration: 0.35), value: icon.id)
+        .onReceive(timer) { _ in
+            guard icons.isEmpty == false else { return }
+            withAnimation(.easeInOut(duration: 0.35)) {
+                currentIndex = (currentIndex + 1) % icons.count
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+private struct PlaceholderIconDescriptor: Identifiable {
+    let id = UUID()
+    let systemName: String
+    let foregroundColor: Color
+    let backgroundColor: Color
+
+    static let sequence: [PlaceholderIconDescriptor] = {
+        var icons: [PlaceholderIconDescriptor] = []
+
+        icons.append(.category(.sleep))
+        BabyActionSnapshot.DiaperType.allCases.forEach { icons.append(.diaper($0)) }
+        BabyActionSnapshot.FeedingType.allCases.forEach { icons.append(.feeding($0)) }
+
+        return icons
+    }()
+
+    static func category(_ category: BabyActionCategory) -> PlaceholderIconDescriptor {
+        PlaceholderIconDescriptor(
+            systemName: category.icon,
+            foregroundColor: category.accentColor,
+            backgroundColor: category.accentColor.opacity(0.16)
+        )
+    }
+
+    static func diaper(_ type: BabyActionSnapshot.DiaperType) -> PlaceholderIconDescriptor {
+        PlaceholderIconDescriptor(
+            systemName: type.icon,
+            foregroundColor: type.placeholderAccentColor,
+            backgroundColor: type.placeholderAccentColor.opacity(0.16)
+        )
+    }
+
+    static func feeding(_ type: BabyActionSnapshot.FeedingType) -> PlaceholderIconDescriptor {
+        PlaceholderIconDescriptor(
+            systemName: type.icon,
+            foregroundColor: type.placeholderAccentColor,
+            backgroundColor: type.placeholderAccentColor.opacity(0.16)
+        )
+    }
+}
+
+private extension BabyActionSnapshot.DiaperType {
+    var placeholderAccentColor: Color {
+        switch self {
+        case .pee:
+            return .teal
+        case .poo:
+            return .brown
+        case .both:
+            return .mint
+        }
+    }
+}
+
+private extension BabyActionSnapshot.FeedingType {
+    var placeholderAccentColor: Color {
+        switch self {
+        case .bottle:
+            return .orange
+        case .leftBreast:
+            return .pink
+        case .rightBreast:
+            return .purple
+        case .meal:
+            return .green
+        }
     }
 }
 

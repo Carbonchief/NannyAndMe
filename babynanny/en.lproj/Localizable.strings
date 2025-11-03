@@ -51,6 +51,8 @@
 "onboarding.firstLaunch.paywall.error.generic" = "Something went wrong. Please try again.";
 "home.recentActivity" = "Recent Activity";
 "home.recentActivity.showAll" = "Show All";
+"home.recentActivity.empty.title" = "No recent activity yet";
+"home.recentActivity.empty.description" = "Logs you add will appear here for quick access.";
 "home.header.edit" = "Edit";
 "home.header.placeholder" = "Start an action below to begin tracking your baby's day.";
 "home.noEntries" = "No entries yet";

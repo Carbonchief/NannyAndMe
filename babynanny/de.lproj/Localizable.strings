@@ -51,6 +51,8 @@
 "onboarding.firstLaunch.paywall.error.generic" = "Etwas ist schiefgelaufen. Bitte versuch es erneut.";
 "home.recentActivity" = "Letzte Aktivitäten";
 "home.recentActivity.showAll" = "Alle anzeigen";
+"home.recentActivity.empty.title" = "Noch keine Aktivitäten";
+"home.recentActivity.empty.description" = "Sobald du etwas protokollierst, erscheinen die Einträge hier für den Schnellzugriff.";
 "home.header.edit" = "Bearbeiten";
 "home.header.placeholder" = "Starte unten eine Aktion, um den Tag deines Babys zu verfolgen.";
 "home.noEntries" = "Noch keine Einträge";
