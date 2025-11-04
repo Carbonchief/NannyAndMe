@@ -183,7 +183,6 @@ private extension OnboardingFlowView {
         }
         .buttonStyle(.plain)
         .disabled(isPrimaryButtonDisabled)
-        .postHogLabel(primaryButtonAnalyticsLabel)
     }
 
     var primaryButtonTitle: String {

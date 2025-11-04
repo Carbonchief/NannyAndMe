@@ -195,7 +195,6 @@ struct ReportsView: View {
                 .frame(width: 52, height: 52)
                 .accessibilityLabel(tab.accessibilityLabel)
                 .accessibilityAddTraits(isSelected ? [.isSelected] : [])
-                .postHogLabel("reports_selectTab_button_\(tab.analyticsValue)")
             }
         }
         .frame(maxWidth: .infinity, alignment: .center)

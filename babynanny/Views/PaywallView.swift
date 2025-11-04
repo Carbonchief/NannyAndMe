@@ -87,7 +87,6 @@ struct PaywallCard: View {
                 }
                 .buttonStyle(.plain)
                 .contentShape(Circle())
-                .postHogLabel("onboarding_close_button_paywall")
             }
 
             VStack(spacing: 6) {
@@ -184,7 +183,6 @@ struct PaywallCard: View {
             .foregroundStyle(Color.accentColor)
             .padding(.top, 4)
             .disabled(viewModel.isRestoringPurchases)
-            .postHogLabel("onboarding_restore_button_paywall")
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .center)
@@ -276,7 +274,6 @@ struct PaywallPlanRow: View {
             .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
         .buttonStyle(.plain)
-        .postHogLabel(plan.analyticsLabel)
     }
 }
 
@@ -317,7 +314,6 @@ struct PaywallPurchaseButton: View {
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)
-        .postHogLabel(analyticsLabel)
     }
 
     private var buttonTitle: String {

@@ -95,7 +95,6 @@ struct ContentView: View {
                                             )
                                     }
                                     .buttonStyle(.plain)
-                                    .postHogLabel("navigation_select_tabBar_\(tab.analyticsIdentifier)")
                                     .accessibilityLabel(tab.title)
                                     .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
                                 }
@@ -115,7 +114,6 @@ struct ContentView: View {
                             }
                             .buttonStyle(.plain)
                             .background(.ultraThinMaterial, in: Circle())
-                            .postHogLabel("navigation_manualEntry_button_tabBar")
                             .accessibilityLabel(L10n.ManualEntry.title)
                             .accessibilityHint(L10n.ManualEntry.accessibilityHint)
                         }

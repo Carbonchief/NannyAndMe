@@ -180,7 +180,6 @@ struct SettingsView: View {
                     pendingLocationUnlock = false
                 }
             }
-            .postHogLabel("settings_trackLocations_toggle_privacy")
 
             if hasUnlockedPremium {
                 Text(L10n.Settings.Privacy.trackActionLocationsDescription)
@@ -227,7 +226,6 @@ struct SettingsView: View {
             } label: {
                 Label(L10n.Profiles.addProfile, systemImage: "plus")
             }
-            .postHogLabel("settings_addProfile_button_profiles")
         }
     }
 

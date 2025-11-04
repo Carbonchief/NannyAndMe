@@ -58,7 +58,6 @@ struct ProfileSwitcherView: View {
                     } label: {
                         Label(L10n.Profiles.addProfile, systemImage: "plus")
                     }
-                    .postHogLabel("profileSwitcher_addProfile_button_profiles")
                 }
             }
             .listStyle(.insetGrouped)

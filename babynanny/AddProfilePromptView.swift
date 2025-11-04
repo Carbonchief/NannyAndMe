@@ -86,7 +86,6 @@ struct AddProfilePromptView: View {
                             )
                             .datePickerStyle(.compact)
                             .labelsHidden()
-                            .postHogLabel("profiles_birthDate_datePicker_addProfilePrompt")
                         }
                     }
 
@@ -101,7 +100,6 @@ struct AddProfilePromptView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(trimmedName.isEmpty)
-                .postHogLabel("profiles_create_button_addProfilePrompt")
             }
             .padding(24)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -111,7 +109,6 @@ struct AddProfilePromptView: View {
                     Button(L10n.Common.cancel) {
                         handleCancel()
                     }
-                    .postHogLabel("profiles_cancel_button_addProfilePrompt")
                 }
             }
             .onAppear {
@@ -176,7 +173,6 @@ struct AddProfilePromptView: View {
             .onChange(of: selectedPhoto) { _, newValue in
                 handlePhotoSelectionChange(newValue)
             }
-            .postHogLabel("profiles_selectPhoto_photosPicker_addProfilePrompt")
 
             if hasImage {
                 Button {
@@ -193,7 +189,6 @@ struct AddProfilePromptView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(L10n.Profiles.removePhoto)
                 .padding(4)
-                .postHogLabel("profiles_removePhoto_button_addProfilePrompt")
             }
         }
     }

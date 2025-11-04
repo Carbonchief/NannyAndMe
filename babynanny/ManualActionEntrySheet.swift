@@ -30,7 +30,6 @@ struct ManualActionEntrySheet: View {
                     Button(L10n.Common.cancel) {
                         dismiss()
                     }
-                    .postHogLabel("manualEntry_cancel_button_sheet")
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
@@ -38,7 +37,6 @@ struct ManualActionEntrySheet: View {
                         save()
                     }
                     .disabled(isSaveDisabled)
-                    .postHogLabel("manualEntry_save_button_sheet")
                 }
             }
         }
@@ -68,7 +66,6 @@ struct ManualActionEntrySheet: View {
                 }
             }
             .pickerStyle(.segmented)
-            .postHogLabel("manualEntry_category_picker_sheet")
         }
     }
 
@@ -80,7 +77,6 @@ struct ManualActionEntrySheet: View {
                 in: ...Date(),
                 displayedComponents: [.date, .hourAndMinute]
             )
-            .postHogLabel("manualEntry_start_picker_sheet")
         }
     }
 
@@ -94,7 +90,6 @@ struct ManualActionEntrySheet: View {
                     in: startDate...Date(),
                     displayedComponents: [.date, .hourAndMinute]
                 )
-                .postHogLabel("manualEntry_end_picker_sheet")
             }
         }
     }
@@ -109,7 +104,6 @@ struct ManualActionEntrySheet: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .postHogLabel("manualEntry_diaper_picker_sheet")
             }
         }
     }
@@ -124,7 +118,6 @@ struct ManualActionEntrySheet: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .postHogLabel("manualEntry_feedingType_picker_sheet")
             }
 
             if feedingSelection == .bottle {
@@ -135,7 +128,6 @@ struct ManualActionEntrySheet: View {
                         }
                     }
                     .pickerStyle(.segmented)
-                    .postHogLabel("manualEntry_bottleType_picker_sheet")
                 }
 
                 Section(header: Text(L10n.Home.bottleVolumeSectionTitle)) {
@@ -146,12 +138,10 @@ struct ManualActionEntrySheet: View {
                         Text(BottleVolumeOption.custom.label).tag(BottleVolumeOption.custom)
                     }
                     .pickerStyle(.segmented)
-                    .postHogLabel("manualEntry_bottleVolume_picker_sheet")
 
                     if bottleSelection == .custom {
                         TextField(L10n.Home.customVolumeFieldPlaceholder, text: $customBottleVolume)
                             .keyboardType(.numberPad)
-                            .postHogLabel("manualEntry_customVolume_field_sheet")
                     }
                 }
             }
