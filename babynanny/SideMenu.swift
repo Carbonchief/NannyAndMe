@@ -8,9 +8,12 @@
 import SwiftUI
 
 struct SideMenu: View {
+    @EnvironmentObject private var authManager: SupabaseAuthManager
+
     let onSelectAllLogs: () -> Void
     let onSelectSettings: () -> Void
     let onSelectShareData: () -> Void
+    let onSelectAuthentication: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 32) {
@@ -43,6 +46,39 @@ struct SideMenu: View {
             }) {
                 Label(L10n.Menu.settings, systemImage: "gearshape.fill")
                     .font(.headline)
+            }
+
+            if let configurationError = authManager.configurationError {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L10n.Menu.authUnavailable)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text(configurationError)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+            } else if authManager.isAuthenticated {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let email = authManager.currentUserEmail {
+                        Text(L10n.Menu.loggedInAs(email))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Button {
+                        Task { await authManager.signOut() }
+                    } label: {
+                        Label(L10n.Menu.logout, systemImage: "rectangle.portrait.and.arrow.right")
+                            .font(.headline)
+                    }
+                }
+            } else {
+                Button(action: {
+                    onSelectAuthentication()
+                }) {
+                    Label(L10n.Menu.login, systemImage: "person.crop.circle.badge.plus")
+                        .font(.headline)
+                }
             }
 
             Spacer()
@@ -82,5 +118,7 @@ struct SideMenu: View {
 #Preview {
     SideMenu(onSelectAllLogs: {},
              onSelectSettings: {},
-             onSelectShareData: {})
+             onSelectShareData: {},
+             onSelectAuthentication: {})
+        .environmentObject(SupabaseAuthManager())
 }

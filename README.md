@@ -19,6 +19,7 @@ NannyAndMe is a SwiftUI-based iOS application that helps caregivers keep track o
 - **Action map** – Explore logged locations on a clustered map with quick date and action filters whenever location tracking is enabled.
 - **Data sharing** – Export the active profile's logs to JSON and merge imports that include new or updated entries.
 - **Localized experience** – Navigate the interface in English, German, or Spanish with fully translated caregiver-facing text.
+- **Supabase authentication** – Use the side menu to sign in or automatically create a Supabase account and prepare for cloud-powered features.
 
 ## Project structure
 
@@ -60,11 +61,19 @@ NannyAndMe/
    ```bash
    open babynanny.xcodeproj
    ```
-3. **Run the app**
+3. **Resolve Swift Package dependencies**
+   ```bash
+   xcodebuild -resolvePackageDependencies -project babynanny.xcodeproj
+   ```
+4. **Configure Supabase credentials**
+   - Open `babynanny/SupabaseConfig.plist`.
+   - Replace the placeholder URL and anonymous key with the values from your Supabase project.
+   - Keep your real credentials out of commits (e.g., by resetting the file before pushing).
+5. **Run the app**
    - Select the `babynanny` scheme.
    - Choose an iOS Simulator device (e.g., iPhone 15 Pro).
    - Press <kbd>Cmd</kbd>+<kbd>R</kbd> to build and run.
-4. **That's it.** The app stores data locally; no additional iCloud setup is required.
+6. **That's it.** The app stores data locally; no additional iCloud setup is required. Supabase authentication is optional but enables future connected features.
 
 ## Testing
 

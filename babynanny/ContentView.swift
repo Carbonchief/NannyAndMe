@@ -10,6 +10,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
+    @EnvironmentObject private var authManager: SupabaseAuthManager
     @AppStorage("trackActionLocations") private var trackActionLocations = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var selectedTab: Tab = .home
@@ -21,6 +22,7 @@ struct ContentView: View {
     @State private var isProfileSwitcherPresented = false
     @State private var isInitialProfilePromptPresented = false
     @State private var isManualEntryPresented = false
+    @State private var isAuthSheetPresented = false
     @State private var isOnboardingPresented = false
     @State private var menuDragOffset: CGFloat = 0
 
@@ -181,8 +183,17 @@ struct ContentView: View {
             .sheet(isPresented: $isManualEntryPresented) {
                 ManualActionEntrySheet()
             }
+            .sheet(isPresented: $isAuthSheetPresented) {
+                SupabaseAuthView()
+                    .environmentObject(authManager)
+            }
             .fullScreenCover(isPresented: $isOnboardingPresented) {
                 OnboardingFlowView(isPresented: $isOnboardingPresented)
+            }
+            .onChange(of: authManager.isAuthenticated) { isAuthenticated in
+                if isAuthenticated {
+                    isAuthSheetPresented = false
+                }
             }
 
             if isMenuVisible == false {
@@ -239,6 +250,13 @@ struct ContentView: View {
                                 shareDataCoordinator.presentShareData()
                                 menuDragOffset = 0
                             }
+                        },
+                        onSelectAuthentication: {
+                            withAnimation(.easeInOut) {
+                                isMenuVisible = false
+                                menuDragOffset = 0
+                            }
+                            isAuthSheetPresented = true
                         }
                     )
                     .offset(x: menuDragOffset)

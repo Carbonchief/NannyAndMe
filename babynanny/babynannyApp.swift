@@ -19,6 +19,7 @@ struct babynannyApp: App {
     @StateObject private var appDataStack: AppDataStack
     @StateObject private var profileStore: ProfileStore
     @StateObject private var actionStore: ActionLogStore
+    @StateObject private var authManager = SupabaseAuthManager()
     @State private var isShowingSplashScreen = true
 
     init() {
@@ -46,6 +47,7 @@ struct babynannyApp: App {
                     .environmentObject(profileStore)
                     .environmentObject(actionStore)
                     .environmentObject(shareDataCoordinator)
+                    .environmentObject(authManager)
                     .environmentObject(LocationManager.shared)
                     .onOpenURL { url in
                         if handleDurationActivityURL(url) {

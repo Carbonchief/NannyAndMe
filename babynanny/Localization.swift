@@ -696,11 +696,69 @@ enum L10n {
         static let allLogs = String(localized: "menu.allLogs", defaultValue: "All Logs")
         static let settings = String(localized: "menu.settings", defaultValue: "Settings")
         static let shareData = String(localized: "menu.shareData", defaultValue: "Share Data")
+        static let login = String(localized: "menu.login", defaultValue: "Sign In or Create Account")
+        static let logout = String(localized: "menu.logout", defaultValue: "Sign Out")
+        static let authUnavailable = String(
+            localized: "menu.authUnavailable",
+            defaultValue: "Supabase login unavailable. Check configuration."
+        )
 
         static func version(_ value: String) -> String {
             let format = String(localized: "menu.version", defaultValue: "Version %@")
             return String(format: format, locale: Locale.current, value)
         }
+
+        static func loggedInAs(_ value: String) -> String {
+            let format = String(localized: "menu.loggedInAs", defaultValue: "Signed in as %1$@")
+            return String(format: format, locale: Locale.current, value)
+        }
+    }
+
+    enum Auth {
+        static let title = String(localized: "auth.title", defaultValue: "Account")
+        static let description = String(
+            localized: "auth.description",
+            defaultValue: "Enter your email and password. We'll create an account if needed or sign you in."
+        )
+        static let emailLabel = String(localized: "auth.email", defaultValue: "Email")
+        static let passwordLabel = String(localized: "auth.password", defaultValue: "Password")
+        static let primaryAction = String(localized: "auth.primary", defaultValue: "Continue")
+        static let emailConfirmationInfo = String(
+            localized: "auth.info.emailConfirmation",
+            defaultValue: "Check your email to confirm your account."
+        )
+        static let accountCreated = String(
+            localized: "auth.info.accountCreated",
+            defaultValue: "Account created! You're all set."
+        )
+        static let passwordHint = String(
+            localized: "auth.password.hint",
+            defaultValue: "Password must be at least 6 characters."
+        )
+        static let dismiss = String(localized: "auth.dismiss", defaultValue: "Close")
+        static let configurationMissingFile = String(
+            localized: "auth.error.missingFile",
+            defaultValue: "SupabaseConfig.plist is missing from the app bundle."
+        )
+        static let configurationInvalidFormat = String(
+            localized: "auth.error.invalidFormat",
+            defaultValue: "SupabaseConfig.plist has an unexpected structure."
+        )
+        static func configurationInvalidURL(_ value: String) -> String {
+            let format = String(
+                localized: "auth.error.invalidURL",
+                defaultValue: "Supabase URL is invalid: %1$@"
+            )
+            return String(format: format, locale: Locale.current, value)
+        }
+        static let configurationMissingAnonKey = String(
+            localized: "auth.error.missingAnonKey",
+            defaultValue: "Supabase anonymous key is missing."
+        )
+        static let configurationPlaceholder = String(
+            localized: "auth.error.placeholder",
+            defaultValue: "Supabase credentials still use placeholder values."
+        )
     }
 
     enum ShareData {
