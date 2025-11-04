@@ -47,7 +47,6 @@ struct ActionMapView: View {
                         .ignoresSafeArea()
                 }
                 .buttonStyle(.plain)
-                .postHogLabel("actionMap_dismiss_overlay")
                 .transition(.opacity)
                 .zIndex(2)
             }
@@ -154,7 +153,6 @@ private extension ActionMapView {
                             ActionMapAnnotationView(cluster: cluster)
                         }
                         .buttonStyle(.plain)
-                        .postHogLabel("actionMap_select_clusterAnnotation")
                         .accessibilityLabel(cluster.accessibilityLabel)
                     }
                 }
@@ -176,7 +174,6 @@ private extension ActionMapView {
                 }
             }
             .pickerStyle(.menu)
-            .postHogLabel("actionMap_change_actionTypeFilter")
 
             Picker(L10n.Map.dateRangeFilter, selection: $dateFilter) {
                 Text(L10n.Map.allDates)
@@ -189,7 +186,6 @@ private extension ActionMapView {
                     .tag(ActionMapDateFilter.thirtyDays)
             }
             .pickerStyle(.menu)
-            .postHogLabel("actionMap_change_dateFilter")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -227,7 +223,6 @@ private extension ActionMapView {
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
-                    .postHogLabel("actionMap_dismiss_clusterDetail")
                 }
 
                 VStack(spacing: 12) {
