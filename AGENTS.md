@@ -22,8 +22,3 @@ These guidelines apply to the entire `NannyAndMe` repository.
 ## Assets & previews
 - Keep asset catalog names descriptive and organized by feature area.
 - Maintain SwiftUI previews for new views to aid quick iteration. Use mock data objects where necessary.
-
-## Analytics instrumentation
-- Every **interactable UI element** (e.g., buttons, toggles, pickers, gestures, navigation links) **must include a PostHog label**.
-- Use consistent and descriptive labels following the pattern:  
-  `featureName_action_context` (e.g., `sleep_start_button_homeView`).
