@@ -3,7 +3,12 @@ import SwiftUI
 struct ProfileSwitcherView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("hasUnlockedPremium") private var hasUnlockedPremium = false
+    @StateObject private var paywallViewModel = OnboardingPaywallViewModel()
     @State private var isAddProfilePromptPresented = false
+    @State private var isPaywallPresented = false
+    @State private var selectedPaywallPlan: PaywallPlan = .trial
+    @State private var pendingAddProfileUnlock = false
 
     var body: some View {
         NavigationStack {
@@ -42,10 +47,18 @@ struct ProfileSwitcherView: View {
 
                 Section {
                     Button {
-                        isAddProfilePromptPresented = true
+                        if hasUnlockedPremium || profileStore.profiles.isEmpty {
+                            isAddProfilePromptPresented = true
+                        } else {
+                            pendingAddProfileUnlock = true
+                            selectedPaywallPlan = .trial
+                            paywallViewModel.errorMessage = nil
+                            isPaywallPresented = true
+                        }
                     } label: {
                         Label(L10n.Profiles.addProfile, systemImage: "plus")
                     }
+                    .postHogLabel("profileSwitcher_addProfile_button_profiles")
                 }
             }
             .listStyle(.insetGrouped)
@@ -61,6 +74,43 @@ struct ProfileSwitcherView: View {
         .sheet(isPresented: $isAddProfilePromptPresented) {
             AddProfilePromptView { name, birthDate, imageData in
                 profileStore.addProfile(name: name, birthDate: birthDate, imageData: imageData)
+            }
+        }
+        .sheet(isPresented: $isPaywallPresented, onDismiss: {
+            if !hasUnlockedPremium {
+                pendingAddProfileUnlock = false
+            }
+        }) {
+            NavigationStack {
+                PaywallContentView(
+                    selectedPlan: $selectedPaywallPlan,
+                    viewModel: paywallViewModel,
+                    onClose: { isPaywallPresented = false }
+                ) {
+                    PaywallPurchaseButton(
+                        selectedPlan: $selectedPaywallPlan,
+                        viewModel: paywallViewModel,
+                        analyticsLabel: "profileSwitcher_purchase_button_paywall"
+                    )
+                    .padding(.top, 12)
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .background(Color(.systemBackground).ignoresSafeArea())
+            }
+            .task {
+                await paywallViewModel.loadProductsIfNeeded()
+            }
+        }
+        .onChange(of: hasUnlockedPremium) { _, newValue in
+            if newValue {
+                if pendingAddProfileUnlock {
+                    pendingAddProfileUnlock = false
+                    isAddProfilePromptPresented = true
+                }
+                isPaywallPresented = false
+            } else {
+                pendingAddProfileUnlock = false
             }
         }
         .presentationDetents([.medium, .large])

@@ -14,12 +14,17 @@ struct ReportsView: View {
     @EnvironmentObject private var actionStore: ActionLogStore
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @AppStorage("reports.lastSelectedTab") private var persistedTabIdentifier = ReportsTab.dailySnapshot.persistenceIdentifier
+    @AppStorage("hasUnlockedPremium") private var hasUnlockedPremium = false
+    @StateObject private var paywallViewModel: OnboardingPaywallViewModel
     @State private var selectedTab: ReportsTab = .dailySnapshot
     @State private var calendarSelectedDate = Date()
     @State private var didInitializeTab = false
     @State private var shareItem: ChartShareItem?
     @State private var shareContentWidth: CGFloat = 0
     @State private var highlightedTrendDay: Date?
+    @State private var isPaywallPresented = false
+    @State private var selectedPaywallPlan: PaywallPlan = .trial
+    @State private var pendingCalendarUnlock = false
     private let tabResetID: UUID
 
     private enum ScrollAnchor {
@@ -27,6 +32,7 @@ struct ReportsView: View {
     }
 
     init(tabResetID: UUID) {
+        _paywallViewModel = StateObject(wrappedValue: OnboardingPaywallViewModel())
         self.tabResetID = tabResetID
     }
 
@@ -79,6 +85,46 @@ struct ReportsView: View {
                 if case .completed = outcome {
                 }
                 shareItem = nil
+            }
+        }
+        .sheet(isPresented: $isPaywallPresented, onDismiss: {
+            if !hasUnlockedPremium {
+                pendingCalendarUnlock = false
+            }
+        }) {
+            NavigationStack {
+                PaywallContentView(
+                    selectedPlan: $selectedPaywallPlan,
+                    viewModel: paywallViewModel,
+                    onClose: { isPaywallPresented = false }
+                ) {
+                    PaywallPurchaseButton(
+                        selectedPlan: $selectedPaywallPlan,
+                        viewModel: paywallViewModel,
+                        analyticsLabel: "reports_purchase_button_paywall"
+                    )
+                    .padding(.top, 12)
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .background(Color(.systemBackground).ignoresSafeArea())
+            }
+            .task {
+                await paywallViewModel.loadProductsIfNeeded()
+            }
+        }
+        .onChange(of: hasUnlockedPremium) { _, newValue in
+            if newValue {
+                if pendingCalendarUnlock {
+                    pendingCalendarUnlock = false
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                        selectedTab = .calendar
+                    }
+                    persistedTabIdentifier = ReportsTab.calendar.persistenceIdentifier
+                }
+                isPaywallPresented = false
+            } else {
+                pendingCalendarUnlock = false
             }
         }
     }
@@ -149,6 +195,7 @@ struct ReportsView: View {
                 .frame(width: 52, height: 52)
                 .accessibilityLabel(tab.accessibilityLabel)
                 .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+                .postHogLabel("reports_selectTab_button_\(tab.analyticsValue)")
             }
         }
         .frame(maxWidth: .infinity, alignment: .center)
@@ -161,11 +208,23 @@ struct ReportsView: View {
     private func select(tab: ReportsTab) {
         guard tab != selectedTab else { return }
 
+        if tab.isCalendar && !hasUnlockedPremium {
+            pendingCalendarUnlock = true
+            selectedPaywallPlan = .trial
+            paywallViewModel.errorMessage = nil
+            isPaywallPresented = true
+            return
+        }
+
         withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
             selectedTab = tab
         }
 
         persistedTabIdentifier = tab.persistenceIdentifier
+
+        if tab.isCalendar {
+            pendingCalendarUnlock = false
+        }
 
 
         if tab.isCalendar {

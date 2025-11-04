@@ -33,6 +33,7 @@ struct SettingsView: View {
     @State private var isPaywallPresented = false
     @State private var selectedPaywallPlan: PaywallPlan = .trial
     @State private var pendingLocationUnlock = false
+    @State private var pendingAddProfileUnlock = false
 
     var body: some View {
         Form {
@@ -104,6 +105,7 @@ struct SettingsView: View {
         .sheet(isPresented: $isPaywallPresented, onDismiss: {
             if !hasUnlockedPremium {
                 pendingLocationUnlock = false
+                pendingAddProfileUnlock = false
             }
         }) {
             NavigationStack {
@@ -139,12 +141,17 @@ struct SettingsView: View {
                     locationManager.ensurePreciseAccuracyIfNeeded()
                     pendingLocationUnlock = false
                 }
+                if pendingAddProfileUnlock {
+                    pendingAddProfileUnlock = false
+                    isAddProfilePromptPresented = true
+                }
                 isPaywallPresented = false
             } else {
                 if trackActionLocations {
                     trackActionLocations = false
                 }
                 pendingLocationUnlock = false
+                pendingAddProfileUnlock = false
             }
         }
     }
@@ -209,10 +216,18 @@ struct SettingsView: View {
             }
 
             Button {
-                isAddProfilePromptPresented = true
+                if hasUnlockedPremium || profileStore.profiles.isEmpty {
+                    isAddProfilePromptPresented = true
+                } else {
+                    pendingAddProfileUnlock = true
+                    selectedPaywallPlan = .trial
+                    paywallViewModel.errorMessage = nil
+                    isPaywallPresented = true
+                }
             } label: {
                 Label(L10n.Profiles.addProfile, systemImage: "plus")
             }
+            .postHogLabel("settings_addProfile_button_profiles")
         }
     }
 
