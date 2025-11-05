@@ -17,6 +17,8 @@ final class ActionLogStore: ObservableObject {
     private weak var profileStore: ProfileStore?
     private let notificationCenter: NotificationCenter
     private let dataStack: AppDataStack
+    private weak var authManager: SupabaseAuthManager?
+    private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "supabase-sync")
     private let observedContainerIdentifier: ObjectIdentifier
     private let observedManagedObjectContextIdentifier: ObjectIdentifier?
     private let observedPersistentStoreCoordinatorIdentifier: ObjectIdentifier?
@@ -25,6 +27,7 @@ final class ActionLogStore: ObservableObject {
     private let conflictResolver = ActionConflictResolver()
     private var cachedStates: [UUID: ProfileActionState] = [:]
     private var stateReloadTask: Task<Void, Never>?
+    private var isPerformingSupabaseSync = false
 
     private struct PersistentStoreContextIdentifiers {
         var contextIdentifier: ObjectIdentifier?
@@ -36,6 +39,14 @@ final class ActionLogStore: ObservableObject {
         var updated: Int
 
         static let empty = MergeSummary(added: 0, updated: 0)
+    }
+
+    private struct PendingSupabaseSync: Sendable {
+        var profileID: UUID
+        var upserts: [BabyActionSnapshot]
+        var deletedIDs: [UUID]
+
+        var isEmpty: Bool { upserts.isEmpty && deletedIDs.isEmpty }
     }
 
     init(modelContext: ModelContext,
@@ -84,10 +95,189 @@ final class ActionLogStore: ObservableObject {
         synchronizeMetadataFromModelContext()
     }
 
+    func registerAuthManager(_ manager: SupabaseAuthManager) {
+        authManager = manager
+    }
+
     func performUserInitiatedRefresh() async {
-        await dataStack.flushPendingSaves()
+        await performSupabaseSynchronization(trigger: .userInitiated)
         let reloadTask = reloadStateFromPersistentStore()
         await reloadTask.value
+    }
+
+    enum SupabaseSyncTrigger {
+        case appLaunch
+        case userInitiated
+    }
+
+    func performSupabaseSynchronization(trigger _: SupabaseSyncTrigger) async {
+        guard let authManager, authManager.isAuthenticated else { return }
+        guard profileStore != nil else { return }
+        guard isPerformingSupabaseSync == false else { return }
+
+        isPerformingSupabaseSync = true
+        defer { isPerformingSupabaseSync = false }
+
+        await dataStack.flushPendingSaves()
+        await authManager.prepareCaregiverAccount()
+
+        do {
+            async let remoteProfilesTask = authManager.fetchRemoteBabyProfiles()
+            async let remoteActionsTask = authManager.fetchRemoteBabyActions()
+            let remoteProfiles = try await remoteProfilesTask
+            let remoteActions = try await remoteActionsTask
+
+            await mergeRemoteProfiles(remoteProfiles, authManager: authManager)
+            await mergeRemoteActions(remoteActions, authManager: authManager)
+        } catch {
+            logger.error("Failed to synchronize with Supabase: \(error.localizedDescription, privacy: .public)")
+            if authManager.lastErrorMessage == nil {
+                authManager.lastErrorMessage = SupabaseAuthManager.userFriendlyMessage(from: error)
+            }
+        }
+    }
+
+    private func mergeRemoteProfiles(_ remoteProfiles: [SupabaseAuthManager.RemoteBabyProfile],
+                                     authManager: SupabaseAuthManager) async {
+        guard let profileStore else { return }
+
+        let localProfiles = profileStore.profiles
+        let localProfilesByID = Dictionary(uniqueKeysWithValues: localProfiles.map { ($0.id, $0) })
+        let remoteProfilesByID = Dictionary(uniqueKeysWithValues: remoteProfiles.map { ($0.id, $0) })
+
+        var metadataUpdates: [ProfileStore.ProfileMetadataUpdate] = []
+        var profilesNeedingRemoteUpsert: [UUID: ChildProfile] = [:]
+
+        for remote in remoteProfiles {
+            let trimmedName = remote.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let update = ProfileStore.ProfileMetadataUpdate(id: remote.id,
+                                                           name: trimmedName,
+                                                           birthDate: remote.birthDate,
+                                                           imageData: nil,
+                                                           updatedAt: remote.editedAt)
+
+            if let local = localProfilesByID[remote.id] {
+                if remote.editedAt > local.updatedAt {
+                    metadataUpdates.append(update)
+                } else if local.updatedAt > remote.editedAt {
+                    profilesNeedingRemoteUpsert[local.id] = local
+                }
+            } else {
+                metadataUpdates.append(update)
+            }
+        }
+
+        for local in localProfiles where remoteProfilesByID[local.id] == nil {
+            profilesNeedingRemoteUpsert[local.id] = local
+        }
+
+        if metadataUpdates.isEmpty == false {
+            profileStore.applyMetadataUpdates(metadataUpdates, propagateToSupabase: false)
+        }
+
+        let profilesToUpsert = Array(profilesNeedingRemoteUpsert.values)
+        guard profilesToUpsert.isEmpty == false else { return }
+
+        await authManager.syncBabyProfiles(upserting: profilesToUpsert)
+    }
+
+    private func mergeRemoteActions(_ remoteActions: [SupabaseAuthManager.RemoteBabyAction],
+                                    authManager: SupabaseAuthManager) async {
+        let groupedRemote = Dictionary(grouping: remoteActions, by: \.profileID)
+        let localStates = await actionStatesSnapshot()
+        let profileIDs = Set(groupedRemote.keys).union(localStates.keys)
+
+        var actionsNeedingRemoteUpsert: [UUID: [UUID: BabyActionSnapshot]] = [:]
+
+        for profileID in profileIDs {
+            let remoteSnapshots = groupedRemote[profileID]?.map(\.snapshot) ?? []
+            let localState = localStates[profileID] ?? ProfileActionState()
+            let localActions = Array(localState.activeActions.values) + localState.history
+            let localByID = Dictionary(uniqueKeysWithValues: localActions.map { ($0.id, $0) })
+            let remoteByID = Dictionary(uniqueKeysWithValues: remoteSnapshots.map { ($0.id, $0.withValidatedDates()) })
+
+            var localUpdates: [UUID: BabyActionSnapshot] = [:]
+
+            for (identifier, remoteAction) in remoteByID {
+                if let localAction = localByID[identifier] {
+                    if remoteAction.updatedAt > localAction.updatedAt {
+                        localUpdates[identifier] = remoteAction
+                    } else if localAction.updatedAt > remoteAction.updatedAt {
+                        actionsNeedingRemoteUpsert[profileID, default: [:]][identifier] = localAction
+                    }
+                } else {
+                    localUpdates[identifier] = remoteAction
+                }
+            }
+
+            for (identifier, localAction) in localByID where remoteByID[identifier] == nil {
+                actionsNeedingRemoteUpsert[profileID, default: [:]][identifier] = localAction
+            }
+
+            if localUpdates.isEmpty == false {
+                applyRemoteActions(Array(localUpdates.values), to: profileID)
+            }
+        }
+
+        for (profileID, actionsByID) in actionsNeedingRemoteUpsert {
+            let actions = actionsByID.values.map { $0.withValidatedDates() }
+            guard actions.isEmpty == false else { continue }
+            await authManager.syncBabyActions(upserting: actions,
+                                              deletingIDs: [],
+                                              profileID: profileID)
+        }
+    }
+
+    private func applyRemoteActions(_ actions: [BabyActionSnapshot], to profileID: UUID) {
+        guard actions.isEmpty == false else { return }
+
+        var state = state(for: profileID)
+        var historyByID = Dictionary(uniqueKeysWithValues: state.history.map { ($0.id, $0) })
+        var activeByCategory = state.activeActions
+        var didMutate = false
+
+        for action in actions {
+            let sanitized = action.withValidatedDates()
+
+            if sanitized.endDate == nil && sanitized.category.isInstant == false {
+                if let existing = activeByCategory[sanitized.category], existing.id == sanitized.id {
+                    if existing != sanitized {
+                        activeByCategory[sanitized.category] = sanitized
+                        didMutate = true
+                    }
+                } else {
+                    activeByCategory[sanitized.category] = sanitized
+                    didMutate = true
+                }
+
+                if historyByID.removeValue(forKey: sanitized.id) != nil {
+                    didMutate = true
+                }
+            } else {
+                if let existing = historyByID[sanitized.id] {
+                    if existing != sanitized {
+                        historyByID[sanitized.id] = sanitized
+                        didMutate = true
+                    }
+                } else {
+                    historyByID[sanitized.id] = sanitized
+                    didMutate = true
+                }
+
+                if let existingActive = activeByCategory[sanitized.category], existingActive.id == sanitized.id {
+                    activeByCategory.removeValue(forKey: sanitized.category)
+                    didMutate = true
+                }
+            }
+        }
+
+        guard didMutate else { return }
+
+        state.activeActions = activeByCategory
+        state.history = Array(historyByID.values)
+        state.history.sort { $0.startDate > $1.startDate }
+
+        persist(profileState: state, for: profileID, skipSupabaseSync: true)
     }
 
     func synchronizeProfileMetadata(_ profiles: [ChildProfile]) {
@@ -511,28 +701,32 @@ private extension ActionLogStore {
         return model
     }
 
-    func persist(profileState: ProfileActionState, for profileID: UUID) {
-        performLocalMutation {
+    func persist(profileState: ProfileActionState, for profileID: UUID, skipSupabaseSync: Bool = false) {
+        let pendingSync: PendingSupabaseSync = performLocalMutation {
             let model = profileModel(for: profileID)
             let existingModels = Dictionary(uniqueKeysWithValues: model.actions.map { ($0.id, $0) })
             let desiredActions = Array(profileState.activeActions.values) + profileState.history
             var seenIDs = Set<UUID>()
+            var actionsToUpsert: [BabyActionSnapshot] = []
+            var deletedIdentifiers: [UUID] = []
 
             for action in desiredActions.map({ $0.withValidatedDates() }) {
                 if let existing = existingModels[action.id] {
-                    let existingAction = existing.asSnapshot()
-                    let resolved = conflictResolver.resolve(local: existingAction, remote: action)
-                    guard resolved != existingAction else {
+                    let existingSnapshot = existing.asSnapshot().withValidatedDates()
+                    let resolved = conflictResolver.resolve(local: existingSnapshot, remote: action)
+                    guard resolved != existingSnapshot else {
                         seenIDs.insert(existing.id)
                         continue
                     }
-                    guard resolved.updatedAt >= existingAction.updatedAt else {
+                    guard resolved.updatedAt >= existingSnapshot.updatedAt else {
                         seenIDs.insert(existing.id)
                         continue
                     }
-                    existing.update(from: resolved)
+                    let sanitizedResolved = resolved.withValidatedDates()
+                    existing.update(from: sanitizedResolved)
                     existing.profile = model
                     seenIDs.insert(existing.id)
+                    actionsToUpsert.append(sanitizedResolved)
                 } else {
                     let newAction = BabyActionModel(id: action.id,
                                                     category: action.category,
@@ -549,19 +743,44 @@ private extension ActionLogStore {
                                                     profile: model)
                     modelContext.insert(newAction)
                     seenIDs.insert(newAction.id)
+                    actionsToUpsert.append(action)
                 }
             }
 
             for (identifier, modelAction) in existingModels where seenIDs.contains(identifier) == false {
                 modelContext.delete(modelAction)
+                deletedIdentifiers.append(identifier)
             }
 
             cachedStates[profileID] = profileState
+
+            return PendingSupabaseSync(profileID: profileID,
+                                       upserts: actionsToUpsert,
+                                       deletedIDs: deletedIdentifiers)
         }
 
         dataStack.scheduleSaveIfNeeded(on: modelContext, reason: "persist-profile-state")
 
         scheduleReminders()
+        if skipSupabaseSync == false {
+            enqueueSupabaseSync(pendingSync)
+        }
+    }
+
+    private func enqueueSupabaseSync(_ pendingSync: PendingSupabaseSync) {
+        guard pendingSync.isEmpty == false else { return }
+        guard let authManager else { return }
+
+        let upserts = pendingSync.upserts.map { $0.withValidatedDates() }
+        let deletedIDs = pendingSync.deletedIDs
+        let profileID = pendingSync.profileID
+
+        Task { @MainActor [weak authManager] in
+            guard let manager = authManager else { return }
+            await manager.syncBabyActions(upserting: upserts,
+                                          deletingIDs: deletedIDs,
+                                          profileID: profileID)
+        }
     }
 
     static func clamp(_ action: BabyActionSnapshot, avoiding conflicts: [BabyActionSnapshot]) -> BabyActionSnapshot {
@@ -698,7 +917,8 @@ private extension ActionLogStore {
                 id: model.resolvedProfileID,
                 name: model.name ?? "",
                 birthDate: model.birthDate,
-                imageData: model.imageData
+                imageData: model.imageData,
+                updatedAt: model.updatedAt
             )
         }
         profileStore.applyMetadataUpdates(updates)

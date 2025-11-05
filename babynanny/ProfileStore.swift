@@ -18,6 +18,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
     var birthDate: Date
     var imageData: Data?
     var remindersEnabled: Bool
+    var updatedAt: Date
     private var actionReminderIntervals: [BabyActionCategory: TimeInterval]
     private var actionRemindersEnabled: [BabyActionCategory: Bool]
     private var actionReminderOverrides: [BabyActionCategory: ActionReminderOverride]
@@ -27,6 +28,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
          birthDate: Date,
          imageData: Data? = nil,
          remindersEnabled: Bool = false,
+         updatedAt: Date = Date(),
          actionReminderIntervals: [BabyActionCategory: TimeInterval] = ChildProfile.defaultActionReminderIntervals(),
          actionRemindersEnabled: [BabyActionCategory: Bool] = ChildProfile.defaultActionRemindersEnabled(),
          actionReminderOverrides: [BabyActionCategory: ActionReminderOverride] = [:]) {
@@ -35,6 +37,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         self.birthDate = birthDate
         self.imageData = imageData
         self.remindersEnabled = remindersEnabled
+        self.updatedAt = updatedAt
         self.actionReminderIntervals = actionReminderIntervals
         self.actionRemindersEnabled = actionRemindersEnabled
         self.actionReminderOverrides = actionReminderOverrides
@@ -53,6 +56,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
                   birthDate: model.birthDate ?? Date(),
                   imageData: model.imageData,
                   remindersEnabled: model.remindersEnabled,
+                  updatedAt: model.updatedAt,
                   actionReminderIntervals: model.reminderIntervalsByCategory(),
                   actionRemindersEnabled: model.reminderEnabledByCategory(),
                   actionReminderOverrides: mappedOverrides)
@@ -178,6 +182,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         case birthDate
         case imageData
         case remindersEnabled
+        case updatedAt
         case actionReminderIntervals
         case actionRemindersEnabled
         case actionReminderOverrides
@@ -190,6 +195,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         birthDate = try container.decode(Date.self, forKey: .birthDate)
         imageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
         remindersEnabled = try container.decodeIfPresent(Bool.self, forKey: .remindersEnabled) ?? false
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
 
         if let rawIntervals = try container.decodeIfPresent([String: TimeInterval].self, forKey: .actionReminderIntervals) {
             actionReminderIntervals = rawIntervals.reduce(into: [:]) { partialResult, element in
@@ -235,6 +241,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         try container.encode(birthDate, forKey: .birthDate)
         try container.encodeIfPresent(imageData, forKey: .imageData)
         try container.encode(remindersEnabled, forKey: .remindersEnabled)
+        try container.encode(updatedAt, forKey: .updatedAt)
         let rawIntervals = Dictionary(uniqueKeysWithValues: actionReminderIntervals.map { ($0.key.rawValue, $0.value) })
         try container.encode(rawIntervals, forKey: .actionReminderIntervals)
         let rawEnabled = Dictionary(uniqueKeysWithValues: actionRemindersEnabled.map { ($0.key.rawValue, $0.value) })
@@ -251,12 +258,13 @@ final class ProfileStore: ObservableObject {
         let message: String
     }
 
-    struct ProfileMetadataUpdate: Equatable, Sendable {
-        let id: UUID
-        let name: String
-        let birthDate: Date?
-        let imageData: Data?
-    }
+struct ProfileMetadataUpdate: Equatable, Sendable {
+    let id: UUID
+    let name: String
+    let birthDate: Date?
+    let imageData: Data?
+    let updatedAt: Date
+}
 
     enum ShareDataError: LocalizedError, Sendable {
         case mismatchedProfile
@@ -455,7 +463,7 @@ final class ProfileStore: ObservableObject {
     func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
         guard updates.isEmpty == false else { return }
 
-        mutateProfiles(reason: "profile-metadata-update") {
+        mutateProfiles(reason: "profile-metadata-update", propagateToSupabase: false) {
             var didChange = false
             var insertedProfiles: [ProfileActionStateModel] = []
 
@@ -474,7 +482,10 @@ final class ProfileStore: ObservableObject {
                         model.imageData = update.imageData
                         didChange = true
                     }
-                    if didChange {
+                    if update.updatedAt > model.updatedAt {
+                        model.updatedAt = update.updatedAt
+                        didChange = true
+                    } else if didChange {
                         model.touch()
                     }
                 } else {
@@ -485,6 +496,7 @@ final class ProfileStore: ObservableObject {
                                                         birthDate: birthDate,
                                                         imageData: update.imageData)
                     model.normalizeReminderPreferences()
+                    model.updatedAt = update.updatedAt
                     modelContext.insert(model)
                     insertedProfiles.append(model)
                     didChange = true
@@ -771,12 +783,26 @@ final class ProfileStore: ObservableObject {
         actionStore?.synchronizeProfileMetadata(profiles)
     }
 
-    private func mutateProfiles(reason: String, _ work: () -> Bool) {
+    private func mutateProfiles(reason: String,
+                                propagateToSupabase: Bool = true,
+                                _ work: () -> Bool) {
         let didChange = work()
         guard didChange else { return }
         persistContextIfNeeded(reason: reason)
         refreshProfiles()
         ensureActiveProfileExists()
+        if propagateToSupabase {
+            synchronizeProfilesWithSupabase()
+        }
+    }
+
+    private func synchronizeProfilesWithSupabase() {
+        guard let authManager else { return }
+        let profiles = profiles
+        Task { [weak authManager] in
+            guard let manager = authManager else { return }
+            await manager.syncBabyProfiles(upserting: profiles)
+        }
     }
 
     private func persistContextIfNeeded(reason: String) {

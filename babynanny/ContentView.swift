@@ -11,6 +11,7 @@ struct ContentView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
     @EnvironmentObject private var authManager: SupabaseAuthManager
+    @EnvironmentObject private var actionStore: ActionLogStore
     @AppStorage("trackActionLocations") private var trackActionLocations = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var selectedTab: Tab = .home
@@ -193,13 +194,17 @@ struct ContentView: View {
             .onChange(of: authManager.isAuthenticated) { _, isAuthenticated in
                 if isAuthenticated {
                     isAuthSheetPresented = false
-                    Task { await authManager.synchronizeCaregiverAccount(with: profileStore.profiles) }
+                    Task {
+                        await authManager.prepareCaregiverAccount()
+                        await actionStore.performSupabaseSynchronization(trigger: .appLaunch)
+                    }
                 }
             }
 
             .task(id: authManager.isAuthenticated) {
                 guard authManager.isAuthenticated else { return }
-                await authManager.synchronizeCaregiverAccount(with: profileStore.profiles)
+                await authManager.prepareCaregiverAccount()
+                await actionStore.performSupabaseSynchronization(trigger: .appLaunch)
             }
 
             if isMenuVisible == false {
