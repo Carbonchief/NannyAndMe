@@ -16,7 +16,7 @@ final class SupabaseAuthManager: ObservableObject {
     private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "supabase-actions")
     private var hasSynchronizedCaregiverDataForCurrentSession = false
     private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
-    private static let iso8601DateFormatter: ISO8601DateFormatter = {
+    nonisolated(unsafe) static let iso8601DateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
@@ -215,7 +215,7 @@ final class SupabaseAuthManager: ObservableObject {
                 _ = try await client.database
                     .from("Baby_Action")
                     .delete()
-                    .in(column: "id", values: identifiers)
+                    .in("id", value: identifiers)
                     .execute()
             }
         } catch {
@@ -427,7 +427,7 @@ private struct BabyProfileRecord: Codable, Identifiable {
         editedAt = profile.updatedAt
     }
 
-    private static let dateFormatter: DateFormatter = {
+    fileprivate static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -466,7 +466,7 @@ private struct BabyProfileRecord: Codable, Identifiable {
     }
 }
 
-private struct BabyActionRecord: Codable, Identifiable {
+fileprivate struct BabyActionRecord: Codable, Identifiable {
     var id: UUID
     var caregiverID: UUID
     var subtypeID: UUID
@@ -532,7 +532,7 @@ extension SupabaseAuthManager {
         var birthDate: Date?
         var editedAt: Date
 
-        init(record: BabyProfileRecord) {
+        fileprivate init(record: BabyProfileRecord) {
             id = record.id
             caregiverID = record.caregiverID
             name = record.name
@@ -546,7 +546,7 @@ extension SupabaseAuthManager {
         var profileID: UUID
         var snapshot: BabyActionSnapshot
 
-        init?(record: BabyActionRecord) {
+        fileprivate init?(record: BabyActionRecord) {
             guard let result = SupabaseAuthManager.makeSnapshot(from: record) else { return nil }
             id = record.id
             profileID = result.profileID
@@ -568,7 +568,7 @@ private enum SupabaseActionSubtypeID {
 }
 
 private extension SupabaseAuthManager {
-    static func resolveSubtypeID(for action: BabyActionSnapshot) -> UUID? {
+    nonisolated(unsafe) static func resolveSubtypeID(for action: BabyActionSnapshot) -> UUID? {
         switch action.category {
         case .sleep:
             return SupabaseActionSubtypeID.sleep
@@ -613,7 +613,7 @@ private extension SupabaseAuthManager {
         }
     }
 
-    static func resolveNote(for action: BabyActionSnapshot) -> String? {
+    nonisolated(unsafe) static func resolveNote(for action: BabyActionSnapshot) -> String? {
         var components: [String] = []
 
         if let volume = action.bottleVolume, volume > 0 {
@@ -641,7 +641,7 @@ private extension SupabaseAuthManager {
         var bottleType: BabyActionSnapshot.BottleType?
     }
 
-    static func resolveActionComponents(for subtypeID: UUID) -> ActionComponents? {
+    nonisolated(unsafe) private static func resolveActionComponents(for subtypeID: UUID) -> ActionComponents? {
         switch subtypeID {
         case SupabaseActionSubtypeID.sleep:
             return ActionComponents(category: .sleep, diaperType: nil, feedingType: nil, bottleType: nil)
@@ -666,7 +666,7 @@ private extension SupabaseAuthManager {
         }
     }
 
-    static func parseNote(_ note: String?) -> (volume: Int?, placename: String?, latitude: Double?, longitude: Double?) {
+    nonisolated(unsafe) static func parseNote(_ note: String?) -> (volume: Int?, placename: String?, latitude: Double?, longitude: Double?) {
         guard let note, note.isEmpty == false else {
             return (nil, nil, nil, nil)
         }
@@ -706,7 +706,7 @@ private extension SupabaseAuthManager {
         return (volume, placename, latitude, longitude)
     }
 
-    static func makeSnapshot(from record: BabyActionRecord) -> (profileID: UUID, snapshot: BabyActionSnapshot)? {
+    nonisolated(unsafe) static func makeSnapshot(from record: BabyActionRecord) -> (profileID: UUID, snapshot: BabyActionSnapshot)? {
         guard let profileIdentifier = record.note2,
               let profileID = UUID(uuidString: profileIdentifier) else { return nil }
         guard let components = resolveActionComponents(for: record.subtypeID) else { return nil }

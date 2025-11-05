@@ -172,7 +172,7 @@ final class ActionLogStore: ObservableObject {
         }
 
         if metadataUpdates.isEmpty == false {
-            profileStore.applyMetadataUpdates(metadataUpdates, propagateToSupabase: false)
+            profileStore.applyMetadataUpdates(metadataUpdates)
         }
 
         let profilesToUpsert = Array(profilesNeedingRemoteUpsert.values)
