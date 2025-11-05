@@ -165,7 +165,7 @@
 "menu.allLogs" = "Alle Protokolle";
 "menu.shareData" = "Daten teilen";
 "menu.settings" = "Einstellungen";
-"menu.login" = "Anmelden oder registrieren";
+"menu.login" = "Anmelden";
 "menu.logout" = "Abmelden";
 "menu.loggedInAs" = "Angemeldet als %1$@";
 "menu.authUnavailable" = "Supabase-Anmeldung nicht verfügbar. Bitte Konfiguration prüfen.";

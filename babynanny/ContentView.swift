@@ -190,7 +190,7 @@ struct ContentView: View {
             .fullScreenCover(isPresented: $isOnboardingPresented) {
                 OnboardingFlowView(isPresented: $isOnboardingPresented)
             }
-            .onChange(of: authManager.isAuthenticated) { isAuthenticated in
+            .onChange(of: authManager.isAuthenticated) { _, isAuthenticated in
                 if isAuthenticated {
                     isAuthSheetPresented = false
                 }

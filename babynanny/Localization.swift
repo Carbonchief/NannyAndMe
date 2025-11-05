@@ -696,7 +696,7 @@ enum L10n {
         static let allLogs = String(localized: "menu.allLogs", defaultValue: "All Logs")
         static let settings = String(localized: "menu.settings", defaultValue: "Settings")
         static let shareData = String(localized: "menu.shareData", defaultValue: "Share Data")
-        static let login = String(localized: "menu.login", defaultValue: "Sign In or Create Account")
+        static let login = String(localized: "menu.login", defaultValue: "Sign In")
         static let logout = String(localized: "menu.logout", defaultValue: "Sign Out")
         static let authUnavailable = String(
             localized: "menu.authUnavailable",

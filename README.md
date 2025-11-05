@@ -69,6 +69,7 @@ NannyAndMe/
    - Open `babynanny/SupabaseConfig.plist`.
    - Replace the placeholder URL and anonymous key with the values from your Supabase project.
    - Keep your real credentials out of commits (e.g., by resetting the file before pushing).
+   - Add `nannyme://auth/verify` to your Supabase project's list of allowed redirect URLs so email verification links reopen the app.
 5. **Run the app**
    - Select the `babynanny` scheme.
    - Choose an iOS Simulator device (e.g., iPhone 15 Pro).

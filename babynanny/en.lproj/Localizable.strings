@@ -165,7 +165,7 @@
 "menu.allLogs" = "All Logs";
 "menu.shareData" = "Share Data";
 "menu.settings" = "Settings";
-"menu.login" = "Sign In or Create Account";
+"menu.login" = "Sign In";
 "menu.logout" = "Sign Out";
 "menu.loggedInAs" = "Signed in as %1$@";
 "menu.authUnavailable" = "Supabase login unavailable. Check configuration.";

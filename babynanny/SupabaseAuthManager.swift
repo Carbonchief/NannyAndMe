@@ -11,6 +11,7 @@ final class SupabaseAuthManager: ObservableObject {
     @Published var isLoading = false
 
     private let client: SupabaseClient?
+    private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
 
     init() {
         do {
@@ -43,13 +44,36 @@ final class SupabaseAuthManager: ObservableObject {
         let sanitizedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
-            let response = try await client.auth.signUp(email: sanitizedEmail, password: sanitizedPassword)
+            let response = try await client.auth.signUp(
+                email: sanitizedEmail,
+                password: sanitizedPassword,
+                redirectTo: Self.emailVerificationRedirectURL
+            )
             apply(authResponse: response)
+
             if isAuthenticated {
                 infoMessage = L10n.Auth.accountCreated
-            } else {
-                infoMessage = L10n.Auth.emailConfirmationInfo
+                return true
             }
+
+            do {
+                let session = try await client.auth.signIn(email: sanitizedEmail, password: sanitizedPassword)
+                apply(session: session)
+                if isAuthenticated {
+                    infoMessage = nil
+                    return true
+                }
+            } catch {
+                if Self.isEmailConfirmationRequiredError(error) {
+                    infoMessage = L10n.Auth.emailConfirmationInfo
+                    return true
+                }
+
+                lastErrorMessage = Self.userFriendlyMessage(from: error)
+                return false
+            }
+
+            infoMessage = L10n.Auth.emailConfirmationInfo
             return true
         } catch {
             guard Self.isUserAlreadyRegisteredError(error) else {
@@ -58,8 +82,8 @@ final class SupabaseAuthManager: ObservableObject {
             }
 
             do {
-                let response = try await client.auth.signIn(email: sanitizedEmail, password: sanitizedPassword)
-                apply(authResponse: response)
+                let session = try await client.auth.signIn(email: sanitizedEmail, password: sanitizedPassword)
+                apply(session: session)
                 if isAuthenticated {
                     infoMessage = nil
                 }
@@ -88,9 +112,10 @@ final class SupabaseAuthManager: ObservableObject {
     }
 
     private func apply(authResponse: AuthResponse) {
-        if let session = authResponse.session {
+        switch authResponse {
+        case let .session(session):
             apply(session: session)
-        } else if let user = authResponse.user {
+        case let .user(user):
             currentUserEmail = user.email
         }
     }
@@ -104,14 +129,29 @@ final class SupabaseAuthManager: ObservableObject {
     private func refreshSession() async {
         guard let client else { return }
         do {
-            if let session = try await client.auth.session {
-                apply(session: session)
+            let session = try await client.auth.session
+            apply(session: session)
+        } catch let goTrueError as GoTrueError {
+            if case .sessionNotFound = goTrueError {
+                return
             }
+            lastErrorMessage = Self.userFriendlyMessage(from: goTrueError)
         } catch {
             // Ignore missing session errors, only surface unexpected failures.
             if (error as NSError).code != 401 {
                 lastErrorMessage = Self.userFriendlyMessage(from: error)
             }
+        }
+    }
+
+    func handleAuthenticationURL(_ url: URL) async {
+        guard let client else { return }
+        clearMessages()
+        do {
+            let session = try await client.auth.session(from: url)
+            apply(session: session)
+        } catch {
+            lastErrorMessage = Self.userFriendlyMessage(from: error)
         }
     }
 
@@ -123,6 +163,19 @@ final class SupabaseAuthManager: ObservableObject {
     }
 
     private static func isUserAlreadyRegisteredError(_ error: Error) -> Bool {
+        if case let GoTrueError.api(apiError) = error {
+            let messages = [
+                apiError.errorDescription,
+                apiError.message,
+                apiError.msg,
+                apiError.error
+            ].compactMap { $0 }
+
+            if messages.contains(where: { $0.localizedCaseInsensitiveContains("already registered") }) {
+                return true
+            }
+        }
+
         let nsError = error as NSError
         if let code = nsError.userInfo["code"] as? String, code.caseInsensitiveCompare("user_already_registered") == .orderedSame {
             return true
@@ -136,6 +189,34 @@ final class SupabaseAuthManager: ObservableObject {
 
         return messageSources.contains { message in
             message.localizedCaseInsensitiveContains("already registered")
+        }
+    }
+
+    private static func isEmailConfirmationRequiredError(_ error: Error) -> Bool {
+        if case let GoTrueError.api(apiError) = error {
+            let messages = [
+                apiError.errorDescription,
+                apiError.message,
+                apiError.msg,
+                apiError.error
+            ].compactMap { $0 }
+
+            if messages.contains(where: { $0.localizedCaseInsensitiveContains("email not confirmed") }) {
+                return true
+            }
+        }
+
+        let nsError = error as NSError
+        let messageSources: [String] = [
+            nsError.userInfo["message"] as? String,
+            nsError.userInfo["msg"] as? String,
+            nsError.userInfo["error_description"] as? String,
+            nsError.userInfo["error"] as? String,
+            nsError.localizedDescription
+        ].compactMap { $0 }
+
+        return messageSources.contains { message in
+            message.localizedCaseInsensitiveContains("email not confirmed")
         }
     }
 }

@@ -81,7 +81,7 @@ struct SupabaseAuthView: View {
                 authManager.clearMessages()
                 focusedField = .email
             }
-            .onChange(of: authManager.isAuthenticated) { isAuthenticated in
+            .onChange(of: authManager.isAuthenticated) { _, isAuthenticated in
                 if isAuthenticated { dismiss() }
             }
         }

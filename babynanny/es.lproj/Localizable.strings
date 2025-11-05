@@ -165,7 +165,7 @@
 "menu.allLogs" = "Todos los registros";
 "menu.shareData" = "Compartir datos";
 "menu.settings" = "Configuración";
-"menu.login" = "Iniciar sesión o crear cuenta";
+"menu.login" = "Iniciar sesión";
 "menu.logout" = "Cerrar sesión";
 "menu.loggedInAs" = "Sesión iniciada como %1$@";
 "menu.authUnavailable" = "Inicio de sesión de Supabase no disponible. Revisa la configuración.";

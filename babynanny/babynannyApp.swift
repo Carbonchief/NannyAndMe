@@ -53,6 +53,9 @@ struct babynannyApp: App {
                         if handleDurationActivityURL(url) {
                             return
                         }
+                        if handleSupabaseURL(url) {
+                            return
+                        }
                         guard shouldHandle(url: url) else { return }
                         shareDataCoordinator.handleIncomingFile(url: url)
                     }
@@ -97,6 +100,16 @@ private extension babynannyApp {
         }
 
         return false
+    }
+
+    func handleSupabaseURL(_ url: URL) -> Bool {
+        guard url.scheme == "nannyme", url.host == "auth" else { return false }
+
+        Task {
+            await authManager.handleAuthenticationURL(url)
+        }
+
+        return true
     }
 }
 

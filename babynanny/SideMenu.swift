@@ -27,27 +27,6 @@ struct SideMenu: View {
             }
             .padding(.top, 48)
 
-            Button(action: {
-                onSelectAllLogs()
-            }) {
-                Label(L10n.Menu.allLogs, systemImage: "list.bullet.rectangle")
-                    .font(.headline)
-            }
-
-            Button(action: {
-                onSelectShareData()
-            }) {
-                Label(L10n.Menu.shareData, systemImage: "arrow.up.arrow.down.circle.fill")
-                    .font(.headline)
-            }
-
-            Button(action: {
-                onSelectSettings()
-            }) {
-                Label(L10n.Menu.settings, systemImage: "gearshape.fill")
-                    .font(.headline)
-            }
-
             if let configurationError = authManager.configurationError {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(L10n.Menu.authUnavailable)
@@ -79,6 +58,27 @@ struct SideMenu: View {
                     Label(L10n.Menu.login, systemImage: "person.crop.circle.badge.plus")
                         .font(.headline)
                 }
+            }
+
+            Button(action: {
+                onSelectAllLogs()
+            }) {
+                Label(L10n.Menu.allLogs, systemImage: "list.bullet.rectangle")
+                    .font(.headline)
+            }
+
+            Button(action: {
+                onSelectShareData()
+            }) {
+                Label(L10n.Menu.shareData, systemImage: "arrow.up.arrow.down.circle.fill")
+                    .font(.headline)
+            }
+
+            Button(action: {
+                onSelectSettings()
+            }) {
+                Label(L10n.Menu.settings, systemImage: "gearshape.fill")
+                    .font(.headline)
             }
 
             Spacer()
