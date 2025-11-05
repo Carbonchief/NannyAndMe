@@ -17,6 +17,7 @@ final class ActionLogStore: ObservableObject {
     private weak var profileStore: ProfileStore?
     private let notificationCenter: NotificationCenter
     private let dataStack: AppDataStack
+    private weak var authManager: SupabaseAuthManager?
     private let observedContainerIdentifier: ObjectIdentifier
     private let observedManagedObjectContextIdentifier: ObjectIdentifier?
     private let observedPersistentStoreCoordinatorIdentifier: ObjectIdentifier?
@@ -36,6 +37,14 @@ final class ActionLogStore: ObservableObject {
         var updated: Int
 
         static let empty = MergeSummary(added: 0, updated: 0)
+    }
+
+    private struct PendingSupabaseSync: Sendable {
+        var profileID: UUID
+        var upserts: [BabyActionSnapshot]
+        var deletedIDs: [UUID]
+
+        var isEmpty: Bool { upserts.isEmpty && deletedIDs.isEmpty }
     }
 
     init(modelContext: ModelContext,
@@ -82,6 +91,10 @@ final class ActionLogStore: ObservableObject {
         scheduleReminders()
         refreshDurationActivityOnLaunch()
         synchronizeMetadataFromModelContext()
+    }
+
+    func registerAuthManager(_ manager: SupabaseAuthManager) {
+        authManager = manager
     }
 
     func performUserInitiatedRefresh() async {
@@ -512,27 +525,31 @@ private extension ActionLogStore {
     }
 
     func persist(profileState: ProfileActionState, for profileID: UUID) {
-        performLocalMutation {
+        let pendingSync: PendingSupabaseSync = performLocalMutation {
             let model = profileModel(for: profileID)
             let existingModels = Dictionary(uniqueKeysWithValues: model.actions.map { ($0.id, $0) })
             let desiredActions = Array(profileState.activeActions.values) + profileState.history
             var seenIDs = Set<UUID>()
+            var actionsToUpsert: [BabyActionSnapshot] = []
+            var deletedIdentifiers: [UUID] = []
 
             for action in desiredActions.map({ $0.withValidatedDates() }) {
                 if let existing = existingModels[action.id] {
-                    let existingAction = existing.asSnapshot()
-                    let resolved = conflictResolver.resolve(local: existingAction, remote: action)
-                    guard resolved != existingAction else {
+                    let existingSnapshot = existing.asSnapshot().withValidatedDates()
+                    let resolved = conflictResolver.resolve(local: existingSnapshot, remote: action)
+                    guard resolved != existingSnapshot else {
                         seenIDs.insert(existing.id)
                         continue
                     }
-                    guard resolved.updatedAt >= existingAction.updatedAt else {
+                    guard resolved.updatedAt >= existingSnapshot.updatedAt else {
                         seenIDs.insert(existing.id)
                         continue
                     }
-                    existing.update(from: resolved)
+                    let sanitizedResolved = resolved.withValidatedDates()
+                    existing.update(from: sanitizedResolved)
                     existing.profile = model
                     seenIDs.insert(existing.id)
+                    actionsToUpsert.append(sanitizedResolved)
                 } else {
                     let newAction = BabyActionModel(id: action.id,
                                                     category: action.category,
@@ -549,19 +566,42 @@ private extension ActionLogStore {
                                                     profile: model)
                     modelContext.insert(newAction)
                     seenIDs.insert(newAction.id)
+                    actionsToUpsert.append(action)
                 }
             }
 
             for (identifier, modelAction) in existingModels where seenIDs.contains(identifier) == false {
                 modelContext.delete(modelAction)
+                deletedIdentifiers.append(identifier)
             }
 
             cachedStates[profileID] = profileState
+
+            return PendingSupabaseSync(profileID: profileID,
+                                       upserts: actionsToUpsert,
+                                       deletedIDs: deletedIdentifiers)
         }
 
         dataStack.scheduleSaveIfNeeded(on: modelContext, reason: "persist-profile-state")
 
         scheduleReminders()
+        enqueueSupabaseSync(pendingSync)
+    }
+
+    private func enqueueSupabaseSync(_ pendingSync: PendingSupabaseSync) {
+        guard pendingSync.isEmpty == false else { return }
+        guard let authManager else { return }
+
+        let upserts = pendingSync.upserts.map { $0.withValidatedDates() }
+        let deletedIDs = pendingSync.deletedIDs
+        let profileID = pendingSync.profileID
+
+        Task { @MainActor [weak authManager] in
+            guard let manager = authManager else { return }
+            await manager.syncBabyActions(upserting: upserts,
+                                          deletingIDs: deletedIDs,
+                                          profileID: profileID)
+        }
     }
 
     static func clamp(_ action: BabyActionSnapshot, avoiding conflicts: [BabyActionSnapshot]) -> BabyActionSnapshot {
