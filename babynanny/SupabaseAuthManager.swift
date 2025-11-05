@@ -185,9 +185,10 @@ final class SupabaseAuthManager: ObservableObject {
             lastSignInAt: Date()
         )
 
-        try await client.database
+        _ = try await client.database
             .from("caregivers")
-            .upsert(values: [record], onConflict: "id", returning: .minimal)
+            .upsert([record], onConflict: "id", returning: .minimal)
+            .execute()
     }
 
     private func upsertBabyProfiles(_ profiles: [ChildProfile], caregiverID: UUID) async throws {
@@ -196,9 +197,24 @@ final class SupabaseAuthManager: ObservableObject {
         let records = profiles.map { BabyProfileRecord(profile: $0, caregiverID: caregiverID) }
         guard records.isEmpty == false else { return }
 
-        try await client.database
+        _ = try await client.database
             .from("baby_profiles")
-            .upsert(values: records, onConflict: "id", returning: .minimal)
+            .upsert(records, onConflict: "id", returning: .minimal)
+            .execute()
+    }
+
+    func deleteBabyProfile(withID id: UUID) async {
+        guard let client, isAuthenticated else { return }
+
+        do {
+            _ = try await client.database
+                .from("baby_profiles")
+                .delete()
+                .eq("id", value: id.uuidString)
+                .execute()
+        } catch {
+            lastErrorMessage = Self.userFriendlyMessage(from: error)
+        }
     }
 
     private func resolvedPasswordHash(from user: User) -> String {

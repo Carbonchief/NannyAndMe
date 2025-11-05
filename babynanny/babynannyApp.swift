@@ -19,7 +19,7 @@ struct babynannyApp: App {
     @StateObject private var appDataStack: AppDataStack
     @StateObject private var profileStore: ProfileStore
     @StateObject private var actionStore: ActionLogStore
-    @StateObject private var authManager = SupabaseAuthManager()
+    @StateObject private var authManager: SupabaseAuthManager
     @State private var isShowingSplashScreen = true
 
     init() {
@@ -33,10 +33,13 @@ struct babynannyApp: App {
                                          dataStack: stack)
         profileStore.registerActionStore(actionStore)
         actionStore.registerProfileStore(profileStore)
+        let authManager = SupabaseAuthManager()
+        profileStore.registerAuthManager(authManager)
 
         _appDataStack = StateObject(wrappedValue: stack)
         _profileStore = StateObject(wrappedValue: profileStore)
         _actionStore = StateObject(wrappedValue: actionStore)
+        _authManager = StateObject(wrappedValue: authManager)
     }
 
     var body: some Scene {

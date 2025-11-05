@@ -319,6 +319,7 @@ final class ProfileStore: ObservableObject {
     private let dataStack: AppDataStack
     private let reminderScheduler: ReminderScheduling
     private weak var actionStore: ActionLogStore?
+    private var authManager: SupabaseAuthManager?
     private let fileManager: FileManager
     private let saveURL: URL
     private var settings: ProfileStoreSettings
@@ -352,6 +353,10 @@ final class ProfileStore: ObservableObject {
         actionStore = store
         scheduleReminders()
         synchronizeProfileMetadata()
+    }
+
+    func registerAuthManager(_ manager: SupabaseAuthManager) {
+        authManager = manager
     }
 
     func rescheduleRemindersAfterOnboarding() {
@@ -409,17 +414,27 @@ final class ProfileStore: ObservableObject {
     }
 
     func deleteProfile(_ profile: ChildProfile) {
+        let profileID = profile.id
+        var didDeleteProfile = false
+
         mutateProfiles(reason: "profile-delete") {
-            guard let model = profileModel(withID: profile.id) else { return false }
+            guard let model = profileModel(withID: profileID) else { return false }
             modelContext.delete(model)
+            didDeleteProfile = true
             return true
         }
 
-        if activeProfileID == profile.id {
+        if activeProfileID == profileID {
             activeProfileID = profiles.first?.id
         }
 
-        actionStore?.removeProfileData(for: profile.id)
+        actionStore?.removeProfileData(for: profileID)
+
+        if didDeleteProfile {
+            Task { @MainActor in
+                await authManager?.deleteBabyProfile(withID: profileID)
+            }
+        }
     }
 
     func updateActiveProfile(_ updates: (ProfileActionStateModel) -> Void) {
