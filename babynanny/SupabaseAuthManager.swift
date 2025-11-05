@@ -1,16 +1,19 @@
 import Foundation
+import os
 import Supabase
 
 @MainActor
 final class SupabaseAuthManager: ObservableObject {
     @Published private(set) var isAuthenticated = false
     @Published private(set) var currentUserEmail: String?
+    @Published private(set) var currentUserID: UUID?
     @Published private(set) var configurationError: String?
     @Published var lastErrorMessage: String?
     @Published var infoMessage: String?
     @Published var isLoading = false
 
     private let client: SupabaseClient?
+    private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "supabase-actions")
     private var hasSynchronizedCaregiverDataForCurrentSession = false
     private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
 
@@ -107,6 +110,7 @@ final class SupabaseAuthManager: ObservableObject {
             try await client.auth.signOut()
             isAuthenticated = false
             currentUserEmail = nil
+            currentUserID = nil
             hasSynchronizedCaregiverDataForCurrentSession = false
         } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
@@ -119,12 +123,14 @@ final class SupabaseAuthManager: ObservableObject {
             apply(session: session)
         case let .user(user):
             currentUserEmail = user.email
+            currentUserID = user.id
         }
     }
 
     private func apply(session: Session) {
         isAuthenticated = true
         currentUserEmail = session.user.email
+        currentUserID = session.user.id
         infoMessage = nil
         hasSynchronizedCaregiverDataForCurrentSession = false
     }
@@ -170,6 +176,46 @@ final class SupabaseAuthManager: ObservableObject {
         } catch {
             hasSynchronizedCaregiverDataForCurrentSession = false
             lastErrorMessage = Self.userFriendlyMessage(from: error)
+        }
+    }
+
+    func syncBabyActions(upserting actions: [BabyActionSnapshot],
+                         deletingIDs: [UUID],
+                         profileID: UUID) async {
+        guard let client, isAuthenticated, let caregiverID = currentUserID else { return }
+
+        let sanitizedActions = actions.map { $0.withValidatedDates() }
+        let records = sanitizedActions.compactMap { action in
+            BabyActionRecord(action: action, caregiverID: caregiverID, profileID: profileID)
+        }
+
+        let shouldUpsert = records.isEmpty == false
+        let shouldDelete = deletingIDs.isEmpty == false
+
+        guard shouldUpsert || shouldDelete else { return }
+
+        if records.count < sanitizedActions.count {
+            logger.warning("Skipping \(sanitizedActions.count - records.count, privacy: .public) actions without a Supabase subtype mapping")
+        }
+
+        do {
+            if shouldUpsert {
+                _ = try await client.database
+                    .from("Baby_Action")
+                    .upsert(records, onConflict: "id", returning: .minimal)
+                    .execute()
+            }
+
+            if shouldDelete {
+                let identifiers = deletingIDs.map(\.uuidString)
+                _ = try await client.database
+                    .from("Baby_Action")
+                    .delete()
+                    .in("id", value: identifiers)
+                    .execute()
+            }
+        } catch {
+            logger.error("Failed to synchronize baby actions: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -331,5 +377,116 @@ private struct BabyProfileRecord: Codable, Identifiable {
         case name
         case dateOfBirth = "date_of_birth"
         case avatarURL = "avatar_url"
+    }
+}
+
+private struct BabyActionRecord: Codable, Identifiable {
+    var id: UUID
+    var caregiverID: UUID
+    var subtypeID: UUID
+    var started: Date
+    var stopped: Date?
+    var note: String?
+    var note2: String?
+
+    init?(action: BabyActionSnapshot, caregiverID: UUID, profileID: UUID) {
+        guard let subtypeID = SupabaseAuthManager.resolveSubtypeID(for: action) else { return nil }
+        self.id = action.id
+        self.caregiverID = caregiverID
+        self.subtypeID = subtypeID
+        self.started = action.startDate.normalizedToUTC()
+        self.stopped = action.endDate?.normalizedToUTC()
+        self.note = SupabaseAuthManager.resolveNote(for: action)
+        self.note2 = profileID.uuidString
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case caregiverID = "Caregiver_Id"
+        case subtypeID = "Subtype_Id"
+        case started = "Started"
+        case stopped = "Stopped"
+        case note = "Note"
+        case note2 = "Note2"
+    }
+}
+
+private enum SupabaseActionSubtypeID {
+    static let sleep = UUID(uuidString: "f0c1dc20-19b2-4fbd-865a-238548df3744")!
+    static let pee = UUID(uuidString: "28a7600c-e58a-4806-a46a-b9732a4d2db6")!
+    static let poo = UUID(uuidString: "171b6d76-4eaa-405d-a328-0a5f7dddb169")!
+    static let peeAndPoo = UUID(uuidString: "bf8ae717-96ab-4814-8d8f-b0d5670fe0ee")!
+    static let bottleFormula = UUID(uuidString: "50fda70f-6828-4364-b030-dfc4f5c7f98a")!
+    static let bottleBreastMilk = UUID(uuidString: "173128c8-1b16-4e36-be6a-892ad0e021ec")!
+    static let meal = UUID(uuidString: "dbb27605-c426-4185-b3b6-f703b35b986d")!
+    static let leftBreast = UUID(uuidString: "a4e20539-c7e2-4ef3-b04e-ad3665602588")!
+    static let rightBreast = UUID(uuidString: "43572b05-637a-4a5b-a85c-ce9c47a08aa5")!
+}
+
+private extension SupabaseAuthManager {
+    nonisolated static func resolveSubtypeID(for action: BabyActionSnapshot) -> UUID? {
+        switch action.category {
+        case .sleep:
+            return SupabaseActionSubtypeID.sleep
+        case .diaper:
+            switch action.diaperType ?? .both {
+            case .pee:
+                return SupabaseActionSubtypeID.pee
+            case .poo:
+                return SupabaseActionSubtypeID.poo
+            case .both:
+                return SupabaseActionSubtypeID.peeAndPoo
+            }
+        case .feeding:
+            if let feedingType = action.feedingType {
+                switch feedingType {
+                case .bottle:
+                    let bottleType = action.bottleType ?? .formula
+                    switch bottleType {
+                    case .formula:
+                        return SupabaseActionSubtypeID.bottleFormula
+                    case .breastMilk:
+                        return SupabaseActionSubtypeID.bottleBreastMilk
+                    }
+                case .leftBreast:
+                    return SupabaseActionSubtypeID.leftBreast
+                case .rightBreast:
+                    return SupabaseActionSubtypeID.rightBreast
+                case .meal:
+                    return SupabaseActionSubtypeID.meal
+                }
+            } else if action.bottleVolume != nil || action.bottleType != nil {
+                let bottleType = action.bottleType ?? .formula
+                switch bottleType {
+                case .formula:
+                    return SupabaseActionSubtypeID.bottleFormula
+                case .breastMilk:
+                    return SupabaseActionSubtypeID.bottleBreastMilk
+                }
+            } else {
+                return SupabaseActionSubtypeID.meal
+            }
+        }
+    }
+
+    nonisolated static func resolveNote(for action: BabyActionSnapshot) -> String? {
+        var components: [String] = []
+
+        if let volume = action.bottleVolume, volume > 0 {
+            components.append("volume=\(volume)")
+        }
+
+        if let placename = action.placename?.trimmingCharacters(in: .whitespacesAndNewlines), placename.isEmpty == false {
+            components.append("place=\(placename)")
+        }
+
+        if let latitude = action.latitude, let longitude = action.longitude {
+            let formatted = String(format: "coords=%.6f,%.6f",
+                                   locale: Locale(identifier: "en_US_POSIX"),
+                                   latitude, longitude)
+            components.append(formatted)
+        }
+
+        return components.isEmpty ? nil : components.joined(separator: ";")
     }
 }

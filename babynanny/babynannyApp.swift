@@ -35,6 +35,7 @@ struct babynannyApp: App {
         actionStore.registerProfileStore(profileStore)
         let authManager = SupabaseAuthManager()
         profileStore.registerAuthManager(authManager)
+        actionStore.registerAuthManager(authManager)
 
         _appDataStack = StateObject(wrappedValue: stack)
         _profileStore = StateObject(wrappedValue: profileStore)
