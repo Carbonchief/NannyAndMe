@@ -211,7 +211,7 @@ final class SupabaseAuthManager: ObservableObject {
                 _ = try await client.database
                     .from("Baby_Action")
                     .delete()
-                    .in(column: "id", values: identifiers)
+                    .in("id", value: identifiers)
                     .execute()
             }
         } catch {
@@ -424,7 +424,7 @@ private enum SupabaseActionSubtypeID {
 }
 
 private extension SupabaseAuthManager {
-    static func resolveSubtypeID(for action: BabyActionSnapshot) -> UUID? {
+    nonisolated static func resolveSubtypeID(for action: BabyActionSnapshot) -> UUID? {
         switch action.category {
         case .sleep:
             return SupabaseActionSubtypeID.sleep
@@ -469,7 +469,7 @@ private extension SupabaseAuthManager {
         }
     }
 
-    static func resolveNote(for action: BabyActionSnapshot) -> String? {
+    nonisolated static func resolveNote(for action: BabyActionSnapshot) -> String? {
         var components: [String] = []
 
         if let volume = action.bottleVolume, volume > 0 {
