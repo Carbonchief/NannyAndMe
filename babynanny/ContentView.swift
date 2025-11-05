@@ -343,7 +343,7 @@ private func shouldShowInitialProfilePrompt(for profile: ChildProfile,
     return profileCount <= 1 && profile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 }
 
-private enum Tab: Hashable, CaseIterable {
+enum Tab: Hashable, CaseIterable {
     case home
     case map
     case reports
