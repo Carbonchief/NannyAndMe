@@ -11,6 +11,7 @@ final class SupabaseAuthManager: ObservableObject {
     @Published var isLoading = false
 
     private let client: SupabaseClient?
+    private var hasSynchronizedCaregiverDataForCurrentSession = false
     private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
 
     init() {
@@ -106,6 +107,7 @@ final class SupabaseAuthManager: ObservableObject {
             try await client.auth.signOut()
             isAuthenticated = false
             currentUserEmail = nil
+            hasSynchronizedCaregiverDataForCurrentSession = false
         } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
         }
@@ -124,6 +126,7 @@ final class SupabaseAuthManager: ObservableObject {
         isAuthenticated = true
         currentUserEmail = session.user.email
         infoMessage = nil
+        hasSynchronizedCaregiverDataForCurrentSession = false
     }
 
     private func refreshSession() async {
@@ -153,6 +156,69 @@ final class SupabaseAuthManager: ObservableObject {
         } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
         }
+    }
+
+    func synchronizeCaregiverAccount(with profiles: [ChildProfile]) async {
+        guard let client, isAuthenticated else { return }
+        guard hasSynchronizedCaregiverDataForCurrentSession == false else { return }
+
+        do {
+            let session = try await client.auth.session
+            try await upsertCaregiver(for: session.user)
+            try await upsertBabyProfiles(profiles, caregiverID: session.user.id)
+            hasSynchronizedCaregiverDataForCurrentSession = true
+        } catch {
+            hasSynchronizedCaregiverDataForCurrentSession = false
+            lastErrorMessage = Self.userFriendlyMessage(from: error)
+        }
+    }
+
+    private func upsertCaregiver(for user: User) async throws {
+        guard let client else { return }
+
+        guard let email = user.email ?? currentUserEmail else { return }
+
+        let record = CaregiverRecord(
+            id: user.id,
+            email: email,
+            passwordHash: resolvedPasswordHash(from: user),
+            lastSignInAt: Date()
+        )
+
+        _ = try await client.database
+            .from("caregivers")
+            .upsert([record], onConflict: "id", returning: .minimal)
+            .execute()
+    }
+
+    private func upsertBabyProfiles(_ profiles: [ChildProfile], caregiverID: UUID) async throws {
+        guard let client else { return }
+
+        let records = profiles.map { BabyProfileRecord(profile: $0, caregiverID: caregiverID) }
+        guard records.isEmpty == false else { return }
+
+        _ = try await client.database
+            .from("baby_profiles")
+            .upsert(records, onConflict: "id", returning: .minimal)
+            .execute()
+    }
+
+    func deleteBabyProfile(withID id: UUID) async {
+        guard let client, isAuthenticated else { return }
+
+        do {
+            _ = try await client.database
+                .from("baby_profiles")
+                .delete()
+                .eq("id", value: id.uuidString)
+                .execute()
+        } catch {
+            lastErrorMessage = Self.userFriendlyMessage(from: error)
+        }
+    }
+
+    private func resolvedPasswordHash(from user: User) -> String {
+        user.id.uuidString
     }
 
     private static func userFriendlyMessage(from error: Error) -> String {
@@ -218,5 +284,52 @@ final class SupabaseAuthManager: ObservableObject {
         return messageSources.contains { message in
             message.localizedCaseInsensitiveContains("email not confirmed")
         }
+    }
+}
+
+private struct CaregiverRecord: Codable, Identifiable {
+    var id: UUID
+    var email: String
+    var passwordHash: String
+    var lastSignInAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case email
+        case passwordHash = "password_hash"
+        case lastSignInAt = "last_sign_in_at"
+    }
+}
+
+private struct BabyProfileRecord: Codable, Identifiable {
+    var id: UUID
+    var caregiverID: UUID
+    var name: String
+    var dateOfBirth: String
+    var avatarURL: String?
+
+    init(profile: ChildProfile, caregiverID: UUID) {
+        id = profile.id
+        self.caregiverID = caregiverID
+        name = profile.name
+        dateOfBirth = Self.dateFormatter.string(from: profile.birthDate)
+        avatarURL = nil
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case caregiverID = "caregiver_id"
+        case name
+        case dateOfBirth = "date_of_birth"
+        case avatarURL = "avatar_url"
     }
 }

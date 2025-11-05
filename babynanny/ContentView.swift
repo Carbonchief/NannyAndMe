@@ -193,7 +193,13 @@ struct ContentView: View {
             .onChange(of: authManager.isAuthenticated) { _, isAuthenticated in
                 if isAuthenticated {
                     isAuthSheetPresented = false
+                    Task { await authManager.synchronizeCaregiverAccount(with: profileStore.profiles) }
                 }
+            }
+
+            .task(id: authManager.isAuthenticated) {
+                guard authManager.isAuthenticated else { return }
+                await authManager.synchronizeCaregiverAccount(with: profileStore.profiles)
             }
 
             if isMenuVisible == false {
