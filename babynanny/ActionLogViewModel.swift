@@ -25,6 +25,7 @@ final class ActionLogStore: ObservableObject {
     private var localMutationDepth = 0
     private let conflictResolver = ActionConflictResolver()
     private var cachedStates: [UUID: ProfileActionState] = [:]
+    private var pendingRemoteDeletions: [UUID: Set<UUID>] = [:]
     private var stateReloadTask: Task<Void, Never>?
 
     private struct PersistentStoreContextIdentifiers {
@@ -583,6 +584,12 @@ private extension ActionLogStore {
 
             cachedStates[profileID] = profileState
 
+            if deletedIdentifiers.isEmpty == false {
+                var pending = pendingRemoteDeletions[profileID] ?? []
+                pending.formUnion(deletedIdentifiers)
+                pendingRemoteDeletions[profileID] = pending
+            }
+
             return PendingSupabaseSync(profileID: profileID,
                                        upserts: actionsToUpsert,
                                        deletedIDs: deletedIdentifiers)
@@ -614,13 +621,30 @@ private extension ActionLogStore {
         let localStatesBeforeMerge = await actionStatesSnapshot()
         let remoteIDsByProfile = snapshot.actionIdentifiersByProfile
 
+        let remoteProfileIDs = Set(remoteIDsByProfile.keys)
+        let stalePendingProfiles = pendingRemoteDeletions.keys.filter { remoteProfileIDs.contains($0) == false }
+        for profileID in stalePendingProfiles {
+            pendingRemoteDeletions.removeValue(forKey: profileID)
+        }
+
         var ignoredRemoteActions: [UUID: Set<UUID>] = [:]
 
         for (profileID, remoteIDs) in remoteIDsByProfile {
-            guard let localState = localStatesBeforeMerge[profileID] else { continue }
-            let localActions = localState.activeActions.values + localState.history
-            let localIDs = Set(localActions.map(\.id))
-            let deletions = remoteIDs.subtracting(localIDs)
+            if var pending = pendingRemoteDeletions[profileID] {
+                pending.formIntersection(remoteIDs)
+                if pending.isEmpty {
+                    pendingRemoteDeletions.removeValue(forKey: profileID)
+                } else {
+                    pendingRemoteDeletions[profileID] = pending
+                }
+            }
+
+            let localState = localStatesBeforeMerge[profileID]
+            let localActive = localState.map { Array($0.activeActions.values) } ?? []
+            let localHistory = localState?.history ?? []
+            let localIDs = Set((localActive + localHistory).map(\.id))
+            let pending = pendingRemoteDeletions[profileID] ?? []
+            let deletions = remoteIDs.subtracting(localIDs).intersection(pending)
             if deletions.isEmpty == false {
                 ignoredRemoteActions[profileID] = deletions
             }
