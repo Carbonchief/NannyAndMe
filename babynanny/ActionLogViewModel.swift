@@ -110,6 +110,46 @@ final class ActionLogStore: ObservableObject {
         await reloadTask.value
     }
 
+    func reconcileWithSupabase(snapshot: SupabaseAuthManager.CaregiverSnapshot) async {
+        let localStatesBeforeMerge = await actionStatesSnapshot()
+        let remoteIDsByProfile = snapshot.actionIdentifiersByProfile
+
+        let remoteProfileIDs = Set(remoteIDsByProfile.keys)
+        let stalePendingProfiles = pendingRemoteDeletions.keys.filter { remoteProfileIDs.contains($0) == false }
+        for profileID in stalePendingProfiles {
+            pendingRemoteDeletions.removeValue(forKey: profileID)
+        }
+
+        var ignoredRemoteActions: [UUID: Set<UUID>] = [:]
+
+        for (profileID, remoteIDs) in remoteIDsByProfile {
+            if var pending = pendingRemoteDeletions[profileID] {
+                pending.formIntersection(remoteIDs)
+                if pending.isEmpty {
+                    pendingRemoteDeletions.removeValue(forKey: profileID)
+                } else {
+                    pendingRemoteDeletions[profileID] = pending
+                }
+            }
+
+            let localState = localStatesBeforeMerge[profileID]
+            let localActive = localState.map { Array($0.activeActions.values) } ?? []
+            let localHistory = localState?.history ?? []
+            let localIDs = Set((localActive + localHistory).map(\.id))
+            let pending = pendingRemoteDeletions[profileID] ?? []
+            let deletions = remoteIDs.subtracting(localIDs).intersection(pending)
+            if deletions.isEmpty == false {
+                ignoredRemoteActions[profileID] = deletions
+            }
+        }
+
+        applySupabaseSnapshot(snapshot, ignoringRemoteActions: ignoredRemoteActions)
+
+        let localStatesAfterMerge = await actionStatesSnapshot()
+        await pushLocalStateToSupabase(localStates: localStatesAfterMerge,
+                                       remoteActionIDsByProfile: remoteIDsByProfile)
+    }
+
     func synchronizeProfileMetadata(_ profiles: [ChildProfile]) {
         let didMutate: Bool = performLocalMutation {
             var hasChanges = false
@@ -617,46 +657,6 @@ private extension ActionLogStore {
         }
     }
 
-    func reconcileWithSupabase(snapshot: SupabaseAuthManager.CaregiverSnapshot) async {
-        let localStatesBeforeMerge = await actionStatesSnapshot()
-        let remoteIDsByProfile = snapshot.actionIdentifiersByProfile
-
-        let remoteProfileIDs = Set(remoteIDsByProfile.keys)
-        let stalePendingProfiles = pendingRemoteDeletions.keys.filter { remoteProfileIDs.contains($0) == false }
-        for profileID in stalePendingProfiles {
-            pendingRemoteDeletions.removeValue(forKey: profileID)
-        }
-
-        var ignoredRemoteActions: [UUID: Set<UUID>] = [:]
-
-        for (profileID, remoteIDs) in remoteIDsByProfile {
-            if var pending = pendingRemoteDeletions[profileID] {
-                pending.formIntersection(remoteIDs)
-                if pending.isEmpty {
-                    pendingRemoteDeletions.removeValue(forKey: profileID)
-                } else {
-                    pendingRemoteDeletions[profileID] = pending
-                }
-            }
-
-            let localState = localStatesBeforeMerge[profileID]
-            let localActive = localState.map { Array($0.activeActions.values) } ?? []
-            let localHistory = localState?.history ?? []
-            let localIDs = Set((localActive + localHistory).map(\.id))
-            let pending = pendingRemoteDeletions[profileID] ?? []
-            let deletions = remoteIDs.subtracting(localIDs).intersection(pending)
-            if deletions.isEmpty == false {
-                ignoredRemoteActions[profileID] = deletions
-            }
-        }
-
-        applySupabaseSnapshot(snapshot, ignoringRemoteActions: ignoredRemoteActions)
-
-        let localStatesAfterMerge = await actionStatesSnapshot()
-        await pushLocalStateToSupabase(localStates: localStatesAfterMerge,
-                                       remoteActionIDsByProfile: remoteIDsByProfile)
-    }
-
     private func applySupabaseSnapshot(_ snapshot: SupabaseAuthManager.CaregiverSnapshot,
                                        ignoringRemoteActions: [UUID: Set<UUID>] = [:]) {
         if snapshot.metadataUpdates.isEmpty == false {
@@ -755,7 +755,7 @@ private extension ActionLogStore {
                                               profileID: profileID)
         }
 
-        let remoteOnlyProfiles = remoteActionIDsByProfile.keys.subtracting(localStates.keys)
+        let remoteOnlyProfiles = Set(remoteActionIDsByProfile.keys).subtracting(localStates.keys)
 
         for profileID in remoteOnlyProfiles {
             let deletions = Array(remoteActionIDsByProfile[profileID] ?? [])

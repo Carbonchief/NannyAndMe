@@ -186,7 +186,7 @@ final class SupabaseAuthManager: ObservableObject {
     }
 
     func fetchCaregiverSnapshot() async -> CaregiverSnapshot? {
-        guard let client, isAuthenticated, let caregiverID = currentUserID else { return nil }
+        guard client != nil, isAuthenticated, let caregiverID = currentUserID else { return nil }
 
         do {
             return try await fetchCaregiverSnapshot(for: caregiverID)
@@ -518,8 +518,13 @@ extension SupabaseAuthManager {
     }
 
     struct CaregiverSnapshot: Sendable {
-        var profiles: [BabyProfileRecord]
-        var actions: [BabyActionRecord]
+        private let profiles: [BabyProfileRecord]
+        private let actions: [BabyActionRecord]
+
+        fileprivate init(profiles: [BabyProfileRecord], actions: [BabyActionRecord]) {
+            self.profiles = profiles
+            self.actions = actions
+        }
 
         var profileIdentifiers: Set<UUID> {
             var identifiers = Set(profiles.map(\.id))
@@ -629,7 +634,7 @@ extension SupabaseAuthManager {
         return components.isEmpty ? nil : components.joined(separator: ";")
     }
 
-    nonisolated static func makeSnapshot(from record: BabyActionRecord) -> BabyActionSnapshot? {
+    private nonisolated static func makeSnapshot(from record: BabyActionRecord) -> BabyActionSnapshot? {
         let metadata = parseMetadata(from: record.note)
         let baseUpdatedAt = record.editedAt ?? record.createdAt ?? record.stopped ?? record.started
 
