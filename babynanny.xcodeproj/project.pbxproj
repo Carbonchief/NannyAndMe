@@ -7,10 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-                EDBCCD052E9A324500C65A0E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBCCD042E9A324500C65A0E /* WidgetKit.framework */; };
-                EDBCCD072E9A324500C65A0E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBCCD062E9A324500C65A0E /* SwiftUI.framework */; };
-                EDBCCD182E9A324800C65A0E /* DurationActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EDBCCD022E9A324500C65A0E /* DurationActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-                EDFCEBA02F0A5E1C00A9F08A /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = EDFCEBA12F0A5E1C00A9F08A /* Supabase */; };
+		EDBCCD052E9A324500C65A0E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBCCD042E9A324500C65A0E /* WidgetKit.framework */; };
+		EDBCCD072E9A324500C65A0E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBCCD062E9A324500C65A0E /* SwiftUI.framework */; };
+		EDBCCD182E9A324800C65A0E /* DurationActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EDBCCD022E9A324500C65A0E /* DurationActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		EDFCEBA02F0A5E1C00A9F08A /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = EDFCEBA12F0A5E1C00A9F08A /* Supabase */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -116,14 +116,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-                EDD0498E2E93FE1A00795772 /* Frameworks */ = {
-                        isa = PBXFrameworksBuildPhase;
-                        buildActionMask = 2147483647;
-                        files = (
-                                EDFCEBA02F0A5E1C00A9F08A /* Supabase in Frameworks */,
-                        );
-                        runOnlyForDeploymentPostprocessing = 0;
-                };
+		EDD0498E2E93FE1A00795772 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EDFCEBA02F0A5E1C00A9F08A /* Supabase in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EDD0499E2E93FE1E00795772 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -192,8 +192,8 @@
 				EDBCCD082E9A324500C65A0E /* DurationActivity */,
 			);
 			name = DurationActivityExtension;
-                        packageProductDependencies = (
-                        );
+			packageProductDependencies = (
+			);
 			productName = DurationActivityExtension;
 			productReference = EDBCCD022E9A324500C65A0E /* DurationActivityExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
@@ -216,9 +216,9 @@
 				EDD049932E93FE1A00795772 /* babynanny */,
 			);
 			name = babynanny;
-                        packageProductDependencies = (
-                                EDFCEBA12F0A5E1C00A9F08A /* Supabase */,
-                        );
+			packageProductDependencies = (
+				EDFCEBA12F0A5E1C00A9F08A /* Supabase */,
+			);
 			productName = babynanny;
 			productReference = EDD049912E93FE1A00795772 /* babynanny.app */;
 			productType = "com.apple.product-type.application";
@@ -314,9 +314,9 @@
 			);
 			mainGroup = EDD049882E93FE1A00795772;
 			minimizedProjectReferenceProxies = 1;
-                        packageReferences = (
-                                EDFCEBA22F0A5E1C00A9F08A /* XCRemoteSwiftPackageReference "supabase-swift" */,
-                        );
+			packageReferences = (
+				EDFCEBA22F0A5E1C00A9F08A /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = EDD049922E93FE1A00795772 /* Products */;
 			projectDirPath = "";
@@ -736,27 +736,8 @@
 		};
 /* End XCBuildConfiguration section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-                EDFCEBA22F0A5E1C00A9F08A /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
-                        isa = XCRemoteSwiftPackageReference;
-                        repositoryURL = "https://github.com/supabase-community/supabase-swift";
-                        requirement = {
-                                kind = upToNextMajorVersion;
-                                minimumVersion = 1.0.0;
-                        };
-                };
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-                EDFCEBA12F0A5E1C00A9F08A /* Supabase */ = {
-                        isa = XCSwiftPackageProductDependency;
-                        package = EDFCEBA22F0A5E1C00A9F08A /* XCRemoteSwiftPackageReference "supabase-swift" */;
-                        productName = Supabase;
-                };
-/* End XCSwiftPackageProductDependency section */
-
 /* Begin XCConfigurationList section */
-                EDBCCD192E9A324800C65A0E /* Build configuration list for PBXNativeTarget "DurationActivityExtension" */ = {
+		EDBCCD192E9A324800C65A0E /* Build configuration list for PBXNativeTarget "DurationActivityExtension" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				EDBCCD1A2E9A324800C65A0E /* Debug */,
@@ -802,6 +783,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		EDFCEBA22F0A5E1C00A9F08A /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase-community/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		EDFCEBA12F0A5E1C00A9F08A /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EDFCEBA22F0A5E1C00A9F08A /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = EDD049892E93FE1A00795772 /* Project object */;
 }

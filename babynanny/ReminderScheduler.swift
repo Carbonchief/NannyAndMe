@@ -101,7 +101,8 @@ struct NotificationRequestSnapshot: Equatable, Sendable {
 
         if let calendarTrigger = request.trigger as? UNCalendarNotificationTrigger {
             nextFireDate = calendarTrigger.nextTriggerDate()
-        } else if let intervalTrigger = request.trigger as? UNTimeIntervalNotificationTrigger, intervalTrigger.repeats == false {
+        } else if let intervalTrigger = request.trigger as? UNTimeIntervalNotificationTrigger,
+                  intervalTrigger.repeats == false {
             nextFireDate = Date().addingTimeInterval(intervalTrigger.timeInterval)
         } else {
             nextFireDate = nil
@@ -214,7 +215,6 @@ final class UserNotificationReminderScheduler: ReminderScheduling {
     private static let ageIdentifierPrefix = "age-milestone-"
     private static let previewIdentifierPrefix = "preview-reminder-"
 
-    // Keep property actor-isolated; type is Sendable so it can be safely captured for nonisolated use when needed.
     private let center: any (UserNotificationCenterType & Sendable)
     private var calendar: Calendar
 
@@ -294,12 +294,18 @@ final class UserNotificationReminderScheduler: ReminderScheduling {
         let normalizedDelay = max(1, delay)
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: normalizedDelay, repeats: false)
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-        return await add(request)
+        do {
+            try await add(request)
+            return true
+        } catch {
+            return false
+        }
     }
 }
 
 // MARK: - Scheduler internals
 
+@MainActor
 private extension UserNotificationReminderScheduler {
     func makeReminderPlans(for profiles: [ChildProfile],
                            actionStates: [UUID: ProfileActionState],
@@ -407,19 +413,20 @@ private extension UserNotificationReminderScheduler {
             removeExistingIdentifiers([plan.identifier])
         }
 
-        if await add(request) == false {
+        do {
+            try await add(request)
+        } catch {
             removeExistingIdentifiers([plan.identifier])
-            _ = await add(request)
+            try? await add(request)
         }
     }
 
-    func add(_ request: UNNotificationRequest) async -> Bool {
-        // Capture a Sendable local from the MainActor-isolated property before using it in an escaping closure.
+    /// FIXED: Delegate the UNUserNotificationCenter callback to a free function
+    /// so the closure is non-isolated. Prevents `_swift_task_checkIsolatedSwift`.
+    func add(_ request: UNNotificationRequest) async throws {
         let center = self.center
-        return await withCheckedContinuation { continuation in
-            center.add(request) { error in
-                resumeOnMain(continuation, returning: error == nil)
-            }
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            addNotificationRequest(center: center, request: request, continuation: continuation)
         }
     }
 
@@ -438,5 +445,24 @@ private extension UserNotificationReminderScheduler {
 
     static func ageIdentifier(for profileID: UUID) -> String {
         ageIdentifierPrefix + profileID.uuidString
+    }
+}
+
+// MARK: - Non-isolated helper
+
+/// Free function to perform the UNUserNotificationCenter add call
+/// without @MainActor isolation, so the completion runs safely
+/// on its own background queue.
+private func addNotificationRequest(
+    center: any (UserNotificationCenterType & Sendable),
+    request: UNNotificationRequest,
+    continuation: CheckedContinuation<Void, Error>
+) {
+    center.add(request) { error in
+        if let error {
+            resumeOnMain(continuation, throwing: error)
+        } else {
+            resumeOnMain(continuation, returning: ())
+        }
     }
 }
