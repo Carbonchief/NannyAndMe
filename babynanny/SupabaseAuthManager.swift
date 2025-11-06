@@ -480,7 +480,7 @@ private struct BabyActionRecord: Codable, Identifiable {
         self.note2 = profileID.uuidString
         self.createdAt = action.startDate.normalizedToUTC()
         self.editedAt = action.updatedAt
-        self.profileReferenceID = nil
+        self.profileReferenceID = profileID
     }
 
     var profileID: UUID? {
@@ -506,7 +506,16 @@ private struct BabyActionRecord: Codable, Identifiable {
         case note2Legacy = "Note2"
         case note2Lower = "note2"
         case createdAt = "created_at"
+        case createdAtLegacy = "Created"
+        case createdAtCamel = "createdAt"
+        case createdAtLower = "created"
         case editedAt = "edited_at"
+        case editedAtLegacy = "Edited"
+        case editedAtLower = "edited"
+        case updatedAt = "updated_at"
+        case updatedAtLegacy = "Updated_At"
+        case updatedAtCamel = "updatedAt"
+        case updatedAtLower = "updated"
         case profileIDLower = "profile_id"
         case profileIDLegacy = "Profile_Id"
     }
@@ -520,8 +529,10 @@ private struct BabyActionRecord: Codable, Identifiable {
         stopped = try container.decodeIfPresent(Date.self, forKeys: [.stoppedLegacy, .stoppedAt, .stoppedLower])
         note = try container.decodeIfPresent(String.self, forKeys: [.note, .noteLower])
         note2 = try container.decodeIfPresent(String.self, forKeys: [.note2Legacy, .note2Lower])
-        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
-        editedAt = try container.decodeIfPresent(Date.self, forKey: .editedAt)
+        createdAt = try container.decodeIfPresent(Date.self, forKeys: [.createdAt, .createdAtLegacy, .createdAtCamel, .createdAtLower])
+        let editedTimestamp = try container.decodeIfPresent(Date.self, forKeys: [.editedAt, .editedAtLegacy, .editedAtLower])
+        let updatedTimestamp = try container.decodeIfPresent(Date.self, forKeys: [.updatedAt, .updatedAtLegacy, .updatedAtCamel, .updatedAtLower])
+        editedAt = editedTimestamp ?? updatedTimestamp
         profileReferenceID = try container.decodeIfPresent(UUID.self, forKeys: [.profileIDLower, .profileIDLegacy])
 
         if profileReferenceID == nil, let rawNote2 = note2 {
@@ -533,13 +544,23 @@ private struct BabyActionRecord: Codable, Identifiable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(caregiverID, forKey: .caregiverIDLegacy)
+        try container.encode(caregiverID, forKey: .caregiverIDLower)
         try container.encode(subtypeID, forKey: .subtypeIDLegacy)
+        try container.encode(subtypeID, forKey: .subtypeIDLower)
         try container.encode(started, forKey: .startedLegacy)
+        try container.encode(started, forKey: .startedAt)
         try container.encodeIfPresent(stopped, forKey: .stoppedLegacy)
+        try container.encodeIfPresent(stopped, forKey: .stoppedAt)
         try container.encodeIfPresent(note, forKey: .note)
+        try container.encodeIfPresent(note, forKey: .noteLower)
         try container.encodeIfPresent(note2, forKey: .note2Legacy)
+        try container.encodeIfPresent(note2, forKey: .note2Lower)
+        try container.encodeIfPresent(profileReferenceID, forKey: .profileIDLower)
+        try container.encodeIfPresent(profileReferenceID, forKey: .profileIDLegacy)
         try container.encodeIfPresent(createdAt, forKey: .createdAt)
+        try container.encodeIfPresent(createdAt, forKey: .createdAtLegacy)
         try container.encodeIfPresent(editedAt, forKey: .editedAt)
+        try container.encodeIfPresent(editedAt, forKey: .updatedAt)
     }
 }
 
