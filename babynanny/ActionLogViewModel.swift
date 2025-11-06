@@ -99,6 +99,12 @@ final class ActionLogStore: ObservableObject {
 
     func performUserInitiatedRefresh() async {
         await dataStack.flushPendingSaves()
+
+        if let authManager, authManager.isAuthenticated,
+           let snapshot = await authManager.fetchCaregiverSnapshot() {
+            await reconcileWithSupabase(snapshot: snapshot)
+        }
+
         let reloadTask = reloadStateFromPersistentStore()
         await reloadTask.value
     }
@@ -601,6 +607,138 @@ private extension ActionLogStore {
             await manager.syncBabyActions(upserting: upserts,
                                           deletingIDs: deletedIDs,
                                           profileID: profileID)
+        }
+    }
+
+    func reconcileWithSupabase(snapshot: SupabaseAuthManager.CaregiverSnapshot) async {
+        let localStatesBeforeMerge = await actionStatesSnapshot()
+        let remoteIDsByProfile = snapshot.actionIdentifiersByProfile
+
+        var ignoredRemoteActions: [UUID: Set<UUID>] = [:]
+
+        for (profileID, remoteIDs) in remoteIDsByProfile {
+            guard let localState = localStatesBeforeMerge[profileID] else { continue }
+            let localActions = localState.activeActions.values + localState.history
+            let localIDs = Set(localActions.map(\.id))
+            let deletions = remoteIDs.subtracting(localIDs)
+            if deletions.isEmpty == false {
+                ignoredRemoteActions[profileID] = deletions
+            }
+        }
+
+        applySupabaseSnapshot(snapshot, ignoringRemoteActions: ignoredRemoteActions)
+
+        let localStatesAfterMerge = await actionStatesSnapshot()
+        await pushLocalStateToSupabase(localStates: localStatesAfterMerge,
+                                       remoteActionIDsByProfile: remoteIDsByProfile)
+    }
+
+    private func applySupabaseSnapshot(_ snapshot: SupabaseAuthManager.CaregiverSnapshot,
+                                       ignoringRemoteActions: [UUID: Set<UUID>] = [:]) {
+        if snapshot.metadataUpdates.isEmpty == false {
+            profileStore?.applyMetadataUpdates(snapshot.metadataUpdates)
+        }
+
+        var actionsByProfile = snapshot.actionsByProfile
+
+        for (profileID, ignoredIDs) in ignoringRemoteActions where ignoredIDs.isEmpty == false {
+            let filtered = actionsByProfile[profileID]?.filter { ignoredIDs.contains($0.id) == false } ?? []
+            actionsByProfile[profileID] = filtered
+        }
+
+        applySupabaseActions(actionsByProfile, profileIdentifiers: snapshot.profileIdentifiers)
+    }
+
+    private func applySupabaseActions(_ remoteActions: [UUID: [BabyActionSnapshot]],
+                                      profileIdentifiers: Set<UUID>) {
+        let targetProfileIDs = profileIdentifiers.union(remoteActions.keys)
+        guard targetProfileIDs.isEmpty == false else { return }
+
+        let didMutate: Bool = performLocalMutation {
+            var hasChanges = false
+
+            for profileID in targetProfileIDs {
+                let desiredActions = remoteActions[profileID]?.map { $0.withValidatedDates() } ?? []
+                let model = profileModel(for: profileID)
+                let existingModels = Dictionary(uniqueKeysWithValues: model.actions.map { ($0.id, $0) })
+                var seenIDs = Set<UUID>()
+
+                for action in desiredActions {
+                    if let existing = existingModels[action.id] {
+                        let existingSnapshot = existing.asSnapshot().withValidatedDates()
+                        let resolved = conflictResolver.resolve(local: existingSnapshot, remote: action)
+                        seenIDs.insert(existing.id)
+                        guard resolved != existingSnapshot else { continue }
+                        let sanitized = resolved.withValidatedDates()
+                        existing.update(from: sanitized)
+                        existing.profile = model
+                        hasChanges = true
+                    } else {
+                        let sanitized = action.withValidatedDates()
+                        let newAction = BabyActionModel(id: sanitized.id,
+                                                        category: sanitized.category,
+                                                        startDate: sanitized.startDate,
+                                                        endDate: sanitized.endDate,
+                                                        diaperType: sanitized.diaperType,
+                                                        feedingType: sanitized.feedingType,
+                                                        bottleType: sanitized.bottleType,
+                                                        bottleVolume: sanitized.bottleVolume,
+                                                        latitude: sanitized.latitude,
+                                                        longitude: sanitized.longitude,
+                                                        placename: sanitized.placename,
+                                                        updatedAt: sanitized.updatedAt,
+                                                        profile: model)
+                        modelContext.insert(newAction)
+                        seenIDs.insert(newAction.id)
+                        hasChanges = true
+                    }
+                }
+
+                for (identifier, actionModel) in existingModels where seenIDs.contains(identifier) == false {
+                    modelContext.delete(actionModel)
+                    hasChanges = true
+                }
+
+                cachedStates[profileID] = model.makeActionState()
+            }
+
+            return hasChanges
+        }
+
+        guard didMutate else { return }
+
+        if modelContext.hasChanges {
+            dataStack.saveIfNeeded(on: modelContext, reason: "supabase-actions-merge")
+        }
+
+        notifyChange()
+        scheduleReminders()
+        refreshDurationActivities()
+    }
+
+    private func pushLocalStateToSupabase(localStates: [UUID: ProfileActionState],
+                                          remoteActionIDsByProfile: [UUID: Set<UUID>]) async {
+        guard let authManager, authManager.isAuthenticated else { return }
+
+        for (profileID, state) in localStates {
+            let actions = (state.activeActions.values + state.history).map { $0.withValidatedDates() }
+            let localIDs = Set(actions.map(\.id))
+            let remoteIDs = remoteActionIDsByProfile[profileID] ?? []
+            let deletions = Array(remoteIDs.subtracting(localIDs))
+
+            await authManager.syncBabyActions(upserting: actions,
+                                              deletingIDs: deletions,
+                                              profileID: profileID)
+        }
+
+        let remoteOnlyProfiles = remoteActionIDsByProfile.keys.subtracting(localStates.keys)
+
+        for profileID in remoteOnlyProfiles {
+            let deletions = Array(remoteActionIDsByProfile[profileID] ?? [])
+            guard deletions.isEmpty == false else { continue }
+            await authManager.syncBabyActions(upserting: [],
+                                              deletingIDs: deletions,
+                                              profileID: profileID)
         }
     }
 

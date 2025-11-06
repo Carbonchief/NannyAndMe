@@ -402,7 +402,15 @@ final class ProfileStore: ObservableObject {
         modelContext.insert(profile)
         persistContextIfNeeded(reason: "profile-insert")
         refreshProfiles()
-        activeProfileID = profile.resolvedProfileID
+        let newProfileID = profile.resolvedProfileID
+        activeProfileID = newProfileID
+
+        Task { @MainActor [weak self] in
+            guard let self = self,
+                  let manager = self.authManager,
+                  let insertedProfile = self.profiles.first(where: { $0.id == newProfileID }) else { return }
+            await manager.upsertBabyProfiles([insertedProfile])
+        }
     }
 
     func addProfile() {
@@ -449,6 +457,13 @@ final class ProfileStore: ObservableObject {
             model.normalizeReminderPreferences()
             model.touch()
             return true
+        }
+
+        Task { @MainActor [weak self] in
+            guard let self = self,
+                  let manager = self.authManager,
+                  let updatedProfile = self.profiles.first(where: { $0.id == id }) else { return }
+            await manager.upsertBabyProfiles([updatedProfile])
         }
     }
 

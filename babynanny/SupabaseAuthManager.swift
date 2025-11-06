@@ -164,17 +164,50 @@ final class SupabaseAuthManager: ObservableObject {
         }
     }
 
-    func synchronizeCaregiverAccount(with profiles: [ChildProfile]) async {
-        guard let client, isAuthenticated else { return }
-        guard hasSynchronizedCaregiverDataForCurrentSession == false else { return }
+    func synchronizeCaregiverAccount(with profiles: [ChildProfile]) async -> CaregiverSnapshot? {
+        guard let client, isAuthenticated else { return nil }
+
+        if hasSynchronizedCaregiverDataForCurrentSession {
+            return await fetchCaregiverSnapshot()
+        }
 
         do {
             let session = try await client.auth.session
             try await upsertCaregiver(for: session.user)
             try await upsertBabyProfiles(profiles, caregiverID: session.user.id)
+            let snapshot = try await fetchCaregiverSnapshot(for: session.user.id)
             hasSynchronizedCaregiverDataForCurrentSession = true
+            return snapshot
         } catch {
             hasSynchronizedCaregiverDataForCurrentSession = false
+            lastErrorMessage = Self.userFriendlyMessage(from: error)
+            return nil
+        }
+    }
+
+    func fetchCaregiverSnapshot() async -> CaregiverSnapshot? {
+        guard let client, isAuthenticated, let caregiverID = currentUserID else { return nil }
+
+        do {
+            return try await fetchCaregiverSnapshot(for: caregiverID)
+        } catch {
+            lastErrorMessage = Self.userFriendlyMessage(from: error)
+            return nil
+        }
+    }
+
+    func upsertBabyProfiles(_ profiles: [ChildProfile]) async {
+        guard let client, isAuthenticated, let caregiverID = currentUserID else { return }
+        guard profiles.isEmpty == false else { return }
+
+        let records = profiles.map { BabyProfileRecord(profile: $0, caregiverID: caregiverID) }
+
+        do {
+            _ = try await client.database
+                .from("baby_profiles")
+                .upsert(records, onConflict: "id", returning: .minimal)
+                .execute()
+        } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
         }
     }
@@ -247,6 +280,32 @@ final class SupabaseAuthManager: ObservableObject {
             .from("baby_profiles")
             .upsert(records, onConflict: "id", returning: .minimal)
             .execute()
+    }
+
+    private func fetchCaregiverSnapshot(for caregiverID: UUID) async throws -> CaregiverSnapshot {
+        guard let client else {
+            throw SnapshotError.clientUnavailable
+        }
+
+        let profilesResponse = try await client.database
+            .from("baby_profiles")
+            .select()
+            .eq("caregiver_id", value: caregiverID.uuidString)
+            .execute()
+
+        let actionsResponse = try await client.database
+            .from("Baby_Action")
+            .select()
+            .eq("Caregiver_Id", value: caregiverID.uuidString)
+            .execute()
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let profileRecords: [BabyProfileRecord] = try decodeResponse(profilesResponse.value, decoder: decoder)
+        let actionRecords: [BabyActionRecord] = try decodeResponse(actionsResponse.value, decoder: decoder)
+
+        return CaregiverSnapshot(profiles: profileRecords, actions: actionRecords)
     }
 
     func deleteBabyProfile(withID id: UUID) async {
@@ -351,8 +410,10 @@ private struct BabyProfileRecord: Codable, Identifiable {
     var id: UUID
     var caregiverID: UUID
     var name: String
-    var dateOfBirth: String
+    var dateOfBirth: String?
     var avatarURL: String?
+    var createdAt: Date?
+    var editedAt: Date?
 
     init(profile: ChildProfile, caregiverID: UUID) {
         id = profile.id
@@ -360,6 +421,20 @@ private struct BabyProfileRecord: Codable, Identifiable {
         name = profile.name
         dateOfBirth = Self.dateFormatter.string(from: profile.birthDate)
         avatarURL = nil
+    }
+
+    func asMetadataUpdate() -> ProfileStore.ProfileMetadataUpdate {
+        ProfileStore.ProfileMetadataUpdate(
+            id: id,
+            name: name,
+            birthDate: birthDateValue,
+            imageData: nil
+        )
+    }
+
+    private var birthDateValue: Date? {
+        guard let dateOfBirth else { return nil }
+        return Self.dateFormatter.date(from: dateOfBirth)
     }
 
     private static let dateFormatter: DateFormatter = {
@@ -377,6 +452,8 @@ private struct BabyProfileRecord: Codable, Identifiable {
         case name
         case dateOfBirth = "date_of_birth"
         case avatarURL = "avatar_url"
+        case createdAt = "created_at"
+        case editedAt = "edited_at"
     }
 }
 
@@ -388,6 +465,8 @@ private struct BabyActionRecord: Codable, Identifiable {
     var stopped: Date?
     var note: String?
     var note2: String?
+    var createdAt: Date?
+    var editedAt: Date?
 
     init?(action: BabyActionSnapshot, caregiverID: UUID, profileID: UUID) {
         guard let subtypeID = SupabaseAuthManager.resolveSubtypeID(for: action) else { return nil }
@@ -398,6 +477,13 @@ private struct BabyActionRecord: Codable, Identifiable {
         self.stopped = action.endDate?.normalizedToUTC()
         self.note = SupabaseAuthManager.resolveNote(for: action)
         self.note2 = profileID.uuidString
+        self.createdAt = action.startDate.normalizedToUTC()
+        self.editedAt = action.updatedAt
+    }
+
+    var profileID: UUID? {
+        guard let note2 else { return nil }
+        return UUID(uuidString: note2)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -408,6 +494,8 @@ private struct BabyActionRecord: Codable, Identifiable {
         case stopped = "Stopped"
         case note = "Note"
         case note2 = "Note2"
+        case createdAt = "created_at"
+        case editedAt = "edited_at"
     }
 }
 
@@ -423,7 +511,58 @@ private enum SupabaseActionSubtypeID {
     static let rightBreast = UUID(uuidString: "43572b05-637a-4a5b-a85c-ce9c47a08aa5")!
 }
 
-private extension SupabaseAuthManager {
+extension SupabaseAuthManager {
+    enum SnapshotError: Error {
+        case clientUnavailable
+        case invalidPayload
+    }
+
+    struct CaregiverSnapshot: Sendable {
+        var profiles: [BabyProfileRecord]
+        var actions: [BabyActionRecord]
+
+        var profileIdentifiers: Set<UUID> {
+            var identifiers = Set(profiles.map(\.id))
+            for record in actions {
+                if let profileID = record.profileID {
+                    identifiers.insert(profileID)
+                }
+            }
+            return identifiers
+        }
+
+        var actionsByProfile: [UUID: [BabyActionSnapshot]] {
+            var grouped: [UUID: [BabyActionSnapshot]] = [:]
+
+            for record in actions {
+                guard let profileID = record.profileID,
+                      let snapshot = SupabaseAuthManager.makeSnapshot(from: record) else { continue }
+                grouped[profileID, default: []].append(snapshot)
+            }
+
+            for identifier in profileIdentifiers where grouped[identifier] == nil {
+                grouped[identifier] = []
+            }
+
+            for (key, value) in grouped {
+                grouped[key] = value.sorted(by: { $0.startDate > $1.startDate })
+            }
+
+            return grouped
+        }
+
+        var actionIdentifiersByProfile: [UUID: Set<UUID>] {
+            actions.reduce(into: [UUID: Set<UUID>]()) { partialResult, record in
+                guard let profileID = record.profileID else { return }
+                partialResult[profileID, default: []].insert(record.id)
+            }
+        }
+
+        var metadataUpdates: [ProfileStore.ProfileMetadataUpdate] {
+            profiles.map { $0.asMetadataUpdate() }
+        }
+    }
+
     nonisolated static func resolveSubtypeID(for action: BabyActionSnapshot) -> UUID? {
         switch action.category {
         case .sleep:
@@ -488,5 +627,186 @@ private extension SupabaseAuthManager {
         }
 
         return components.isEmpty ? nil : components.joined(separator: ";")
+    }
+
+    nonisolated static func makeSnapshot(from record: BabyActionRecord) -> BabyActionSnapshot? {
+        let metadata = parseMetadata(from: record.note)
+        let baseUpdatedAt = record.editedAt ?? record.createdAt ?? record.stopped ?? record.started
+
+        switch record.subtypeID {
+        case SupabaseActionSubtypeID.sleep:
+            return BabyActionSnapshot(
+                id: record.id,
+                category: .sleep,
+                startDate: record.started,
+                endDate: record.stopped,
+                latitude: metadata.latitude,
+                longitude: metadata.longitude,
+                placename: metadata.placename,
+                updatedAt: baseUpdatedAt
+            ).withValidatedDates()
+        case SupabaseActionSubtypeID.pee:
+            return BabyActionSnapshot(
+                id: record.id,
+                category: .diaper,
+                startDate: record.started,
+                endDate: record.stopped,
+                diaperType: .pee,
+                latitude: metadata.latitude,
+                longitude: metadata.longitude,
+                placename: metadata.placename,
+                updatedAt: baseUpdatedAt
+            ).withValidatedDates()
+        case SupabaseActionSubtypeID.poo:
+            return BabyActionSnapshot(
+                id: record.id,
+                category: .diaper,
+                startDate: record.started,
+                endDate: record.stopped,
+                diaperType: .poo,
+                latitude: metadata.latitude,
+                longitude: metadata.longitude,
+                placename: metadata.placename,
+                updatedAt: baseUpdatedAt
+            ).withValidatedDates()
+        case SupabaseActionSubtypeID.peeAndPoo:
+            return BabyActionSnapshot(
+                id: record.id,
+                category: .diaper,
+                startDate: record.started,
+                endDate: record.stopped,
+                diaperType: .both,
+                latitude: metadata.latitude,
+                longitude: metadata.longitude,
+                placename: metadata.placename,
+                updatedAt: baseUpdatedAt
+            ).withValidatedDates()
+        case SupabaseActionSubtypeID.bottleFormula:
+            return BabyActionSnapshot(
+                id: record.id,
+                category: .feeding,
+                startDate: record.started,
+                endDate: record.stopped,
+                feedingType: .bottle,
+                bottleType: .formula,
+                bottleVolume: metadata.volume,
+                latitude: metadata.latitude,
+                longitude: metadata.longitude,
+                placename: metadata.placename,
+                updatedAt: baseUpdatedAt
+            ).withValidatedDates()
+        case SupabaseActionSubtypeID.bottleBreastMilk:
+            return BabyActionSnapshot(
+                id: record.id,
+                category: .feeding,
+                startDate: record.started,
+                endDate: record.stopped,
+                feedingType: .bottle,
+                bottleType: .breastMilk,
+                bottleVolume: metadata.volume,
+                latitude: metadata.latitude,
+                longitude: metadata.longitude,
+                placename: metadata.placename,
+                updatedAt: baseUpdatedAt
+            ).withValidatedDates()
+        case SupabaseActionSubtypeID.meal:
+            return BabyActionSnapshot(
+                id: record.id,
+                category: .feeding,
+                startDate: record.started,
+                endDate: record.stopped,
+                feedingType: .meal,
+                latitude: metadata.latitude,
+                longitude: metadata.longitude,
+                placename: metadata.placename,
+                updatedAt: baseUpdatedAt
+            ).withValidatedDates()
+        case SupabaseActionSubtypeID.leftBreast:
+            return BabyActionSnapshot(
+                id: record.id,
+                category: .feeding,
+                startDate: record.started,
+                endDate: record.stopped,
+                feedingType: .leftBreast,
+                latitude: metadata.latitude,
+                longitude: metadata.longitude,
+                placename: metadata.placename,
+                updatedAt: baseUpdatedAt
+            ).withValidatedDates()
+        case SupabaseActionSubtypeID.rightBreast:
+            return BabyActionSnapshot(
+                id: record.id,
+                category: .feeding,
+                startDate: record.started,
+                endDate: record.stopped,
+                feedingType: .rightBreast,
+                latitude: metadata.latitude,
+                longitude: metadata.longitude,
+                placename: metadata.placename,
+                updatedAt: baseUpdatedAt
+            ).withValidatedDates()
+        default:
+            return nil
+        }
+    }
+
+    nonisolated static func parseMetadata(from note: String?) -> (volume: Int?, placename: String?, latitude: Double?, longitude: Double?) {
+        guard let note, note.isEmpty == false else { return (nil, nil, nil, nil) }
+
+        var volume: Int?
+        var placename: String?
+        var latitude: Double?
+        var longitude: Double?
+
+        let components = note.split(separator: ";")
+
+        for component in components {
+            let parts = component.split(separator: "=", maxSplits: 1).map(String.init)
+            guard parts.count == 2 else { continue }
+            let key = parts[0]
+            let value = parts[1]
+
+            switch key {
+            case "volume":
+                if let parsed = Int(value) {
+                    volume = parsed
+                }
+            case "place":
+                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.isEmpty == false {
+                    placename = trimmed
+                }
+            case "coords":
+                let coordinateParts = value.split(separator: ",", maxSplits: 1)
+                if coordinateParts.count == 2,
+                   let lat = Double(coordinateParts[0]),
+                   let lon = Double(coordinateParts[1]) {
+                    latitude = lat
+                    longitude = lon
+                }
+            default:
+                continue
+            }
+        }
+
+        return (volume, placename, latitude, longitude)
+    }
+
+    private func decodeResponse<T: Decodable>(_ value: Any, decoder: JSONDecoder) throws -> T {
+        if let data = value as? Data {
+            return try decoder.decode(T.self, from: data)
+        }
+
+        if value is NSNull {
+            let empty = Data("[]".utf8)
+            return try decoder.decode(T.self, from: empty)
+        }
+
+        guard JSONSerialization.isValidJSONObject(value) else {
+            throw SnapshotError.invalidPayload
+        }
+
+        let data = try JSONSerialization.data(withJSONObject: value)
+        return try decoder.decode(T.self, from: data)
     }
 }
