@@ -467,6 +467,7 @@ private struct BabyActionRecord: Codable, Identifiable {
     var note2: String?
     var createdAt: Date?
     var editedAt: Date?
+    var profileReferenceID: UUID?
 
     init?(action: BabyActionSnapshot, caregiverID: UUID, profileID: UUID) {
         guard let subtypeID = SupabaseAuthManager.resolveSubtypeID(for: action) else { return nil }
@@ -479,23 +480,66 @@ private struct BabyActionRecord: Codable, Identifiable {
         self.note2 = profileID.uuidString
         self.createdAt = action.startDate.normalizedToUTC()
         self.editedAt = action.updatedAt
+        self.profileReferenceID = nil
     }
 
     var profileID: UUID? {
+        if let profileReferenceID { return profileReferenceID }
         guard let note2 else { return nil }
         return UUID(uuidString: note2)
     }
 
     enum CodingKeys: String, CodingKey {
         case id
-        case caregiverID = "Caregiver_Id"
-        case subtypeID = "Subtype_Id"
-        case started = "Started"
-        case stopped = "Stopped"
+        case caregiverIDLegacy = "Caregiver_Id"
+        case caregiverIDLower = "caregiver_id"
+        case subtypeIDLegacy = "Subtype_Id"
+        case subtypeIDLower = "subtype_id"
+        case startedLegacy = "Started"
+        case startedAt = "started_at"
+        case startedLower = "started"
+        case stoppedLegacy = "Stopped"
+        case stoppedAt = "stopped_at"
+        case stoppedLower = "stopped"
         case note = "Note"
-        case note2 = "Note2"
+        case noteLower = "note"
+        case note2Legacy = "Note2"
+        case note2Lower = "note2"
         case createdAt = "created_at"
         case editedAt = "edited_at"
+        case profileIDLower = "profile_id"
+        case profileIDLegacy = "Profile_Id"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        caregiverID = try container.decode(UUID.self, forKeys: [.caregiverIDLegacy, .caregiverIDLower])
+        subtypeID = try container.decode(UUID.self, forKeys: [.subtypeIDLegacy, .subtypeIDLower])
+        started = try container.decode(Date.self, forKeys: [.startedLegacy, .startedAt, .startedLower])
+        stopped = try container.decodeIfPresent(Date.self, forKeys: [.stoppedLegacy, .stoppedAt, .stoppedLower])
+        note = try container.decodeIfPresent(String.self, forKeys: [.note, .noteLower])
+        note2 = try container.decodeIfPresent(String.self, forKeys: [.note2Legacy, .note2Lower])
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
+        editedAt = try container.decodeIfPresent(Date.self, forKey: .editedAt)
+        profileReferenceID = try container.decodeIfPresent(UUID.self, forKeys: [.profileIDLower, .profileIDLegacy])
+
+        if profileReferenceID == nil, let rawNote2 = note2 {
+            profileReferenceID = UUID(uuidString: rawNote2)
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(caregiverID, forKey: .caregiverIDLegacy)
+        try container.encode(subtypeID, forKey: .subtypeIDLegacy)
+        try container.encode(started, forKey: .startedLegacy)
+        try container.encodeIfPresent(stopped, forKey: .stoppedLegacy)
+        try container.encodeIfPresent(note, forKey: .note)
+        try container.encodeIfPresent(note2, forKey: .note2Legacy)
+        try container.encodeIfPresent(createdAt, forKey: .createdAt)
+        try container.encodeIfPresent(editedAt, forKey: .editedAt)
     }
 }
 
@@ -813,5 +857,36 @@ extension SupabaseAuthManager {
 
         let data = try JSONSerialization.data(withJSONObject: value)
         return try decoder.decode(T.self, from: data)
+    }
+}
+
+private extension KeyedDecodingContainer {
+    func decode<T: Decodable>(_ type: T.Type, forKeys keys: [Key]) throws -> T {
+        for key in keys {
+            if let value = try decodeIfPresent(type, forKey: key) {
+                return value
+            }
+        }
+
+        if let firstKey = keys.first {
+            throw DecodingError.keyNotFound(firstKey, DecodingError.Context(
+                codingPath: codingPath,
+                debugDescription: "Missing value for keys: \(keys.map(\.stringValue).joined(separator: ", "))"
+            ))
+        }
+
+        throw DecodingError.dataCorrupted(DecodingError.Context(
+            codingPath: codingPath,
+            debugDescription: "No keys provided for decoding"
+        ))
+    }
+
+    func decodeIfPresent<T: Decodable>(_ type: T.Type, forKeys keys: [Key]) throws -> T? {
+        for key in keys {
+            if let value = try decodeIfPresent(type, forKey: key) {
+                return value
+            }
+        }
+        return nil
     }
 }
