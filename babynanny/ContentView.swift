@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var profileStore: ProfileStore
+    @EnvironmentObject private var actionStore: ActionLogStore
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
     @EnvironmentObject private var authManager: SupabaseAuthManager
     @AppStorage("trackActionLocations") private var trackActionLocations = false
@@ -193,13 +194,13 @@ struct ContentView: View {
             .onChange(of: authManager.isAuthenticated) { _, isAuthenticated in
                 if isAuthenticated {
                     isAuthSheetPresented = false
-                    Task { await authManager.synchronizeCaregiverAccount(with: profileStore.profiles) }
+                    synchronizeSupabaseAccount()
                 }
             }
 
             .task(id: authManager.isAuthenticated) {
                 guard authManager.isAuthenticated else { return }
-                await authManager.synchronizeCaregiverAccount(with: profileStore.profiles)
+                synchronizeSupabaseAccount()
             }
 
             if isMenuVisible == false {
@@ -347,6 +348,15 @@ struct ContentView: View {
 
     private func handleProfileCycle(direction: ProfileNavigationDirection) {
         _ = profileStore.cycleActiveProfile(direction: direction)
+    }
+
+    private func synchronizeSupabaseAccount() {
+        let currentProfiles = profileStore.profiles
+
+        Task { @MainActor in
+            guard let snapshot = await authManager.synchronizeCaregiverAccount(with: currentProfiles) else { return }
+            await actionStore.reconcileWithSupabase(snapshot: snapshot)
+        }
     }
 }
 
