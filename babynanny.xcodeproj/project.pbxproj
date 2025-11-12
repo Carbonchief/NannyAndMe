@@ -78,19 +78,24 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		EDBCCD082E9A324500C65A0E /* DurationActivity */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				EDBCCD1C2E9A324800C65A0E /* Exceptions for "DurationActivity" folder in "DurationActivityExtension" target */,
-			);
-			path = DurationActivity;
-			sourceTree = "<group>";
-		};
-		EDD049932E93FE1A00795772 /* babynanny */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				EDBCCCFD2E9A312E00C65A0E /* Exceptions for "babynanny" folder in "babynanny" target */,
-			);
+                EDBCCD082E9A324500C65A0E /* DurationActivity */ = {
+                        isa = PBXFileSystemSynchronizedRootGroup;
+                        exceptions = (
+                                EDBCCD1C2E9A324800C65A0E /* Exceptions for "DurationActivity" folder in "DurationActivityExtension" target */,
+                        );
+                        path = DurationActivity;
+                        sourceTree = "<group>";
+                };
+                EDFCEBC62F1A3A5D00A9F08A /* Shared */ = {
+                        isa = PBXFileSystemSynchronizedRootGroup;
+                        path = Shared;
+                        sourceTree = "<group>";
+                };
+                EDD049932E93FE1A00795772 /* babynanny */ = {
+                        isa = PBXFileSystemSynchronizedRootGroup;
+                        exceptions = (
+                                EDBCCCFD2E9A312E00C65A0E /* Exceptions for "babynanny" folder in "babynanny" target */,
+                        );
 			path = babynanny;
 			sourceTree = "<group>";
 		};
@@ -150,18 +155,19 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		EDD049882E93FE1A00795772 = {
-			isa = PBXGroup;
-			children = (
-				EDD049932E93FE1A00795772 /* babynanny */,
-				EDD049A42E93FE1E00795772 /* babynannyTests */,
-				EDD049AE2E93FE1E00795772 /* babynannyUITests */,
-				EDBCCD082E9A324500C65A0E /* DurationActivity */,
-				EDBCCD032E9A324500C65A0E /* Frameworks */,
-				EDD049922E93FE1A00795772 /* Products */,
-			);
-			sourceTree = "<group>";
-		};
+                EDD049882E93FE1A00795772 = {
+                        isa = PBXGroup;
+                        children = (
+                                EDD049932E93FE1A00795772 /* babynanny */,
+                                EDD049A42E93FE1E00795772 /* babynannyTests */,
+                                EDD049AE2E93FE1E00795772 /* babynannyUITests */,
+                                EDBCCD082E9A324500C65A0E /* DurationActivity */,
+                                EDFCEBC62F1A3A5D00A9F08A /* Shared */,
+                                EDBCCD032E9A324500C65A0E /* Frameworks */,
+                                EDD049922E93FE1A00795772 /* Products */,
+                        );
+                        sourceTree = "<group>";
+                };
 		EDD049922E93FE1A00795772 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -188,9 +194,10 @@
 			);
 			dependencies = (
 			);
-			fileSystemSynchronizedGroups = (
-				EDBCCD082E9A324500C65A0E /* DurationActivity */,
-			);
+                        fileSystemSynchronizedGroups = (
+                                EDBCCD082E9A324500C65A0E /* DurationActivity */,
+                                EDFCEBC62F1A3A5D00A9F08A /* Shared */,
+                        );
 			name = DurationActivityExtension;
 			packageProductDependencies = (
 			);
@@ -212,9 +219,10 @@
 			dependencies = (
 				EDBCCD172E9A324800C65A0E /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				EDD049932E93FE1A00795772 /* babynanny */,
-			);
+                        fileSystemSynchronizedGroups = (
+                                EDD049932E93FE1A00795772 /* babynanny */,
+                                EDFCEBC62F1A3A5D00A9F08A /* Shared */,
+                        );
 			name = babynanny;
 			packageProductDependencies = (
 				EDFCEBA12F0A5E1C00A9F08A /* Supabase */,

@@ -37,23 +37,9 @@ struct DurationWidgetSnapshot: Equatable, Sendable {
 }
 
 struct DurationWidgetAction: Identifiable, Codable, Equatable, Sendable {
-    enum DiaperType: String, Codable, Sendable {
-        case pee
-        case poo
-        case both
-    }
-
-    enum FeedingType: String, Codable, Sendable {
-        case bottle
-        case leftBreast
-        case rightBreast
-        case meal
-    }
-
-    enum BottleType: String, Codable, Sendable {
-        case formula
-        case breastMilk
-    }
+    typealias DiaperType = BabyActionDiaperType
+    typealias FeedingType = BabyActionFeedingType
+    typealias BottleType = BabyActionBottleType
 
     let id: UUID
     let category: BabyActionCategory
@@ -97,7 +83,11 @@ struct DurationWidgetAction: Identifiable, Codable, Equatable, Sendable {
                 return WidgetL10n.Actions.feedingWithType(WidgetL10n.FeedingType.rightBreast)
             case .meal:
                 return WidgetL10n.Actions.feedingWithType(WidgetL10n.FeedingType.meal)
+            @unknown default:
+                return WidgetL10n.Actions.feeding
             }
+        @unknown default:
+            return WidgetL10n.Actions.feeding
         }
     }
 
@@ -112,27 +102,27 @@ struct DurationWidgetAction: Identifiable, Codable, Equatable, Sendable {
     }
 }
 
-private extension DurationWidgetAction.BottleType {
+private extension BabyActionBottleType {
     var localizedTitle: String {
         switch self {
         case .formula:
             return WidgetL10n.BottleType.formula
         case .breastMilk:
             return WidgetL10n.BottleType.breastMilk
+        @unknown default:
+            return WidgetL10n.BottleType.formula
         }
     }
 }
 
-enum BabyActionCategory: String, Codable, Sendable {
-    case sleep
-    case diaper
-    case feeding
-
+private extension BabyActionCategory {
     var isLongRunning: Bool {
         switch self {
         case .diaper:
             return false
         case .sleep, .feeding:
+            return true
+        @unknown default:
             return true
         }
     }
