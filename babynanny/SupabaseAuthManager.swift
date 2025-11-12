@@ -14,6 +14,7 @@ final class SupabaseAuthManager: ObservableObject {
 
     private let client: SupabaseClient?
     private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "supabase-actions")
+    private let snapshotLogger = Logger(subsystem: "com.prioritybit.babynanny", category: "supabase-snapshot")
     private var hasSynchronizedCaregiverDataForCurrentSession = false
     private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
 
@@ -186,12 +187,26 @@ final class SupabaseAuthManager: ObservableObject {
     }
 
     func fetchCaregiverSnapshot() async -> CaregiverSnapshot? {
-        guard client != nil, isAuthenticated, let caregiverID = currentUserID else { return nil }
+        guard let client = client, isAuthenticated else { return nil }
 
         do {
-            return try await fetchCaregiverSnapshot(for: caregiverID)
+            let caregiverID: UUID
+
+            if let cachedID = currentUserID {
+                caregiverID = cachedID
+            } else {
+                let session = try await client.auth.session
+                caregiverID = session.user.id
+                currentUserID = session.user.id
+                currentUserEmail = session.user.email
+                logger.log("Resolved caregiver ID from Supabase session during snapshot fetch.")
+            }
+
+            let snapshot = try await fetchCaregiverSnapshot(for: caregiverID)
+            return snapshot
         } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
+            logger.error("Failed to fetch caregiver snapshot: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }
@@ -287,23 +302,36 @@ final class SupabaseAuthManager: ObservableObject {
             throw SnapshotError.clientUnavailable
         }
 
-        let profilesResponse = try await client.database
-            .from("baby_profiles")
-            .select()
-            .eq("caregiver_id", value: caregiverID.uuidString)
-            .execute()
-
-        let actionsResponse = try await client.database
-            .from("Baby_Action")
-            .select()
-            .eq("Caregiver_Id", value: caregiverID.uuidString)
-            .execute()
+        let caregiverIdentifier = caregiverID.uuidString.lowercased()
+        snapshotLogger.log("Fetching caregiver snapshot for caregiver_id=\(caregiverIdentifier, privacy: .public)")
 
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom(SupabaseDateDecoder.decode)
 
-        let profileRecords: [BabyProfileRecord] = try decodeResponse(profilesResponse.value, decoder: decoder)
-        let actionRecords: [BabyActionRecord] = try decodeResponse(actionsResponse.value, decoder: decoder)
+        let profilesResponse: PostgrestResponse<[BabyProfileRecord]> = try await client.database
+            .from("baby_profiles")
+            .select()
+            .eq("caregiver_id", value: caregiverIdentifier)
+            .execute()
+        snapshotLogger.log("baby_profiles full response: \(String(describing: profilesResponse), privacy: .private)")
+        logRawSupabaseResponse(profilesResponse.value, context: "profiles")
+
+        let actionsResponse: PostgrestResponse<[BabyActionRecord]> = try await client.database
+            .from("Baby_Action")
+            .select()
+            .eq("Caregiver_Id", value: caregiverIdentifier)
+            .execute()
+        snapshotLogger.log("Baby_Action full response: \(String(describing: actionsResponse), privacy: .private)")
+        logRawSupabaseResponse(actionsResponse.value, context: "actions")
+
+        let profileRecords: [BabyProfileRecord] = try decodeResponse(profilesResponse.value,
+                                                                     decoder: decoder,
+                                                                     context: "profiles")
+        let actionRecords: [BabyActionRecord] = try decodeResponse(actionsResponse.value,
+                                                                   decoder: decoder,
+                                                                   context: "actions")
+
+        snapshotLogger.log("Decoded snapshot successfully. profiles=\(profileRecords.count, privacy: .public) actions=\(actionRecords.count, privacy: .public)")
 
         return CaregiverSnapshot(profiles: profileRecords, actions: actionRecords)
     }
@@ -389,6 +417,64 @@ final class SupabaseAuthManager: ObservableObject {
         return messageSources.contains { message in
             message.localizedCaseInsensitiveContains("email not confirmed")
         }
+    }
+
+}
+
+private enum SupabaseDateDecoder {
+    static func decode(_ decoder: Decoder) throws -> Date {
+        let container = try decoder.singleValueContainer()
+
+        if let string = try? container.decode(String.self) {
+            if let date = iso8601Formatter(fractional: true).date(from: string)
+                ?? iso8601Formatter(fractional: false).date(from: string)
+                ?? plainDateTimeFormatter().date(from: string)
+                ?? spaceSeparatedFormatter().date(from: string) {
+                return date
+            }
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Invalid date string: \(string)"
+            )
+        }
+
+        if let milliseconds = try? container.decode(Double.self) {
+            return Date(timeIntervalSince1970: milliseconds / 1000)
+        }
+
+        throw DecodingError.dataCorruptedError(
+            in: container,
+            debugDescription: "Unsupported date value"
+        )
+    }
+
+    private static func iso8601Formatter(fractional: Bool) -> ISO8601DateFormatter {
+        let formatter = ISO8601DateFormatter()
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        if fractional {
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        } else {
+            formatter.formatOptions = [.withInternetDateTime]
+        }
+        return formatter
+    }
+
+    private static func plainDateTimeFormatter() -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        return formatter
+    }
+
+    private static func spaceSeparatedFormatter() -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ssXXXXX"
+        return formatter
     }
 }
 
@@ -544,23 +630,14 @@ private struct BabyActionRecord: Codable, Identifiable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(caregiverID, forKey: .caregiverIDLegacy)
-        try container.encode(caregiverID, forKey: .caregiverIDLower)
         try container.encode(subtypeID, forKey: .subtypeIDLegacy)
-        try container.encode(subtypeID, forKey: .subtypeIDLower)
         try container.encode(started, forKey: .startedLegacy)
-        try container.encode(started, forKey: .startedAt)
         try container.encodeIfPresent(stopped, forKey: .stoppedLegacy)
-        try container.encodeIfPresent(stopped, forKey: .stoppedAt)
         try container.encodeIfPresent(note, forKey: .note)
-        try container.encodeIfPresent(note, forKey: .noteLower)
         try container.encodeIfPresent(note2, forKey: .note2Legacy)
-        try container.encodeIfPresent(note2, forKey: .note2Lower)
-        try container.encodeIfPresent(profileReferenceID, forKey: .profileIDLower)
         try container.encodeIfPresent(profileReferenceID, forKey: .profileIDLegacy)
         try container.encodeIfPresent(createdAt, forKey: .createdAt)
-        try container.encodeIfPresent(createdAt, forKey: .createdAtLegacy)
         try container.encodeIfPresent(editedAt, forKey: .editedAt)
-        try container.encodeIfPresent(editedAt, forKey: .updatedAt)
     }
 }
 
@@ -630,6 +707,14 @@ extension SupabaseAuthManager {
 
         var metadataUpdates: [ProfileStore.ProfileMetadataUpdate] {
             profiles.map { $0.asMetadataUpdate() }
+        }
+
+        var profileCount: Int {
+            profiles.count
+        }
+
+        var actionCount: Int {
+            actions.count
         }
     }
 
@@ -862,23 +947,120 @@ extension SupabaseAuthManager {
         return (volume, placename, latitude, longitude)
     }
 
-    private func decodeResponse<T: Decodable>(_ value: Any, decoder: JSONDecoder) throws -> T {
+    private func decodeResponse<T: Decodable>(_ value: Any,
+                                              decoder: JSONDecoder,
+                                              context: String) throws -> T {
+        snapshotLogger.log("Decoding \(context, privacy: .public) payload. incomingType=\(String(describing: type(of: value)), privacy: .public)")
         if let data = value as? Data {
-            return try decoder.decode(T.self, from: data)
+            snapshotLogger.log("\(context, privacy: .public) payload is raw Data with length \(data.count, privacy: .public)")
+            logPayloadData(data, context: context)
+            return try decodePayload(decoder: decoder, data: data, context: context)
         }
 
         if value is NSNull {
             let empty = Data("[]".utf8)
-            return try decoder.decode(T.self, from: empty)
+            snapshotLogger.log("\(context, privacy: .public) payload is NSNull; using empty array.")
+            logPayloadData(empty, context: context)
+            return try decodePayload(decoder: decoder, data: empty, context: context)
         }
 
         guard JSONSerialization.isValidJSONObject(value) else {
+            snapshotLogger.error("\(context, privacy: .public) payload is not valid JSON. value=\(String(describing: value), privacy: .private)")
             throw SnapshotError.invalidPayload
         }
 
+        if let dictionary = value as? [String: Any] {
+            if let nested = dictionary["data"] {
+                let data = try JSONSerialization.data(withJSONObject: nested)
+                logPayloadData(data, context: context)
+                return try decodePayload(decoder: decoder, data: data, context: context)
+            } else if dictionary["count"] != nil {
+                let empty = Data("[]".utf8)
+                snapshotLogger.log("\(context, privacy: .public) payload contains only count; using empty array.")
+                logPayloadData(empty, context: context)
+                return try decodePayload(decoder: decoder, data: empty, context: context)
+            }
+        }
+
+        let verboseDescription: String
+        if let value = value as? CustomDebugStringConvertible {
+            verboseDescription = value.debugDescription
+        } else {
+            verboseDescription = String(describing: value)
+        }
+        snapshotLogger.log("\(context, privacy: .public) payload detail: \(verboseDescription, privacy: .public)")
+        logger.log("Snapshot \(context, privacy: .public) payload detail: \(verboseDescription, privacy: .public)")
+        print("[SupabaseAuthManager] \(context) payload detail: \(verboseDescription)")
+
         let data = try JSONSerialization.data(withJSONObject: value)
-        return try decoder.decode(T.self, from: data)
+        snapshotLogger.log("\(context, privacy: .public) payload decoded from JSONObject of size \(data.count, privacy: .public)")
+        logPayloadData(data, context: context)
+        return try decodePayload(decoder: decoder, data: data, context: context)
     }
+
+    private func decodePayload<T: Decodable>(decoder: JSONDecoder,
+                                             data: Data,
+                                             context: String) throws -> T {
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            let preview = payloadPreview(from: data)
+            let message = "Decoding \(context) failed: \(error.localizedDescription). payloadPreview=\(preview)"
+            snapshotLogger.error("Decoding \(context, privacy: .public) failed: \(error.localizedDescription, privacy: .public). payloadPreview=\(preview, privacy: .public)")
+            logger.error("Decoding \(context, privacy: .public) failed: \(error.localizedDescription, privacy: .public). payloadPreview=\(preview, privacy: .public)")
+            print("[SupabaseAuthManager] \(message)")
+            throw error
+        }
+    }
+
+    private func logPayloadData(_ data: Data, context: String) {
+        let preview = payloadPreview(from: data)
+        snapshotLogger.log("\(context, privacy: .public) payload preview: \(preview, privacy: .public)")
+        logger.log("Snapshot \(context, privacy: .public) payload preview: \(preview, privacy: .public)")
+        print("[SupabaseAuthManager] \(context) payload preview: \(preview)")
+    }
+
+    private func payloadPreview(from data: Data) -> String {
+        if let string = String(data: data, encoding: .utf8) {
+            let singleLine = string.replacingOccurrences(of: "\n", with: " ")
+            if singleLine.count > 2000 {
+                let prefix = singleLine.prefix(2000)
+                return "\(prefix)… (truncated)"
+            }
+            return singleLine
+        }
+
+        let prefix = data.prefix(1024)
+        return prefix.map { String(format: "%02hhx", $0) }.joined()
+    }
+
+    private func logRawSupabaseResponse(_ value: Any?, context: String) {
+        guard let value else {
+            snapshotLogger.log("Raw \(context, privacy: .public) response value is nil.")
+            print("[SupabaseAuthManager] \(context) response value: nil")
+            return
+        }
+
+        if let data = value as? Data {
+            let preview = payloadPreview(from: data)
+            snapshotLogger.log("Raw \(context, privacy: .public) response data preview: \(preview, privacy: .public)")
+            print("[SupabaseAuthManager] \(context) response data preview: \(preview)")
+            return
+        }
+
+        if JSONSerialization.isValidJSONObject(value),
+           let jsonData = try? JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted]) {
+            let preview = payloadPreview(from: jsonData)
+            snapshotLogger.log("Raw \(context, privacy: .public) response JSON preview: \(preview, privacy: .public)")
+            print("[SupabaseAuthManager] \(context) response JSON preview: \(preview)")
+            return
+        }
+
+        let description = String(describing: value)
+        snapshotLogger.log("Raw \(context, privacy: .public) response description: \(description, privacy: .public)")
+        print("[SupabaseAuthManager] \(context) response description: \(description)")
+    }
+
 }
 
 private extension KeyedDecodingContainer {

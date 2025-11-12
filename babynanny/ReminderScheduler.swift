@@ -1,5 +1,6 @@
-@preconcurrency import UserNotifications
 import Foundation
+import os
+@preconcurrency import UserNotifications
 
 // Swift 6: make generic payloads sendable across potential thread hops.
 private func resumeOnMain<T: Sendable>(_ continuation: CheckedContinuation<T, Never>, returning value: T) {
@@ -185,6 +186,8 @@ extension UserNotificationCenterAdapter: @unchecked Sendable {}
 
 @MainActor
 final class UserNotificationReminderScheduler: ReminderScheduling {
+    private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "reminder-scheduler")
+
     fileprivate struct ReminderPlan: Sendable {
         let identifier: String
         let fireDate: Date
@@ -425,8 +428,12 @@ private extension UserNotificationReminderScheduler {
     /// so the closure is non-isolated. Prevents `_swift_task_checkIsolatedSwift`.
     func add(_ request: UNNotificationRequest) async throws {
         let center = self.center
+        logger.log("Scheduling notification request \(request.identifier, privacy: .public)")
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            addNotificationRequest(center: center, request: request, continuation: continuation)
+            addNotificationRequest(center: center,
+                                   request: request,
+                                   continuation: continuation,
+                                   logger: logger)
         }
     }
 
@@ -456,12 +463,15 @@ private extension UserNotificationReminderScheduler {
 private func addNotificationRequest(
     center: any (UserNotificationCenterType & Sendable),
     request: UNNotificationRequest,
-    continuation: CheckedContinuation<Void, Error>
+    continuation: CheckedContinuation<Void, Error>,
+    logger: Logger?
 ) {
     center.add(request) { error in
         if let error {
+            logger?.error("Failed to schedule notification \(request.identifier, privacy: .public): \(error.localizedDescription, privacy: .public)")
             resumeOnMain(continuation, throwing: error)
         } else {
+            logger?.log("Notification \(request.identifier, privacy: .public) scheduled successfully.")
             resumeOnMain(continuation, returning: ())
         }
     }
