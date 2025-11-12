@@ -2,11 +2,7 @@ import Foundation
 import SwiftData
 import SwiftUI
 
-enum BabyActionCategory: String, CaseIterable, Identifiable, Codable, Sendable {
-    case sleep
-    case diaper
-    case feeding
-
+extension BabyActionCategory: Identifiable {
     var id: String { rawValue }
 
     var title: String {
@@ -16,6 +12,8 @@ enum BabyActionCategory: String, CaseIterable, Identifiable, Codable, Sendable {
         case .diaper:
             return L10n.Actions.diaper
         case .feeding:
+            return L10n.Actions.feeding
+        @unknown default:
             return L10n.Actions.feeding
         }
     }
@@ -28,6 +26,8 @@ enum BabyActionCategory: String, CaseIterable, Identifiable, Codable, Sendable {
             return "sparkles"
         case .feeding:
             return "fork.knife"
+        @unknown default:
+            return "sparkles"
         }
     }
 
@@ -39,6 +39,8 @@ enum BabyActionCategory: String, CaseIterable, Identifiable, Codable, Sendable {
             return Color.green
         case .feeding:
             return Color.orange
+        @unknown default:
+            return Color.accentColor
         }
     }
 
@@ -48,6 +50,8 @@ enum BabyActionCategory: String, CaseIterable, Identifiable, Codable, Sendable {
             return true
         case .sleep, .feeding:
             return false
+        @unknown default:
+            return false
         }
     }
 
@@ -56,91 +60,93 @@ enum BabyActionCategory: String, CaseIterable, Identifiable, Codable, Sendable {
     }
 }
 
+extension BabyActionDiaperType: Identifiable {
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .pee:
+            return L10n.DiaperType.pee
+        case .poo:
+            return L10n.DiaperType.poo
+        case .both:
+            return L10n.DiaperType.both
+        @unknown default:
+            return L10n.DiaperType.pee
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .pee:
+            return "drop.fill"
+        case .poo:
+            return "leaf.fill"
+        case .both:
+            return "drop.circle.fill"
+        @unknown default:
+            return "sparkles"
+        }
+    }
+}
+
+extension BabyActionFeedingType: Identifiable {
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .bottle:
+            return L10n.FeedingType.bottle
+        case .leftBreast:
+            return L10n.FeedingType.leftBreast
+        case .rightBreast:
+            return L10n.FeedingType.rightBreast
+        case .meal:
+            return L10n.FeedingType.meal
+        @unknown default:
+            return L10n.FeedingType.bottle
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .bottle:
+            return "waterbottle.fill"
+        case .leftBreast:
+            return "heart.fill"
+        case .rightBreast:
+            return "heart.circle.fill"
+        case .meal:
+            return "fork.knife.circle.fill"
+        @unknown default:
+            return "fork.knife"
+        }
+    }
+
+    var requiresVolume: Bool {
+        self == .bottle
+    }
+}
+
+extension BabyActionBottleType: Identifiable {
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .formula:
+            return L10n.BottleType.formula
+        case .breastMilk:
+            return L10n.BottleType.breastMilk
+        @unknown default:
+            return L10n.BottleType.formula
+        }
+    }
+}
+
 struct BabyActionSnapshot: Identifiable, Codable, Equatable, Sendable {
-    enum DiaperType: String, CaseIterable, Identifiable, Codable, Sendable {
-        case pee
-        case poo
-        case both
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .pee:
-                return L10n.DiaperType.pee
-            case .poo:
-                return L10n.DiaperType.poo
-            case .both:
-                return L10n.DiaperType.both
-            }
-        }
-
-        var icon: String {
-            switch self {
-            case .pee:
-                return "drop.fill"
-            case .poo:
-                return "leaf.fill"
-            case .both:
-                return "drop.circle.fill"
-            }
-        }
-    }
-
-    enum FeedingType: String, CaseIterable, Identifiable, Codable, Sendable {
-        case bottle
-        case leftBreast
-        case rightBreast
-        case meal
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .bottle:
-                return L10n.FeedingType.bottle
-            case .leftBreast:
-                return L10n.FeedingType.leftBreast
-            case .rightBreast:
-                return L10n.FeedingType.rightBreast
-            case .meal:
-                return L10n.FeedingType.meal
-            }
-        }
-
-        var icon: String {
-            switch self {
-            case .bottle:
-                return "waterbottle.fill"
-            case .leftBreast:
-                return "heart.fill"
-            case .rightBreast:
-                return "heart.circle.fill"
-            case .meal:
-                return "fork.knife.circle.fill"
-            }
-        }
-
-        var requiresVolume: Bool {
-            self == .bottle
-        }
-    }
-
-    enum BottleType: String, CaseIterable, Identifiable, Codable, Sendable {
-        case formula
-        case breastMilk
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .formula:
-                return L10n.BottleType.formula
-            case .breastMilk:
-                return L10n.BottleType.breastMilk
-            }
-        }
-    }
+    typealias DiaperType = BabyActionDiaperType
+    typealias FeedingType = BabyActionFeedingType
+    typealias BottleType = BabyActionBottleType
 
     var id: UUID
     let category: BabyActionCategory
@@ -336,9 +342,9 @@ extension BabyActionSnapshot {
         startDateStorage = decodedStartDate.normalizedToUTC()
         let decodedEndDate = try container.decodeIfPresent(Date.self, forKey: .endDateStorage)
         endDateStorage = decodedEndDate?.normalizedToUTC()
-        diaperType = try container.decodeIfPresent(DiaperType.self, forKey: .diaperType)
-        feedingType = try container.decodeIfPresent(FeedingType.self, forKey: .feedingType)
-        bottleType = try container.decodeIfPresent(BottleType.self, forKey: .bottleType)
+        diaperType = try container.decodeIfPresent(BabyActionDiaperType.self, forKey: .diaperType)
+        feedingType = try container.decodeIfPresent(BabyActionFeedingType.self, forKey: .feedingType)
+        bottleType = try container.decodeIfPresent(BabyActionBottleType.self, forKey: .bottleType)
         bottleVolume = try container.decodeIfPresent(Int.self, forKey: .bottleVolume)
         latitude = try container.decodeIfPresent(Double.self, forKey: .latitude)
         longitude = try container.decodeIfPresent(Double.self, forKey: .longitude)
@@ -722,9 +728,9 @@ final class BabyAction {
          category: BabyActionCategory = .sleep,
          startDate: Date = Date(),
          endDate: Date? = nil,
-         diaperType: BabyActionSnapshot.DiaperType? = nil,
-         feedingType: BabyActionSnapshot.FeedingType? = nil,
-         bottleType: BabyActionSnapshot.BottleType? = nil,
+         diaperType: BabyActionDiaperType? = nil,
+         feedingType: BabyActionFeedingType? = nil,
+         bottleType: BabyActionBottleType? = nil,
          bottleVolume: Int? = nil,
          latitude: Double? = nil,
          longitude: Double? = nil,
@@ -787,30 +793,30 @@ extension BabyAction {
         }
     }
 
-    var diaperType: BabyActionSnapshot.DiaperType? {
+    var diaperType: BabyActionDiaperType? {
         get {
             guard let rawValue = diaperTypeRawValue else { return nil }
-            return BabyActionSnapshot.DiaperType(rawValue: rawValue)
+            return BabyActionDiaperType(rawValue: rawValue)
         }
         set {
             diaperTypeRawValue = newValue?.rawValue
         }
     }
 
-    var feedingType: BabyActionSnapshot.FeedingType? {
+    var feedingType: BabyActionFeedingType? {
         get {
             guard let rawValue = feedingTypeRawValue else { return nil }
-            return BabyActionSnapshot.FeedingType(rawValue: rawValue)
+            return BabyActionFeedingType(rawValue: rawValue)
         }
         set {
             feedingTypeRawValue = newValue?.rawValue
         }
     }
 
-    var bottleType: BabyActionSnapshot.BottleType? {
+    var bottleType: BabyActionBottleType? {
         get {
             guard let rawValue = bottleTypeRawValue else { return nil }
-            return BabyActionSnapshot.BottleType(rawValue: rawValue)
+            return BabyActionBottleType(rawValue: rawValue)
         }
         set {
             bottleTypeRawValue = newValue?.rawValue
