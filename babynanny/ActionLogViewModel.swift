@@ -12,6 +12,7 @@ final class ActionLogStore: ObservableObject {
         var placename: String?
     }
 
+    private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "action-log-store")
     private let modelContext: ModelContext
     private let reminderScheduler: ReminderScheduling?
     private weak var profileStore: ProfileStore?
@@ -99,20 +100,32 @@ final class ActionLogStore: ObservableObject {
     }
 
     func performUserInitiatedRefresh() async {
+        logger.log("User-initiated refresh started. Auth available: \(self.authManager != nil, privacy: .public)")
+        let isAuthenticated = authManager?.isAuthenticated ?? false
+        logger.log("Auth status before refresh: \(isAuthenticated, privacy: .public)")
         await dataStack.flushPendingSaves()
 
         if let authManager, authManager.isAuthenticated,
            let snapshot = await authManager.fetchCaregiverSnapshot() {
+            logger.log("Fetched Supabase snapshot. profiles=\(snapshot.profileCount, privacy: .public) actions=\(snapshot.actionCount, privacy: .public)")
             await reconcileWithSupabase(snapshot: snapshot)
+        } else {
+            if let authManager {
+                logger.warning("Skipping Supabase snapshot fetch. isAuthenticated=\(authManager.isAuthenticated, privacy: .public)")
+            } else {
+                logger.warning("Skipping Supabase snapshot fetch. authManager missing.")
+            }
         }
 
         let reloadTask = reloadStateFromPersistentStore()
         await reloadTask.value
+        logger.log("User-initiated refresh completed.")
     }
 
     func reconcileWithSupabase(snapshot: SupabaseAuthManager.CaregiverSnapshot) async {
         let localStatesBeforeMerge = await actionStatesSnapshot()
         let remoteIDsByProfile = snapshot.actionIdentifiersByProfile
+        logger.log("Reconciling Supabase snapshot. remoteProfiles=\(remoteIDsByProfile.count, privacy: .public) localProfiles=\(localStatesBeforeMerge.count, privacy: .public)")
 
         let remoteProfileIDs = Set(remoteIDsByProfile.keys)
         let stalePendingProfiles = pendingRemoteDeletions.keys.filter { remoteProfileIDs.contains($0) == false }
@@ -142,12 +155,17 @@ final class ActionLogStore: ObservableObject {
                 ignoredRemoteActions[profileID] = deletions
             }
         }
+        let ignoredCount = ignoredRemoteActions.reduce(0) { $0 + $1.value.count }
+        if ignoredCount > 0 {
+            logger.log("Ignoring \(ignoredCount, privacy: .public) remote actions due to pending deletions.")
+        }
 
         applySupabaseSnapshot(snapshot, ignoringRemoteActions: ignoredRemoteActions)
 
         let localStatesAfterMerge = await actionStatesSnapshot()
         await pushLocalStateToSupabase(localStates: localStatesAfterMerge,
                                        remoteActionIDsByProfile: remoteIDsByProfile)
+        logger.log("Supabase reconciliation finished. postMergeProfiles=\(localStatesAfterMerge.count, privacy: .public)")
     }
 
     func synchronizeProfileMetadata(_ profiles: [ChildProfile]) {
@@ -661,13 +679,19 @@ private extension ActionLogStore {
                                        ignoringRemoteActions: [UUID: Set<UUID>] = [:]) {
         if snapshot.metadataUpdates.isEmpty == false {
             profileStore?.applyMetadataUpdates(snapshot.metadataUpdates)
+            logger.log("Applied \(snapshot.metadataUpdates.count, privacy: .public) metadata updates from Supabase.")
         }
 
         var actionsByProfile = snapshot.actionsByProfile
+        let totalIncomingActions = actionsByProfile.reduce(into: 0) { partialResult, element in
+            partialResult += element.value.count
+        }
+        logger.log("Processing \(totalIncomingActions, privacy: .public) incoming actions across \(actionsByProfile.count, privacy: .public) profiles.")
 
         for (profileID, ignoredIDs) in ignoringRemoteActions where ignoredIDs.isEmpty == false {
             let filtered = actionsByProfile[profileID]?.filter { ignoredIDs.contains($0.id) == false } ?? []
             actionsByProfile[profileID] = filtered
+            logger.log("Filtered \(ignoredIDs.count, privacy: .public) ignored remote actions for profile \(profileID, privacy: .public).")
         }
 
         applySupabaseActions(actionsByProfile, profileIdentifiers: snapshot.profileIdentifiers)
@@ -677,6 +701,7 @@ private extension ActionLogStore {
                                       profileIdentifiers: Set<UUID>) {
         let targetProfileIDs = profileIdentifiers.union(remoteActions.keys)
         guard targetProfileIDs.isEmpty == false else { return }
+        logger.log("Applying remote actions for \(targetProfileIDs.count, privacy: .public) profiles.")
 
         let didMutate: Bool = performLocalMutation {
             var hasChanges = false
@@ -730,9 +755,11 @@ private extension ActionLogStore {
         }
 
         guard didMutate else { return }
+        logger.log("Remote actions resulted in local mutations.")
 
         if modelContext.hasChanges {
             dataStack.saveIfNeeded(on: modelContext, reason: "supabase-actions-merge")
+            logger.log("Saved model context after applying remote actions.")
         }
 
         notifyChange()
@@ -743,6 +770,7 @@ private extension ActionLogStore {
     private func pushLocalStateToSupabase(localStates: [UUID: ProfileActionState],
                                           remoteActionIDsByProfile: [UUID: Set<UUID>]) async {
         guard let authManager, authManager.isAuthenticated else { return }
+        logger.log("Pushing local state for \(localStates.count, privacy: .public) profiles back to Supabase.")
 
         for (profileID, state) in localStates {
             let actions = (state.activeActions.values + state.history).map { $0.withValidatedDates() }
@@ -753,6 +781,7 @@ private extension ActionLogStore {
             await authManager.syncBabyActions(upserting: actions,
                                               deletingIDs: deletions,
                                               profileID: profileID)
+            logger.log("Queued sync for profile \(profileID, privacy: .public). upserts=\(actions.count, privacy: .public) deletions=\(deletions.count, privacy: .public)")
         }
 
         let remoteOnlyProfiles = Set(remoteActionIDsByProfile.keys).subtracting(localStates.keys)
@@ -763,6 +792,7 @@ private extension ActionLogStore {
             await authManager.syncBabyActions(upserting: [],
                                               deletingIDs: deletions,
                                               profileID: profileID)
+            logger.log("Queued remote-only deletion sync for profile \(profileID, privacy: .public) with \(deletions.count, privacy: .public) deletions.")
         }
     }
 
