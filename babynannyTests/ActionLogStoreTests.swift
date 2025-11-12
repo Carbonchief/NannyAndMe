@@ -119,6 +119,38 @@ struct ActionLogStoreTests {
 
         #expect(resolved == remote)
     }
+
+    @Test
+    func conflictResolverTreatsNearIdenticalTimestampsAsEqual() {
+        var local = BabyActionSnapshot(category: .diaper, startDate: Date(timeIntervalSince1970: 0), diaperType: .poo)
+        local.updatedAt = Date(timeIntervalSince1970: 10)
+        var remote = local
+        remote.updatedAt = local.updatedAt.addingTimeInterval(-0.5)
+        remote.diaperType = .pee
+
+        var resolver = ActionConflictResolver()
+        resolver.timestampEqualityTolerance = 1
+
+        let resolved = resolver.resolve(local: local, remote: remote)
+
+        #expect(resolved == remote)
+    }
+
+    @Test
+    func conflictResolverKeepsMeaningfullyNewerLocalSnapshot() {
+        var local = BabyActionSnapshot(category: .feeding, startDate: Date(timeIntervalSince1970: 0), feedingType: .bottle)
+        local.updatedAt = Date(timeIntervalSince1970: 20)
+        var remote = local
+        remote.updatedAt = local.updatedAt.addingTimeInterval(-5)
+        remote.feedingType = .meal
+
+        var resolver = ActionConflictResolver()
+        resolver.timestampEqualityTolerance = 1
+
+        let resolved = resolver.resolve(local: local, remote: remote)
+
+        #expect(resolved == local)
+    }
 }
 
 @MainActor
