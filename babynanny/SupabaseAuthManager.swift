@@ -142,11 +142,11 @@ final class SupabaseAuthManager: ObservableObject {
                 throw AppleSignInError.missingNonce
             }
 
-            let response = try await client.auth.signInWithIdToken(
+            let session = try await client.auth.signInWithIdToken(
                 credentials: .init(provider: .apple, idToken: token, nonce: nonce)
             )
 
-            apply(authResponse: response)
+            apply(session: session)
             infoMessage = nil
         } catch is ASAuthorizationError {
             lastErrorMessage = L10n.Auth.appleSignInFailed

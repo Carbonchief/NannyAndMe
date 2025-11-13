@@ -175,6 +175,7 @@
 "auth.email" = "Email";
 "auth.password" = "Password";
 "auth.primary" = "Continue";
+"auth.divider.or" = "or";
 "auth.info.emailConfirmation" = "Check your email to confirm your account.";
 "auth.info.accountCreated" = "Account created! You're all set.";
 "auth.password.hint" = "Password must be at least 6 characters.";
