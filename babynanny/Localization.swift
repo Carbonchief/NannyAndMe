@@ -72,14 +72,34 @@ enum L10n {
                 localized: "onboarding.firstLaunch.benefitsPoint.three",
                 defaultValue: "Daily snapshots highlight what caregivers need to know."
             )
+            static let accountDecisionTitle = String(
+                localized: "onboarding.firstLaunch.accountDecision.title",
+                defaultValue: "Choose how you want to get started"
+            )
+            static let accountDecisionMessage = String(
+                localized: "onboarding.firstLaunch.accountDecision.message",
+                defaultValue: "Create a free account to sync and share, or stay local on this device."
+            )
+            static let accountDecisionCreateAccount = String(
+                localized: "onboarding.firstLaunch.accountDecision.createAccount",
+                defaultValue: "Create or Sign In"
+            )
+            static let accountDecisionStayLocal = String(
+                localized: "onboarding.firstLaunch.accountDecision.stayLocal",
+                defaultValue: "Stay Local Only"
+            )
+            static let accountDecisionFootnote = String(
+                localized: "onboarding.firstLaunch.accountDecision.footnote",
+                defaultValue: "You can connect an account later from Settings."
+            )
             static let paywallTitle = String(
                 localized: "onboarding.firstLaunch.paywallTitle",
                 defaultValue: "Unlock Nanny & Me+"
-        )
-        static let paywallSubtitle = String(
-            localized: "onboarding.firstLaunch.paywallSubtitle",
-            defaultValue: "Keep everyone updated!"
-        )
+            )
+            static let paywallSubtitle = String(
+                localized: "onboarding.firstLaunch.paywallSubtitle",
+                defaultValue: "Keep everyone updated!"
+            )
             static let paywallFeatureOne = String(
                 localized: "onboarding.firstLaunch.paywallFeature.one",
                 defaultValue: "3-day premium trial included with every plan."

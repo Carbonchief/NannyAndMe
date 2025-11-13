@@ -21,6 +21,11 @@
 "onboarding.firstLaunch.benefitsPoint.one" = "Ein Tipp genügt – so protokollierst du den Alltag ohne Aufwand.";
 "onboarding.firstLaunch.benefitsPoint.two" = "Teile betreuungsfertige Berichte, damit alle auf dem gleichen Stand sind.";
 "onboarding.firstLaunch.benefitsPoint.three" = "Tägliche Momentaufnahmen zeigen, was Betreuungspersonen wissen müssen.";
+"onboarding.firstLaunch.accountDecision.title" = "Wähle, wie du starten möchtest";
+"onboarding.firstLaunch.accountDecision.message" = "Erstelle ein kostenloses Konto zum Synchronisieren und Teilen oder nutze die App nur lokal auf diesem Gerät.";
+"onboarding.firstLaunch.accountDecision.createAccount" = "Registrieren oder anmelden";
+"onboarding.firstLaunch.accountDecision.stayLocal" = "Nur lokal verwenden";
+"onboarding.firstLaunch.accountDecision.footnote" = "Du kannst später in den Einstellungen ein Konto verbinden.";
 "onboarding.firstLaunch.paywallTitle" = "Premium-Zugang";
 "onboarding.firstLaunch.paywallSubtitle" = "Halte alle auf dem Laufenden!";
 "onboarding.firstLaunch.paywallFeature.one" = "3-tägige Premium-Testphase in jedem Paket.";

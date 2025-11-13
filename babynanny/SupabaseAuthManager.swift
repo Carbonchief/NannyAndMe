@@ -232,7 +232,21 @@ final class SupabaseAuthManager: ObservableObject {
         do {
             let session = try await client.auth.session
             try await upsertCaregiver(for: session.user)
-            try await upsertBabyProfiles(profiles, caregiverID: session.user.id)
+            let remoteSnapshot = try await fetchCaregiverSnapshot(for: session.user.id)
+            let hasRemoteData = remoteSnapshot.profileCount > 0 || remoteSnapshot.actionCount > 0
+            let localHasNamedProfiles = profiles.contains { profile in
+                profile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            }
+
+            if hasRemoteData && localHasNamedProfiles == false {
+                hasSynchronizedCaregiverDataForCurrentSession = true
+                return remoteSnapshot
+            }
+
+            if profiles.isEmpty == false {
+                try await upsertBabyProfiles(profiles, caregiverID: session.user.id)
+            }
+
             let snapshot = try await fetchCaregiverSnapshot(for: session.user.id)
             hasSynchronizedCaregiverDataForCurrentSession = true
             return snapshot

@@ -354,8 +354,8 @@ struct ContentView: View {
         let currentProfiles = profileStore.profiles
 
         Task { @MainActor in
-            guard let snapshot = await authManager.synchronizeCaregiverAccount(with: currentProfiles) else { return }
-            await actionStore.reconcileWithSupabase(snapshot: snapshot)
+            let snapshot = await authManager.synchronizeCaregiverAccount(with: currentProfiles)
+            await actionStore.performUserInitiatedRefresh(using: snapshot)
         }
     }
 }

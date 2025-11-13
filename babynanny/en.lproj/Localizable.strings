@@ -21,6 +21,11 @@
 "onboarding.firstLaunch.benefitsPoint.one" = "Tap once to log day-to-day care—no clutter or guesswork.";
 "onboarding.firstLaunch.benefitsPoint.two" = "Share caregiver-ready reports that keep everyone aligned.";
 "onboarding.firstLaunch.benefitsPoint.three" = "Daily snapshots highlight what caregivers need to know.";
+"onboarding.firstLaunch.accountDecision.title" = "Choose how you want to get started";
+"onboarding.firstLaunch.accountDecision.message" = "Create a free account to sync and share, or stay local on this device.";
+"onboarding.firstLaunch.accountDecision.createAccount" = "Create or Sign In";
+"onboarding.firstLaunch.accountDecision.stayLocal" = "Stay Local Only";
+"onboarding.firstLaunch.accountDecision.footnote" = "You can connect an account later from Settings.";
 "onboarding.firstLaunch.paywallTitle" = "Premium Access";
 "onboarding.firstLaunch.paywallSubtitle" = "Keep everyone updated!";
 "onboarding.firstLaunch.paywallFeature.one" = "3-day premium trial included with every plan.";
