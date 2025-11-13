@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 
 struct SupabaseAuthView: View {
@@ -69,6 +70,19 @@ struct SupabaseAuthView: View {
                     }
                     .disabled(isPrimaryButtonDisabled)
                     .buttonStyle(.borderedProminent)
+                }
+
+                Section {
+                    SignInWithAppleButton(.signIn) { request in
+                        authManager.configureAppleRequest(request)
+                    } onCompletion: { result in
+                        Task {
+                            await authManager.completeAppleSignIn(result: result)
+                        }
+                    }
+                    .disabled(authManager.isLoading || authManager.configurationError != nil)
+                    .frame(maxWidth: .infinity)
+                    .signInWithAppleButtonStyle(.black)
                 }
             }
             .navigationTitle(L10n.Auth.title)

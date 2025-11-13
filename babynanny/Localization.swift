@@ -735,6 +735,10 @@ enum L10n {
             localized: "auth.password.hint",
             defaultValue: "Password must be at least 6 characters."
         )
+        static let appleSignInFailed = String(
+            localized: "auth.apple.failure",
+            defaultValue: "Unable to sign in with Apple. Please try again."
+        )
         static let dismiss = String(localized: "auth.dismiss", defaultValue: "Close")
         static let configurationMissingFile = String(
             localized: "auth.error.missingFile",

@@ -178,6 +178,7 @@
 "auth.info.emailConfirmation" = "Prüfe deine E-Mails, um das Konto zu bestätigen.";
 "auth.info.accountCreated" = "Konto erstellt! Du bist startklar.";
 "auth.password.hint" = "Das Passwort muss mindestens 6 Zeichen lang sein.";
+"auth.apple.failure" = "Anmeldung mit Apple fehlgeschlagen. Bitte versuche es erneut.";
 "auth.dismiss" = "Schließen";
 "auth.error.missingFile" = "SupabaseConfig.plist fehlt im App-Bundle.";
 "auth.error.invalidFormat" = "SupabaseConfig.plist hat eine unerwartete Struktur.";
