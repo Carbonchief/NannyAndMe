@@ -175,9 +175,11 @@
 "auth.email" = "Correo electrónico";
 "auth.password" = "Contraseña";
 "auth.primary" = "Continuar";
+"auth.divider.or" = "o";
 "auth.info.emailConfirmation" = "Revisa tu correo para confirmar la cuenta.";
 "auth.info.accountCreated" = "¡Cuenta creada! Todo listo.";
 "auth.password.hint" = "La contraseña debe tener al menos 6 caracteres.";
+"auth.apple.failure" = "No se pudo iniciar sesión con Apple. Inténtalo de nuevo.";
 "auth.dismiss" = "Cerrar";
 "auth.error.missingFile" = "SupabaseConfig.plist no se encuentra en el paquete de la app.";
 "auth.error.invalidFormat" = "SupabaseConfig.plist tiene un formato inesperado.";

@@ -1,3 +1,5 @@
+import AuthenticationServices
+import CryptoKit
 import Foundation
 import os
 import Supabase
@@ -19,6 +21,7 @@ final class SupabaseAuthManager: ObservableObject {
         category: "supabase-snapshot"
     )
     private var hasSynchronizedCaregiverDataForCurrentSession = false
+    private var currentAppleNonce: String?
     private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
 
     init() {
@@ -100,6 +103,57 @@ final class SupabaseAuthManager: ObservableObject {
                 lastErrorMessage = Self.userFriendlyMessage(from: error)
                 return false
             }
+        }
+    }
+
+    func configureAppleRequest(_ request: ASAuthorizationAppleIDRequest) {
+        request.requestedScopes = [.fullName, .email]
+        let nonce = randomNonce()
+        currentAppleNonce = nonce
+        request.nonce = sha256(nonce)
+    }
+
+    func completeAppleSignIn(result: Result<ASAuthorization, Error>) async {
+        guard let client else {
+            lastErrorMessage = configurationError
+            return
+        }
+
+        clearMessages()
+        isLoading = true
+        defer {
+            isLoading = false
+            currentAppleNonce = nil
+        }
+
+        do {
+            let authorization = try result.get()
+
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+                throw AppleSignInError.invalidCredential
+            }
+
+            guard let tokenData = credential.identityToken,
+                  let token = String(data: tokenData, encoding: .utf8) else {
+                throw AppleSignInError.missingIdentityToken
+            }
+
+            guard let nonce = currentAppleNonce else {
+                throw AppleSignInError.missingNonce
+            }
+
+            let session = try await client.auth.signInWithIdToken(
+                credentials: .init(provider: .apple, idToken: token, nonce: nonce)
+            )
+
+            apply(session: session)
+            infoMessage = nil
+        } catch is ASAuthorizationError {
+            lastErrorMessage = L10n.Auth.appleSignInFailed
+        } catch let appleError as AppleSignInError {
+            lastErrorMessage = appleError.errorDescription
+        } catch {
+            lastErrorMessage = Self.userFriendlyMessage(from: error)
         }
     }
 
@@ -358,6 +412,36 @@ final class SupabaseAuthManager: ObservableObject {
 
     private func resolvedPasswordHash(from user: User) -> String {
         user.id.uuidString
+    }
+
+    private enum AppleSignInError: LocalizedError {
+        case invalidCredential
+        case missingIdentityToken
+        case missingNonce
+
+        var errorDescription: String? { L10n.Auth.appleSignInFailed }
+    }
+
+    private func randomNonce(length: Int = 32) -> String {
+        precondition(length > 0)
+        let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        var remaining = length
+        var generator = SystemRandomNumberGenerator()
+        var result = String()
+        result.reserveCapacity(length)
+
+        while remaining > 0 {
+            guard let random = charset.randomElement(using: &generator) else { continue }
+            result.append(random)
+            remaining -= 1
+        }
+
+        return result
+    }
+
+    private func sha256(_ input: String) -> String {
+        let hashed = SHA256.hash(data: Data(input.utf8))
+        return hashed.map { String(format: "%02x", $0) }.joined()
     }
 
     private static func userFriendlyMessage(from error: Error) -> String {

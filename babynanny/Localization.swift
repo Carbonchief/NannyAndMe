@@ -723,6 +723,10 @@ enum L10n {
         static let emailLabel = String(localized: "auth.email", defaultValue: "Email")
         static let passwordLabel = String(localized: "auth.password", defaultValue: "Password")
         static let primaryAction = String(localized: "auth.primary", defaultValue: "Continue")
+        static let alternativeSignInDivider = String(
+            localized: "auth.divider.or",
+            defaultValue: "or"
+        )
         static let emailConfirmationInfo = String(
             localized: "auth.info.emailConfirmation",
             defaultValue: "Check your email to confirm your account."
@@ -734,6 +738,10 @@ enum L10n {
         static let passwordHint = String(
             localized: "auth.password.hint",
             defaultValue: "Password must be at least 6 characters."
+        )
+        static let appleSignInFailed = String(
+            localized: "auth.apple.failure",
+            defaultValue: "Unable to sign in with Apple. Please try again."
         )
         static let dismiss = String(localized: "auth.dismiss", defaultValue: "Close")
         static let configurationMissingFile = String(
