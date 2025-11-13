@@ -23,7 +23,7 @@
 "onboarding.firstLaunch.benefitsPoint.three" = "Las instantáneas diarias destacan lo que deben saber los cuidadores.";
 "onboarding.firstLaunch.accountDecision.title" = "Elige cómo quieres comenzar";
 "onboarding.firstLaunch.accountDecision.message" = "Crea una cuenta gratuita para sincronizar y compartir, o quédate solo en este dispositivo.";
-"onboarding.firstLaunch.accountDecision.createAccount" = "Crear una cuenta";
+"onboarding.firstLaunch.accountDecision.createAccount" = "Crear o iniciar sesión";
 "onboarding.firstLaunch.accountDecision.stayLocal" = "Usar solo localmente";
 "onboarding.firstLaunch.accountDecision.footnote" = "Puedes conectar una cuenta más adelante desde Ajustes.";
 "onboarding.firstLaunch.paywallTitle" = "Acceso premium";

@@ -470,6 +470,8 @@ final class ProfileStore: ObservableObject {
     func applyMetadataUpdates(_ updates: [ProfileMetadataUpdate]) {
         guard updates.isEmpty == false else { return }
 
+        var insertedProfileIDs: [UUID] = []
+
         mutateProfiles(reason: "profile-metadata-update") {
             var didChange = false
             var insertedProfiles: [ProfileActionStateModel] = []
@@ -502,6 +504,7 @@ final class ProfileStore: ObservableObject {
                     model.normalizeReminderPreferences()
                     modelContext.insert(model)
                     insertedProfiles.append(model)
+                    insertedProfileIDs.append(model.resolvedProfileID)
                     didChange = true
                 }
             }
@@ -512,6 +515,8 @@ final class ProfileStore: ObservableObject {
 
             return didChange
         }
+
+        adoptDownloadedProfilesIfNeeded(insertedProfileIDs: insertedProfileIDs)
     }
 
     @discardableResult
@@ -845,6 +850,40 @@ final class ProfileStore: ObservableObject {
 }
 
 private extension ProfileStore {
+    func adoptDownloadedProfilesIfNeeded(insertedProfileIDs: [UUID]) {
+        guard hasCompletedOnboarding == false else { return }
+        guard let remoteProfileID = insertedProfileIDs.first else { return }
+
+        guard let activeID = activeProfileID,
+              let activeProfile = profiles.first(where: { $0.id == activeID }) else {
+            activeProfileID = remoteProfileID
+            return
+        }
+
+        let trimmedName = activeProfile.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedName.isEmpty else { return }
+
+        removePlaceholderProfileIfNeeded(profileID: activeID)
+        activeProfileID = remoteProfileID
+    }
+
+    func removePlaceholderProfileIfNeeded(profileID: UUID) {
+        guard let placeholder = profiles.first(where: { $0.id == profileID }) else { return }
+        let trimmedName = placeholder.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedName.isEmpty else { return }
+
+        if let actionStore {
+            actionStore.removeProfileData(for: profileID)
+            refreshProfiles()
+        } else {
+            mutateProfiles(reason: "profile-remove-placeholder") {
+                guard let model = profileModel(withID: profileID) else { return false }
+                modelContext.delete(model)
+                return true
+            }
+        }
+    }
+
     func createDefaultProfile() {
         let model = ProfileActionStateModel(name: "", birthDate: Date())
         model.normalizeReminderPreferences()

@@ -99,14 +99,25 @@ final class ActionLogStore: ObservableObject {
         authManager = manager
     }
 
-    func performUserInitiatedRefresh() async {
+    func performUserInitiatedRefresh(
+        using snapshotOverride: SupabaseAuthManager.CaregiverSnapshot? = nil
+    ) async {
         logger.log("User-initiated refresh started. Auth available: \(self.authManager != nil, privacy: .public)")
         let isAuthenticated = authManager?.isAuthenticated ?? false
         logger.log("Auth status before refresh: \(isAuthenticated, privacy: .public)")
         await dataStack.flushPendingSaves()
 
-        if let authManager, authManager.isAuthenticated,
-           let snapshot = await authManager.fetchCaregiverSnapshot() {
+        let snapshot: SupabaseAuthManager.CaregiverSnapshot?
+        if let snapshotOverride {
+            snapshot = snapshotOverride
+            logger.log("Using provided Supabase snapshot override for refresh.")
+        } else if let authManager, authManager.isAuthenticated {
+            snapshot = await authManager.fetchCaregiverSnapshot()
+        } else {
+            snapshot = nil
+        }
+
+        if let snapshot {
             logger.log("Fetched Supabase snapshot. profiles=\(snapshot.profileCount, privacy: .public) actions=\(snapshot.actionCount, privacy: .public)")
             await reconcileWithSupabase(snapshot: snapshot)
         } else {

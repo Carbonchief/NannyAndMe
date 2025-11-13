@@ -4,7 +4,7 @@ struct OnboardingFlowView: View {
     @Binding var isPresented: Bool
     @EnvironmentObject private var authManager: SupabaseAuthManager
     @StateObject private var paywallViewModel = OnboardingPaywallViewModel()
-    @State private var selection: Page = .accountDecision
+    @State private var selection: Page = .welcome
     @State private var selectedPlan: PaywallPlan = .trial
     @State private var showAccountDecisionPage = true
     @State private var isAuthSheetPresented = false
@@ -16,19 +16,21 @@ struct OnboardingFlowView: View {
         NavigationStack {
             VStack(spacing: 24) {
                 TabView(selection: $selection) {
-                    if showAccountDecisionPage {
-                        accountDecisionPage
-                            .tag(Page.accountDecision)
-                    }
-
                     welcomePage
                         .tag(Page.welcome)
 
                     benefitsPage
                         .tag(Page.benefits)
 
-                    paywallPage
-                        .tag(Page.paywall)
+                    if showAccountDecisionPage {
+                        accountDecisionPage
+                            .tag(Page.accountDecision)
+                    }
+
+                    if showAccountDecisionPage == false || selection == .paywall {
+                        paywallPage
+                            .tag(Page.paywall)
+                    }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
 
@@ -75,11 +77,12 @@ struct OnboardingFlowView: View {
 
 private extension OnboardingFlowView {
     var pages: [Page] {
-        var result: [Page] = []
+        var result: [Page] = [.welcome, .benefits]
         if showAccountDecisionPage {
             result.append(.accountDecision)
+        } else {
+            result.append(.paywall)
         }
-        result.append(contentsOf: [.welcome, .benefits, .paywall])
         return result
     }
 
@@ -331,16 +334,20 @@ private extension OnboardingFlowView {
 
     func handlePrimaryAction() {
         switch selection {
-        case .accountDecision:
-            advancePastAccountDecision()
         case .welcome:
             withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                 selection = .benefits
             }
         case .benefits:
             withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                selection = .paywall
+                if showAccountDecisionPage {
+                    selection = .accountDecision
+                } else {
+                    selection = .paywall
+                }
             }
+        case .accountDecision:
+            advancePastAccountDecision()
         case .paywall:
             Task {
                 await paywallViewModel.purchase(plan: selectedPlan)
@@ -354,41 +361,38 @@ private extension OnboardingFlowView {
     }
 
     func configureInitialSelection() {
-        if authManager.isAuthenticated {
-            showAccountDecisionPage = false
-            selection = .welcome
-        } else {
-            showAccountDecisionPage = true
-            selection = .accountDecision
-        }
+        selection = .welcome
+        showAccountDecisionPage = authManager.isAuthenticated == false
     }
 
     func advancePastAccountDecision() {
         guard showAccountDecisionPage else { return }
         withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-            selection = .welcome
             showAccountDecisionPage = false
+        }
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            selection = .paywall
         }
     }
 }
 
 private extension OnboardingFlowView {
     enum Page: Int, CaseIterable {
-        case accountDecision
         case welcome
         case benefits
+        case accountDecision
         case paywall
 
         func previous() -> Page {
             switch self {
-            case .accountDecision:
-                return .accountDecision
             case .welcome:
-                return .accountDecision
+                return .welcome
             case .benefits:
                 return .welcome
-            case .paywall:
+            case .accountDecision:
                 return .benefits
+            case .paywall:
+                return .accountDecision
             }
         }
     }

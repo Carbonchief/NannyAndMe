@@ -23,7 +23,7 @@
 "onboarding.firstLaunch.benefitsPoint.three" = "Tägliche Momentaufnahmen zeigen, was Betreuungspersonen wissen müssen.";
 "onboarding.firstLaunch.accountDecision.title" = "Wähle, wie du starten möchtest";
 "onboarding.firstLaunch.accountDecision.message" = "Erstelle ein kostenloses Konto zum Synchronisieren und Teilen oder nutze die App nur lokal auf diesem Gerät.";
-"onboarding.firstLaunch.accountDecision.createAccount" = "Konto erstellen";
+"onboarding.firstLaunch.accountDecision.createAccount" = "Registrieren oder anmelden";
 "onboarding.firstLaunch.accountDecision.stayLocal" = "Nur lokal verwenden";
 "onboarding.firstLaunch.accountDecision.footnote" = "Du kannst später in den Einstellungen ein Konto verbinden.";
 "onboarding.firstLaunch.paywallTitle" = "Premium-Zugang";

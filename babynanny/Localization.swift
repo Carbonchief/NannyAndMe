@@ -82,7 +82,7 @@ enum L10n {
             )
             static let accountDecisionCreateAccount = String(
                 localized: "onboarding.firstLaunch.accountDecision.createAccount",
-                defaultValue: "Create an Account"
+                defaultValue: "Create or Sign In"
             )
             static let accountDecisionStayLocal = String(
                 localized: "onboarding.firstLaunch.accountDecision.stayLocal",
