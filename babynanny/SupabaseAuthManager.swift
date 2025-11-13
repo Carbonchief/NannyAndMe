@@ -380,13 +380,12 @@ final class SupabaseAuthManager: ObservableObject {
             .execute()
     }
 
-    private func fetchCaregiverSnapshot(for caregiverID: UUID) async throws -> CaregiverSnapshot {
+    private func fetchCaregiverSnapshot(for _ caregiverID: UUID) async throws -> CaregiverSnapshot {
         guard let client else {
             throw SnapshotError.clientUnavailable
         }
 
-        let caregiverIdentifier = caregiverID.uuidString.lowercased()
-        Self.snapshotLogger.log("Fetching caregiver snapshot for caregiver_id=\(caregiverIdentifier, privacy: .public)")
+        Self.snapshotLogger.log("Fetching caregiver snapshot using RLS policies")
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom(SupabaseDateDecoder.decode)
@@ -394,14 +393,12 @@ final class SupabaseAuthManager: ObservableObject {
         let profilesResponse: PostgrestResponse<[BabyProfileRecord]> = try await client.database
             .from("baby_profiles")
             .select()
-            .eq("caregiver_id", value: caregiverIdentifier)
             .execute()
         logRawSupabaseResponse(profilesResponse.value, context: "profiles")
 
         let actionsResponse: PostgrestResponse<[BabyActionRecord]> = try await client.database
             .from("Baby_Action")
             .select()
-            .eq("Caregiver_Id", value: caregiverIdentifier)
             .execute()
         logRawSupabaseResponse(actionsResponse.value, context: "actions")
 
