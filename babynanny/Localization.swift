@@ -904,6 +904,78 @@ enum L10n {
                 defaultValue: "The file could not be read. Make sure you selected a Nanny & Me export."
             )
         }
+
+        enum Supabase {
+            static let sectionTitle = String(
+                localized: "shareData.supabase.title",
+                defaultValue: "Share via Supabase"
+            )
+            static let emailPlaceholder = String(
+                localized: "shareData.supabase.emailPlaceholder",
+                defaultValue: "Recipient email address"
+            )
+            static let shareButton = String(
+                localized: "shareData.supabase.shareButton",
+                defaultValue: "Share Profile"
+            )
+            static let footer = String(
+                localized: "shareData.supabase.footer",
+                defaultValue: "Invite another caregiver to access this profile using Supabase."
+            )
+            static let successTitle = String(
+                localized: "shareData.supabase.success.title",
+                defaultValue: "Invitation sent"
+            )
+            static func successMessage(_ email: String) -> String {
+                let format = String(
+                    localized: "shareData.supabase.success.message",
+                    defaultValue: "We sent an invite to %@."
+                )
+                return String(format: format, locale: Locale.current, email)
+            }
+            static let recipientMissingTitle = String(
+                localized: "shareData.supabase.missing.title",
+                defaultValue: "Account not found"
+            )
+            static func recipientMissingMessage(_ email: String) -> String {
+                let format = String(
+                    localized: "shareData.supabase.missing.message",
+                    defaultValue: "We couldn't find a Supabase account for %@."
+                )
+                return String(format: format, locale: Locale.current, email)
+            }
+            static let alreadySharedTitle = String(
+                localized: "shareData.supabase.alreadyShared.title",
+                defaultValue: "Already shared"
+            )
+            static func alreadySharedMessage(_ email: String) -> String {
+                let format = String(
+                    localized: "shareData.supabase.alreadyShared.message",
+                    defaultValue: "This profile is already shared with %@."
+                )
+                return String(format: format, locale: Locale.current, email)
+            }
+            static let failureTitle = String(
+                localized: "shareData.supabase.failure.title",
+                defaultValue: "Share failed"
+            )
+            static let failureConfiguration = String(
+                localized: "shareData.supabase.failure.configuration",
+                defaultValue: "Supabase configuration is missing."
+            )
+            static let notAuthenticated = String(
+                localized: "shareData.supabase.failure.notAuthenticated",
+                defaultValue: "Sign in to Supabase to share profiles."
+            )
+            static let invalidEmailTitle = String(
+                localized: "shareData.supabase.invalidEmail.title",
+                defaultValue: "Enter an email"
+            )
+            static let invalidEmailMessage = String(
+                localized: "shareData.supabase.invalidEmail.message",
+                defaultValue: "Please provide a valid email address before sharing."
+            )
+        }
     }
 
     enum Logs {

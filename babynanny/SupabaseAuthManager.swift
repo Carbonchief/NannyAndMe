@@ -24,6 +24,13 @@ final class SupabaseAuthManager: ObservableObject {
     private var currentAppleNonce: String?
     private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
 
+    enum ProfileShareResult {
+        case success
+        case recipientNotFound
+        case alreadyShared
+        case failure(String)
+    }
+
     init() {
         do {
             let configuration = try SupabaseConfiguration.loadFromBundle()
@@ -424,6 +431,76 @@ final class SupabaseAuthManager: ObservableObject {
         }
     }
 
+    func shareBabyProfile(profileID: UUID, recipientEmail: String) async -> ProfileShareResult {
+        guard let client else {
+            let message = configurationError ?? L10n.ShareData.Supabase.failureConfiguration
+            return .failure(message)
+        }
+
+        guard isAuthenticated, let ownerID = currentUserID else {
+            return .failure(L10n.ShareData.Supabase.notAuthenticated)
+        }
+
+        let sanitizedEmail = recipientEmail
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        guard sanitizedEmail.isEmpty == false else {
+            return .failure(L10n.ShareData.Supabase.invalidEmailMessage)
+        }
+
+        do {
+            let decoder = JSONDecoder()
+            let caregiverResponse: PostgrestResponse<[CaregiverIdentifierRecord]> = try await client.database
+                .from("caregivers")
+                .select("id")
+                .eq("email", value: sanitizedEmail)
+                .limit(1)
+                .execute()
+
+            let caregivers: [CaregiverIdentifierRecord] = try decodeResponse(
+                caregiverResponse.value,
+                decoder: decoder,
+                context: "profile-share-caregivers"
+            )
+
+            guard let recipientID = caregivers.first?.id else {
+                return .recipientNotFound
+            }
+
+            let record = BabyProfileShareRecord(
+                babyProfileID: profileID,
+                ownerCaregiverID: ownerID,
+                recipientCaregiverID: recipientID,
+                permission: nil,
+                status: nil
+            )
+
+            _ = try await client.database
+                .from("baby_profile_shares")
+                .insert([record], returning: .minimal)
+                .execute()
+
+            return .success
+        } catch {
+            let message = Self.userFriendlyMessage(from: error)
+            let additionalDetails: [String] = [
+                message,
+                (error as NSError).userInfo["message"] as? String ?? "",
+                (error as NSError).userInfo["hint"] as? String ?? "",
+                (error as NSError).userInfo["details"] as? String ?? ""
+            ]
+            if additionalDetails.contains(where: { detail in
+                detail.localizedCaseInsensitiveContains("duplicate")
+                    || detail.localizedCaseInsensitiveContains("already")
+            }) {
+                return .alreadyShared
+            }
+
+            return .failure(message)
+        }
+    }
+
     private func resolvedPasswordHash(from user: User) -> String {
         user.id.uuidString
     }
@@ -659,6 +736,26 @@ private struct BabyProfileRecord: Codable, Identifiable {
         case avatarURL = "avatar_url"
         case createdAt = "created_at"
         case editedAt = "edited_at"
+    }
+}
+
+private struct CaregiverIdentifierRecord: Decodable {
+    var id: UUID
+}
+
+private struct BabyProfileShareRecord: Encodable {
+    var babyProfileID: UUID
+    var ownerCaregiverID: UUID
+    var recipientCaregiverID: UUID
+    var permission: String?
+    var status: String?
+
+    enum CodingKeys: String, CodingKey {
+        case babyProfileID = "baby_profile_id"
+        case ownerCaregiverID = "owner_caregiver_id"
+        case recipientCaregiverID = "recipient_caregiver_id"
+        case permission
+        case status
     }
 }
 

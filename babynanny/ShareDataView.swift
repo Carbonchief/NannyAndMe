@@ -6,6 +6,7 @@ struct ShareDataView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
+    @EnvironmentObject private var authManager: SupabaseAuthManager
 
     @State private var isImporting = false
     @State private var lastImportSummary: ActionLogStore.MergeSummary?
@@ -14,6 +15,9 @@ struct ShareDataView: View {
     @State private var airDropShareItem: AirDropShareItem?
     @State private var isPreparingAirDropShare = false
     @State private var processedExternalImportID: ShareDataCoordinator.ExternalImportRequest.ID?
+    @State private var supabaseShareEmail = ""
+    @State private var isSharingProfile = false
+    @FocusState private var isSupabaseEmailFocused: Bool
 
     var body: some View {
         Form {
@@ -62,6 +66,10 @@ struct ShareDataView: View {
                 Text(L10n.ShareData.importSectionTitle)
             } footer: {
                 importFooter
+            }
+
+            if authManager.isAuthenticated {
+                supabaseShareSection
             }
 
         }
@@ -124,6 +132,39 @@ struct ShareDataView: View {
         formatter.dateFormat = "yyyy-MM-dd"
         let dateString = formatter.string(from: Date())
         return "\(sanitized)-\(dateString)"
+    }
+
+    private var trimmedSupabaseEmail: String {
+        supabaseShareEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    @ViewBuilder
+    private var supabaseShareSection: some View {
+        Section {
+            TextField(L10n.ShareData.Supabase.emailPlaceholder, text: $supabaseShareEmail)
+                .textInputAutocapitalization(.never)
+                .disableAutocorrection(true)
+                .keyboardType(.emailAddress)
+                .textContentType(.emailAddress)
+                .focused($isSupabaseEmailFocused)
+
+            ShareDataActionButton(
+                title: L10n.ShareData.Supabase.shareButton,
+                systemImage: "person.crop.circle.badge.plus",
+                tint: .purple,
+                action: {
+                    Task { await shareProfileWithSupabase() }
+                },
+                isLoading: isSharingProfile
+            )
+            .disabled(isSharingProfile || trimmedSupabaseEmail.isEmpty)
+        } header: {
+            Text(L10n.ShareData.Supabase.sectionTitle)
+        } footer: {
+            Text(L10n.ShareData.Supabase.footer)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
     }
 
     @ViewBuilder
@@ -274,6 +315,52 @@ struct ShareDataView: View {
         let trimmed = sanitized.trimmingCharacters(in: CharacterSet(charactersIn: "-_"))
         let base = trimmed.isEmpty ? "Profile" : trimmed
         return "\(base)-share"
+    }
+
+    @MainActor
+    private func shareProfileWithSupabase() async {
+        guard !isSharingProfile else { return }
+
+        let email = trimmedSupabaseEmail
+
+        guard email.isEmpty == false else {
+            alert = ShareDataAlert(
+                title: L10n.ShareData.Supabase.invalidEmailTitle,
+                message: L10n.ShareData.Supabase.invalidEmailMessage
+            )
+            return
+        }
+
+        isSharingProfile = true
+        defer { isSharingProfile = false }
+
+        let profileID = profileStore.activeProfile.id
+        let result = await authManager.shareBabyProfile(profileID: profileID, recipientEmail: email)
+
+        switch result {
+        case .success:
+            alert = ShareDataAlert(
+                title: L10n.ShareData.Supabase.successTitle,
+                message: L10n.ShareData.Supabase.successMessage(email)
+            )
+            supabaseShareEmail = ""
+            isSupabaseEmailFocused = false
+        case .recipientNotFound:
+            alert = ShareDataAlert(
+                title: L10n.ShareData.Supabase.recipientMissingTitle,
+                message: L10n.ShareData.Supabase.recipientMissingMessage(email)
+            )
+        case .alreadyShared:
+            alert = ShareDataAlert(
+                title: L10n.ShareData.Supabase.alreadySharedTitle,
+                message: L10n.ShareData.Supabase.alreadySharedMessage(email)
+            )
+        case .failure(let message):
+            alert = ShareDataAlert(
+                title: L10n.ShareData.Supabase.failureTitle,
+                message: message
+            )
+        }
     }
 
 }
@@ -474,5 +561,6 @@ struct SharedProfileData: Codable {
             .environmentObject(profileStore)
             .environmentObject(actionStore)
             .environmentObject(ShareDataCoordinator())
+            .environmentObject(SupabaseAuthManager())
     }
 }
