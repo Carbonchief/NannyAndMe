@@ -2,18 +2,25 @@ import SwiftUI
 
 struct OnboardingFlowView: View {
     @Binding var isPresented: Bool
+    @EnvironmentObject private var authManager: SupabaseAuthManager
     @StateObject private var paywallViewModel = OnboardingPaywallViewModel()
-    @State private var selection: Page = .welcome
+    @State private var selection: Page = .accountDecision
     @State private var selectedPlan: PaywallPlan = .trial
+    @State private var showAccountDecisionPage = true
+    @State private var isAuthSheetPresented = false
+    @State private var hasInitializedSelection = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage("hasUnlockedPremium") private var hasUnlockedPremium = false
-
-    private let pages = Page.allCases
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
                 TabView(selection: $selection) {
+                    if showAccountDecisionPage {
+                        accountDecisionPage
+                            .tag(Page.accountDecision)
+                    }
+
                     welcomePage
                         .tag(Page.welcome)
 
@@ -27,7 +34,11 @@ struct OnboardingFlowView: View {
 
                 pageIndicator
 
-                primaryActionButton
+                if selection == .accountDecision {
+                    accountDecisionActions
+                } else {
+                    primaryActionButton
+                }
             }
             .padding(.horizontal, 24)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -37,6 +48,11 @@ struct OnboardingFlowView: View {
         .task {
             await paywallViewModel.loadProductsIfNeeded()
         }
+        .onAppear {
+            guard hasInitializedSelection == false else { return }
+            hasInitializedSelection = true
+            configureInitialSelection()
+        }
         .onChange(of: paywallViewModel.hasUnlockedPremium) { _, newValue in
             hasUnlockedPremium = newValue
             guard newValue else { return }
@@ -45,10 +61,56 @@ struct OnboardingFlowView: View {
         .onChange(of: selectedPlan) { _, _ in
             paywallViewModel.errorMessage = nil
         }
+        .onChange(of: authManager.isAuthenticated) { _, isAuthenticated in
+            guard isAuthenticated else { return }
+            isAuthSheetPresented = false
+            advancePastAccountDecision()
+        }
+        .sheet(isPresented: $isAuthSheetPresented) {
+            SupabaseAuthView()
+                .environmentObject(authManager)
+        }
     }
 }
 
 private extension OnboardingFlowView {
+    var pages: [Page] {
+        var result: [Page] = []
+        if showAccountDecisionPage {
+            result.append(.accountDecision)
+        }
+        result.append(contentsOf: [.welcome, .benefits, .paywall])
+        return result
+    }
+
+    var accountDecisionPage: some View {
+        GeometryReader { proxy in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 24) {
+                    Image(systemName: "person.crop.circle.badge.checkmark")
+                        .font(.system(size: 64))
+                        .foregroundStyle(Color.accentColor)
+                        .symbolRenderingMode(.hierarchical)
+
+                    Text(L10n.Onboarding.FirstLaunch.accountDecisionTitle)
+                        .font(.largeTitle.weight(.bold))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 12)
+
+                    Text(L10n.Onboarding.FirstLaunch.accountDecisionMessage)
+                        .font(.body)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 32)
+            }
+            .frame(width: proxy.size.width)
+            .frame(minHeight: proxy.size.height, alignment: .top)
+        }
+    }
+
     var welcomePage: some View {
         GeometryReader { proxy in
             ScrollView(showsIndicators: false) {
@@ -153,6 +215,46 @@ private extension OnboardingFlowView {
         .padding(.top, 8)
     }
 
+    var accountDecisionActions: some View {
+        VStack(spacing: 12) {
+            Button {
+                isAuthSheetPresented = true
+            } label: {
+                Text(L10n.Onboarding.FirstLaunch.accountDecisionCreateAccount)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity)
+            }
+            .frame(height: 48)
+            .background(Color.accentColor)
+            .foregroundStyle(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .buttonStyle(.plain)
+
+            Button {
+                advancePastAccountDecision()
+            } label: {
+                Text(L10n.Onboarding.FirstLaunch.accountDecisionStayLocal)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity)
+            }
+            .frame(height: 48)
+            .foregroundStyle(Color.accentColor)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color.accentColor.opacity(0.4), lineWidth: 1)
+            )
+            .buttonStyle(.plain)
+
+            Text(L10n.Onboarding.FirstLaunch.accountDecisionFootnote)
+                .font(.footnote)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+                .padding(.top, 4)
+        }
+    }
+
     var primaryActionButton: some View {
         Button {
             handlePrimaryAction()
@@ -187,6 +289,8 @@ private extension OnboardingFlowView {
 
     var primaryButtonTitle: String {
         switch selection {
+        case .accountDecision:
+            return L10n.Onboarding.FirstLaunch.accountDecisionStayLocal
         case .welcome, .benefits:
             return L10n.Onboarding.FirstLaunch.next
         case .paywall:
@@ -203,7 +307,7 @@ private extension OnboardingFlowView {
 
     var isPrimaryButtonDisabled: Bool {
         switch selection {
-        case .welcome, .benefits:
+        case .accountDecision, .welcome, .benefits:
             return false
         case .paywall:
             return paywallViewModel.isProcessingPurchase
@@ -214,6 +318,8 @@ private extension OnboardingFlowView {
 
     var primaryButtonAnalyticsLabel: String {
         switch selection {
+        case .accountDecision:
+            return "onboarding_account_stay_local"
         case .welcome:
             return "onboarding_next_button_welcome"
         case .benefits:
@@ -225,6 +331,8 @@ private extension OnboardingFlowView {
 
     func handlePrimaryAction() {
         switch selection {
+        case .accountDecision:
+            advancePastAccountDecision()
         case .welcome:
             withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                 selection = .benefits
@@ -244,18 +352,39 @@ private extension OnboardingFlowView {
         hasCompletedOnboarding = true
         isPresented = false
     }
+
+    func configureInitialSelection() {
+        if authManager.isAuthenticated {
+            showAccountDecisionPage = false
+            selection = .welcome
+        } else {
+            showAccountDecisionPage = true
+            selection = .accountDecision
+        }
+    }
+
+    func advancePastAccountDecision() {
+        guard showAccountDecisionPage else { return }
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            selection = .welcome
+            showAccountDecisionPage = false
+        }
+    }
 }
 
 private extension OnboardingFlowView {
     enum Page: Int, CaseIterable {
+        case accountDecision
         case welcome
         case benefits
         case paywall
 
         func previous() -> Page {
             switch self {
+            case .accountDecision:
+                return .accountDecision
             case .welcome:
-                return .welcome
+                return .accountDecision
             case .benefits:
                 return .welcome
             case .paywall:
@@ -263,9 +392,9 @@ private extension OnboardingFlowView {
             }
         }
     }
-
 }
 
 #Preview {
     OnboardingFlowView(isPresented: .constant(true))
+        .environmentObject(SupabaseAuthManager())
 }
