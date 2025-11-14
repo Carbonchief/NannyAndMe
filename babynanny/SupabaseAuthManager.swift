@@ -410,15 +410,57 @@ final class SupabaseAuthManager: ObservableObject {
     }
 
     func deleteBabyProfile(withID id: UUID) async {
-        guard let client, isAuthenticated else { return }
+        guard let client, isAuthenticated, let currentUserID else { return }
 
         let identifier = id.uuidString
         var recordedError: Error?
+        var shareLookupError: Error?
 
         func recordError(_ error: Error) {
             if recordedError == nil {
                 recordedError = error
             }
+        }
+
+        var isSharedRecipient = false
+
+        do {
+            let decoder = JSONDecoder()
+            let response: PostgrestResponse<[BabyProfileShareStatusRecord]> = try await client.database
+                .from("baby_profile_shares")
+                .select("baby_profile_id")
+                .eq("baby_profile_id", value: identifier)
+                .eq("recipient_caregiver_id", value: currentUserID.uuidString)
+                .limit(1)
+                .execute()
+
+            let records: [BabyProfileShareStatusRecord] = try decodeResponse(
+                response.value,
+                decoder: decoder,
+                context: "profile-share-status"
+            )
+            isSharedRecipient = records.isEmpty == false
+        } catch {
+            shareLookupError = error
+        }
+
+        if isSharedRecipient {
+            do {
+                let update = BabyProfileShareStatusUpdate(status: "canceled")
+                _ = try await client.database
+                    .from("baby_profile_shares")
+                    .update(update)
+                    .eq("baby_profile_id", value: identifier)
+                    .eq("recipient_caregiver_id", value: currentUserID.uuidString)
+                    .execute()
+            } catch {
+                recordError(error)
+            }
+
+            if let recordedError {
+                lastErrorMessage = Self.userFriendlyMessage(from: recordedError)
+            }
+            return
         }
 
         do {
@@ -459,6 +501,10 @@ final class SupabaseAuthManager: ObservableObject {
                 .execute()
         } catch {
             recordError(error)
+        }
+
+        if recordedError == nil, let shareLookupError {
+            recordedError = shareLookupError
         }
 
         if let recordedError {
@@ -790,6 +836,22 @@ private struct BabyProfileShareRecord: Encodable {
         case ownerCaregiverID = "owner_caregiver_id"
         case recipientCaregiverID = "recipient_caregiver_id"
         case permission
+        case status
+    }
+}
+
+private struct BabyProfileShareStatusRecord: Decodable {
+    var babyProfileID: UUID
+
+    enum CodingKeys: String, CodingKey {
+        case babyProfileID = "baby_profile_id"
+    }
+}
+
+private struct BabyProfileShareStatusUpdate: Encodable {
+    var status: String
+
+    enum CodingKeys: String, CodingKey {
         case status
     }
 }
