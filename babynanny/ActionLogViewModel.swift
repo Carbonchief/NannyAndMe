@@ -28,6 +28,7 @@ final class ActionLogStore: ObservableObject {
     private var cachedStates: [UUID: ProfileActionState] = [:]
     private var pendingRemoteDeletions: [UUID: Set<UUID>] = [:]
     private var stateReloadTask: Task<Void, Never>?
+    var syncObserver: ((UUID, [BabyActionSnapshot], [UUID]) -> Void)?
 
     private struct PersistentStoreContextIdentifiers {
         var contextIdentifier: ObjectIdentifier?
@@ -563,6 +564,7 @@ final class ActionLogStore: ObservableObject {
                                                   bottleType: action.bottleType,
                                                   bottleVolume: action.bottleVolume,
                                                   updatedAt: action.updatedAt,
+                                                  isPendingSync: false,
                                                   profile: model)
                 context.insert(modelAction)
             }
@@ -624,6 +626,7 @@ private extension ActionLogStore {
                     let sanitizedResolved = resolved.withValidatedDates()
                     existing.update(from: sanitizedResolved)
                     existing.profile = model
+                    existing.isPendingSync = true
                     seenIDs.insert(existing.id)
                     actionsToUpsert.append(sanitizedResolved)
                 } else {
@@ -639,6 +642,7 @@ private extension ActionLogStore {
                                                     longitude: action.longitude,
                                                     placename: action.placename,
                                                     updatedAt: action.updatedAt,
+                                                    isPendingSync: true,
                                                     profile: model)
                     modelContext.insert(newAction)
                     seenIDs.insert(newAction.id)
@@ -728,10 +732,15 @@ private extension ActionLogStore {
                         let existingSnapshot = existing.asSnapshot().withValidatedDates()
                         let resolved = conflictResolver.resolve(local: existingSnapshot, remote: action)
                         seenIDs.insert(existing.id)
+                        if existing.isPendingSync && action == existingSnapshot {
+                            existing.isPendingSync = false
+                            hasChanges = true
+                        }
                         guard resolved != existingSnapshot else { continue }
                         let sanitized = resolved.withValidatedDates()
                         existing.update(from: sanitized)
                         existing.profile = model
+                        existing.isPendingSync = (sanitized != action)
                         hasChanges = true
                     } else {
                         let sanitized = action.withValidatedDates()
@@ -747,6 +756,7 @@ private extension ActionLogStore {
                                                         longitude: sanitized.longitude,
                                                         placename: sanitized.placename,
                                                         updatedAt: sanitized.updatedAt,
+                                                        isPendingSync: false,
                                                         profile: model)
                         modelContext.insert(newAction)
                         seenIDs.insert(newAction.id)
@@ -755,6 +765,10 @@ private extension ActionLogStore {
                 }
 
                 for (identifier, actionModel) in existingModels where seenIDs.contains(identifier) == false {
+                    if actionModel.isPendingSync {
+                        seenIDs.insert(identifier)
+                        continue
+                    }
                     modelContext.delete(actionModel)
                     hasChanges = true
                 }
@@ -780,30 +794,41 @@ private extension ActionLogStore {
 
     private func pushLocalStateToSupabase(localStates: [UUID: ProfileActionState],
                                           remoteActionIDsByProfile: [UUID: Set<UUID>]) async {
-        guard let authManager, authManager.isAuthenticated else { return }
-        logger.log("Pushing local state for \(localStates.count, privacy: .public) profiles back to Supabase.")
+        var pendingPushes: [(UUID, [BabyActionSnapshot], [UUID])] = []
 
         for (profileID, state) in localStates {
             let actions = (state.activeActions.values + state.history).map { $0.withValidatedDates() }
             let localIDs = Set(actions.map(\.id))
             let remoteIDs = remoteActionIDsByProfile[profileID] ?? []
             let deletions = Array(remoteIDs.subtracting(localIDs))
-
-            await authManager.syncBabyActions(upserting: actions,
-                                              deletingIDs: deletions,
-                                              profileID: profileID)
-            logger.log("Queued sync for profile \(profileID, privacy: .public). upserts=\(actions.count, privacy: .public) deletions=\(deletions.count, privacy: .public)")
+            if actions.isEmpty == false || deletions.isEmpty == false {
+                pendingPushes.append((profileID, actions, deletions))
+            }
         }
 
         let remoteOnlyProfiles = Set(remoteActionIDsByProfile.keys).subtracting(localStates.keys)
-
         for profileID in remoteOnlyProfiles {
             let deletions = Array(remoteActionIDsByProfile[profileID] ?? [])
             guard deletions.isEmpty == false else { continue }
-            await authManager.syncBabyActions(upserting: [],
+            pendingPushes.append((profileID, [], deletions))
+        }
+
+        for (profileID, actions, deletions) in pendingPushes {
+            syncObserver?(profileID, actions, deletions)
+        }
+
+        guard let authManager, authManager.isAuthenticated else { return }
+        logger.log("Pushing local state for \(localStates.count, privacy: .public) profiles back to Supabase.")
+
+        for (profileID, actions, deletions) in pendingPushes where actions.isEmpty == false || deletions.isEmpty == false {
+            await authManager.syncBabyActions(upserting: actions,
                                               deletingIDs: deletions,
                                               profileID: profileID)
-            logger.log("Queued remote-only deletion sync for profile \(profileID, privacy: .public) with \(deletions.count, privacy: .public) deletions.")
+            if actions.isEmpty {
+                logger.log("Queued remote-only deletion sync for profile \(profileID, privacy: .public) with \(deletions.count, privacy: .public) deletions.")
+            } else {
+                logger.log("Queued sync for profile \(profileID, privacy: .public). upserts=\(actions.count, privacy: .public) deletions=\(deletions.count, privacy: .public)")
+            }
         }
     }
 

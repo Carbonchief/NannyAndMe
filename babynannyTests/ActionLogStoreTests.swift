@@ -151,6 +151,45 @@ struct ActionLogStoreTests {
 
         #expect(resolved == local)
     }
+
+    @Test
+    func retainsOfflineActionsWhenReconcilingOlderSnapshot() async throws {
+        let container = AppDataStack.makeModelContainer(inMemory: true)
+        let stack = await AppDataStack(modelContainer: container)
+        let actionStore = await ActionLogStore(modelContext: stack.mainContext, dataStack: stack)
+        let profileID = UUID()
+
+        var offlineState = ProfileActionState()
+        var offlineAction = BabyActionSnapshot(category: .sleep,
+                                               startDate: Date(),
+                                               endDate: Date().addingTimeInterval(60))
+        offlineAction.updatedAt = Date()
+        offlineState.history = [offlineAction]
+
+        await actionStore.mergeProfileState(offlineState, for: profileID)
+        await stack.flushPendingSaves()
+
+        var capturedPushes: [(UUID, [BabyActionSnapshot], [UUID])] = []
+        actionStore.syncObserver = { profile, upserts, deletions in
+            capturedPushes.append((profile, upserts, deletions))
+        }
+
+        let remoteSnapshot = SupabaseAuthManager.CaregiverSnapshot(actionsByProfile: [profileID: []])
+        await actionStore.reconcileWithSupabase(snapshot: remoteSnapshot)
+        await stack.flushPendingSaves()
+
+        let resultingState = await actionStore.state(for: profileID)
+        #expect(resultingState.history.contains(where: { $0.id == offlineAction.id }))
+
+        let captured = try #require(capturedPushes.first(where: { $0.0 == profileID }))
+        #expect(captured.1.contains(where: { $0.id == offlineAction.id }))
+        #expect(captured.2.isEmpty)
+
+        let descriptor = FetchDescriptor<BabyActionModel>()
+        let storedActions = try stack.mainContext.fetch(descriptor)
+        let storedOffline = try #require(storedActions.first(where: { $0.id == offlineAction.id }))
+        #expect(storedOffline.isPendingSync)
+    }
 }
 
 @MainActor

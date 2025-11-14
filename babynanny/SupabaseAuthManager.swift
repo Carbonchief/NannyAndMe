@@ -913,14 +913,35 @@ extension SupabaseAuthManager {
     struct CaregiverSnapshot: Sendable {
         private let profiles: [BabyProfileRecord]
         private let actions: [BabyActionRecord]
+        private let explicitProfileIdentifiers: Set<UUID>
 
-        fileprivate init(profiles: [BabyProfileRecord], actions: [BabyActionRecord]) {
+        fileprivate init(profiles: [BabyProfileRecord],
+                         actions: [BabyActionRecord],
+                         explicitProfileIdentifiers: Set<UUID> = []) {
             self.profiles = profiles
             self.actions = actions
+            self.explicitProfileIdentifiers = explicitProfileIdentifiers
+        }
+
+        init(actionsByProfile: [UUID: [BabyActionSnapshot]]) {
+            let caregiverID = UUID()
+            var actionRecords: [BabyActionRecord] = []
+            for (profileID, snapshots) in actionsByProfile {
+                for snapshot in snapshots {
+                    guard let record = BabyActionRecord(action: snapshot,
+                                                        caregiverID: caregiverID,
+                                                        profileID: profileID) else { continue }
+                    actionRecords.append(record)
+                }
+            }
+            self.init(profiles: [],
+                      actions: actionRecords,
+                      explicitProfileIdentifiers: Set(actionsByProfile.keys))
         }
 
         var profileIdentifiers: Set<UUID> {
             var identifiers = Set(profiles.map(\.id))
+            identifiers.formUnion(explicitProfileIdentifiers)
             for record in actions {
                 if let profileID = record.profileID {
                     identifiers.insert(profileID)
