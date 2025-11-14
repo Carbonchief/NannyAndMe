@@ -1,4 +1,5 @@
 import Foundation
+import os
 import SwiftData
 import SwiftUI
 
@@ -17,6 +18,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
     var name: String
     var birthDate: Date
     var imageData: Data?
+    var avatarURL: URL?
     var remindersEnabled: Bool
     private var actionReminderIntervals: [BabyActionCategory: TimeInterval]
     private var actionRemindersEnabled: [BabyActionCategory: Bool]
@@ -26,6 +28,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
          name: String,
          birthDate: Date,
          imageData: Data? = nil,
+         avatarURL: URL? = nil,
          remindersEnabled: Bool = false,
          actionReminderIntervals: [BabyActionCategory: TimeInterval] = ChildProfile.defaultActionReminderIntervals(),
          actionRemindersEnabled: [BabyActionCategory: Bool] = ChildProfile.defaultActionRemindersEnabled(),
@@ -34,6 +37,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         self.name = name
         self.birthDate = birthDate
         self.imageData = imageData
+        self.avatarURL = avatarURL
         self.remindersEnabled = remindersEnabled
         self.actionReminderIntervals = actionReminderIntervals
         self.actionRemindersEnabled = actionRemindersEnabled
@@ -52,6 +56,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
                   name: model.name ?? "",
                   birthDate: model.birthDate ?? Date(),
                   imageData: model.imageData,
+                  avatarURL: model.avatarURL.flatMap { URL(string: $0) },
                   remindersEnabled: model.remindersEnabled,
                   actionReminderIntervals: model.reminderIntervalsByCategory(),
                   actionRemindersEnabled: model.reminderEnabledByCategory(),
@@ -177,6 +182,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         case name
         case birthDate
         case imageData
+        case avatarURL
         case remindersEnabled
         case actionReminderIntervals
         case actionRemindersEnabled
@@ -189,6 +195,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         name = try container.decode(String.self, forKey: .name)
         birthDate = try container.decode(Date.self, forKey: .birthDate)
         imageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
+        avatarURL = try container.decodeIfPresent(URL.self, forKey: .avatarURL)
         remindersEnabled = try container.decodeIfPresent(Bool.self, forKey: .remindersEnabled) ?? false
 
         if let rawIntervals = try container.decodeIfPresent([String: TimeInterval].self, forKey: .actionReminderIntervals) {
@@ -234,6 +241,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         try container.encode(name, forKey: .name)
         try container.encode(birthDate, forKey: .birthDate)
         try container.encodeIfPresent(imageData, forKey: .imageData)
+        try container.encodeIfPresent(avatarURL, forKey: .avatarURL)
         try container.encode(remindersEnabled, forKey: .remindersEnabled)
         let rawIntervals = Dictionary(uniqueKeysWithValues: actionReminderIntervals.map { ($0.key.rawValue, $0.value) })
         try container.encode(rawIntervals, forKey: .actionReminderIntervals)
@@ -246,6 +254,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
 
 @MainActor
 final class ProfileStore: ObservableObject {
+    private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "profile-store")
     struct ActionReminderSummary: Equatable, Sendable {
         let fireDate: Date
         let message: String
@@ -256,6 +265,7 @@ final class ProfileStore: ObservableObject {
         let name: String
         let birthDate: Date?
         let imageData: Data?
+        let avatarURL: String?
     }
 
     enum ShareDataError: LocalizedError, Sendable {
@@ -320,6 +330,7 @@ final class ProfileStore: ObservableObject {
     private let reminderScheduler: ReminderScheduling
     private weak var actionStore: ActionLogStore?
     private var authManager: SupabaseAuthManager?
+    private var pendingAvatarDownloads: Set<UUID> = []
     private let fileManager: FileManager
     private let saveURL: URL
     private var settings: ProfileStoreSettings
@@ -357,6 +368,7 @@ final class ProfileStore: ObservableObject {
 
     func registerAuthManager(_ manager: SupabaseAuthManager) {
         authManager = manager
+        downloadMissingAvatarsForCurrentProfiles()
     }
 
     func rescheduleRemindersAfterOnboarding() {
@@ -471,12 +483,14 @@ final class ProfileStore: ObservableObject {
         guard updates.isEmpty == false else { return }
 
         var insertedProfileIDs: [UUID] = []
+        var avatarsToDownload: [UUID: URL] = [:]
 
         mutateProfiles(reason: "profile-metadata-update") {
             var didChange = false
             var insertedProfiles: [ProfileActionStateModel] = []
 
             for update in updates {
+                let remoteURL = update.avatarURL.flatMap { URL(string: $0) }
                 if let model = profileModel(withID: update.id) {
                     let trimmedName = update.name.trimmingCharacters(in: .whitespacesAndNewlines)
                     if model.name != trimmedName {
@@ -487,9 +501,16 @@ final class ProfileStore: ObservableObject {
                         model.setBirthDate(birthDate)
                         didChange = true
                     }
-                    if model.imageData != update.imageData {
-                        model.imageData = update.imageData
+                    if let newImageData = update.imageData, model.imageData != newImageData {
+                        model.imageData = newImageData
                         didChange = true
+                    }
+                    if model.avatarURL != update.avatarURL {
+                        model.avatarURL = update.avatarURL
+                        didChange = true
+                    }
+                    if let remoteURL, model.imageData == nil {
+                        avatarsToDownload[update.id] = remoteURL
                     }
                     if didChange {
                         model.touch()
@@ -500,12 +521,16 @@ final class ProfileStore: ObservableObject {
                     let model = ProfileActionStateModel(profileID: update.id,
                                                         name: trimmedName,
                                                         birthDate: birthDate,
-                                                        imageData: update.imageData)
+                                                        imageData: update.imageData,
+                                                        avatarURL: update.avatarURL)
                     model.normalizeReminderPreferences()
                     modelContext.insert(model)
                     insertedProfiles.append(model)
                     insertedProfileIDs.append(model.resolvedProfileID)
                     didChange = true
+                    if update.imageData == nil, let remoteURL {
+                        avatarsToDownload[update.id] = remoteURL
+                    }
                 }
             }
 
@@ -517,6 +542,9 @@ final class ProfileStore: ObservableObject {
         }
 
         adoptDownloadedProfilesIfNeeded(insertedProfileIDs: insertedProfileIDs)
+        if avatarsToDownload.isEmpty == false {
+            scheduleAvatarDownloads(avatarsToDownload)
+        }
     }
 
     @discardableResult
@@ -789,6 +817,58 @@ final class ProfileStore: ObservableObject {
 
     private func synchronizeProfileMetadata() {
         actionStore?.synchronizeProfileMetadata(profiles)
+    }
+
+    private func scheduleAvatarDownloads(_ entries: [UUID: URL]) {
+        guard let authManager, entries.isEmpty == false else { return }
+
+        for (profileID, url) in entries {
+            if pendingAvatarDownloads.contains(profileID) {
+                continue
+            }
+            pendingAvatarDownloads.insert(profileID)
+
+            Task { [weak self, authManager] in
+                do {
+                    let data = try await authManager.downloadAvatarImage(from: url)
+                    await MainActor.run {
+                        self?.applyDownloadedAvatar(data, to: profileID)
+                    }
+                } catch {
+                    await MainActor.run {
+                        if let self {
+                            self.logger.error("Failed to download avatar for \(profileID.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                        }
+                    }
+                }
+
+                _ = await MainActor.run {
+                    self?.pendingAvatarDownloads.remove(profileID)
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func applyDownloadedAvatar(_ data: Data, to profileID: UUID) {
+        mutateProfiles(reason: "profile-avatar-download") {
+            guard let model = profileModel(withID: profileID) else { return false }
+            guard model.imageData != data else { return false }
+            model.imageData = data
+            model.touch()
+            return true
+        }
+    }
+
+    private func downloadMissingAvatarsForCurrentProfiles() {
+        let entries = profiles.reduce(into: [UUID: URL]()) { partialResult, profile in
+            if profile.imageData == nil, let url = profile.avatarURL {
+                partialResult[profile.id] = url
+            }
+        }
+        if entries.isEmpty == false {
+            scheduleAvatarDownloads(entries)
+        }
     }
 
     private func mutateProfiles(reason: String, _ work: () -> Bool) {

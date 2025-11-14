@@ -21,13 +21,12 @@ struct ProfileAvatarView: View {
     }
 
     private var avatarImage: Image {
-        #if canImport(UIKit)
+#if canImport(UIKit)
         if let imageData,
            let uiImage = UIImage(data: imageData) {
             return Image(uiImage: uiImage)
         }
-        #endif
-
+#endif
         return Image(systemName: "person.crop.circle.fill")
     }
 }

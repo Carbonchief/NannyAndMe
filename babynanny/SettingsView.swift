@@ -9,6 +9,7 @@ import SwiftUI
 import PhotosUI
 import UIKit
 
+@MainActor
 struct SettingsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
@@ -96,7 +97,10 @@ struct SettingsView: View {
                 pendingCrop = nil
             } onCrop: { croppedImage in
                 if let data = croppedImage.compressedData() {
-                    profileStore.updateActiveProfile { $0.imageData = data }
+                    profileStore.updateActiveProfile {
+                        $0.imageData = data
+                        $0.avatarURL = nil
+                    }
                 }
                 pendingCrop = nil
             }
@@ -231,7 +235,8 @@ struct SettingsView: View {
 
     private func profileRow(for profile: ChildProfile) -> some View {
         HStack(spacing: 16) {
-            ProfileAvatarView(imageData: profile.imageData, size: 48)
+            ProfileAvatarView(imageData: profile.imageData,
+                              size: 48)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(profile.displayName)
@@ -315,14 +320,19 @@ struct SettingsView: View {
         }
     }
 
+    @MainActor
     private var profilePhotoSelector: some View {
         let activeImageData = profileStore.activeProfile.imageData
+        let activeAvatarURL = profileStore.activeProfile.avatarURL
+        let hasAvatarImage = activeImageData != nil || activeAvatarURL != nil
+        let avatarPreview = ProfileAvatarView(imageData: activeImageData,
+                                              size: 72)
 
         return ZStack(alignment: .bottomTrailing) {
             PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
-                ProfileAvatarView(imageData: activeImageData, size: 72)
+                avatarPreview
                     .overlay(alignment: .bottomTrailing) {
-                        if activeImageData == nil {
+                        if hasAvatarImage == false {
                             Image(systemName: "plus.circle.fill")
                                 .symbolRenderingMode(.multicolor)
                                 .font(.system(size: 20))
@@ -338,9 +348,12 @@ struct SettingsView: View {
                 handlePhotoSelectionChange(newValue)
             }
 
-            if activeImageData != nil {
+            if hasAvatarImage {
                 Button {
-                    profileStore.updateActiveProfile { $0.imageData = nil }
+                    profileStore.updateActiveProfile {
+                        $0.imageData = nil
+                        $0.avatarURL = nil
+                    }
                 } label: {
                     Image(systemName: "trash.fill")
                         .font(.system(size: 12, weight: .bold))

@@ -498,6 +498,7 @@ final class Profile {
     var birthDate: Date?
     @Attribute(.externalStorage)
     var imageData: Data?
+    var avatarURL: String?
     var remindersEnabled: Bool = false
     private var updatedAtRawValue: Date = Date()
     @Relationship(deleteRule: .cascade)
@@ -509,6 +510,7 @@ final class Profile {
          name: String? = nil,
          birthDate: Date? = nil,
          imageData: Data? = nil,
+         avatarURL: String? = nil,
          remindersEnabled: Bool = false,
          reminderPreferences: [ProfileReminderPreference]? = nil,
          actions: [BabyAction] = []) {
@@ -516,6 +518,7 @@ final class Profile {
         self.name = name
         self.birthDate = birthDate?.normalizedToUTC()
         self.imageData = imageData
+        self.avatarURL = avatarURL
         self.remindersEnabled = remindersEnabled
         self.storedActions = actions
         self.updatedAtRawValue = Date()

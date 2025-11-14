@@ -154,7 +154,8 @@ struct ContentView: View {
                                 isProfileSwitcherPresented = true
                             }
 
-                        ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 36)
+                        ProfileAvatarView(imageData: profileStore.activeProfile.imageData,
+                                          size: 36)
                             .contentShape(Rectangle())
                             .gesture(doubleTap.exclusively(before: singleTap))
                             .accessibilityLabel(L10n.Profiles.title)
@@ -306,7 +307,10 @@ struct ContentView: View {
                 guard trimmedName.isEmpty == false else { return }
                 profileStore.updateActiveProfile { profile in
                     profile.name = trimmedName
-                    profile.imageData = imageData
+                    if profile.imageData != imageData {
+                        profile.imageData = imageData
+                        profile.avatarURL = nil
+                    }
                 }
                 isInitialProfilePromptPresented = false
             }

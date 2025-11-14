@@ -203,6 +203,11 @@ final class ActionLogStore: ObservableObject {
                     model.imageData = profile.imageData
                     didMutateCurrent = true
                 }
+                let resolvedAvatarURL = profile.avatarURL?.absoluteString
+                if model.avatarURL != resolvedAvatarURL {
+                    model.avatarURL = resolvedAvatarURL
+                    didMutateCurrent = true
+                }
                 if didMutateCurrent {
                     model.touch()
                 }
@@ -966,7 +971,8 @@ private extension ActionLogStore {
                 id: model.resolvedProfileID,
                 name: model.name ?? "",
                 birthDate: model.birthDate,
-                imageData: model.imageData
+                imageData: model.imageData,
+                avatarURL: model.avatarURL
             )
         }
         profileStore.applyMetadataUpdates(updates)

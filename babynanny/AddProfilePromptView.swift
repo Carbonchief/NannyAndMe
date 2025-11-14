@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import UIKit
 
+@MainActor
 struct AddProfilePromptView: View {
     let onCreate: (String, Date, Data?) -> Void
     let onCancel: () -> Void
@@ -150,13 +151,16 @@ struct AddProfilePromptView: View {
         dismiss()
     }
 
+    @MainActor
     private var profilePhotoSelector: some View {
         let currentImageData = imageData
         let hasImage = currentImageData != nil
 
+        let avatarPreview = ProfileAvatarView(imageData: currentImageData, size: 72)
+
         return ZStack(alignment: .bottomTrailing) {
             PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
-                ProfileAvatarView(imageData: currentImageData, size: 72)
+                avatarPreview
                     .overlay(alignment: .bottomTrailing) {
                         if hasImage == false {
                             Image(systemName: "plus.circle.fill")
