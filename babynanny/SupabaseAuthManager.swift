@@ -422,31 +422,33 @@ final class SupabaseAuthManager: ObservableObject {
             }
         }
 
-        var isSharedRecipient = false
+        var shareMembership: BabyProfileShareMembershipRecord?
 
         do {
             let decoder = JSONDecoder()
-            let response: PostgrestResponse<[BabyProfileShareStatusRecord]> = try await client.database
+            let response: PostgrestResponse<[BabyProfileShareMembershipRecord]> = try await client.database
                 .from("baby_profile_shares")
-                .select("baby_profile_id")
+                .select("baby_profile_id, owner_caregiver_id, recipient_caregiver_id")
                 .eq("baby_profile_id", value: identifier)
-                .eq("recipient_caregiver_id", value: currentUserID.uuidString)
+                .or(
+                    "owner_caregiver_id.eq.\(currentUserID.uuidString),recipient_caregiver_id.eq.\(currentUserID.uuidString)"
+                )
                 .limit(1)
                 .execute()
 
-            let records: [BabyProfileShareStatusRecord] = try decodeResponse(
+            let records: [BabyProfileShareMembershipRecord] = try decodeResponse(
                 response.value,
                 decoder: decoder,
-                context: "profile-share-status"
+                context: "profile-share-membership"
             )
-            isSharedRecipient = records.isEmpty == false
+            shareMembership = records.first
         } catch {
             shareLookupError = error
         }
 
-        if isSharedRecipient {
+        if let shareMembership, shareMembership.recipientCaregiverID == currentUserID {
             do {
-                let update = BabyProfileShareStatusUpdate(status: "canceled")
+                let update = BabyProfileShareStatusUpdate(status: "revoked")
                 _ = try await client.database
                     .from("baby_profile_shares")
                     .update(update)
@@ -840,11 +842,15 @@ private struct BabyProfileShareRecord: Encodable {
     }
 }
 
-private struct BabyProfileShareStatusRecord: Decodable {
+private struct BabyProfileShareMembershipRecord: Decodable {
     var babyProfileID: UUID
+    var ownerCaregiverID: UUID
+    var recipientCaregiverID: UUID
 
     enum CodingKeys: String, CodingKey {
         case babyProfileID = "baby_profile_id"
+        case ownerCaregiverID = "owner_caregiver_id"
+        case recipientCaregiverID = "recipient_caregiver_id"
     }
 }
 
