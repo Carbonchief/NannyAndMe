@@ -412,14 +412,57 @@ final class SupabaseAuthManager: ObservableObject {
     func deleteBabyProfile(withID id: UUID) async {
         guard let client, isAuthenticated else { return }
 
+        let identifier = id.uuidString
+        var recordedError: Error?
+
+        func recordError(_ error: Error) {
+            if recordedError == nil {
+                recordedError = error
+            }
+        }
+
+        do {
+            _ = try await client.database
+                .from("Baby_Action")
+                .delete()
+                .eq("Profile_Id", value: identifier)
+                .execute()
+        } catch {
+            recordError(error)
+        }
+
+        do {
+            _ = try await client.database
+                .from("Baby_Action")
+                .delete()
+                .eq("Note2", value: identifier)
+                .execute()
+        } catch {
+            recordError(error)
+        }
+
+        do {
+            _ = try await client.database
+                .from("baby_profile_shares")
+                .delete()
+                .eq("baby_profile_id", value: identifier)
+                .execute()
+        } catch {
+            recordError(error)
+        }
+
         do {
             _ = try await client.database
                 .from("baby_profiles")
                 .delete()
-                .eq("id", value: id.uuidString)
+                .eq("id", value: identifier)
                 .execute()
         } catch {
-            lastErrorMessage = Self.userFriendlyMessage(from: error)
+            recordError(error)
+        }
+
+        if let recordedError {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError)
         }
     }
 
