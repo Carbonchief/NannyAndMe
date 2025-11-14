@@ -410,7 +410,7 @@ final class SupabaseAuthManager: ObservableObject {
     }
 
     func deleteBabyProfile(withID id: UUID) async {
-        guard let client, isAuthenticated else { return }
+        guard let client, isAuthenticated, let currentUserID else { return }
 
         let identifier = id.uuidString
         var recordedError: Error?
@@ -419,6 +419,54 @@ final class SupabaseAuthManager: ObservableObject {
             if recordedError == nil {
                 recordedError = error
             }
+        }
+
+        var shareMembership: BabyProfileShareMembershipRecord?
+
+        do {
+            let decoder = JSONDecoder()
+            let response: PostgrestResponse<[BabyProfileShareMembershipRecord]> = try await client.database
+                .from("baby_profile_shares")
+                .select("baby_profile_id, owner_caregiver_id, recipient_caregiver_id")
+                .eq("baby_profile_id", value: identifier)
+                .or(
+                    "owner_caregiver_id.eq.\(currentUserID.uuidString),recipient_caregiver_id.eq.\(currentUserID.uuidString)"
+                )
+                .limit(1)
+                .execute()
+
+            let records: [BabyProfileShareMembershipRecord] = try decodeResponse(
+                response.value,
+                decoder: decoder,
+                context: "profile-share-membership"
+            )
+            shareMembership = records.first
+        } catch {
+            recordError(error)
+
+            if let recordedError {
+                lastErrorMessage = Self.userFriendlyMessage(from: recordedError)
+            }
+            return
+        }
+
+        if let shareMembership, shareMembership.recipientCaregiverID == currentUserID {
+            do {
+                let update = BabyProfileShareStatusUpdate(status: "revoked")
+                _ = try await client.database
+                    .from("baby_profile_shares")
+                    .update(update)
+                    .eq("baby_profile_id", value: identifier)
+                    .eq("recipient_caregiver_id", value: currentUserID.uuidString)
+                    .execute()
+            } catch {
+                recordError(error)
+            }
+
+            if let recordedError {
+                lastErrorMessage = Self.userFriendlyMessage(from: recordedError)
+            }
+            return
         }
 
         do {
@@ -790,6 +838,26 @@ private struct BabyProfileShareRecord: Encodable {
         case ownerCaregiverID = "owner_caregiver_id"
         case recipientCaregiverID = "recipient_caregiver_id"
         case permission
+        case status
+    }
+}
+
+private struct BabyProfileShareMembershipRecord: Decodable {
+    var babyProfileID: UUID
+    var ownerCaregiverID: UUID
+    var recipientCaregiverID: UUID
+
+    enum CodingKeys: String, CodingKey {
+        case babyProfileID = "baby_profile_id"
+        case ownerCaregiverID = "owner_caregiver_id"
+        case recipientCaregiverID = "recipient_caregiver_id"
+    }
+}
+
+private struct BabyProfileShareStatusUpdate: Encodable {
+    var status: String
+
+    enum CodingKeys: String, CodingKey {
         case status
     }
 }
