@@ -239,7 +239,7 @@ final class SupabaseAuthManager: ObservableObject {
         do {
             let session = try await client.auth.session
             try await upsertCaregiver(for: session.user)
-            let remoteSnapshot = try await fetchCaregiverSnapshot(for: session.user.id)
+            let remoteSnapshot = try await fetchCaregiverSnapshotFromSupabase()
             let hasRemoteData = remoteSnapshot.profileCount > 0 || remoteSnapshot.actionCount > 0
             let localHasNamedProfiles = profiles.contains { profile in
                 profile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
@@ -254,7 +254,7 @@ final class SupabaseAuthManager: ObservableObject {
                 try await upsertBabyProfiles(profiles, caregiverID: session.user.id)
             }
 
-            let snapshot = try await fetchCaregiverSnapshot(for: session.user.id)
+            let snapshot = try await fetchCaregiverSnapshotFromSupabase()
             hasSynchronizedCaregiverDataForCurrentSession = true
             return snapshot
         } catch {
@@ -268,19 +268,14 @@ final class SupabaseAuthManager: ObservableObject {
         guard let client = client, isAuthenticated else { return nil }
 
         do {
-            let caregiverID: UUID
-
-            if let cachedID = currentUserID {
-                caregiverID = cachedID
-            } else {
+            if currentUserID == nil {
                 let session = try await client.auth.session
-                caregiverID = session.user.id
                 currentUserID = session.user.id
                 currentUserEmail = session.user.email
                 logger.log("Resolved caregiver ID from Supabase session during snapshot fetch.")
             }
 
-            let snapshot = try await fetchCaregiverSnapshot(for: caregiverID)
+            let snapshot = try await fetchCaregiverSnapshotFromSupabase()
             return snapshot
         } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
@@ -380,7 +375,7 @@ final class SupabaseAuthManager: ObservableObject {
             .execute()
     }
 
-    private func fetchCaregiverSnapshot(for _ caregiverID: UUID) async throws -> CaregiverSnapshot {
+    private func fetchCaregiverSnapshotFromSupabase() async throws -> CaregiverSnapshot {
         guard let client else {
             throw SnapshotError.clientUnavailable
         }
@@ -913,14 +908,35 @@ extension SupabaseAuthManager {
     struct CaregiverSnapshot: Sendable {
         private let profiles: [BabyProfileRecord]
         private let actions: [BabyActionRecord]
+        private let explicitProfileIdentifiers: Set<UUID>
 
-        fileprivate init(profiles: [BabyProfileRecord], actions: [BabyActionRecord]) {
+        fileprivate init(profiles: [BabyProfileRecord],
+                         actions: [BabyActionRecord],
+                         explicitProfileIdentifiers: Set<UUID> = []) {
             self.profiles = profiles
             self.actions = actions
+            self.explicitProfileIdentifiers = explicitProfileIdentifiers
+        }
+
+        init(actionsByProfile: [UUID: [BabyActionSnapshot]]) {
+            let caregiverID = UUID()
+            var actionRecords: [BabyActionRecord] = []
+            for (profileID, snapshots) in actionsByProfile {
+                for snapshot in snapshots {
+                    guard let record = BabyActionRecord(action: snapshot,
+                                                        caregiverID: caregiverID,
+                                                        profileID: profileID) else { continue }
+                    actionRecords.append(record)
+                }
+            }
+            self.init(profiles: [],
+                      actions: actionRecords,
+                      explicitProfileIdentifiers: Set(actionsByProfile.keys))
         }
 
         var profileIdentifiers: Set<UUID> {
             var identifiers = Set(profiles.map(\.id))
+            identifiers.formUnion(explicitProfileIdentifiers)
             for record in actions {
                 if let profileID = record.profileID {
                     identifiers.insert(profileID)

@@ -718,6 +718,7 @@ final class BabyAction {
     var bottleTypeRawValue: String?
     var bottleVolume: Int?
     private var updatedAtRawValue: Date = Date()
+    private var pendingSyncRawValue = false
     var latitude: Double?
     var longitude: Double?
     var placename: String?
@@ -736,6 +737,7 @@ final class BabyAction {
          longitude: Double? = nil,
          placename: String? = nil,
          updatedAt: Date = Date(),
+         isPendingSync: Bool = false,
          profile: Profile? = nil) {
         self.id = id
         self.category = category
@@ -749,6 +751,7 @@ final class BabyAction {
         self.longitude = longitude
         self.placename = placename
         self.updatedAtRawValue = updatedAt
+        self.pendingSyncRawValue = isPendingSync
         self.profile = profile
     }
 
@@ -770,6 +773,11 @@ final class BabyAction {
     var updatedAt: Date {
         get { updatedAtRawValue }
         set { updatedAtRawValue = newValue }
+    }
+
+    var isPendingSync: Bool {
+        get { pendingSyncRawValue }
+        set { pendingSyncRawValue = newValue }
     }
 }
 
