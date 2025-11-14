@@ -23,6 +23,7 @@ final class SupabaseAuthManager: ObservableObject {
     private var hasSynchronizedCaregiverDataForCurrentSession = false
     private var currentAppleNonce: String?
     private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
+    private static let profilePhotosBucketName = "ProfilePhotos"
 
     enum ProfileShareResult {
         case success
@@ -293,9 +294,13 @@ final class SupabaseAuthManager: ObservableObject {
         guard let client, isAuthenticated, let caregiverID = currentUserID else { return }
         guard profiles.isEmpty == false else { return }
 
-        let records = profiles.map { BabyProfileRecord(profile: $0, caregiverID: caregiverID) }
-
         do {
+            let records = try await makeBabyProfileRecords(from: profiles,
+                                                            caregiverID: caregiverID,
+                                                            client: client)
+
+            guard records.isEmpty == false else { return }
+
             _ = try await client.database
                 .from("baby_profiles")
                 .upsert(records, onConflict: "id", returning: .minimal)
@@ -366,7 +371,9 @@ final class SupabaseAuthManager: ObservableObject {
     private func upsertBabyProfiles(_ profiles: [ChildProfile], caregiverID: UUID) async throws {
         guard let client else { return }
 
-        let records = profiles.map { BabyProfileRecord(profile: $0, caregiverID: caregiverID) }
+        let records = try await makeBabyProfileRecords(from: profiles,
+                                                       caregiverID: caregiverID,
+                                                       client: client)
         guard records.isEmpty == false else { return }
 
         _ = try await client.database
@@ -374,6 +381,71 @@ final class SupabaseAuthManager: ObservableObject {
             .upsert(records, onConflict: "id", returning: .minimal)
             .execute()
     }
+
+    private func makeBabyProfileRecords(from profiles: [ChildProfile],
+                                        caregiverID: UUID,
+                                        client: SupabaseClient) async throws -> [BabyProfileRecord] {
+        guard profiles.isEmpty == false else { return [] }
+
+        var records: [BabyProfileRecord] = []
+        records.reserveCapacity(profiles.count)
+
+        for profile in profiles {
+            let avatarURL = try await resolveAvatarURL(for: profile,
+                                                       caregiverID: caregiverID,
+                                                       client: client)
+            let shouldClearAvatar = profile.imageData == nil
+            let record = BabyProfileRecord(profile: profile,
+                                           caregiverID: caregiverID,
+                                           avatarURL: avatarURL,
+                                           shouldClearAvatar: shouldClearAvatar)
+            records.append(record)
+        }
+
+        return records
+    }
+
+    private func resolveAvatarURL(for profile: ChildProfile,
+                                  caregiverID: UUID,
+                                  client: SupabaseClient) async throws -> String? {
+        guard let imageData = profile.imageData, imageData.isEmpty == false else { return nil }
+
+        let fileType = Self.resolveAvatarFileType(for: imageData)
+        let fileName = Self.avatarFileName(for: profile.id, fileExtension: fileType.fileExtension)
+        let storagePath = Self.avatarStoragePath(for: fileName, caregiverID: caregiverID)
+        let bucket = client.storage.from(Self.profilePhotosBucketName)
+        let fileInput = FileInput(data: imageData,
+                                  fileName: fileName,
+                                  contentType: fileType.contentType)
+        let options = FileOptions(cacheControl: nil, upsert: true)
+
+        do {
+            _ = try await bucket.upload(path: storagePath, file: fileInput, fileOptions: options)
+        } catch {
+            logger.error("Failed to upload profile avatar: \(error.localizedDescription, privacy: .public)")
+            throw error
+        }
+
+        let publicURL = bucket.getPublicURL(path: storagePath)
+        return publicURL.absoluteString
+    }
+
+    private static func resolveAvatarFileType(for data: Data) -> (contentType: String, fileExtension: String) {
+        if data.prefix(Self.pngSignature.count).elementsEqual(Self.pngSignature) {
+            return ("image/png", "png")
+        }
+        return ("image/jpeg", "jpg")
+    }
+
+    private static func avatarFileName(for profileID: UUID, fileExtension: String) -> String {
+        "\(profileID.uuidString).\(fileExtension)"
+    }
+
+    private static func avatarStoragePath(for fileName: String, caregiverID: UUID) -> String {
+        "\(caregiverID.uuidString)/\(fileName)"
+    }
+
+    private static let pngSignature: [UInt8] = [0x89, 0x50, 0x4E, 0x47]
 
     private func fetchCaregiverSnapshotFromSupabase() async throws -> CaregiverSnapshot {
         guard let client else {
@@ -779,13 +851,45 @@ private struct BabyProfileRecord: Codable, Identifiable {
     var avatarURL: String?
     var createdAt: Date?
     var editedAt: Date?
+    private var shouldClearAvatarOnUpload = false
 
-    init(profile: ChildProfile, caregiverID: UUID) {
+    init(profile: ChildProfile,
+         caregiverID: UUID,
+         avatarURL: String?,
+         shouldClearAvatar: Bool) {
         id = profile.id
         self.caregiverID = caregiverID
         name = profile.name
         dateOfBirth = Self.dateFormatter.string(from: profile.birthDate)
-        avatarURL = nil
+        self.avatarURL = avatarURL
+        shouldClearAvatarOnUpload = shouldClearAvatar
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        caregiverID = try container.decode(UUID.self, forKey: .caregiverID)
+        name = try container.decode(String.self, forKey: .name)
+        dateOfBirth = try container.decodeIfPresent(String.self, forKey: .dateOfBirth)
+        avatarURL = try container.decodeIfPresent(String.self, forKey: .avatarURL)
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
+        editedAt = try container.decodeIfPresent(Date.self, forKey: .editedAt)
+        shouldClearAvatarOnUpload = false
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(caregiverID, forKey: .caregiverID)
+        try container.encode(name, forKey: .name)
+        try container.encodeIfPresent(dateOfBirth, forKey: .dateOfBirth)
+        if let avatarURL {
+            try container.encode(avatarURL, forKey: .avatarURL)
+        } else if shouldClearAvatarOnUpload {
+            try container.encodeNil(forKey: .avatarURL)
+        }
+        try container.encodeIfPresent(createdAt, forKey: .createdAt)
+        try container.encodeIfPresent(editedAt, forKey: .editedAt)
     }
 
     func asMetadataUpdate() -> ProfileStore.ProfileMetadataUpdate {
