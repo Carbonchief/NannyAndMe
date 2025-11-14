@@ -198,6 +198,11 @@ struct ContentView: View {
                     synchronizeSupabaseAccount()
                 }
             }
+            .onChange(of: shareDataCoordinator.shouldPresentAuthentication) { _, shouldPresent in
+                guard shouldPresent else { return }
+                isAuthSheetPresented = true
+                shareDataCoordinator.clearAuthenticationRequest()
+            }
 
             .task(id: authManager.isAuthenticated) {
                 guard authManager.isAuthenticated else { return }

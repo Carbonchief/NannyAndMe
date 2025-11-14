@@ -14,6 +14,7 @@ final class ShareDataCoordinator: ObservableObject {
 
     @Published var isShowingShareData = false
     @Published private(set) var externalImportRequest: ExternalImportRequest?
+    @Published private(set) var shouldPresentAuthentication = false
 
     func presentShareData() {
         isShowingShareData = true
@@ -31,5 +32,13 @@ final class ShareDataCoordinator: ObservableObject {
 
     func dismissShareData() {
         isShowingShareData = false
+    }
+
+    func requestAuthenticationPresentation() {
+        shouldPresentAuthentication = true
+    }
+
+    func clearAuthenticationRequest() {
+        shouldPresentAuthentication = false
     }
 }
