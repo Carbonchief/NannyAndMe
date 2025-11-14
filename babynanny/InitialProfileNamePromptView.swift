@@ -3,6 +3,7 @@ import PhotosUI
 import UIKit
 
 /// A sheet prompting the user to name the initial child profile on first launch.
+@MainActor
 struct InitialProfileNamePromptView: View {
     let onContinue: (String, Data?) -> Void
     let allowsDismissal: Bool
@@ -119,15 +120,18 @@ struct InitialProfileNamePromptView: View {
         onContinue(value, imageData)
     }
 
+    @MainActor
     private var profilePhotoSelector: some View {
         // TAKE SNAPSHOTS before entering any @Sendable closures
         let imageDataSnapshot = imageData
         let hasImage = imageDataSnapshot != nil
 
+        let avatarPreview = ProfileAvatarView(imageData: imageDataSnapshot, size: 72)
+
         return ZStack(alignment: .bottomTrailing) {
             PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
                 // Use the snapshot INSIDE the closure
-                ProfileAvatarView(imageData: imageDataSnapshot, size: 72)
+                avatarPreview
                     .overlay(alignment: .bottomTrailing) {
                         if !hasImage {
                             Image(systemName: "plus.circle.fill")

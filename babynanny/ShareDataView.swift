@@ -26,7 +26,8 @@ struct ShareDataView: View {
                 let historyCount = actionStore.state(for: profile.id).history.count
 
                 HStack(spacing: 16) {
-                    ProfileAvatarView(imageData: profile.imageData, size: 44)
+                    ProfileAvatarView(imageData: profile.imageData,
+                                      size: 44)
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(L10n.ShareData.profileName(profile.displayName))

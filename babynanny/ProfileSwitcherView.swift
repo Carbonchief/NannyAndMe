@@ -20,7 +20,8 @@ struct ProfileSwitcherView: View {
                             dismiss()
                         } label: {
                             HStack(spacing: 12) {
-                                ProfileAvatarView(imageData: profile.imageData, size: 44)
+                                ProfileAvatarView(imageData: profile.imageData,
+                                                  size: 44)
 
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(profile.displayName)

@@ -15,6 +15,8 @@ final class SupabaseAuthManager: ObservableObject {
     @Published var isLoading = false
 
     private let client: SupabaseClient?
+    private let supabaseAnonKey: String?
+    private let supabaseBaseURL: URL?
     private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "supabase-actions")
     fileprivate static let snapshotLogger = Logger(
         subsystem: "com.prioritybit.babynanny",
@@ -22,7 +24,9 @@ final class SupabaseAuthManager: ObservableObject {
     )
     private var hasSynchronizedCaregiverDataForCurrentSession = false
     private var currentAppleNonce: String?
+    private var currentAccessToken: String?
     private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
+    private static let profilePhotosBucketName = "ProfilePhotos"
 
     enum ProfileShareResult {
         case success
@@ -35,10 +39,14 @@ final class SupabaseAuthManager: ObservableObject {
         do {
             let configuration = try SupabaseConfiguration.loadFromBundle()
             client = SupabaseClient(supabaseURL: configuration.url, supabaseKey: configuration.anonKey)
+            supabaseAnonKey = configuration.anonKey
+            supabaseBaseURL = configuration.url
             configurationError = nil
             Task { await refreshSession() }
         } catch {
             client = nil
+            supabaseAnonKey = nil
+            supabaseBaseURL = nil
             configurationError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
@@ -176,6 +184,7 @@ final class SupabaseAuthManager: ObservableObject {
             isAuthenticated = false
             currentUserEmail = nil
             currentUserID = nil
+            currentAccessToken = nil
             hasSynchronizedCaregiverDataForCurrentSession = false
         } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
@@ -196,6 +205,7 @@ final class SupabaseAuthManager: ObservableObject {
         isAuthenticated = true
         currentUserEmail = session.user.email
         currentUserID = session.user.id
+        currentAccessToken = session.accessToken
         infoMessage = nil
         hasSynchronizedCaregiverDataForCurrentSession = false
     }
@@ -216,6 +226,31 @@ final class SupabaseAuthManager: ObservableObject {
                 lastErrorMessage = Self.userFriendlyMessage(from: error)
             }
         }
+    }
+
+    func downloadAvatarImage(from url: URL) async throws -> Data {
+        guard let token = currentAccessToken else {
+            throw AvatarDownloadError.missingSession
+        }
+
+        let resolvedURL = normalizedAvatarURL(from: url)
+
+        var request = URLRequest(url: resolvedURL)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        if let supabaseAnonKey {
+            request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+        }
+        request.setValue("image/*", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AvatarDownloadError.invalidResponse
+        }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw AvatarDownloadError.httpStatus(httpResponse.statusCode)
+        }
+        return data
     }
 
     func handleAuthenticationURL(_ url: URL) async {
@@ -293,9 +328,13 @@ final class SupabaseAuthManager: ObservableObject {
         guard let client, isAuthenticated, let caregiverID = currentUserID else { return }
         guard profiles.isEmpty == false else { return }
 
-        let records = profiles.map { BabyProfileRecord(profile: $0, caregiverID: caregiverID) }
-
         do {
+            let records = try await makeBabyProfileRecords(from: profiles,
+                                                            caregiverID: caregiverID,
+                                                            client: client)
+
+            guard records.isEmpty == false else { return }
+
             _ = try await client.database
                 .from("baby_profiles")
                 .upsert(records, onConflict: "id", returning: .minimal)
@@ -366,13 +405,129 @@ final class SupabaseAuthManager: ObservableObject {
     private func upsertBabyProfiles(_ profiles: [ChildProfile], caregiverID: UUID) async throws {
         guard let client else { return }
 
-        let records = profiles.map { BabyProfileRecord(profile: $0, caregiverID: caregiverID) }
+        let records = try await makeBabyProfileRecords(from: profiles,
+                                                       caregiverID: caregiverID,
+                                                       client: client)
         guard records.isEmpty == false else { return }
 
         _ = try await client.database
             .from("baby_profiles")
             .upsert(records, onConflict: "id", returning: .minimal)
             .execute()
+    }
+
+    private func makeBabyProfileRecords(from profiles: [ChildProfile],
+                                        caregiverID: UUID,
+                                        client: SupabaseClient) async throws -> [BabyProfileRecord] {
+        guard profiles.isEmpty == false else { return [] }
+
+        var records: [BabyProfileRecord] = []
+        records.reserveCapacity(profiles.count)
+
+        for profile in profiles {
+            let avatarURL = try await resolveAvatarURL(for: profile,
+                                                       caregiverID: caregiverID,
+                                                       client: client)
+            let shouldClearAvatar = profile.imageData == nil && profile.avatarURL == nil
+            let record = BabyProfileRecord(profile: profile,
+                                           caregiverID: caregiverID,
+                                           avatarURL: avatarURL,
+                                           shouldClearAvatar: shouldClearAvatar)
+            records.append(record)
+        }
+
+        return records
+    }
+
+    private func resolveAvatarURL(for profile: ChildProfile,
+                                  caregiverID: UUID,
+                                  client: SupabaseClient) async throws -> String? {
+        guard let imageData = profile.imageData, imageData.isEmpty == false else { return nil }
+
+        let fileType = Self.resolveAvatarFileType(for: imageData)
+        let fileName = Self.avatarFileName(for: profile.id, fileExtension: fileType.fileExtension)
+        let storagePath = Self.avatarStoragePath(for: fileName, caregiverID: caregiverID)
+        let bucket = client.storage.from(Self.profilePhotosBucketName)
+        let options = FileOptions(contentType: fileType.contentType, upsert: true)
+
+        do {
+            _ = try await bucket.upload(path: storagePath, file: imageData, options: options)
+        } catch {
+            logger.error("Failed to upload profile avatar: \(error.localizedDescription, privacy: .public)")
+            throw error
+        }
+
+        if let authenticatedURL = makeAuthenticatedStorageURL(for: storagePath) {
+            return authenticatedURL.absoluteString
+        }
+
+        let publicURL = try bucket.getPublicURL(path: storagePath)
+        return publicURL.absoluteString
+    }
+
+    private static func resolveAvatarFileType(for data: Data) -> (contentType: String, fileExtension: String) {
+        if data.prefix(Self.pngSignature.count).elementsEqual(Self.pngSignature) {
+            return ("image/png", "png")
+        }
+        return ("image/jpeg", "jpg")
+    }
+
+    private static func avatarFileName(for profileID: UUID, fileExtension: String) -> String {
+        "\(profileID.uuidString).\(fileExtension)"
+    }
+
+    private static func avatarStoragePath(for fileName: String, caregiverID: UUID) -> String {
+        "\(caregiverID.uuidString)/\(fileName)"
+    }
+
+    private static let pngSignature: [UInt8] = [0x89, 0x50, 0x4E, 0x47]
+
+    private func makeAuthenticatedStorageURL(for storagePath: String) -> URL? {
+        guard let baseURL = supabaseBaseURL,
+              var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+        components.path = "/storage/v1/object/authenticated/\(Self.profilePhotosBucketName)/\(storagePath)"
+        return components.url
+    }
+
+    private func normalizedAvatarURL(from url: URL) -> URL {
+        guard url.scheme != nil else {
+            if let rebuilt = rebuildAvatarURL(fromRelativeString: url.absoluteString) {
+                return rebuilt
+            }
+            return url
+        }
+
+        if url.path.contains("/storage/v1/object/public/") {
+            if var components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+                components.path = components.path.replacingOccurrences(of: "/storage/v1/object/public/",
+                                                                       with: "/storage/v1/object/authenticated/")
+                if let rebuilt = components.url {
+                    return rebuilt
+                }
+            }
+        }
+
+        return url
+    }
+
+    private func rebuildAvatarURL(fromRelativeString value: String) -> URL? {
+        guard let baseURL = supabaseBaseURL else { return nil }
+        var relative = value
+        if relative.hasPrefix("/") {
+            relative.removeFirst()
+        }
+
+        if relative.hasPrefix("storage/v1") == false {
+            relative = "storage/v1/object/authenticated/\(Self.profilePhotosBucketName)/\(relative)"
+        }
+
+        guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+        components.path = "/" + relative
+        return components.url
     }
 
     private func fetchCaregiverSnapshotFromSupabase() async throws -> CaregiverSnapshot {
@@ -405,6 +560,13 @@ final class SupabaseAuthManager: ObservableObject {
                                                                    context: "actions")
 
         Self.snapshotLogger.log("Decoded snapshot successfully. profiles=\(profileRecords.count, privacy: .public) actions=\(actionRecords.count, privacy: .public)")
+        for record in profileRecords {
+            if let avatarURL = record.avatarURL, avatarURL.isEmpty == false {
+                Self.snapshotLogger.log("Profile \(record.id.uuidString, privacy: .public) avatar_url=\(avatarURL, privacy: .public)")
+            } else {
+                Self.snapshotLogger.log("Profile \(record.id.uuidString, privacy: .public) missing avatar_url")
+            }
+        }
 
         return CaregiverSnapshot(profiles: profileRecords, actions: actionRecords)
     }
@@ -779,13 +941,45 @@ private struct BabyProfileRecord: Codable, Identifiable {
     var avatarURL: String?
     var createdAt: Date?
     var editedAt: Date?
+    private var shouldClearAvatarOnUpload = false
 
-    init(profile: ChildProfile, caregiverID: UUID) {
+    init(profile: ChildProfile,
+         caregiverID: UUID,
+         avatarURL: String?,
+         shouldClearAvatar: Bool) {
         id = profile.id
         self.caregiverID = caregiverID
         name = profile.name
         dateOfBirth = Self.dateFormatter.string(from: profile.birthDate)
-        avatarURL = nil
+        self.avatarURL = avatarURL
+        shouldClearAvatarOnUpload = shouldClearAvatar
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        caregiverID = try container.decode(UUID.self, forKey: .caregiverID)
+        name = try container.decode(String.self, forKey: .name)
+        dateOfBirth = try container.decodeIfPresent(String.self, forKey: .dateOfBirth)
+        avatarURL = try container.decodeIfPresent(String.self, forKey: .avatarURL)
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
+        editedAt = try container.decodeIfPresent(Date.self, forKey: .editedAt)
+        shouldClearAvatarOnUpload = false
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(caregiverID, forKey: .caregiverID)
+        try container.encode(name, forKey: .name)
+        try container.encodeIfPresent(dateOfBirth, forKey: .dateOfBirth)
+        if let avatarURL {
+            try container.encode(avatarURL, forKey: .avatarURL)
+        } else if shouldClearAvatarOnUpload {
+            try container.encodeNil(forKey: .avatarURL)
+        }
+        try container.encodeIfPresent(createdAt, forKey: .createdAt)
+        try container.encodeIfPresent(editedAt, forKey: .editedAt)
     }
 
     func asMetadataUpdate() -> ProfileStore.ProfileMetadataUpdate {
@@ -793,7 +987,8 @@ private struct BabyProfileRecord: Codable, Identifiable {
             id: id,
             name: name,
             birthDate: birthDateValue,
-            imageData: nil
+            imageData: nil,
+            avatarURL: avatarURL
         )
     }
 
@@ -1014,6 +1209,23 @@ extension SupabaseAuthManager {
     enum SnapshotError: Error {
         case clientUnavailable
         case invalidPayload
+    }
+
+    enum AvatarDownloadError: LocalizedError {
+        case missingSession
+        case invalidResponse
+        case httpStatus(Int)
+
+        var errorDescription: String? {
+            switch self {
+            case .missingSession:
+                return "Missing Supabase session for avatar download."
+            case .invalidResponse:
+                return "Invalid response while downloading avatar."
+            case .httpStatus(let code):
+                return "Avatar download failed with status \(code)."
+            }
+        }
     }
 
     struct CaregiverSnapshot: Sendable {
