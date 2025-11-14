@@ -414,7 +414,6 @@ final class SupabaseAuthManager: ObservableObject {
 
         let identifier = id.uuidString
         var recordedError: Error?
-        var shareLookupError: Error?
 
         func recordError(_ error: Error) {
             if recordedError == nil {
@@ -443,7 +442,12 @@ final class SupabaseAuthManager: ObservableObject {
             )
             shareMembership = records.first
         } catch {
-            shareLookupError = error
+            recordError(error)
+
+            if let recordedError {
+                lastErrorMessage = Self.userFriendlyMessage(from: recordedError)
+            }
+            return
         }
 
         if let shareMembership, shareMembership.recipientCaregiverID == currentUserID {
@@ -503,10 +507,6 @@ final class SupabaseAuthManager: ObservableObject {
                 .execute()
         } catch {
             recordError(error)
-        }
-
-        if recordedError == nil, let shareLookupError {
-            recordedError = shareLookupError
         }
 
         if let recordedError {
