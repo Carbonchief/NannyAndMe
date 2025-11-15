@@ -591,9 +591,7 @@ final class SupabaseAuthManager: ObservableObject {
                 .from("baby_profile_shares")
                 .select("baby_profile_id, owner_caregiver_id, recipient_caregiver_id")
                 .eq("baby_profile_id", value: identifier)
-                .or(
-                    "owner_caregiver_id.eq.\(currentUserID.uuidString),recipient_caregiver_id.eq.\(currentUserID.uuidString)"
-                )
+                .eq("recipient_caregiver_id", value: currentUserID.uuidString)
                 .limit(1)
                 .execute()
 
@@ -624,6 +622,32 @@ final class SupabaseAuthManager: ObservableObject {
             } catch {
                 recordError(error)
             }
+
+            if let recordedError {
+                lastErrorMessage = Self.userFriendlyMessage(from: recordedError)
+            }
+            return
+        }
+
+        do {
+            let decoder = JSONDecoder()
+            let response: PostgrestResponse<[BabyProfileOwnershipRecord]> = try await client.database
+                .from("baby_profiles")
+                .select("id, caregiver_id")
+                .eq("id", value: identifier)
+                .limit(1)
+                .execute()
+
+            let records: [BabyProfileOwnershipRecord] = try decodeResponse(
+                response.value,
+                decoder: decoder,
+                context: "profile-ownership"
+            )
+
+            guard let ownershipRecord = records.first else { return }
+            guard ownershipRecord.caregiverID == currentUserID else { return }
+        } catch {
+            recordError(error)
 
             if let recordedError {
                 lastErrorMessage = Self.userFriendlyMessage(from: recordedError)
@@ -1046,6 +1070,16 @@ private struct BabyProfileShareMembershipRecord: Decodable {
         case babyProfileID = "baby_profile_id"
         case ownerCaregiverID = "owner_caregiver_id"
         case recipientCaregiverID = "recipient_caregiver_id"
+    }
+}
+
+private struct BabyProfileOwnershipRecord: Decodable {
+    var id: UUID
+    var caregiverID: UUID
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case caregiverID = "caregiver_id"
     }
 }
 
