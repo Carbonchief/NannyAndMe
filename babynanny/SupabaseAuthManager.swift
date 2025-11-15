@@ -581,6 +581,7 @@ final class SupabaseAuthManager: ObservableObject {
             if recordedError == nil {
                 recordedError = error
             }
+            logger.error("Supabase delete failure for profile \(identifier, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
 
         var shareMembership: BabyProfileShareMembershipRecord?
@@ -655,42 +656,65 @@ final class SupabaseAuthManager: ObservableObject {
             return
         }
 
+        logger.log("Deleting Baby_Action entries by Profile_Id for profile \(identifier, privacy: .public)")
         do {
             _ = try await client.database
                 .from("Baby_Action")
                 .delete()
                 .eq("Profile_Id", value: identifier)
                 .execute()
+            logger.log("Deleted Baby_Action entries by Profile_Id for profile \(identifier, privacy: .public)")
         } catch {
             recordError(error)
         }
 
+        guard recordedError == nil else {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+            return
+        }
+
+        logger.log("Deleting Baby_Action entries by Note2 for profile \(identifier, privacy: .public)")
         do {
             _ = try await client.database
                 .from("Baby_Action")
                 .delete()
                 .eq("Note2", value: identifier)
                 .execute()
+            logger.log("Deleted Baby_Action entries by Note2 for profile \(identifier, privacy: .public)")
         } catch {
             recordError(error)
         }
 
+        guard recordedError == nil else {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+            return
+        }
+
+        logger.log("Deleting baby_profile_shares entries for profile \(identifier, privacy: .public)")
         do {
             _ = try await client.database
                 .from("baby_profile_shares")
                 .delete()
                 .eq("baby_profile_id", value: identifier)
                 .execute()
+            logger.log("Deleted baby_profile_shares entries for profile \(identifier, privacy: .public)")
         } catch {
             recordError(error)
         }
 
+        guard recordedError == nil else {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+            return
+        }
+
+        logger.log("Deleting baby_profiles entry for profile \(identifier, privacy: .public)")
         do {
             _ = try await client.database
                 .from("baby_profiles")
                 .delete()
                 .eq("id", value: identifier)
                 .execute()
+            logger.log("Deleted baby_profiles entry for profile \(identifier, privacy: .public)")
         } catch {
             recordError(error)
         }
