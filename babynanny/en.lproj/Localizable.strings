@@ -193,7 +193,7 @@
 "auth.error.placeholder" = "Supabase credentials still use placeholder values.";
 "shareData.title" = "Share Data";
 "shareData.profileSection.title" = "Active Profile";
-"shareData.profileSection.name" = "Profile: %@";
+"shareData.profileSection.name" = "%@";
 "shareData.profileSection.logCount" = "Total logs: %lld";
 "shareData.export.title" = "Export";
 "shareData.export.button" = "Export Data";
@@ -204,7 +204,7 @@
 "shareData.import.summary" = "%lld new entries added • %lld updated";
 "shareData.import.profileUpdated" = "Profile settings were updated from the import.";
 "shareData.airdrop.title" = "Manual Sharing";
-"shareData.airdrop.button" = "Send Export File";
+"shareData.airdrop.button" = "Send Data";
 "shareData.airdrop.footer" = "Send the exported profile file to another device yourself, such as over AirDrop.";
 "shareData.alert.exportSuccess.title" = "Export complete";
 "shareData.alert.exportSuccess.message" = "Saved file: %@";

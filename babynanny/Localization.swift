@@ -794,7 +794,7 @@ enum L10n {
         static let profileSectionTitle = String(localized: "shareData.profileSection.title", defaultValue: "Active Profile")
 
         static func profileName(_ name: String) -> String {
-            let format = String(localized: "shareData.profileSection.name", defaultValue: "Profile: %@")
+            let format = String(localized: "shareData.profileSection.name", defaultValue: "%@")
             return String(format: format, locale: Locale.current, name)
         }
 
@@ -837,7 +837,7 @@ enum L10n {
             )
             static let shareButton = String(
                 localized: "shareData.airdrop.button",
-                defaultValue: "Send Export File"
+                defaultValue: "Send Data"
             )
             static let footer = String(
                 localized: "shareData.airdrop.footer",

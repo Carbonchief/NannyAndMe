@@ -193,7 +193,7 @@
 "auth.error.placeholder" = "Supabase-Zugangsdaten verwenden noch Platzhalterwerte.";
 "shareData.title" = "Daten teilen";
 "shareData.profileSection.title" = "Aktives Profil";
-"shareData.profileSection.name" = "Profil: %@";
+"shareData.profileSection.name" = "%@";
 "shareData.profileSection.logCount" = "Protokolle insgesamt: %lld";
 "shareData.export.title" = "Export";
 "shareData.export.button" = "Daten exportieren";
@@ -204,7 +204,7 @@
 "shareData.import.summary" = "%lld neue Einträge hinzugefügt • %lld aktualisiert";
 "shareData.import.profileUpdated" = "Profileinstellungen wurden durch den Import aktualisiert.";
 "shareData.airdrop.title" = "Manuelles Teilen";
-"shareData.airdrop.button" = "Exportdatei senden";
+"shareData.airdrop.button" = "Daten senden";
 "shareData.airdrop.footer" = "Sende die exportierte Profildatei manuell an ein anderes Gerät, z. B. per AirDrop.";
 "shareData.alert.exportSuccess.title" = "Export abgeschlossen";
 "shareData.alert.exportSuccess.message" = "Gespeicherte Datei: %@";

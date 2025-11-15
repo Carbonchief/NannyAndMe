@@ -193,7 +193,7 @@
 "auth.error.placeholder" = "Las credenciales de Supabase todavía usan valores de ejemplo.";
 "shareData.title" = "Compartir datos";
 "shareData.profileSection.title" = "Perfil activo";
-"shareData.profileSection.name" = "Perfil: %@";
+"shareData.profileSection.name" = "%@";
 "shareData.profileSection.logCount" = "Registros totales: %lld";
 "shareData.export.title" = "Exportar";
 "shareData.export.button" = "Exportar datos";
@@ -204,7 +204,7 @@
 "shareData.import.summary" = "%lld entradas nuevas añadidas • %lld actualizadas";
 "shareData.import.profileUpdated" = "La configuración del perfil se actualizó con la importación.";
 "shareData.airdrop.title" = "Compartir manualmente";
-"shareData.airdrop.button" = "Enviar archivo de exportación";
+"shareData.airdrop.button" = "Enviar datos";
 "shareData.airdrop.footer" = "Envía el archivo de perfil exportado manualmente a otro dispositivo, por ejemplo mediante AirDrop.";
 "shareData.alert.exportSuccess.title" = "Exportación completada";
 "shareData.alert.exportSuccess.message" = "Archivo guardado: %@";
