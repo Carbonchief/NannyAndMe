@@ -9,6 +9,7 @@ struct ShareDataView: View {
     @EnvironmentObject private var authManager: SupabaseAuthManager
 
     @State private var isImporting = false
+    @State private var isExportingDocument = false
     @State private var lastImportSummary: ActionLogStore.MergeSummary?
     @State private var didUpdateProfile = false
     @State private var alert: ShareDataAlert?
@@ -19,6 +20,7 @@ struct ShareDataView: View {
     @State private var isSharingProfile = false
     @FocusState private var isSupabaseEmailFocused: Bool
     @State private var isShowingAccountPrompt = false
+    @State private var exportDocument = ShareDataExportDocument(data: Data())
 
     var body: some View {
         Form {
@@ -40,37 +42,9 @@ struct ShareDataView: View {
                 }
             }
 
-            Section {
-                ShareDataActionButton(
-                    title: L10n.ShareData.AirDrop.shareButton,
-                    systemImage: "airplane.circle",
-                    tint: .blue,
-                    action: startAirDropShare,
-                    isLoading: isPreparingAirDropShare
-                )
-                .disabled(isPreparingAirDropShare)
-            } header: {
-                Text(L10n.ShareData.AirDrop.sectionTitle)
-            } footer: {
-                Text(L10n.ShareData.AirDrop.footer)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section {
-                ShareDataActionButton(
-                    title: L10n.ShareData.importButton,
-                    systemImage: "square.and.arrow.down",
-                    tint: .mint,
-                    action: { isImporting = true }
-                )
-            } header: {
-                Text(L10n.ShareData.importSectionTitle)
-            } footer: {
-                importFooter
-            }
-
             supabaseShareSection
+
+            manualShareSection
 
         }
         .shareDataFormStyling()
@@ -82,6 +56,27 @@ struct ShareDataView: View {
         ) { result in
             Task { @MainActor in
                 handleImportResult(result)
+            }
+        }
+        .fileExporter(
+            isPresented: $isExportingDocument,
+            document: exportDocument,
+            contentType: .json,
+            defaultFilename: defaultExportFilename
+        ) { result in
+            switch result {
+            case .success(let url):
+                alert = ShareDataAlert(
+                    title: L10n.ShareData.Alert.exportSuccessTitle,
+                    message: L10n.ShareData.Alert.exportSuccessMessage(url.lastPathComponent)
+                )
+            case .failure(let error):
+                let nsError = error as NSError
+                guard nsError.domain != NSCocoaErrorDomain || nsError.code != NSUserCancelledError else { return }
+                alert = ShareDataAlert(
+                    title: L10n.ShareData.Alert.exportFailureTitle,
+                    message: L10n.ShareData.Alert.exportFailureMessage
+                )
             }
         }
         .alert(item: $alert) { alert in
@@ -205,8 +200,44 @@ struct ShareDataView: View {
     }
 
     @ViewBuilder
-    private var importFooter: some View {
+    private var manualShareSection: some View {
+        Section {
+            ShareDataActionButton(
+                title: L10n.ShareData.exportButton,
+                systemImage: "square.and.arrow.up",
+                tint: .blue,
+                action: prepareFileExport
+            )
+
+            ShareDataActionButton(
+                title: L10n.ShareData.AirDrop.shareButton,
+                systemImage: "airplane.circle",
+                tint: .indigo,
+                action: startAirDropShare,
+                isLoading: isPreparingAirDropShare
+            )
+            .disabled(isPreparingAirDropShare)
+
+            ShareDataActionButton(
+                title: L10n.ShareData.importButton,
+                systemImage: "square.and.arrow.down",
+                tint: .mint,
+                action: { isImporting = true }
+            )
+        } header: {
+            Text(L10n.ShareData.AirDrop.sectionTitle)
+        } footer: {
+            manualShareFooter
+        }
+    }
+
+    @ViewBuilder
+    private var manualShareFooter: some View {
         VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.ShareData.AirDrop.footer)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
             Text(L10n.ShareData.importFooter)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -222,6 +253,19 @@ struct ShareDataView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+        }
+    }
+
+    private func prepareFileExport() {
+        do {
+            let data = try makeExportData()
+            exportDocument = ShareDataExportDocument(data: data)
+            isExportingDocument = true
+        } catch {
+            alert = ShareDataAlert(
+                title: L10n.ShareData.Alert.exportFailureTitle,
+                message: L10n.ShareData.Alert.exportFailureMessage
+            )
         }
     }
 
@@ -514,6 +558,26 @@ private struct AirDropShareSheet: UIViewControllerRepresentable {
         init(completion: @escaping (AirDropShareOutcome) -> Void) {
             self.completion = completion
         }
+    }
+}
+
+private struct ShareDataExportDocument: FileDocument {
+    static var readableContentTypes: [UTType] = [.json]
+    var data: Data
+
+    init(data: Data) {
+        self.data = data
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        guard let fileData = configuration.file.regularFileContents else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        data = fileData
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
     }
 }
 
