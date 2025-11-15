@@ -18,6 +18,7 @@ struct ShareDataView: View {
     @State private var supabaseShareEmail = ""
     @State private var isSharingProfile = false
     @FocusState private var isSupabaseEmailFocused: Bool
+    @State private var isShowingAccountPrompt = false
 
     var body: some View {
         Form {
@@ -39,39 +40,9 @@ struct ShareDataView: View {
                 }
             }
 
-            Section {
-                ShareDataActionButton(
-                    title: L10n.ShareData.AirDrop.shareButton,
-                    systemImage: "airplane.circle",
-                    tint: .blue,
-                    action: startAirDropShare,
-                    isLoading: isPreparingAirDropShare
-                )
-                .disabled(isPreparingAirDropShare)
-            } header: {
-                Text(L10n.ShareData.AirDrop.sectionTitle)
-            } footer: {
-                Text(L10n.ShareData.AirDrop.footer)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
+            supabaseShareSection
 
-            Section {
-                ShareDataActionButton(
-                    title: L10n.ShareData.importButton,
-                    systemImage: "square.and.arrow.down",
-                    tint: .mint,
-                    action: { isImporting = true }
-                )
-            } header: {
-                Text(L10n.ShareData.importSectionTitle)
-            } footer: {
-                importFooter
-            }
-
-            if authManager.isAuthenticated {
-                supabaseShareSection
-            }
+            manualShareSection
 
         }
         .shareDataFormStyling()
@@ -91,6 +62,18 @@ struct ShareDataView: View {
                 message: Text(alert.message),
                 dismissButton: .default(Text(L10n.Common.done))
             )
+        }
+        .confirmationDialog(
+            L10n.ShareData.Supabase.accountPromptTitle,
+            isPresented: $isShowingAccountPrompt,
+            titleVisibility: .visible
+        ) {
+            Button(L10n.ShareData.Supabase.accountPromptConfirm) {
+                shareDataCoordinator.requestAuthenticationPresentation()
+            }
+            Button(L10n.ShareData.Supabase.accountPromptDecline, role: .cancel) { }
+        } message: {
+            Text(L10n.ShareData.Supabase.accountPromptMessage)
         }
         .sheet(item: $airDropShareItem) { item in
             AirDropShareSheet(item: item) { outcome in
@@ -139,38 +122,92 @@ struct ShareDataView: View {
         supabaseShareEmail.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var automaticShareFooter: String {
+        if authManager.isAuthenticated {
+            return L10n.ShareData.Supabase.footerAuthenticated
+        }
+        return L10n.ShareData.Supabase.footerSignedOut
+    }
+
+    private var isAutomaticShareButtonDisabled: Bool {
+        if isSharingProfile { return true }
+        if authManager.isAuthenticated {
+            return trimmedSupabaseEmail.isEmpty
+        }
+        return false
+    }
+
     @ViewBuilder
     private var supabaseShareSection: some View {
         Section {
-            TextField(L10n.ShareData.Supabase.emailPlaceholder, text: $supabaseShareEmail)
-                .textInputAutocapitalization(.never)
-                .disableAutocorrection(true)
-                .keyboardType(.emailAddress)
-                .textContentType(.emailAddress)
-                .focused($isSupabaseEmailFocused)
+            if authManager.isAuthenticated {
+                TextField(L10n.ShareData.Supabase.emailPlaceholder, text: $supabaseShareEmail)
+                    .textInputAutocapitalization(.never)
+                    .disableAutocorrection(true)
+                    .keyboardType(.emailAddress)
+                    .textContentType(.emailAddress)
+                    .focused($isSupabaseEmailFocused)
+            } else {
+                Text(L10n.ShareData.Supabase.signedOutDescription)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
 
             ShareDataActionButton(
                 title: L10n.ShareData.Supabase.shareButton,
                 systemImage: "person.crop.circle.badge.plus",
                 tint: .purple,
                 action: {
-                    Task { await shareProfileWithSupabase() }
+                    if authManager.isAuthenticated {
+                        Task { await shareProfileWithSupabase() }
+                    } else {
+                        isShowingAccountPrompt = true
+                    }
                 },
                 isLoading: isSharingProfile
             )
-            .disabled(isSharingProfile || trimmedSupabaseEmail.isEmpty)
+            .disabled(isAutomaticShareButtonDisabled)
         } header: {
             Text(L10n.ShareData.Supabase.sectionTitle)
         } footer: {
-            Text(L10n.ShareData.Supabase.footer)
+            Text(automaticShareFooter)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
     }
 
     @ViewBuilder
-    private var importFooter: some View {
+    private var manualShareSection: some View {
+        Section {
+            ShareDataActionButton(
+                title: L10n.ShareData.AirDrop.shareButton,
+                systemImage: "airplane.circle",
+                tint: .indigo,
+                action: startAirDropShare,
+                isLoading: isPreparingAirDropShare
+            )
+            .disabled(isPreparingAirDropShare)
+
+            ShareDataActionButton(
+                title: L10n.ShareData.importButton,
+                systemImage: "square.and.arrow.down",
+                tint: .mint,
+                action: { isImporting = true }
+            )
+        } header: {
+            Text(L10n.ShareData.AirDrop.sectionTitle)
+        } footer: {
+            manualShareFooter
+        }
+    }
+
+    @ViewBuilder
+    private var manualShareFooter: some View {
         VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.ShareData.AirDrop.footer)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
             Text(L10n.ShareData.importFooter)
                 .font(.footnote)
                 .foregroundStyle(.secondary)

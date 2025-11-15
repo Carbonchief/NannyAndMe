@@ -794,7 +794,7 @@ enum L10n {
         static let profileSectionTitle = String(localized: "shareData.profileSection.title", defaultValue: "Active Profile")
 
         static func profileName(_ name: String) -> String {
-            let format = String(localized: "shareData.profileSection.name", defaultValue: "Profile: %@")
+            let format = String(localized: "shareData.profileSection.name", defaultValue: "%@")
             return String(format: format, locale: Locale.current, name)
         }
 
@@ -833,15 +833,15 @@ enum L10n {
         enum AirDrop {
             static let sectionTitle = String(
                 localized: "shareData.airdrop.title",
-                defaultValue: "Share"
+                defaultValue: "Manual Sharing"
             )
             static let shareButton = String(
                 localized: "shareData.airdrop.button",
-                defaultValue: "Share Data"
+                defaultValue: "Send Data"
             )
             static let footer = String(
                 localized: "shareData.airdrop.footer",
-                defaultValue: "Send the exported file to another device over AirDrop."
+                defaultValue: "Send the exported profile file to another device yourself, such as over AirDrop."
             )
         }
 
@@ -908,7 +908,7 @@ enum L10n {
         enum Supabase {
             static let sectionTitle = String(
                 localized: "shareData.supabase.title",
-                defaultValue: "Share via Supabase"
+                defaultValue: "Automatic Sharing"
             )
             static let emailPlaceholder = String(
                 localized: "shareData.supabase.emailPlaceholder",
@@ -918,9 +918,17 @@ enum L10n {
                 localized: "shareData.supabase.shareButton",
                 defaultValue: "Share Profile"
             )
-            static let footer = String(
-                localized: "shareData.supabase.footer",
-                defaultValue: "Invite another caregiver to access this profile using Supabase."
+            static let footerAuthenticated = String(
+                localized: "shareData.supabase.footer.authenticated",
+                defaultValue: "Invite another caregiver to access this profile from their account."
+            )
+            static let footerSignedOut = String(
+                localized: "shareData.supabase.footer.signedOut",
+                defaultValue: "Create or sign in to an account to share this profile automatically."
+            )
+            static let signedOutDescription = String(
+                localized: "shareData.supabase.description.signedOut",
+                defaultValue: "You'll unlock automatic sharing once you sign in. We'll remember the email you enter after logging in."
             )
             static let successTitle = String(
                 localized: "shareData.supabase.success.title",
@@ -940,7 +948,7 @@ enum L10n {
             static func recipientMissingMessage(_ email: String) -> String {
                 let format = String(
                     localized: "shareData.supabase.missing.message",
-                    defaultValue: "We couldn't find a Supabase account for %@."
+                    defaultValue: "We couldn't find an account for %@."
                 )
                 return String(format: format, locale: Locale.current, email)
             }
@@ -961,11 +969,11 @@ enum L10n {
             )
             static let failureConfiguration = String(
                 localized: "shareData.supabase.failure.configuration",
-                defaultValue: "Supabase configuration is missing."
+                defaultValue: "Automatic sharing isn't configured. Please try again later."
             )
             static let notAuthenticated = String(
                 localized: "shareData.supabase.failure.notAuthenticated",
-                defaultValue: "Sign in to Supabase to share profiles."
+                defaultValue: "Sign in to share profiles automatically."
             )
             static let invalidEmailTitle = String(
                 localized: "shareData.supabase.invalidEmail.title",
@@ -974,6 +982,22 @@ enum L10n {
             static let invalidEmailMessage = String(
                 localized: "shareData.supabase.invalidEmail.message",
                 defaultValue: "Please provide a valid email address before sharing."
+            )
+            static let accountPromptTitle = String(
+                localized: "shareData.supabase.prompt.title",
+                defaultValue: "Create an account to share automatically?"
+            )
+            static let accountPromptMessage = String(
+                localized: "shareData.supabase.prompt.message",
+                defaultValue: "You'll need to sign in so we can deliver the profile to another caregiver's account."
+            )
+            static let accountPromptConfirm = String(
+                localized: "shareData.supabase.prompt.confirm",
+                defaultValue: "Yes"
+            )
+            static let accountPromptDecline = String(
+                localized: "shareData.supabase.prompt.decline",
+                defaultValue: "No"
             )
         }
     }
