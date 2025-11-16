@@ -61,6 +61,12 @@ final class SupabaseAuthManager: ObservableObject {
         var updatedAt: Date?
     }
 
+    struct ProfileShareError: LocalizedError, Sendable {
+        let message: String
+
+        var errorDescription: String? { message }
+    }
+
     init() {
         do {
             let configuration = try SupabaseConfiguration.loadFromBundle()
@@ -817,18 +823,18 @@ final class SupabaseAuthManager: ObservableObject {
         }
     }
 
-    func fetchShareInvitations(for profileID: UUID) async -> Result<[ProfileShareInvitation], String> {
+    func fetchShareInvitations(for profileID: UUID) async -> Result<[ProfileShareInvitation], ProfileShareError> {
         guard let client else {
             let message = configurationError ?? L10n.ShareData.Supabase.failureConfiguration
-            return .failure(message)
+            return .failure(ProfileShareError(message: message))
         }
 
         guard isAuthenticated, let ownerID = currentUserID else {
-            return .failure(L10n.ShareData.Supabase.notAuthenticated)
+            return .failure(ProfileShareError(message: L10n.ShareData.Supabase.notAuthenticated))
         }
 
         guard isOwner(of: profileID) else {
-            return .failure(L10n.ShareData.Supabase.ownerRequired)
+            return .failure(ProfileShareError(message: L10n.ShareData.Supabase.ownerRequired))
         }
 
         do {
@@ -856,7 +862,7 @@ final class SupabaseAuthManager: ObservableObject {
                 let caregiverResponse: PostgrestResponse<[CaregiverEmailRecord]> = try await client.database
                     .from("caregivers")
                     .select("id, email")
-                    .in("id", values: recipientIDs.map { $0.uuidString })
+                    .in("id", value: recipientIDs.map { $0.uuidString })
                     .execute()
 
                 let caregiverRecords: [CaregiverEmailRecord] = try decodeResponse(
@@ -889,24 +895,24 @@ final class SupabaseAuthManager: ObservableObject {
             return .success(invitations)
         } catch {
             let message = Self.userFriendlyMessage(from: error)
-            return .failure(message)
+            return .failure(ProfileShareError(message: message))
         }
     }
 
     func updateShareInvitation(_ invitationID: UUID,
                                profileID: UUID,
-                               permission: ProfileSharePermission) async -> Result<Void, String> {
+                               permission: ProfileSharePermission) async -> Result<Void, ProfileShareError> {
         guard let client else {
             let message = configurationError ?? L10n.ShareData.Supabase.failureConfiguration
-            return .failure(message)
+            return .failure(ProfileShareError(message: message))
         }
 
         guard isAuthenticated, let ownerID = currentUserID else {
-            return .failure(L10n.ShareData.Supabase.notAuthenticated)
+            return .failure(ProfileShareError(message: L10n.ShareData.Supabase.notAuthenticated))
         }
 
         guard isOwner(of: profileID) else {
-            return .failure(L10n.ShareData.Supabase.ownerRequired)
+            return .failure(ProfileShareError(message: L10n.ShareData.Supabase.ownerRequired))
         }
 
         do {
@@ -920,23 +926,23 @@ final class SupabaseAuthManager: ObservableObject {
 
             return .success(())
         } catch {
-            return .failure(Self.userFriendlyMessage(from: error))
+            return .failure(ProfileShareError(message: Self.userFriendlyMessage(from: error)))
         }
     }
 
     func revokeShareInvitation(_ invitationID: UUID,
-                               profileID: UUID) async -> Result<Void, String> {
+                               profileID: UUID) async -> Result<Void, ProfileShareError> {
         guard let client else {
             let message = configurationError ?? L10n.ShareData.Supabase.failureConfiguration
-            return .failure(message)
+            return .failure(ProfileShareError(message: message))
         }
 
         guard isAuthenticated, let ownerID = currentUserID else {
-            return .failure(L10n.ShareData.Supabase.notAuthenticated)
+            return .failure(ProfileShareError(message: L10n.ShareData.Supabase.notAuthenticated))
         }
 
         guard isOwner(of: profileID) else {
-            return .failure(L10n.ShareData.Supabase.ownerRequired)
+            return .failure(ProfileShareError(message: L10n.ShareData.Supabase.ownerRequired))
         }
 
         do {
@@ -950,7 +956,7 @@ final class SupabaseAuthManager: ObservableObject {
 
             return .success(())
         } catch {
-            return .failure(Self.userFriendlyMessage(from: error))
+            return .failure(ProfileShareError(message: Self.userFriendlyMessage(from: error)))
         }
     }
 

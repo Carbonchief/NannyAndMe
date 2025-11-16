@@ -518,8 +518,8 @@ struct ShareDataView: View {
             case .success(let invitations):
                 shareInvitations = invitations
                 shareInvitationErrorMessage = nil
-            case .failure(let message):
-                shareInvitationErrorMessage = message
+            case .failure(let error):
+                shareInvitationErrorMessage = error.localizedDescription
             }
         }
     }
@@ -547,11 +547,11 @@ struct ShareDataView: View {
         switch result {
         case .success:
             await refreshShareInvitations(force: true)
-        case .failure(let message):
+        case .failure(let error):
             await MainActor.run {
                 alert = ShareDataAlert(
                     title: L10n.ShareData.Supabase.failureTitle,
-                    message: message
+                    message: error.localizedDescription
                 )
             }
         }
@@ -575,11 +575,11 @@ struct ShareDataView: View {
         switch result {
         case .success:
             await refreshShareInvitations(force: true)
-        case .failure(let message):
+        case .failure(let error):
             await MainActor.run {
                 alert = ShareDataAlert(
                     title: L10n.ShareData.Supabase.failureTitle,
-                    message: message
+                    message: error.localizedDescription
                 )
             }
         }
