@@ -88,7 +88,9 @@ struct ShareDataView: View {
             titleVisibility: .visible
         ) { invitation in
             Button(L10n.ShareData.Supabase.Invites.revokeAction, role: .destructive) {
-                Task { await revokeShareInvitation(invitation) }
+                Task { @MainActor in
+                    await revokeShareInvitation(invitation)
+                }
             }
             Button(L10n.Common.cancel, role: .cancel) { }
         } message: { invitation in
@@ -119,19 +121,27 @@ struct ShareDataView: View {
         }
         .onAppear {
             processPendingExternalImportIfNeeded()
-            Task { await refreshShareInvitations() }
+            Task { @MainActor in
+                await refreshShareInvitations()
+            }
         }
         .onChange(of: shareDataCoordinator.externalImportRequest) { _, _ in
             processPendingExternalImportIfNeeded()
         }
         .onChange(of: profileStore.activeProfile.id) { _, _ in
-            Task { await refreshShareInvitations(force: true) }
+            Task { @MainActor in
+                await refreshShareInvitations(force: true)
+            }
         }
         .onChange(of: authManager.isAuthenticated) { _, _ in
-            Task { await refreshShareInvitations(force: true) }
+            Task { @MainActor in
+                await refreshShareInvitations(force: true)
+            }
         }
         .onChange(of: authManager.ownedProfileIdentifiers) { _, _ in
-            Task { await refreshShareInvitations(force: true) }
+            Task { @MainActor in
+                await refreshShareInvitations(force: true)
+            }
         }
         .onDisappear {
             shareDataCoordinator.dismissShareData()
@@ -198,7 +208,9 @@ struct ShareDataView: View {
                     systemImage: "person.crop.circle.badge.plus",
                     tint: .purple,
                     action: {
-                        Task { await shareProfileWithSupabase() }
+                        Task { @MainActor in
+                            await shareProfileWithSupabase()
+                        }
                     },
                     isLoading: isSharingProfile
                 )
@@ -278,7 +290,9 @@ struct ShareDataView: View {
                         .foregroundStyle(.secondary)
 
                     Button(L10n.ShareData.Supabase.Invites.retry) {
-                        Task { await refreshShareInvitations(force: true) }
+                        Task { @MainActor in
+                            await refreshShareInvitations(force: true)
+                        }
                     }
                     .buttonStyle(.borderless)
                 }
@@ -294,7 +308,9 @@ struct ShareDataView: View {
                         statusLabel: statusDisplayName(for:),
                         isUpdating: updatingShareInvitationID == invitation.id,
                         onPermissionChange: { permission in
-                            Task { await handlePermissionChange(for: invitation, to: permission) }
+                            Task { @MainActor in
+                                await handlePermissionChange(for: invitation, to: permission)
+                            }
                         },
                         onRevoke: {
                             pendingRevocation = invitation
