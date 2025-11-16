@@ -261,6 +261,9 @@
 "map.annotation.accessibility" = "%@ logged at %@ on %@";
 "map.cluster.detailTitle" = "%lld nearby actions";
 "map.cluster.accessibility" = "%lld actions near %@";
+"map.locationPrompt.title" = "Enable Action Locations?";
+"map.locationPrompt.message" = "Turn on Action Locations so we can place your baby's care on the map.";
+"map.locationPrompt.enable" = "Turn On";
 "shareData.error.mismatchedProfile" = "This file belongs to a different profile. Switch to that profile and try again.";
 "shareData.error.readFailed" = "The file could not be read. Make sure you selected a Nanny & Me export.";
 "logs.title" = "All Logs";

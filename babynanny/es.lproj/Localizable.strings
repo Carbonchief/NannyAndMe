@@ -257,6 +257,9 @@
 "map.annotation.accessibility" = "%@ registrado en %@ el %@";
 "map.cluster.detailTitle" = "%lld acciones cercanas";
 "map.cluster.accessibility" = "%lld acciones cerca de %@";
+"map.locationPrompt.title" = "¿Activar ubicaciones de acciones?";
+"map.locationPrompt.message" = "Enciende las ubicaciones de acciones para que podamos mostrar el cuidado de tu bebé en el mapa.";
+"map.locationPrompt.enable" = "Activar";
 "shareData.error.mismatchedProfile" = "Este archivo pertenece a otro perfil. Cambia a ese perfil e inténtalo de nuevo.";
 "shareData.error.readFailed" = "No se pudo leer el archivo. Asegúrate de seleccionar una exportación de Nanny & Me.";
 "logs.title" = "Todos los registros";

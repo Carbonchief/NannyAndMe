@@ -257,6 +257,9 @@
 "map.annotation.accessibility" = "%@ protokolliert in %@ am %@";
 "map.cluster.detailTitle" = "%lld Aktionen in der Nähe";
 "map.cluster.accessibility" = "%lld Aktionen in der Nähe von %@";
+"map.locationPrompt.title" = "Aktionsorte aktivieren?";
+"map.locationPrompt.message" = "Aktiviere Aktionsorte, damit wir die Pflege deines Babys auf der Karte anzeigen können.";
+"map.locationPrompt.enable" = "Aktivieren";
 "shareData.error.mismatchedProfile" = "Diese Datei gehört zu einem anderen Profil. Wechsle zu diesem Profil und versuche es erneut.";
 "shareData.error.readFailed" = "Die Datei konnte nicht gelesen werden. Bitte wähle einen Nanny & Me-Export.";
 "logs.title" = "Alle Protokolle";

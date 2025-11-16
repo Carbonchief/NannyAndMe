@@ -12,8 +12,11 @@ struct ContentView: View {
     @EnvironmentObject private var actionStore: ActionLogStore
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
     @EnvironmentObject private var authManager: SupabaseAuthManager
+    @EnvironmentObject private var locationManager: LocationManager
     @AppStorage("trackActionLocations") private var trackActionLocations = false
+    @AppStorage("hasUnlockedPremium") private var hasUnlockedPremium = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @StateObject private var paywallViewModel = OnboardingPaywallViewModel()
     @State private var selectedTab: Tab = .home
     @State private var previousTab: Tab = .home
     @State private var tabResetID = UUID()
@@ -25,14 +28,14 @@ struct ContentView: View {
     @State private var isManualEntryPresented = false
     @State private var isAuthSheetPresented = false
     @State private var isOnboardingPresented = false
+    @State private var isPaywallPresented = false
+    @State private var selectedPaywallPlan: PaywallPlan = .trial
+    @State private var pendingMapUnlock = false
+    @State private var isLocationPromptPresented = false
     @State private var menuDragOffset: CGFloat = 0
 
     private var visibleTabs: [Tab] {
-        var tabs: [Tab] = [.home, .reports]
-        if trackActionLocations {
-            tabs.append(.map)
-        }
-        return tabs
+        return [.home, .reports, .map]
     }
 
     var body: some View {
@@ -57,17 +60,9 @@ struct ContentView: View {
                                 guard abs(horizontal) > abs(vertical), abs(horizontal) > 40 else { return }
 
                                 if horizontal < 0, let nextTab = nextTab(after: selectedTab, in: tabs) {
-                                    let oldValue = selectedTab
-                                    previousTab = oldValue
-                                    withAnimation(.easeInOut(duration: 0.3)) {
-                                        selectedTab = nextTab
-                                    }
+                                    activate(tab: nextTab)
                                 } else if horizontal > 0, let previous = previousTab(before: selectedTab, in: tabs) {
-                                    let oldValue = selectedTab
-                                    previousTab = oldValue
-                                    withAnimation(.easeInOut(duration: 0.3)) {
-                                        selectedTab = previous
-                                    }
+                                    activate(tab: previous)
                                 }
                             }
                     )
@@ -77,15 +72,7 @@ struct ContentView: View {
                             HStack(spacing: 8) {
                                 ForEach(tabs, id: \.self) { tab in
                                     Button {
-                                        if tab == selectedTab {
-                                            tabResetID = UUID()
-                                        } else {
-                                            let oldValue = selectedTab
-                                            previousTab = oldValue
-                                            withAnimation(.easeInOut(duration: 0.3)) {
-                                                selectedTab = tab
-                                            }
-                                        }
+                                        handleTabTap(tab)
                                     } label: {
                                         Image(systemName: tab.icon)
                                             .font(.system(size: 18, weight: .semibold))
@@ -185,6 +172,32 @@ struct ContentView: View {
             .sheet(isPresented: $isManualEntryPresented) {
                 ManualActionEntrySheet()
             }
+            .sheet(isPresented: $isPaywallPresented, onDismiss: {
+                if hasUnlockedPremium == false {
+                    pendingMapUnlock = false
+                }
+            }) {
+                NavigationStack {
+                    PaywallContentView(
+                        selectedPlan: $selectedPaywallPlan,
+                        viewModel: paywallViewModel,
+                        onClose: { isPaywallPresented = false }
+                    ) {
+                        PaywallPurchaseButton(
+                            selectedPlan: $selectedPaywallPlan,
+                            viewModel: paywallViewModel,
+                            analyticsLabel: "contentView_purchase_button_paywall"
+                        )
+                        .padding(.top, 12)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 24)
+                    .background(Color(.systemBackground).ignoresSafeArea())
+                }
+                .task {
+                    await paywallViewModel.loadProductsIfNeeded()
+                }
+            }
             .sheet(isPresented: $isAuthSheetPresented) {
                 SupabaseAuthView()
                     .environmentObject(authManager)
@@ -192,6 +205,7 @@ struct ContentView: View {
             .fullScreenCover(isPresented: $isOnboardingPresented) {
                 OnboardingFlowView(isPresented: $isOnboardingPresented)
             }
+            .alert(isPresented: $isLocationPromptPresented, content: locationTrackingAlert)
             .onChange(of: authManager.isAuthenticated) { _, isAuthenticated in
                 if isAuthenticated {
                     isAuthSheetPresented = false
@@ -353,6 +367,25 @@ struct ContentView: View {
         .onAppear {
             ensureSelectionIsVisible(in: visibleTabs)
         }
+        .onChange(of: hasUnlockedPremium) { _, newValue in
+            if newValue {
+                isPaywallPresented = false
+                if pendingMapUnlock {
+                    pendingMapUnlock = false
+                    activate(tab: .map)
+                }
+            } else {
+                isPaywallPresented = false
+                pendingMapUnlock = false
+                if selectedTab == .map {
+                    let oldValue = selectedTab
+                    previousTab = oldValue
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        selectedTab = .home
+                    }
+                }
+            }
+        }
     }
 
     private func handleProfileCycle(direction: ProfileNavigationDirection) {
@@ -465,6 +498,67 @@ private enum Tab: Hashable, CaseIterable {
 }
 
 private extension ContentView {
+    func handleTabTap(_ tab: Tab) {
+        if tab == selectedTab {
+            tabResetID = UUID()
+            return
+        }
+
+        activate(tab: tab)
+    }
+
+    func activate(tab: Tab) {
+        guard tab != selectedTab else { return }
+        guard canActivate(tab: tab) else { return }
+
+        let oldValue = selectedTab
+        previousTab = oldValue
+        withAnimation(.easeInOut(duration: 0.3)) {
+            selectedTab = tab
+        }
+
+        if tab == .map {
+            maybePresentLocationPrompt()
+        }
+    }
+
+    func canActivate(tab: Tab) -> Bool {
+        guard tab == .map else { return true }
+        guard hasUnlockedPremium else {
+            pendingMapUnlock = true
+            selectedPaywallPlan = .trial
+            paywallViewModel.errorMessage = nil
+            isPaywallPresented = true
+            return false
+        }
+        return true
+    }
+
+    func maybePresentLocationPrompt() {
+        guard trackActionLocations == false else { return }
+        isLocationPromptPresented = true
+    }
+
+    func enableActionLocations() {
+        guard hasUnlockedPremium else { return }
+        withAnimation {
+            trackActionLocations = true
+        }
+        locationManager.requestPermissionIfNeeded()
+        locationManager.ensurePreciseAccuracyIfNeeded()
+    }
+
+    func locationTrackingAlert() -> Alert {
+        Alert(
+            title: Text(L10n.Map.LocationPrompt.title),
+            message: Text(L10n.Map.LocationPrompt.message),
+            primaryButton: .default(Text(L10n.Map.LocationPrompt.enable)) {
+                enableActionLocations()
+            },
+            secondaryButton: .cancel(Text(L10n.Common.cancel))
+        )
+    }
+
     func ensureSelectionIsVisible(in tabs: [Tab]) {
         guard tabs.contains(selectedTab) == false else { return }
         previousTab = tabs.first ?? .home
