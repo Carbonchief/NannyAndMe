@@ -482,14 +482,13 @@ struct ShareDataView: View {
         }
     }
 
+    @MainActor
     private func refreshShareInvitations(force: Bool = false) async {
         guard canManageAutomaticSharing else {
-            await MainActor.run {
-                shareInvitations = []
-                shareInvitationErrorMessage = nil
-                shareInvitationsLoadedProfileID = nil
-                isLoadingShareInvitations = false
-            }
+            shareInvitations = []
+            shareInvitationErrorMessage = nil
+            shareInvitationsLoadedProfileID = nil
+            isLoadingShareInvitations = false
             return
         }
 
@@ -504,35 +503,31 @@ struct ShareDataView: View {
         await loadShareInvitations(profileID: profileID)
     }
 
+    @MainActor
     private func loadShareInvitations(profileID: UUID) async {
-        await MainActor.run {
-            isLoadingShareInvitations = true
-            shareInvitationErrorMessage = nil
-        }
+        isLoadingShareInvitations = true
+        shareInvitationErrorMessage = nil
 
         let result = await authManager.fetchShareInvitations(for: profileID)
 
-        await MainActor.run {
-            isLoadingShareInvitations = false
-            switch result {
-            case .success(let invitations):
-                shareInvitations = invitations
-                shareInvitationErrorMessage = nil
-            case .failure(let error):
-                shareInvitationErrorMessage = error.localizedDescription
-            }
+        isLoadingShareInvitations = false
+        switch result {
+        case .success(let invitations):
+            shareInvitations = invitations
+            shareInvitationErrorMessage = nil
+        case .failure(let error):
+            shareInvitationErrorMessage = error.localizedDescription
         }
     }
 
+    @MainActor
     private func handlePermissionChange(
         for invitation: SupabaseAuthManager.ProfileShareInvitation,
         to permission: SupabaseAuthManager.ProfileSharePermission
     ) async {
         guard invitation.permission != permission else { return }
 
-        await MainActor.run {
-            updatingShareInvitationID = invitation.id
-        }
+        updatingShareInvitationID = invitation.id
 
         let result = await authManager.updateShareInvitation(
             invitation.id,
@@ -540,48 +535,39 @@ struct ShareDataView: View {
             permission: permission
         )
 
-        await MainActor.run {
-            updatingShareInvitationID = nil
-        }
+        updatingShareInvitationID = nil
 
         switch result {
         case .success:
             await refreshShareInvitations(force: true)
         case .failure(let error):
-            await MainActor.run {
-                alert = ShareDataAlert(
-                    title: L10n.ShareData.Supabase.failureTitle,
-                    message: error.localizedDescription
-                )
-            }
+            alert = ShareDataAlert(
+                title: L10n.ShareData.Supabase.failureTitle,
+                message: error.localizedDescription
+            )
         }
     }
 
+    @MainActor
     private func revokeShareInvitation(_ invitation: SupabaseAuthManager.ProfileShareInvitation) async {
-        await MainActor.run {
-            pendingRevocation = nil
-            updatingShareInvitationID = invitation.id
-        }
+        pendingRevocation = nil
+        updatingShareInvitationID = invitation.id
 
         let result = await authManager.revokeShareInvitation(
             invitation.id,
             profileID: invitation.profileID
         )
 
-        await MainActor.run {
-            updatingShareInvitationID = nil
-        }
+        updatingShareInvitationID = nil
 
         switch result {
         case .success:
             await refreshShareInvitations(force: true)
         case .failure(let error):
-            await MainActor.run {
-                alert = ShareDataAlert(
-                    title: L10n.ShareData.Supabase.failureTitle,
-                    message: error.localizedDescription
-                )
-            }
+            alert = ShareDataAlert(
+                title: L10n.ShareData.Supabase.failureTitle,
+                message: error.localizedDescription
+            )
         }
     }
 
