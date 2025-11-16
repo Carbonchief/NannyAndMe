@@ -926,9 +926,17 @@ enum L10n {
                 localized: "shareData.supabase.footer.signedOut",
                 defaultValue: "Create or sign in to an account to share this profile automatically."
             )
+            static let ownerOnlyFooter = String(
+                localized: "shareData.supabase.footer.ownerOnly",
+                defaultValue: "You're viewing a shared profile. Ask the owner to manage invitations."
+            )
             static let signedOutDescription = String(
                 localized: "shareData.supabase.description.signedOut",
                 defaultValue: "You'll unlock automatic sharing once you sign in. We'll remember the email you enter after logging in."
+            )
+            static let ownerOnlyDescription = String(
+                localized: "shareData.supabase.description.ownerOnly",
+                defaultValue: "Only the profile owner can manage automatic sharing."
             )
             static let successTitle = String(
                 localized: "shareData.supabase.success.title",
@@ -975,6 +983,10 @@ enum L10n {
                 localized: "shareData.supabase.failure.notAuthenticated",
                 defaultValue: "Sign in to share profiles automatically."
             )
+            static let ownerRequired = String(
+                localized: "shareData.supabase.failure.ownerRequired",
+                defaultValue: "Only the profile owner can perform this action."
+            )
             static let invalidEmailTitle = String(
                 localized: "shareData.supabase.invalidEmail.title",
                 defaultValue: "Enter an email"
@@ -983,6 +995,77 @@ enum L10n {
                 localized: "shareData.supabase.invalidEmail.message",
                 defaultValue: "Please provide a valid email address before sharing."
             )
+            static let permissionPickerLabel = String(
+                localized: "shareData.supabase.permissionPicker.label",
+                defaultValue: "Permission"
+            )
+            enum Permission {
+                static let view = String(
+                    localized: "shareData.supabase.permission.view",
+                    defaultValue: "View"
+                )
+                static let edit = String(
+                    localized: "shareData.supabase.permission.edit",
+                    defaultValue: "Edit"
+                )
+            }
+            enum Invites {
+                static let header = String(
+                    localized: "shareData.supabase.invites.header",
+                    defaultValue: "Invited caregivers"
+                )
+                static let loading = String(
+                    localized: "shareData.supabase.invites.loading",
+                    defaultValue: "Loading invitations…"
+                )
+                static let empty = String(
+                    localized: "shareData.supabase.invites.empty",
+                    defaultValue: "No invitations sent yet."
+                )
+                static let retry = String(
+                    localized: "shareData.supabase.invites.retry",
+                    defaultValue: "Try Again"
+                )
+                static let unknownRecipient = String(
+                    localized: "shareData.supabase.invites.unknownRecipient",
+                    defaultValue: "Unknown caregiver"
+                )
+                static let revokeButton = String(
+                    localized: "shareData.supabase.invites.revokeButton",
+                    defaultValue: "Revoke Access"
+                )
+                static let revokeTitle = String(
+                    localized: "shareData.supabase.invites.revoke.title",
+                    defaultValue: "Revoke access?"
+                )
+                static func revokeMessage(_ email: String) -> String {
+                    let format = String(
+                        localized: "shareData.supabase.invites.revoke.message",
+                        defaultValue: "Remove access for %@? They won't see this profile anymore."
+                    )
+                    return String(format: format, locale: Locale.current, email)
+                }
+                static let revokeAction = String(
+                    localized: "shareData.supabase.invites.revoke.action",
+                    defaultValue: "Revoke"
+                )
+                static let statusPending = String(
+                    localized: "shareData.supabase.invites.status.pending",
+                    defaultValue: "Pending"
+                )
+                static let statusAccepted = String(
+                    localized: "shareData.supabase.invites.status.accepted",
+                    defaultValue: "Accepted"
+                )
+                static let statusRevoked = String(
+                    localized: "shareData.supabase.invites.status.revoked",
+                    defaultValue: "Revoked"
+                )
+                static let statusRejected = String(
+                    localized: "shareData.supabase.invites.status.rejected",
+                    defaultValue: "Rejected"
+                )
+            }
             static let accountPromptTitle = String(
                 localized: "shareData.supabase.prompt.title",
                 defaultValue: "Create an account to share automatically?"

@@ -16,6 +16,13 @@ struct ShareDataView: View {
     @State private var isPreparingAirDropShare = false
     @State private var processedExternalImportID: ShareDataCoordinator.ExternalImportRequest.ID?
     @State private var supabaseShareEmail = ""
+    @State private var sharePermissionSelection: SupabaseAuthManager.ProfileSharePermission = .view
+    @State private var shareInvitations: [SupabaseAuthManager.ProfileShareInvitation] = []
+    @State private var shareInvitationErrorMessage: String?
+    @State private var shareInvitationsLoadedProfileID: UUID?
+    @State private var isLoadingShareInvitations = false
+    @State private var updatingShareInvitationID: UUID?
+    @State private var pendingRevocation: SupabaseAuthManager.ProfileShareInvitation?
     @State private var isSharingProfile = false
     @FocusState private var isSupabaseEmailFocused: Bool
     @State private var isShowingAccountPrompt = false
@@ -75,6 +82,18 @@ struct ShareDataView: View {
         } message: {
             Text(L10n.ShareData.Supabase.accountPromptMessage)
         }
+        .confirmationDialog(
+            L10n.ShareData.Supabase.Invites.revokeTitle,
+            item: $pendingRevocation,
+            titleVisibility: .visible
+        ) { invitation in
+            Button(L10n.ShareData.Supabase.Invites.revokeAction, role: .destructive) {
+                Task { await revokeShareInvitation(invitation) }
+            }
+            Button(L10n.Common.cancel, role: .cancel) { }
+        } message: { invitation in
+            Text(L10n.ShareData.Supabase.Invites.revokeMessage(invitation.recipientEmail))
+        }
         .sheet(item: $airDropShareItem) { item in
             AirDropShareSheet(item: item) { outcome in
                 let shareItem = item
@@ -100,9 +119,19 @@ struct ShareDataView: View {
         }
         .onAppear {
             processPendingExternalImportIfNeeded()
+            Task { await refreshShareInvitations() }
         }
         .onChange(of: shareDataCoordinator.externalImportRequest) { _, _ in
             processPendingExternalImportIfNeeded()
+        }
+        .onChange(of: profileStore.activeProfile.id) { _, _ in
+            Task { await refreshShareInvitations(force: true) }
+        }
+        .onChange(of: authManager.isAuthenticated) { _, _ in
+            Task { await refreshShareInvitations(force: true) }
+        }
+        .onChange(of: authManager.ownedProfileIdentifiers) { _, _ in
+            Task { await refreshShareInvitations(force: true) }
         }
         .onDisappear {
             shareDataCoordinator.dismissShareData()
@@ -122,51 +151,78 @@ struct ShareDataView: View {
         supabaseShareEmail.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var canManageAutomaticSharing: Bool {
+        authManager.isAuthenticated && authManager.isOwner(of: profileStore.activeProfile.id)
+    }
+
     private var automaticShareFooter: String {
-        if authManager.isAuthenticated {
-            return L10n.ShareData.Supabase.footerAuthenticated
+        if authManager.isAuthenticated == false {
+            return L10n.ShareData.Supabase.footerSignedOut
         }
-        return L10n.ShareData.Supabase.footerSignedOut
+        if canManageAutomaticSharing == false {
+            return L10n.ShareData.Supabase.ownerOnlyFooter
+        }
+        return L10n.ShareData.Supabase.footerAuthenticated
     }
 
     private var isAutomaticShareButtonDisabled: Bool {
-        if isSharingProfile { return true }
-        if authManager.isAuthenticated {
-            return trimmedSupabaseEmail.isEmpty
-        }
-        return false
+        trimmedSupabaseEmail.isEmpty || isSharingProfile
     }
 
     @ViewBuilder
     private var supabaseShareSection: some View {
         Section {
-            if authManager.isAuthenticated {
+            if canManageAutomaticSharing {
                 TextField(L10n.ShareData.Supabase.emailPlaceholder, text: $supabaseShareEmail)
                     .textInputAutocapitalization(.never)
                     .disableAutocorrection(true)
                     .keyboardType(.emailAddress)
                     .textContentType(.emailAddress)
                     .focused($isSupabaseEmailFocused)
-            } else {
-                Text(L10n.ShareData.Supabase.signedOutDescription)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
 
-            ShareDataActionButton(
-                title: L10n.ShareData.Supabase.shareButton,
-                systemImage: "person.crop.circle.badge.plus",
-                tint: .purple,
-                action: {
-                    if authManager.isAuthenticated {
-                        Task { await shareProfileWithSupabase() }
-                    } else {
-                        isShowingAccountPrompt = true
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L10n.ShareData.Supabase.permissionPickerLabel)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                    Picker(L10n.ShareData.Supabase.permissionPickerLabel, selection: $sharePermissionSelection) {
+                        ForEach(SupabaseAuthManager.ProfileSharePermission.allCases) { permission in
+                            Text(permissionDisplayName(for: permission)).tag(permission)
+                        }
                     }
-                },
-                isLoading: isSharingProfile
-            )
-            .disabled(isAutomaticShareButtonDisabled)
+                    .pickerStyle(.segmented)
+                }
+
+                ShareDataActionButton(
+                    title: L10n.ShareData.Supabase.shareButton,
+                    systemImage: "person.crop.circle.badge.plus",
+                    tint: .purple,
+                    action: {
+                        Task { await shareProfileWithSupabase() }
+                    },
+                    isLoading: isSharingProfile
+                )
+                .disabled(isAutomaticShareButtonDisabled)
+
+                shareInvitationsList
+            } else {
+                if authManager.isAuthenticated {
+                    Text(L10n.ShareData.Supabase.ownerOnlyDescription)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(L10n.ShareData.Supabase.signedOutDescription)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                    ShareDataActionButton(
+                        title: L10n.ShareData.Supabase.shareButton,
+                        systemImage: "person.crop.circle.badge.plus",
+                        tint: .purple,
+                        action: { isShowingAccountPrompt = true }
+                    )
+                }
+            }
         } header: {
             Text(L10n.ShareData.Supabase.sectionTitle)
         } footer: {
@@ -199,6 +255,55 @@ struct ShareDataView: View {
         } footer: {
             manualShareFooter
         }
+    }
+
+    @ViewBuilder
+    private var shareInvitationsList: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.ShareData.Supabase.Invites.header)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            if isLoadingShareInvitations {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text(L10n.ShareData.Supabase.Invites.loading)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            } else if let errorMessage = shareInvitationErrorMessage {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(errorMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                    Button(L10n.ShareData.Supabase.Invites.retry) {
+                        Task { await refreshShareInvitations(force: true) }
+                    }
+                    .buttonStyle(.borderless)
+                }
+            } else if shareInvitations.isEmpty {
+                Text(L10n.ShareData.Supabase.Invites.empty)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(shareInvitations) { invitation in
+                    ShareInvitationRow(
+                        invitation: invitation,
+                        permissionLabel: permissionDisplayName(for:),
+                        statusLabel: statusDisplayName(for:),
+                        isUpdating: updatingShareInvitationID == invitation.id,
+                        onPermissionChange: { permission in
+                            Task { await handlePermissionChange(for: invitation, to: permission) }
+                        },
+                        onRevoke: {
+                            pendingRevocation = invitation
+                        }
+                    )
+                }
+            }
+        }
+        .padding(.top, 8)
     }
 
     @ViewBuilder
@@ -355,6 +460,131 @@ struct ShareDataView: View {
         return "\(base)-share"
     }
 
+    private func permissionDisplayName(for permission: SupabaseAuthManager.ProfileSharePermission) -> String {
+        switch permission {
+        case .view:
+            return L10n.ShareData.Supabase.Permission.view
+        case .edit:
+            return L10n.ShareData.Supabase.Permission.edit
+        }
+    }
+
+    private func statusDisplayName(for status: SupabaseAuthManager.ProfileShareStatus) -> String {
+        switch status {
+        case .pending:
+            return L10n.ShareData.Supabase.Invites.statusPending
+        case .accepted:
+            return L10n.ShareData.Supabase.Invites.statusAccepted
+        case .revoked:
+            return L10n.ShareData.Supabase.Invites.statusRevoked
+        case .rejected:
+            return L10n.ShareData.Supabase.Invites.statusRejected
+        }
+    }
+
+    private func refreshShareInvitations(force: Bool = false) async {
+        guard canManageAutomaticSharing else {
+            await MainActor.run {
+                shareInvitations = []
+                shareInvitationErrorMessage = nil
+                shareInvitationsLoadedProfileID = nil
+                isLoadingShareInvitations = false
+            }
+            return
+        }
+
+        let profileID = profileStore.activeProfile.id
+        if !force,
+           shareInvitationsLoadedProfileID == profileID,
+           shareInvitationErrorMessage == nil {
+            return
+        }
+
+        shareInvitationsLoadedProfileID = profileID
+        await loadShareInvitations(profileID: profileID)
+    }
+
+    private func loadShareInvitations(profileID: UUID) async {
+        await MainActor.run {
+            isLoadingShareInvitations = true
+            shareInvitationErrorMessage = nil
+        }
+
+        let result = await authManager.fetchShareInvitations(for: profileID)
+
+        await MainActor.run {
+            isLoadingShareInvitations = false
+            switch result {
+            case .success(let invitations):
+                shareInvitations = invitations
+                shareInvitationErrorMessage = nil
+            case .failure(let message):
+                shareInvitationErrorMessage = message
+            }
+        }
+    }
+
+    private func handlePermissionChange(
+        for invitation: SupabaseAuthManager.ProfileShareInvitation,
+        to permission: SupabaseAuthManager.ProfileSharePermission
+    ) async {
+        guard invitation.permission != permission else { return }
+
+        await MainActor.run {
+            updatingShareInvitationID = invitation.id
+        }
+
+        let result = await authManager.updateShareInvitation(
+            invitation.id,
+            profileID: invitation.profileID,
+            permission: permission
+        )
+
+        await MainActor.run {
+            updatingShareInvitationID = nil
+        }
+
+        switch result {
+        case .success:
+            await refreshShareInvitations(force: true)
+        case .failure(let message):
+            await MainActor.run {
+                alert = ShareDataAlert(
+                    title: L10n.ShareData.Supabase.failureTitle,
+                    message: message
+                )
+            }
+        }
+    }
+
+    private func revokeShareInvitation(_ invitation: SupabaseAuthManager.ProfileShareInvitation) async {
+        await MainActor.run {
+            pendingRevocation = nil
+            updatingShareInvitationID = invitation.id
+        }
+
+        let result = await authManager.revokeShareInvitation(
+            invitation.id,
+            profileID: invitation.profileID
+        )
+
+        await MainActor.run {
+            updatingShareInvitationID = nil
+        }
+
+        switch result {
+        case .success:
+            await refreshShareInvitations(force: true)
+        case .failure(let message):
+            await MainActor.run {
+                alert = ShareDataAlert(
+                    title: L10n.ShareData.Supabase.failureTitle,
+                    message: message
+                )
+            }
+        }
+    }
+
     @MainActor
     private func shareProfileWithSupabase() async {
         guard !isSharingProfile else { return }
@@ -373,7 +603,12 @@ struct ShareDataView: View {
         defer { isSharingProfile = false }
 
         let profileID = profileStore.activeProfile.id
-        let result = await authManager.shareBabyProfile(profileID: profileID, recipientEmail: email)
+        let permission = sharePermissionSelection
+        let result = await authManager.shareBabyProfile(
+            profileID: profileID,
+            recipientEmail: email,
+            permission: permission
+        )
 
         switch result {
         case .success:
@@ -383,6 +618,7 @@ struct ShareDataView: View {
             )
             supabaseShareEmail = ""
             isSupabaseEmailFocused = false
+            await refreshShareInvitations(force: true)
         case .recipientNotFound:
             alert = ShareDataAlert(
                 title: L10n.ShareData.Supabase.recipientMissingTitle,
@@ -392,6 +628,11 @@ struct ShareDataView: View {
             alert = ShareDataAlert(
                 title: L10n.ShareData.Supabase.alreadySharedTitle,
                 message: L10n.ShareData.Supabase.alreadySharedMessage(email)
+            )
+        case .notOwner:
+            alert = ShareDataAlert(
+                title: L10n.ShareData.Supabase.failureTitle,
+                message: L10n.ShareData.Supabase.ownerRequired
             )
         case .failure(let message):
             alert = ShareDataAlert(
@@ -567,6 +808,83 @@ private struct ShareDataAlert: Identifiable {
     let id = UUID()
     let title: String
     let message: String
+}
+
+private struct ShareInvitationRow: View {
+    let invitation: SupabaseAuthManager.ProfileShareInvitation
+    let permissionLabel: (SupabaseAuthManager.ProfileSharePermission) -> String
+    let statusLabel: (SupabaseAuthManager.ProfileShareStatus) -> String
+    let isUpdating: Bool
+    let onPermissionChange: (SupabaseAuthManager.ProfileSharePermission) -> Void
+    let onRevoke: () -> Void
+
+    @State private var selectedPermission: SupabaseAuthManager.ProfileSharePermission
+
+    init(invitation: SupabaseAuthManager.ProfileShareInvitation,
+         permissionLabel: @escaping (SupabaseAuthManager.ProfileSharePermission) -> String,
+         statusLabel: @escaping (SupabaseAuthManager.ProfileShareStatus) -> String,
+         isUpdating: Bool,
+         onPermissionChange: @escaping (SupabaseAuthManager.ProfileSharePermission) -> Void,
+         onRevoke: @escaping () -> Void) {
+        self.invitation = invitation
+        self.permissionLabel = permissionLabel
+        self.statusLabel = statusLabel
+        self.isUpdating = isUpdating
+        self.onPermissionChange = onPermissionChange
+        self.onRevoke = onRevoke
+        _selectedPermission = State(initialValue: invitation.permission)
+    }
+
+    private var canModify: Bool {
+        invitation.status != .revoked
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(invitation.recipientEmail)
+                        .fontWeight(.semibold)
+                    Text(statusLabel(invitation.status))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if isUpdating {
+                    ProgressView()
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L10n.ShareData.Supabase.permissionPickerLabel)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                Picker("", selection: $selectedPermission) {
+                    ForEach(SupabaseAuthManager.ProfileSharePermission.allCases) { permission in
+                        Text(permissionLabel(permission)).tag(permission)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .disabled(!canModify || isUpdating)
+            }
+
+            if canModify {
+                Button(L10n.ShareData.Supabase.Invites.revokeButton, role: .destructive) {
+                    onRevoke()
+                }
+                .disabled(isUpdating)
+            }
+        }
+        .padding(.vertical, 6)
+        .onChange(of: invitation.permission) { _, newValue in
+            selectedPermission = newValue
+        }
+        .onChange(of: selectedPermission) { _, newValue in
+            guard newValue != invitation.permission, canModify, isUpdating == false else { return }
+            onPermissionChange(newValue)
+        }
+    }
 }
 
 struct SharedProfileData: Codable {

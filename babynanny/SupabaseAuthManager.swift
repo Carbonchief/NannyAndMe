@@ -13,6 +13,7 @@ final class SupabaseAuthManager: ObservableObject {
     @Published var lastErrorMessage: String?
     @Published var infoMessage: String?
     @Published var isLoading = false
+    @Published private(set) var ownedProfileIdentifiers: Set<UUID> = []
 
     private let client: SupabaseClient?
     private let supabaseAnonKey: String?
@@ -32,7 +33,32 @@ final class SupabaseAuthManager: ObservableObject {
         case success
         case recipientNotFound
         case alreadyShared
+        case notOwner
         case failure(String)
+    }
+
+    enum ProfileSharePermission: String, CaseIterable, Identifiable, Sendable {
+        case view
+        case edit
+
+        var id: String { rawValue }
+    }
+
+    enum ProfileShareStatus: String, Sendable {
+        case pending
+        case accepted
+        case revoked
+        case rejected
+    }
+
+    struct ProfileShareInvitation: Identifiable, Equatable, Sendable {
+        var id: UUID
+        var profileID: UUID
+        var recipientCaregiverID: UUID
+        var recipientEmail: String
+        var permission: ProfileSharePermission
+        var status: ProfileShareStatus
+        var updatedAt: Date?
     }
 
     init() {
@@ -186,6 +212,7 @@ final class SupabaseAuthManager: ObservableObject {
             currentUserID = nil
             currentAccessToken = nil
             hasSynchronizedCaregiverDataForCurrentSession = false
+            ownedProfileIdentifiers = []
         } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
         }
@@ -568,6 +595,8 @@ final class SupabaseAuthManager: ObservableObject {
             }
         }
 
+        updateOwnedProfileIdentifiers(with: profileRecords)
+
         return CaregiverSnapshot(profiles: profileRecords, actions: actionRecords)
     }
 
@@ -614,7 +643,7 @@ final class SupabaseAuthManager: ObservableObject {
 
         if let shareMembership, shareMembership.recipientCaregiverID == currentUserID {
             do {
-                let update = BabyProfileShareStatusUpdate(status: "revoked")
+                let update = BabyProfileShareUpdate(status: ProfileShareStatus.revoked.rawValue)
                 _ = try await client.database
                     .from("baby_profile_shares")
                     .update(update)
@@ -712,7 +741,9 @@ final class SupabaseAuthManager: ObservableObject {
         }
     }
 
-    func shareBabyProfile(profileID: UUID, recipientEmail: String) async -> ProfileShareResult {
+    func shareBabyProfile(profileID: UUID,
+                          recipientEmail: String,
+                          permission: ProfileSharePermission) async -> ProfileShareResult {
         guard let client else {
             let message = configurationError ?? L10n.ShareData.Supabase.failureConfiguration
             return .failure(message)
@@ -720,6 +751,10 @@ final class SupabaseAuthManager: ObservableObject {
 
         guard isAuthenticated, let ownerID = currentUserID else {
             return .failure(L10n.ShareData.Supabase.notAuthenticated)
+        }
+
+        guard isOwner(of: profileID) else {
+            return .notOwner
         }
 
         let sanitizedEmail = recipientEmail
@@ -753,8 +788,8 @@ final class SupabaseAuthManager: ObservableObject {
                 babyProfileID: profileID,
                 ownerCaregiverID: ownerID,
                 recipientCaregiverID: recipientID,
-                permission: "edit",
-                status: "accepted"
+                permission: permission.rawValue,
+                status: ProfileShareStatus.pending.rawValue
             )
 
             _ = try await client.database
@@ -780,6 +815,161 @@ final class SupabaseAuthManager: ObservableObject {
 
             return .failure(message)
         }
+    }
+
+    func fetchShareInvitations(for profileID: UUID) async -> Result<[ProfileShareInvitation], String> {
+        guard let client else {
+            let message = configurationError ?? L10n.ShareData.Supabase.failureConfiguration
+            return .failure(message)
+        }
+
+        guard isAuthenticated, let ownerID = currentUserID else {
+            return .failure(L10n.ShareData.Supabase.notAuthenticated)
+        }
+
+        guard isOwner(of: profileID) else {
+            return .failure(L10n.ShareData.Supabase.ownerRequired)
+        }
+
+        do {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .custom(SupabaseDateDecoder.decode)
+
+            let shareResponse: PostgrestResponse<[BabyProfileShareDetailsRecord]> = try await client.database
+                .from("baby_profile_shares")
+                .select("id, baby_profile_id, owner_caregiver_id, recipient_caregiver_id, permission, status, created_at, updated_at")
+                .eq("baby_profile_id", value: profileID.uuidString)
+                .eq("owner_caregiver_id", value: ownerID.uuidString)
+                .order("created_at", ascending: true)
+                .execute()
+
+            let shareRecords: [BabyProfileShareDetailsRecord] = try decodeResponse(
+                shareResponse.value,
+                decoder: decoder,
+                context: "profile-share-invitations"
+            )
+
+            let recipientIDs = Set(shareRecords.map { $0.recipientCaregiverID })
+            var emailsByID: [UUID: String] = [:]
+
+            if recipientIDs.isEmpty == false {
+                let caregiverResponse: PostgrestResponse<[CaregiverEmailRecord]> = try await client.database
+                    .from("caregivers")
+                    .select("id, email")
+                    .in("id", values: recipientIDs.map { $0.uuidString })
+                    .execute()
+
+                let caregiverRecords: [CaregiverEmailRecord] = try decodeResponse(
+                    caregiverResponse.value,
+                    decoder: decoder,
+                    context: "profile-share-caregiver-emails"
+                )
+
+                for record in caregiverRecords {
+                    emailsByID[record.id] = record.email
+                }
+            }
+
+            let invitations: [ProfileShareInvitation] = shareRecords.map { record in
+                let permission = ProfileSharePermission(rawValue: record.permission) ?? .view
+                let status = ProfileShareStatus(rawValue: record.status) ?? .pending
+                let email = emailsByID[record.recipientCaregiverID]
+                    ?? L10n.ShareData.Supabase.Invites.unknownRecipient
+                return ProfileShareInvitation(
+                    id: record.id,
+                    profileID: record.babyProfileID,
+                    recipientCaregiverID: record.recipientCaregiverID,
+                    recipientEmail: email,
+                    permission: permission,
+                    status: status,
+                    updatedAt: record.updatedAt
+                )
+            }
+
+            return .success(invitations)
+        } catch {
+            let message = Self.userFriendlyMessage(from: error)
+            return .failure(message)
+        }
+    }
+
+    func updateShareInvitation(_ invitationID: UUID,
+                               profileID: UUID,
+                               permission: ProfileSharePermission) async -> Result<Void, String> {
+        guard let client else {
+            let message = configurationError ?? L10n.ShareData.Supabase.failureConfiguration
+            return .failure(message)
+        }
+
+        guard isAuthenticated, let ownerID = currentUserID else {
+            return .failure(L10n.ShareData.Supabase.notAuthenticated)
+        }
+
+        guard isOwner(of: profileID) else {
+            return .failure(L10n.ShareData.Supabase.ownerRequired)
+        }
+
+        do {
+            let update = BabyProfileShareUpdate(permission: permission.rawValue)
+            _ = try await client.database
+                .from("baby_profile_shares")
+                .update(update)
+                .eq("id", value: invitationID.uuidString)
+                .eq("owner_caregiver_id", value: ownerID.uuidString)
+                .execute()
+
+            return .success(())
+        } catch {
+            return .failure(Self.userFriendlyMessage(from: error))
+        }
+    }
+
+    func revokeShareInvitation(_ invitationID: UUID,
+                               profileID: UUID) async -> Result<Void, String> {
+        guard let client else {
+            let message = configurationError ?? L10n.ShareData.Supabase.failureConfiguration
+            return .failure(message)
+        }
+
+        guard isAuthenticated, let ownerID = currentUserID else {
+            return .failure(L10n.ShareData.Supabase.notAuthenticated)
+        }
+
+        guard isOwner(of: profileID) else {
+            return .failure(L10n.ShareData.Supabase.ownerRequired)
+        }
+
+        do {
+            let update = BabyProfileShareUpdate(status: ProfileShareStatus.revoked.rawValue)
+            _ = try await client.database
+                .from("baby_profile_shares")
+                .update(update)
+                .eq("id", value: invitationID.uuidString)
+                .eq("owner_caregiver_id", value: ownerID.uuidString)
+                .execute()
+
+            return .success(())
+        } catch {
+            return .failure(Self.userFriendlyMessage(from: error))
+        }
+    }
+
+    func isOwner(of profileID: UUID) -> Bool {
+        ownedProfileIdentifiers.contains(profileID)
+    }
+
+    private func updateOwnedProfileIdentifiers(with records: [BabyProfileRecord]) {
+        guard let currentUserID else {
+            ownedProfileIdentifiers = []
+            return
+        }
+
+        let identifiers = records.reduce(into: Set<UUID>()) { partialResult, record in
+            if record.caregiverID == currentUserID {
+                partialResult.insert(record.id)
+            }
+        }
+        ownedProfileIdentifiers = identifiers
     }
 
     private func resolvedPasswordHash(from user: User) -> String {
@@ -1061,8 +1251,8 @@ private struct BabyProfileShareRecord: Encodable {
     var babyProfileID: UUID
     var ownerCaregiverID: UUID
     var recipientCaregiverID: UUID
-    var permission: String?
-    var status: String?
+    var permission: String
+    var status: String
 
     enum CodingKeys: String, CodingKey {
         case babyProfileID = "baby_profile_id"
@@ -1070,6 +1260,28 @@ private struct BabyProfileShareRecord: Encodable {
         case recipientCaregiverID = "recipient_caregiver_id"
         case permission
         case status
+    }
+}
+
+private struct BabyProfileShareDetailsRecord: Decodable {
+    var id: UUID
+    var babyProfileID: UUID
+    var ownerCaregiverID: UUID
+    var recipientCaregiverID: UUID
+    var permission: String
+    var status: String
+    var createdAt: Date?
+    var updatedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case babyProfileID = "baby_profile_id"
+        case ownerCaregiverID = "owner_caregiver_id"
+        case recipientCaregiverID = "recipient_caregiver_id"
+        case permission
+        case status
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
     }
 }
 
@@ -1095,12 +1307,24 @@ private struct BabyProfileOwnershipRecord: Decodable {
     }
 }
 
-private struct BabyProfileShareStatusUpdate: Encodable {
-    var status: String
+private struct BabyProfileShareUpdate: Encodable {
+    var permission: String?
+    var status: String?
+
+    init(permission: String? = nil, status: String? = nil) {
+        self.permission = permission
+        self.status = status
+    }
 
     enum CodingKeys: String, CodingKey {
+        case permission
         case status
     }
+}
+
+private struct CaregiverEmailRecord: Decodable {
+    var id: UUID
+    var email: String
 }
 
 private struct BabyActionRecord: Codable, Identifiable {
