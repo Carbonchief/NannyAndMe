@@ -366,7 +366,7 @@ final class SupabaseAuthManager: ObservableObject {
         do {
             if shouldUpsert {
                 _ = try await client.database
-                    .from("Baby_Action")
+                    .from("baby_action")
                     .upsert(records, onConflict: "id", returning: .minimal)
                     .execute()
             }
@@ -374,7 +374,7 @@ final class SupabaseAuthManager: ObservableObject {
             if shouldDelete {
                 let identifiers = deletingIDs.map(\.uuidString)
                 _ = try await client.database
-                    .from("Baby_Action")
+                    .from("baby_action")
                     .delete()
                     .in("id", value: identifiers)
                     .execute()
@@ -547,7 +547,7 @@ final class SupabaseAuthManager: ObservableObject {
         logRawSupabaseResponse(profilesResponse.value, context: "profiles")
 
         let actionsResponse: PostgrestResponse<[BabyActionRecord]> = try await client.database
-            .from("Baby_Action")
+            .from("baby_action")
             .select()
             .execute()
         logRawSupabaseResponse(actionsResponse.value, context: "actions")
@@ -575,12 +575,14 @@ final class SupabaseAuthManager: ObservableObject {
         guard let client, isAuthenticated, let currentUserID else { return }
 
         let identifier = id.uuidString
+        let normalizedIdentifier = identifier.lowercased()
         var recordedError: Error?
 
         func recordError(_ error: Error) {
             if recordedError == nil {
                 recordedError = error
             }
+            logger.error("Supabase delete failure for profile \(identifier, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
 
         var shareMembership: BabyProfileShareMembershipRecord?
@@ -591,9 +593,7 @@ final class SupabaseAuthManager: ObservableObject {
                 .from("baby_profile_shares")
                 .select("baby_profile_id, owner_caregiver_id, recipient_caregiver_id")
                 .eq("baby_profile_id", value: identifier)
-                .or(
-                    "owner_caregiver_id.eq.\(currentUserID.uuidString),recipient_caregiver_id.eq.\(currentUserID.uuidString)"
-                )
+                .eq("recipient_caregiver_id", value: currentUserID.uuidString)
                 .limit(1)
                 .execute()
 
@@ -632,41 +632,77 @@ final class SupabaseAuthManager: ObservableObject {
         }
 
         do {
-            _ = try await client.database
-                .from("Baby_Action")
-                .delete()
-                .eq("Profile_Id", value: identifier)
+            let decoder = JSONDecoder()
+            let response: PostgrestResponse<[BabyProfileOwnershipRecord]> = try await client.database
+                .from("baby_profiles")
+                .select("id, caregiver_id")
+                .eq("id", value: identifier)
+                .limit(1)
                 .execute()
+
+            let records: [BabyProfileOwnershipRecord] = try decodeResponse(
+                response.value,
+                decoder: decoder,
+                context: "profile-ownership"
+            )
+
+            guard let ownershipRecord = records.first else { return }
+            guard ownershipRecord.caregiverID == currentUserID else { return }
         } catch {
             recordError(error)
+
+            if let recordedError {
+                lastErrorMessage = Self.userFriendlyMessage(from: recordedError)
+            }
+            return
         }
 
+        logger.log("Deleting baby_action entries by profile_id for profile \(identifier, privacy: .public)")
         do {
-            _ = try await client.database
-                .from("Baby_Action")
+            let response: PostgrestResponse<Void> = try await client.database
+                .from("baby_action")
                 .delete()
-                .eq("Note2", value: identifier)
-                .execute()
+                .eq("profile_id", value: normalizedIdentifier)
+                .execute(options: .init(count: .exact))
+
+            let deletedCount = response.count ?? 0
+            logger.log("Supabase delete baby_action response for profile \(identifier, privacy: .public): status=\(response.response.statusCode, privacy: .public) deleted_rows=\(deletedCount, privacy: .public)")
+            logger.log("Deleted baby_action entries for profile \(identifier, privacy: .public)")
         } catch {
             recordError(error)
         }
 
+
+        guard recordedError == nil else {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+            return
+        }
+
+        logger.log("Deleting baby_profile_shares entries for profile \(identifier, privacy: .public)")
         do {
             _ = try await client.database
                 .from("baby_profile_shares")
                 .delete()
                 .eq("baby_profile_id", value: identifier)
                 .execute()
+            logger.log("Deleted baby_profile_shares entries for profile \(identifier, privacy: .public)")
         } catch {
             recordError(error)
         }
 
+        guard recordedError == nil else {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+            return
+        }
+
+        logger.log("Deleting baby_profiles entry for profile \(identifier, privacy: .public)")
         do {
             _ = try await client.database
                 .from("baby_profiles")
                 .delete()
                 .eq("id", value: identifier)
                 .execute()
+            logger.log("Deleted baby_profiles entry for profile \(identifier, privacy: .public)")
         } catch {
             recordError(error)
         }
@@ -717,8 +753,8 @@ final class SupabaseAuthManager: ObservableObject {
                 babyProfileID: profileID,
                 ownerCaregiverID: ownerID,
                 recipientCaregiverID: recipientID,
-                permission: nil,
-                status: nil
+                permission: "edit",
+                status: "accepted"
             )
 
             _ = try await client.database
@@ -1049,6 +1085,16 @@ private struct BabyProfileShareMembershipRecord: Decodable {
     }
 }
 
+private struct BabyProfileOwnershipRecord: Decodable {
+    var id: UUID
+    var caregiverID: UUID
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case caregiverID = "caregiver_id"
+    }
+}
+
 private struct BabyProfileShareStatusUpdate: Encodable {
     var status: String
 
@@ -1092,31 +1138,23 @@ private struct BabyActionRecord: Codable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case id
-        case caregiverIDLegacy = "Caregiver_Id"
         case caregiverIDLower = "caregiver_id"
-        case subtypeIDLegacy = "Subtype_Id"
+        case caregiverIDLegacy = "Caregiver_Id"
         case subtypeIDLower = "subtype_id"
-        case startedLegacy = "Started"
+        case subtypeIDLegacy = "Subtype_Id"
         case startedAt = "started_at"
+        case startedLegacy = "Started"
         case startedLower = "started"
-        case stoppedLegacy = "Stopped"
         case stoppedAt = "stopped_at"
+        case stoppedLegacy = "Stopped"
         case stoppedLower = "stopped"
-        case note = "Note"
         case noteLower = "note"
-        case note2Legacy = "Note2"
+        case noteLegacy = "Note"
         case note2Lower = "note2"
+        case note2Legacy = "Note2"
         case createdAt = "created_at"
-        case createdAtLegacy = "Created"
-        case createdAtCamel = "createdAt"
-        case createdAtLower = "created"
         case editedAt = "edited_at"
-        case editedAtLegacy = "Edited"
-        case editedAtLower = "edited"
         case updatedAt = "updated_at"
-        case updatedAtLegacy = "Updated_At"
-        case updatedAtCamel = "updatedAt"
-        case updatedAtLower = "updated"
         case profileIDLower = "profile_id"
         case profileIDLegacy = "Profile_Id"
     }
@@ -1124,15 +1162,15 @@ private struct BabyActionRecord: Codable, Identifiable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
-        caregiverID = try container.decode(UUID.self, forKeys: [.caregiverIDLegacy, .caregiverIDLower])
-        subtypeID = try container.decode(UUID.self, forKeys: [.subtypeIDLegacy, .subtypeIDLower])
-        started = try container.decode(Date.self, forKeys: [.startedLegacy, .startedAt, .startedLower])
-        stopped = try container.decodeIfPresent(Date.self, forKeys: [.stoppedLegacy, .stoppedAt, .stoppedLower])
-        note = try container.decodeIfPresent(String.self, forKeys: [.note, .noteLower])
-        note2 = try container.decodeIfPresent(String.self, forKeys: [.note2Legacy, .note2Lower])
-        createdAt = try container.decodeIfPresent(Date.self, forKeys: [.createdAt, .createdAtLegacy, .createdAtCamel, .createdAtLower])
-        let editedTimestamp = try container.decodeIfPresent(Date.self, forKeys: [.editedAt, .editedAtLegacy, .editedAtLower])
-        let updatedTimestamp = try container.decodeIfPresent(Date.self, forKeys: [.updatedAt, .updatedAtLegacy, .updatedAtCamel, .updatedAtLower])
+        caregiverID = try container.decode(UUID.self, forKeys: [.caregiverIDLower, .caregiverIDLegacy])
+        subtypeID = try container.decode(UUID.self, forKeys: [.subtypeIDLower, .subtypeIDLegacy])
+        started = try container.decode(Date.self, forKeys: [.startedAt, .startedLower, .startedLegacy])
+        stopped = try container.decodeIfPresent(Date.self, forKeys: [.stoppedAt, .stoppedLower, .stoppedLegacy])
+        note = try container.decodeIfPresent(String.self, forKeys: [.noteLower, .noteLegacy])
+        note2 = try container.decodeIfPresent(String.self, forKeys: [.note2Lower, .note2Legacy])
+        createdAt = try container.decodeIfPresent(Date.self, forKeys: [.createdAt])
+        let editedTimestamp = try container.decodeIfPresent(Date.self, forKeys: [.editedAt])
+        let updatedTimestamp = try container.decodeIfPresent(Date.self, forKeys: [.updatedAt])
         editedAt = editedTimestamp ?? updatedTimestamp
         let rawProfileIdentifier = try container.decodeIfPresent(String.self, forKeys: [.profileIDLower, .profileIDLegacy])
         if let normalizedProfileIdentifier = rawProfileIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -1157,28 +1195,28 @@ private struct BabyActionRecord: Codable, Identifiable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
-        try container.encode(caregiverID, forKey: .caregiverIDLegacy)
-        try container.encode(subtypeID, forKey: .subtypeIDLegacy)
-        try container.encode(started, forKey: .startedLegacy)
+        try container.encode(caregiverID, forKey: .caregiverIDLower)
+        try container.encode(subtypeID, forKey: .subtypeIDLower)
+        try container.encode(started, forKey: .startedAt)
         if let stopped {
-            try container.encode(stopped, forKey: .stoppedLegacy)
+            try container.encode(stopped, forKey: .stoppedAt)
         } else {
-            try container.encodeNil(forKey: .stoppedLegacy)
+            try container.encodeNil(forKey: .stoppedAt)
         }
         if let note {
-            try container.encode(note, forKey: .note)
+            try container.encode(note, forKey: .noteLower)
         } else {
-            try container.encodeNil(forKey: .note)
+            try container.encodeNil(forKey: .noteLower)
         }
         if let note2 {
-            try container.encode(note2, forKey: .note2Legacy)
+            try container.encode(note2, forKey: .note2Lower)
         } else {
-            try container.encodeNil(forKey: .note2Legacy)
+            try container.encodeNil(forKey: .note2Lower)
         }
         if let profileReferenceID {
-            try container.encode(profileReferenceID, forKey: .profileIDLegacy)
+            try container.encode(profileReferenceID, forKey: .profileIDLower)
         } else {
-            try container.encodeNil(forKey: .profileIDLegacy)
+            try container.encodeNil(forKey: .profileIDLower)
         }
         if let createdAt {
             try container.encode(createdAt, forKey: .createdAt)
