@@ -640,6 +640,21 @@ enum L10n {
             )
             return String(format: format, locale: Locale.current, count, location)
         }
+
+        enum LocationPrompt {
+            static let title = String(
+                localized: "map.locationPrompt.title",
+                defaultValue: "Enable Action Locations?"
+            )
+            static let message = String(
+                localized: "map.locationPrompt.message",
+                defaultValue: "Turn on Action Locations so we can place your baby's care on the map."
+            )
+            static let enable = String(
+                localized: "map.locationPrompt.enable",
+                defaultValue: "Turn On"
+            )
+        }
     }
 
     enum Notifications {
