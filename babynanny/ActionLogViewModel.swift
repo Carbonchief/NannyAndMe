@@ -251,7 +251,7 @@ final class ActionLogStore: ObservableObject {
 
     func canModifyActions(for profileID: UUID) -> Bool {
         guard let model = existingProfileModel(for: profileID) else {
-            return true
+            return false
         }
 
         guard model.shareStatus == .accepted else {
