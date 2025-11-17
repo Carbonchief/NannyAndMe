@@ -841,7 +841,7 @@ final class SupabaseAuthManager: ObservableObject {
                 ownerCaregiverID: ownerID,
                 recipientCaregiverID: recipientID,
                 permission: permission.rawValue,
-                status: nil
+                status: ProfileShareStatus.accepted.rawValue
             )
 
             _ = try await client.database
