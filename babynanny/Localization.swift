@@ -459,6 +459,25 @@ enum L10n {
             localized: "profiles.viewOnlyBadge",
             defaultValue: "View only"
         )
+        static let pendingShareTitle = String(
+            localized: "profiles.pendingShare.title",
+            defaultValue: "Accept shared profile?"
+        )
+        static func pendingShareMessage(_ name: String) -> String {
+            let format = String(
+                localized: "profiles.pendingShare.message",
+                defaultValue: "%@ has been shared with you. Do you want to accept this invitation?"
+            )
+            return String(format: format, locale: Locale.current, name)
+        }
+        static let pendingShareAccept = String(
+            localized: "profiles.pendingShare.accept",
+            defaultValue: "Accept invite"
+        )
+        static let pendingShareDecline = String(
+            localized: "profiles.pendingShare.decline",
+            defaultValue: "Decline invite"
+        )
 
         static func deleteConfirmationTitle(_ name: String) -> String {
             let format = String(localized: "profiles.delete.confirmationTitle", defaultValue: "Delete %@?")

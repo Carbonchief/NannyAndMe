@@ -127,6 +127,10 @@
 "profiles.photo.processing" = "Preparing photo…";
 "profiles.sharedBadge" = "Shared";
 "profiles.viewOnlyBadge" = "View only";
+"profiles.pendingShare.title" = "Accept shared profile?";
+"profiles.pendingShare.message" = "%@ has been shared with you. Do you want to accept this invitation?";
+"profiles.pendingShare.accept" = "Accept invite";
+"profiles.pendingShare.decline" = "Decline invite";
 "profiles.age.format" = "%@ old";
 "profiles.age.newborn" = "Newborn";
 "profiles.delete.confirmationTitle" = "Delete %@?";

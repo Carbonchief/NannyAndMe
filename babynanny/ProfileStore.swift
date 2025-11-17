@@ -22,6 +22,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
     var remindersEnabled: Bool
     var isShared: Bool
     var sharePermission: ProfileSharePermission
+    var shareStatus: ProfileShareStatus?
     private var actionReminderIntervals: [BabyActionCategory: TimeInterval]
     private var actionRemindersEnabled: [BabyActionCategory: Bool]
     private var actionReminderOverrides: [BabyActionCategory: ActionReminderOverride]
@@ -34,6 +35,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
          remindersEnabled: Bool = false,
          isShared: Bool = false,
          sharePermission: ProfileSharePermission = .edit,
+         shareStatus: ProfileShareStatus? = nil,
          actionReminderIntervals: [BabyActionCategory: TimeInterval] = ChildProfile.defaultActionReminderIntervals(),
          actionRemindersEnabled: [BabyActionCategory: Bool] = ChildProfile.defaultActionRemindersEnabled(),
          actionReminderOverrides: [BabyActionCategory: ActionReminderOverride] = [:]) {
@@ -45,6 +47,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         self.remindersEnabled = remindersEnabled
         self.isShared = isShared
         self.sharePermission = sharePermission
+        self.shareStatus = shareStatus
         self.actionReminderIntervals = actionReminderIntervals
         self.actionRemindersEnabled = actionRemindersEnabled
         self.actionReminderOverrides = actionReminderOverrides
@@ -66,6 +69,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
                   remindersEnabled: model.remindersEnabled,
                   isShared: model.isSharedProfile,
                   sharePermission: model.sharePermission,
+                  shareStatus: model.shareStatus,
                   actionReminderIntervals: model.reminderIntervalsByCategory(),
                   actionRemindersEnabled: model.reminderEnabledByCategory(),
                   actionReminderOverrides: mappedOverrides)
@@ -194,6 +198,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         case remindersEnabled
         case isShared
         case sharePermissionRawValue
+        case shareStatusRawValue
         case actionReminderIntervals
         case actionRemindersEnabled
         case actionReminderOverrides
@@ -213,6 +218,12 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
             sharePermission = permission
         } else {
             sharePermission = .edit
+        }
+
+        if let rawStatus = try container.decodeIfPresent(String.self, forKey: .shareStatusRawValue) {
+            shareStatus = ProfileShareStatus(rawValue: rawStatus)
+        } else {
+            shareStatus = nil
         }
 
         if let rawIntervals = try container.decodeIfPresent([String: TimeInterval].self, forKey: .actionReminderIntervals) {
@@ -262,6 +273,7 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         try container.encode(remindersEnabled, forKey: .remindersEnabled)
         try container.encode(isShared, forKey: .isShared)
         try container.encode(sharePermission.rawValue, forKey: .sharePermissionRawValue)
+        try container.encodeIfPresent(shareStatus?.rawValue, forKey: .shareStatusRawValue)
         let rawIntervals = Dictionary(uniqueKeysWithValues: actionReminderIntervals.map { ($0.key.rawValue, $0.value) })
         try container.encode(rawIntervals, forKey: .actionReminderIntervals)
         let rawEnabled = Dictionary(uniqueKeysWithValues: actionRemindersEnabled.map { ($0.key.rawValue, $0.value) })
@@ -500,6 +512,16 @@ final class ProfileStore: ObservableObject {
                   let manager = self.authManager,
                   let updatedProfile = self.profiles.first(where: { $0.id == id }) else { return }
             await manager.upsertBabyProfiles([updatedProfile])
+        }
+    }
+
+    func applyShareStatus(_ status: ProfileShareStatus?, to profileID: UUID) {
+        mutateProfiles(reason: "profile-share-status-update") {
+            guard let model = profileModel(withID: profileID) else { return false }
+            guard model.shareStatus?.rawValue != status?.rawValue else { return false }
+            model.shareStatus = status
+            model.touch()
+            return true
         }
     }
 

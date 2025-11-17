@@ -33,6 +33,8 @@ struct ContentView: View {
     @State private var pendingMapUnlock = false
     @State private var isLocationPromptPresented = false
     @State private var menuDragOffset: CGFloat = 0
+    @State private var pendingShareAlertProfile: ChildProfile?
+    @State private var shareResponseErrorMessage: String?
 
     private var visibleTabs: [Tab] {
         return [.home, .reports, .map]
@@ -210,6 +212,43 @@ struct ContentView: View {
             .fullScreenCover(isPresented: $isOnboardingPresented) {
                 OnboardingFlowView(isPresented: $isOnboardingPresented)
             }
+            .overlay {
+                Color.clear
+                    .allowsHitTesting(false)
+                    .alert(item: $pendingShareAlertProfile) { profile in
+                        Alert(
+                            title: Text(L10n.Profiles.pendingShareTitle),
+                            message: Text(L10n.Profiles.pendingShareMessage(profile.displayName)),
+                            primaryButton: .default(Text(L10n.Profiles.pendingShareAccept)) {
+                                handlePendingShareResponse(for: profile, accept: true)
+                            },
+                            secondaryButton: .destructive(Text(L10n.Profiles.pendingShareDecline)) {
+                                handlePendingShareResponse(for: profile, accept: false)
+                            }
+                        )
+                    }
+            }
+            .overlay {
+                Color.clear
+                    .allowsHitTesting(false)
+                    .alert(
+                        L10n.ShareData.Supabase.failureTitle,
+                        isPresented: Binding(
+                            get: { shareResponseErrorMessage != nil },
+                            set: { isPresented in
+                                if isPresented == false {
+                                    shareResponseErrorMessage = nil
+                                }
+                            }
+                        )
+                    ) {
+                        Button(L10n.Common.done) {
+                            shareResponseErrorMessage = nil
+                        }
+                    } message: {
+                        Text(shareResponseErrorMessage ?? "")
+                    }
+            }
             .alert(isPresented: $isLocationPromptPresented, content: locationTrackingAlert)
             .onChange(of: authManager.isAuthenticated) { _, isAuthenticated in
                 if isAuthenticated {
@@ -347,18 +386,21 @@ struct ContentView: View {
             if hasCompletedOnboarding == false {
                 isOnboardingPresented = true
             }
+            evaluatePendingShareAlert()
         }
         .onChange(of: profileStore.activeProfile) { _, profile in
             isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(
                 for: profile,
                 profileCount: profileStore.profiles.count
             )
+            triggerPendingShareAlert(for: profile)
         }
         .onChange(of: profileStore.profiles) { _, profiles in
             isInitialProfilePromptPresented = shouldShowInitialProfilePrompt(
                 for: profileStore.activeProfile,
                 profileCount: profiles.count
             )
+            evaluatePendingShareAlert()
         }
         .onChange(of: hasCompletedOnboarding) { _, completed in
             if completed {
@@ -403,6 +445,37 @@ struct ContentView: View {
         Task { @MainActor in
             let snapshot = await authManager.synchronizeCaregiverAccount(with: currentProfiles)
             await actionStore.performUserInitiatedRefresh(using: snapshot)
+        }
+    }
+
+    private func evaluatePendingShareAlert() {
+        triggerPendingShareAlert(for: profileStore.activeProfile)
+    }
+
+    private func triggerPendingShareAlert(for profile: ChildProfile) {
+        if profile.shareStatus == .pending {
+            if pendingShareAlertProfile?.id != profile.id {
+                pendingShareAlertProfile = profile
+            }
+        } else if pendingShareAlertProfile?.id == profile.id {
+            pendingShareAlertProfile = nil
+        }
+    }
+
+    private func handlePendingShareResponse(for profile: ChildProfile, accept: Bool) {
+        pendingShareAlertProfile = nil
+        Task {
+            let result = await authManager.respondToShareInvitation(profileID: profile.id, accept: accept)
+            await MainActor.run {
+                switch result {
+                case .success:
+                    profileStore.applyShareStatus(accept ? .accepted : .revoked, to: profile.id)
+                    synchronizeSupabaseAccount()
+                case .failure(let error):
+                    shareResponseErrorMessage = error.message
+                    triggerPendingShareAlert(for: profile)
+                }
+            }
         }
     }
 }
