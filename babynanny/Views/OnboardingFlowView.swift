@@ -65,8 +65,13 @@ struct OnboardingFlowView: View {
         }
         .onChange(of: authManager.isAuthenticated) { _, isAuthenticated in
             guard isAuthenticated else { return }
-            isAuthSheetPresented = false
-            advancePastAccountDecision()
+            Task {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                await MainActor.run {
+                    isAuthSheetPresented = false
+                    advancePastAccountDecision()
+                }
+            }
         }
         .sheet(isPresented: $isAuthSheetPresented) {
             SupabaseAuthView()
