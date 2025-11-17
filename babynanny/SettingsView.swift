@@ -235,6 +235,7 @@ struct SettingsView: View {
     @ViewBuilder
     private func profileRow(for profile: ChildProfile) -> some View {
         let isReadOnly = profile.sharePermission == .view
+        let shouldShowBadges = profile.isShared || isReadOnly || profile.shareStatus != .accepted
 
         HStack(spacing: 16) {
             ProfileAvatarView(imageData: profile.imageData,
@@ -250,9 +251,10 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                if profile.isShared || isReadOnly {
+                if shouldShowBadges {
                     ProfileAccessBadges(isShared: profile.isShared,
-                                        isReadOnly: isReadOnly)
+                                        isReadOnly: isReadOnly,
+                                        shareStatus: profile.shareStatus)
                 }
             }
 

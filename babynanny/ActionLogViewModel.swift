@@ -250,7 +250,15 @@ final class ActionLogStore: ObservableObject {
     }
 
     func canModifyActions(for profileID: UUID) -> Bool {
-        sharePermission(for: profileID) == .edit
+        guard let model = existingProfileModel(for: profileID) else {
+            return true
+        }
+
+        guard model.shareStatus == .accepted else {
+            return false
+        }
+
+        return model.sharePermission == .edit
     }
 
     func isProfileReadOnly(_ profileID: UUID) -> Bool {
@@ -731,7 +739,10 @@ private extension ActionLogStore {
             logger.log("Applied \(snapshot.metadataUpdates.count, privacy: .public) metadata updates from Supabase.")
         }
 
-        applySharePermissions(snapshot.profilePermissions, sharedProfileIDs: snapshot.sharedProfileIDs)
+        applySharePermissions(snapshot.profilePermissions,
+                              sharedProfileIDs: snapshot.sharedProfileIDs,
+                              shareStatuses: snapshot.profileShareStatuses,
+                              shareInvitationIDs: snapshot.profileShareInvitationIDs)
 
         var actionsByProfile = snapshot.actionsByProfile
         let totalIncomingActions = actionsByProfile.reduce(into: 0) { partialResult, element in
@@ -749,9 +760,14 @@ private extension ActionLogStore {
     }
 
     private func applySharePermissions(_ permissions: [UUID: ProfileSharePermission],
-                                       sharedProfileIDs: Set<UUID>) {
+                                       sharedProfileIDs: Set<UUID>,
+                                       shareStatuses: [UUID: ProfileShareStatus],
+                                       shareInvitationIDs: [UUID: UUID]) {
         let knownProfileIDs = Set(profileStore?.profiles.map(\.id) ?? [])
-        let targetProfileIDs = knownProfileIDs.union(permissions.keys)
+        let targetProfileIDs = knownProfileIDs
+            .union(permissions.keys)
+            .union(shareStatuses.keys)
+            .union(shareInvitationIDs.keys)
         guard targetProfileIDs.isEmpty == false else { return }
 
         let didMutate: Bool = performLocalMutation {
@@ -768,6 +784,18 @@ private extension ActionLogStore {
                 let isShared = sharedProfileIDs.contains(profileID)
                 if model.isSharedProfile != isShared {
                     model.isSharedProfile = isShared
+                    hasChanges = true
+                }
+
+                let status = shareStatuses[profileID] ?? .accepted
+                if model.shareStatus != status {
+                    model.shareStatus = status
+                    hasChanges = true
+                }
+
+                let invitationID = shareInvitationIDs[profileID]
+                if model.shareInvitationID != invitationID {
+                    model.shareInvitationID = invitationID
                     hasChanges = true
                 }
             }

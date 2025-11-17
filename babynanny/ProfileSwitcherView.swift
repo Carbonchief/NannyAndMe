@@ -16,6 +16,7 @@ struct ProfileSwitcherView: View {
                 Section(header: Text(L10n.Profiles.activeSection)) {
                     ForEach(profileStore.profiles) { profile in
                         let isReadOnly = profile.sharePermission == .view
+                        let shouldShowBadges = profile.isShared || isReadOnly || profile.shareStatus != .accepted
 
                         Button {
                             profileStore.setActiveProfile(profile)
@@ -33,9 +34,10 @@ struct ProfileSwitcherView: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
 
-                                    if profile.isShared || isReadOnly {
+                                    if shouldShowBadges {
                                         ProfileAccessBadges(isShared: profile.isShared,
-                                                            isReadOnly: isReadOnly)
+                                                            isReadOnly: isReadOnly,
+                                                            shareStatus: profile.shareStatus)
                                     }
                                 }
 
@@ -127,9 +129,13 @@ struct ProfileSwitcherView: View {
 struct ProfileAccessBadges: View {
     let isShared: Bool
     let isReadOnly: Bool
+    let shareStatus: ProfileShareStatus
 
     var body: some View {
         HStack(spacing: 6) {
+            if shareStatus == .pending {
+                badge(text: L10n.Profiles.pendingBadge, color: .purple)
+            }
             if isShared {
                 badge(text: L10n.Profiles.sharedBadge, color: .blue)
             }

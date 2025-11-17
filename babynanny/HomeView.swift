@@ -16,6 +16,7 @@ struct HomeView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
     @EnvironmentObject private var locationManager: LocationManager
+    @EnvironmentObject private var authManager: SupabaseAuthManager
     @Environment(\.openURL) private var openURL
     @AppStorage("trackActionLocations") private var trackActionLocations = false
     @State private var presentedCategory: BabyActionCategory?
@@ -60,6 +61,12 @@ struct HomeView: View {
                 editingAction = nil
             }
         }
+        .onAppear {
+            evaluateShareInvitationPrompt()
+        }
+        .onChange(of: profileStore.activeProfile) { _, _ in
+            evaluateShareInvitationPrompt()
+        }
         .alert(item: $activeAlert) { alert in
             switch alert {
             case let .pendingStart(pending):
@@ -87,6 +94,28 @@ struct HomeView: View {
                     },
                     secondaryButton: .cancel(Text(L10n.Home.customReminderNotificationsDeniedCancel)) {
                         activeAlert = nil
+                    }
+                )
+            case let .shareInvitation(prompt):
+                return Alert(
+                    title: Text(L10n.Profiles.pendingInviteTitle(prompt.profileName)),
+                    message: Text(L10n.Profiles.pendingInviteMessage(prompt.profileName)),
+                    primaryButton: .default(Text(L10n.Profiles.pendingInviteAccept)) {
+                        activeAlert = nil
+                        handleShareInvitationResponse(accept: true, prompt: prompt)
+                    },
+                    secondaryButton: .destructive(Text(L10n.Profiles.pendingInviteRevoke)) {
+                        activeAlert = nil
+                        handleShareInvitationResponse(accept: false, prompt: prompt)
+                    }
+                )
+            case let .shareInvitationError(error):
+                return Alert(
+                    title: Text(L10n.Profiles.pendingInviteErrorTitle),
+                    message: Text(error.message),
+                    dismissButton: .default(Text(L10n.Common.done)) {
+                        activeAlert = nil
+                        evaluateShareInvitationPrompt()
                     }
                 )
             }
@@ -569,6 +598,54 @@ struct HomeView: View {
 
     private var currentState: ProfileActionState {
         actionStore.state(for: activeProfileID)
+    }
+
+    private func evaluateShareInvitationPrompt() {
+        let profile = profileStore.activeProfile
+        guard profile.shareStatus == .pending,
+              let shareID = profile.shareInvitationID else {
+            if case .shareInvitation = activeAlert {
+                activeAlert = nil
+            }
+            return
+        }
+
+        let prompt = ShareInvitationPrompt(profileID: profile.id,
+                                           profileName: profile.displayName,
+                                           shareID: shareID)
+
+        if case let .shareInvitation(existing) = activeAlert,
+           existing.profileID == prompt.profileID,
+           existing.shareID == prompt.shareID {
+            return
+        }
+
+        activeAlert = .shareInvitation(prompt)
+    }
+
+    private func handleShareInvitationResponse(accept: Bool, prompt: ShareInvitationPrompt) {
+        let targetStatus: ProfileShareStatus = accept ? .accepted : .revoked
+
+        Task {
+            let result = await authManager.respondToShareInvitation(shareID: prompt.shareID,
+                                                                    status: targetStatus)
+            await MainActor.run {
+                switch result {
+                case .success:
+                    if accept {
+                        profileStore.updateShareStatus(for: prompt.profileID,
+                                                       status: .accepted,
+                                                       invitationID: prompt.shareID)
+                    } else {
+                        profileStore.removeSharedProfileLocally(prompt.profileID)
+                    }
+                case .failure(let error):
+                    activeAlert = .shareInvitationError(ShareInvitationErrorState(message: error.message))
+                }
+
+                evaluateShareInvitationPrompt()
+            }
+        }
     }
 
     @MainActor
@@ -1576,9 +1653,23 @@ private struct PendingStartAction: Identifiable {
     let nextStep: NextStep
 }
 
+private struct ShareInvitationPrompt: Identifiable, Equatable {
+    let id = UUID()
+    let profileID: UUID
+    let profileName: String
+    let shareID: UUID
+}
+
+private struct ShareInvitationErrorState: Identifiable {
+    let id = UUID()
+    let message: String
+}
+
 private enum HomeAlert: Identifiable {
     case pendingStart(PendingStartAction)
     case reminderAuthorization(ReminderAuthorizationAlert)
+    case shareInvitation(ShareInvitationPrompt)
+    case shareInvitationError(ShareInvitationErrorState)
 
     var id: UUID {
         switch self {
@@ -1586,6 +1677,10 @@ private enum HomeAlert: Identifiable {
             return pending.id
         case let .reminderAuthorization(alert):
             return alert.id
+        case let .shareInvitation(prompt):
+            return prompt.id
+        case let .shareInvitationError(error):
+            return error.id
         }
     }
 }

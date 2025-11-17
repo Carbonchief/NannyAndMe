@@ -127,6 +127,12 @@
 "profiles.photo.processing" = "Foto wird vorbereitet…";
 "profiles.sharedBadge" = "Geteilt";
 "profiles.viewOnlyBadge" = "Nur ansehen";
+"profiles.pendingBadge" = "Ausstehend";
+"profiles.pendingInvite.title" = "Zugriff auf %@ annehmen?";
+"profiles.pendingInvite.message" = "Du wurdest eingeladen, Pflege für %@ zu protokollieren. Akzeptiere, um teilzunehmen, oder widerrufe, um abzulehnen.";
+"profiles.pendingInvite.accept" = "Akzeptieren";
+"profiles.pendingInvite.revoke" = "Zugriff widerrufen";
+"profiles.pendingInvite.errorTitle" = "Zugriff konnte nicht aktualisiert werden";
 "profiles.age.format" = "%@ alt";
 "profiles.age.newborn" = "Neugeboren";
 "profiles.delete.confirmationTitle" = "Profil %@ löschen?";

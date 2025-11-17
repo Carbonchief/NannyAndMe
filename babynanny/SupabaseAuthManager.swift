@@ -591,7 +591,7 @@ final class SupabaseAuthManager: ObservableObject {
                                                                    decoder: decoder,
                                                                    context: "actions")
 
-        let sharePermissions = try await fetchSharePermissions(for: caregiverID, client: client)
+        let shareStates = try await fetchShareStates(for: caregiverID, client: client)
 
         Self.snapshotLogger.log("Decoded snapshot successfully. profiles=\(profileRecords.count, privacy: .public) actions=\(actionRecords.count, privacy: .public)")
         for record in profileRecords {
@@ -605,17 +605,17 @@ final class SupabaseAuthManager: ObservableObject {
         return CaregiverSnapshot(caregiverID: caregiverID,
                                  profiles: profileRecords,
                                  actions: actionRecords,
-                                 sharePermissions: sharePermissions)
+                                 shareStates: shareStates)
     }
 
-    private func fetchSharePermissions(for caregiverID: UUID,
-                                       client: SupabaseClient) async throws -> [UUID: ProfileSharePermission] {
+    private func fetchShareStates(for caregiverID: UUID,
+                                  client: SupabaseClient) async throws -> [UUID: CaregiverSnapshot.ProfileShareState] {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom(SupabaseDateDecoder.decode)
 
         let response: PostgrestResponse<[BabyProfileSharePermissionRecord]> = try await client.database
             .from("baby_profile_shares")
-            .select("baby_profile_id, permission, status")
+            .select("id, baby_profile_id, permission, status")
             .eq("recipient_caregiver_id", value: caregiverID.uuidString.lowercased())
             .execute()
 
@@ -623,17 +623,19 @@ final class SupabaseAuthManager: ObservableObject {
                                                                              decoder: decoder,
                                                                              context: "profile-share-permissions")
 
-        var permissions: [UUID: ProfileSharePermission] = [:]
+        var states: [UUID: CaregiverSnapshot.ProfileShareState] = [:]
 
         for record in records {
-            let rawStatus = record.status?.lowercased()
-            let status = rawStatus.flatMap { ProfileShareStatus(rawValue: $0) } ?? .accepted
-            guard status == .accepted else { continue }
             let permission = record.permission.flatMap { ProfileSharePermission(rawValue: $0.lowercased()) } ?? .view
-            permissions[record.babyProfileID] = permission
+            let rawStatus = record.status?.lowercased()
+            let status = rawStatus.flatMap { ProfileShareStatus(rawValue: $0) } ?? .pending
+            let state = CaregiverSnapshot.ProfileShareState(permission: permission,
+                                                            status: status,
+                                                            invitationID: record.id)
+            states[record.babyProfileID] = state
         }
 
-        return permissions
+        return states
     }
 
     func deleteBabyProfile(withID id: UUID) async {
@@ -918,6 +920,32 @@ final class SupabaseAuthManager: ObservableObject {
     func revokeProfileShare(shareID: UUID) async -> Result<Void, ProfileShareOperationError> {
         let update = BabyProfileShareUpdate(permission: nil, status: ProfileShareStatus.revoked.rawValue)
         return await updateProfileShare(shareID: shareID, update: update)
+    }
+
+    func respondToShareInvitation(shareID: UUID,
+                                  status: ProfileShareStatus) async -> Result<Void, ProfileShareOperationError> {
+        guard let client else {
+            let message = configurationError ?? L10n.ShareData.Supabase.failureConfiguration
+            return .failure(ProfileShareOperationError(message: message))
+        }
+
+        guard isAuthenticated, let recipientID = currentUserID else {
+            return .failure(ProfileShareOperationError(message: L10n.ShareData.Supabase.notAuthenticated))
+        }
+
+        do {
+            let update = BabyProfileShareStatusUpdate(status: status.rawValue)
+            _ = try await client.database
+                .from("baby_profile_shares")
+                .update(update)
+                .eq("id", value: shareID.uuidString)
+                .eq("recipient_caregiver_id", value: recipientID.uuidString)
+                .execute()
+            return .success(())
+        } catch {
+            let message = Self.userFriendlyMessage(from: error)
+            return .failure(ProfileShareOperationError(message: message))
+        }
     }
 
     private func updateProfileShare(shareID: UUID,
@@ -1285,11 +1313,13 @@ private struct BabyProfileShareDetailRecord: Decodable {
 }
 
 private struct BabyProfileSharePermissionRecord: Decodable {
+    var id: UUID
     var babyProfileID: UUID
     var permission: String?
     var status: String?
 
     enum CodingKeys: String, CodingKey {
+        case id
         case babyProfileID = "baby_profile_id"
         case permission
         case status
@@ -1508,17 +1538,23 @@ extension SupabaseAuthManager {
         private let profiles: [BabyProfileRecord]
         private let actions: [BabyActionRecord]
         private let explicitProfileIdentifiers: Set<UUID>
-        private let sharedPermissions: [UUID: ProfileSharePermission]
+        struct ProfileShareState: Sendable {
+            let permission: ProfileSharePermission
+            let status: ProfileShareStatus
+            let invitationID: UUID?
+        }
+
+        private let shareStates: [UUID: ProfileShareState]
 
         fileprivate init(caregiverID: UUID,
                          profiles: [BabyProfileRecord],
                          actions: [BabyActionRecord],
-                         sharePermissions: [UUID: ProfileSharePermission] = [:],
+                         shareStates: [UUID: ProfileShareState] = [:],
                          explicitProfileIdentifiers: Set<UUID> = []) {
             self.caregiverID = caregiverID
             self.profiles = profiles
             self.actions = actions
-            self.sharedPermissions = sharePermissions
+            self.shareStates = shareStates
             self.explicitProfileIdentifiers = explicitProfileIdentifiers
         }
 
@@ -1535,7 +1571,7 @@ extension SupabaseAuthManager {
             self.init(caregiverID: caregiverID,
                       profiles: [],
                       actions: actionRecords,
-                      sharePermissions: [:],
+                      shareStates: [:],
                       explicitProfileIdentifiers: Set(actionsByProfile.keys))
         }
 
@@ -1590,11 +1626,20 @@ extension SupabaseAuthManager {
         }
 
         var sharedProfileIDs: Set<UUID> {
-            Set(sharedPermissions.keys)
+            Set(shareStates.compactMap { identifier, state in
+                switch state.status {
+                case .revoked, .rejected:
+                    return nil
+                default:
+                    return identifier
+                }
+            })
         }
 
         var profilePermissions: [UUID: ProfileSharePermission] {
-            var permissions = sharedPermissions
+            var permissions = shareStates.reduce(into: [UUID: ProfileSharePermission]()) { partialResult, element in
+                partialResult[element.key] = element.value.permission
+            }
 
             for profile in profiles {
                 if profile.caregiverID == caregiverID {
@@ -1609,6 +1654,30 @@ extension SupabaseAuthManager {
             }
 
             return permissions
+        }
+
+        var profileShareStatuses: [UUID: ProfileShareStatus] {
+            var statuses = shareStates.reduce(into: [UUID: ProfileShareStatus]()) { partialResult, element in
+                partialResult[element.key] = element.value.status
+            }
+
+            for profile in profiles where statuses[profile.id] == nil {
+                statuses[profile.id] = .accepted
+            }
+
+            for identifier in profileIdentifiers where statuses[identifier] == nil {
+                statuses[identifier] = .accepted
+            }
+
+            return statuses
+        }
+
+        var profileShareInvitationIDs: [UUID: UUID] {
+            shareStates.reduce(into: [UUID: UUID]()) { partialResult, element in
+                if let invitationID = element.value.invitationID {
+                    partialResult[element.key] = invitationID
+                }
+            }
         }
     }
 

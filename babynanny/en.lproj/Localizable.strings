@@ -127,6 +127,12 @@
 "profiles.photo.processing" = "Preparing photo…";
 "profiles.sharedBadge" = "Shared";
 "profiles.viewOnlyBadge" = "View only";
+"profiles.pendingBadge" = "Pending";
+"profiles.pendingInvite.title" = "Accept access to %@?";
+"profiles.pendingInvite.message" = "You're invited to log care for %@. Accept to join or revoke to decline access.";
+"profiles.pendingInvite.accept" = "Accept";
+"profiles.pendingInvite.revoke" = "Revoke Access";
+"profiles.pendingInvite.errorTitle" = "Couldn't Update Access";
 "profiles.age.format" = "%@ old";
 "profiles.age.newborn" = "Newborn";
 "profiles.delete.confirmationTitle" = "Delete %@?";

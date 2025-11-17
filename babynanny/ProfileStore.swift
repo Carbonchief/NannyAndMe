@@ -22,6 +22,8 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
     var remindersEnabled: Bool
     var isShared: Bool
     var sharePermission: ProfileSharePermission
+    var shareStatus: ProfileShareStatus
+    var shareInvitationID: UUID?
     private var actionReminderIntervals: [BabyActionCategory: TimeInterval]
     private var actionRemindersEnabled: [BabyActionCategory: Bool]
     private var actionReminderOverrides: [BabyActionCategory: ActionReminderOverride]
@@ -34,6 +36,8 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
          remindersEnabled: Bool = false,
          isShared: Bool = false,
          sharePermission: ProfileSharePermission = .edit,
+         shareStatus: ProfileShareStatus = .accepted,
+         shareInvitationID: UUID? = nil,
          actionReminderIntervals: [BabyActionCategory: TimeInterval] = ChildProfile.defaultActionReminderIntervals(),
          actionRemindersEnabled: [BabyActionCategory: Bool] = ChildProfile.defaultActionRemindersEnabled(),
          actionReminderOverrides: [BabyActionCategory: ActionReminderOverride] = [:]) {
@@ -45,6 +49,8 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         self.remindersEnabled = remindersEnabled
         self.isShared = isShared
         self.sharePermission = sharePermission
+        self.shareStatus = shareStatus
+        self.shareInvitationID = shareInvitationID
         self.actionReminderIntervals = actionReminderIntervals
         self.actionRemindersEnabled = actionRemindersEnabled
         self.actionReminderOverrides = actionReminderOverrides
@@ -66,6 +72,8 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
                   remindersEnabled: model.remindersEnabled,
                   isShared: model.isSharedProfile,
                   sharePermission: model.sharePermission,
+                  shareStatus: model.shareStatus,
+                  shareInvitationID: model.shareInvitationID,
                   actionReminderIntervals: model.reminderIntervalsByCategory(),
                   actionRemindersEnabled: model.reminderEnabledByCategory(),
                   actionReminderOverrides: mappedOverrides)
@@ -73,6 +81,10 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
 
     var displayName: String {
         name.isEmpty ? L10n.Profile.newProfile : name
+    }
+
+    var hasPendingShareInvitation: Bool {
+        shareStatus == .pending && shareInvitationID != nil
     }
 
     func ageDescription(referenceDate: Date = Date(), calendar: Calendar = .current) -> String {
@@ -194,6 +206,8 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         case remindersEnabled
         case isShared
         case sharePermissionRawValue
+        case shareStatusRawValue
+        case shareInvitationID
         case actionReminderIntervals
         case actionRemindersEnabled
         case actionReminderOverrides
@@ -214,6 +228,15 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         } else {
             sharePermission = .edit
         }
+
+        if let rawStatus = try container.decodeIfPresent(String.self, forKey: .shareStatusRawValue),
+           let decodedStatus = ProfileShareStatus(rawValue: rawStatus) {
+            shareStatus = decodedStatus
+        } else {
+            shareStatus = .accepted
+        }
+
+        shareInvitationID = try container.decodeIfPresent(UUID.self, forKey: .shareInvitationID)
 
         if let rawIntervals = try container.decodeIfPresent([String: TimeInterval].self, forKey: .actionReminderIntervals) {
             actionReminderIntervals = rawIntervals.reduce(into: [:]) { partialResult, element in
@@ -262,6 +285,8 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         try container.encode(remindersEnabled, forKey: .remindersEnabled)
         try container.encode(isShared, forKey: .isShared)
         try container.encode(sharePermission.rawValue, forKey: .sharePermissionRawValue)
+        try container.encode(shareStatus.rawValue, forKey: .shareStatusRawValue)
+        try container.encodeIfPresent(shareInvitationID, forKey: .shareInvitationID)
         let rawIntervals = Dictionary(uniqueKeysWithValues: actionReminderIntervals.map { ($0.key.rawValue, $0.value) })
         try container.encode(rawIntervals, forKey: .actionReminderIntervals)
         let rawEnabled = Dictionary(uniqueKeysWithValues: actionRemindersEnabled.map { ($0.key.rawValue, $0.value) })
@@ -568,6 +593,42 @@ final class ProfileStore: ObservableObject {
         adoptDownloadedProfilesIfNeeded(insertedProfileIDs: insertedProfileIDs)
         if avatarsToDownload.isEmpty == false {
             scheduleAvatarDownloads(avatarsToDownload)
+        }
+    }
+
+    func updateShareStatus(for profileID: UUID,
+                           status: ProfileShareStatus,
+                           invitationID: UUID?) {
+        mutateProfiles(reason: "profile-share-status-update") {
+            guard let model = profileModel(withID: profileID) else { return false }
+            var didChange = false
+
+            if model.shareStatus != status {
+                model.shareStatus = status
+                didChange = true
+            }
+
+            if model.shareInvitationID != invitationID {
+                model.shareInvitationID = invitationID
+                didChange = true
+            }
+
+            return didChange
+        }
+    }
+
+    func removeSharedProfileLocally(_ profileID: UUID) {
+        if let actionStore {
+            actionStore.removeProfileData(for: profileID)
+            refreshProfiles()
+            ensureActiveProfileExists()
+            return
+        }
+
+        mutateProfiles(reason: "profile-remove-shared") {
+            guard let model = profileModel(withID: profileID) else { return false }
+            modelContext.delete(model)
+            return true
         }
     }
 

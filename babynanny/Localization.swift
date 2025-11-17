@@ -459,6 +459,36 @@ enum L10n {
             localized: "profiles.viewOnlyBadge",
             defaultValue: "View only"
         )
+        static let pendingBadge = String(localized: "profiles.pendingBadge", defaultValue: "Pending")
+
+        static func pendingInviteTitle(_ name: String) -> String {
+            let format = String(localized: "profiles.pendingInvite.title",
+                                 defaultValue: "Accept access to %@?")
+            return String(format: format, locale: Locale.current, name)
+        }
+
+        static func pendingInviteMessage(_ name: String) -> String {
+            let format = String(
+                localized: "profiles.pendingInvite.message",
+                defaultValue: "You're invited to log care for %@. Accept to join or revoke to decline access."
+            )
+            return String(format: format, locale: Locale.current, name)
+        }
+
+        static let pendingInviteAccept = String(
+            localized: "profiles.pendingInvite.accept",
+            defaultValue: "Accept"
+        )
+
+        static let pendingInviteRevoke = String(
+            localized: "profiles.pendingInvite.revoke",
+            defaultValue: "Revoke Access"
+        )
+
+        static let pendingInviteErrorTitle = String(
+            localized: "profiles.pendingInvite.errorTitle",
+            defaultValue: "Couldn't Update Access"
+        )
 
         static func deleteConfirmationTitle(_ name: String) -> String {
             let format = String(localized: "profiles.delete.confirmationTitle", defaultValue: "Delete %@?")

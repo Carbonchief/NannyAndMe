@@ -507,6 +507,8 @@ final class Profile {
     var reminderPreferences: [ProfileReminderPreference]?
     var sharePermissionRawValue: String = ProfileSharePermission.edit.rawValue
     var isSharedProfile: Bool = false
+    var shareStatusRawValue: String = ProfileShareStatus.accepted.rawValue
+    var shareInvitationID: UUID?
 
     init(profileID: UUID = UUID(),
          name: String? = nil,
@@ -545,6 +547,11 @@ final class Profile {
     var sharePermission: ProfileSharePermission {
         get { ProfileSharePermission(rawValue: sharePermissionRawValue) ?? .edit }
         set { sharePermissionRawValue = newValue.rawValue }
+    }
+
+    var shareStatus: ProfileShareStatus {
+        get { ProfileShareStatus(rawValue: shareStatusRawValue) ?? .accepted }
+        set { shareStatusRawValue = newValue.rawValue }
     }
 
     var actions: [BabyAction] {
