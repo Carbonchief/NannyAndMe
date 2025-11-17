@@ -783,11 +783,21 @@ private extension ActionLogStore {
                             hasChanges = true
                         }
                     case .revoked, .rejected:
-                        break
+                        if model.sharePermission != .view {
+                            model.sharePermission = .view
+                            hasChanges = true
+                        }
                     }
-                } else if model.shareStatus != nil {
-                    model.shareStatus = nil
-                    hasChanges = true
+                } else {
+                    if model.shareStatus != nil {
+                        model.shareStatus = nil
+                        hasChanges = true
+                    }
+
+                    if model.sharePermission != .view {
+                        model.sharePermission = .view
+                        hasChanges = true
+                    }
                 }
 
                 let isShared = sharedProfileIDs.contains(profileID)
