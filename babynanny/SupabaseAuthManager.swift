@@ -1589,6 +1589,10 @@ extension SupabaseAuthManager {
             actions.count
         }
 
+        var sharedProfileIDs: Set<UUID> {
+            Set(sharedPermissions.keys)
+        }
+
         var profilePermissions: [UUID: ProfileSharePermission] {
             var permissions = sharedPermissions
 

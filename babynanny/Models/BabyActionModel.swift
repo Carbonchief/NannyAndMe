@@ -506,6 +506,7 @@ final class Profile {
     @Relationship(deleteRule: .cascade)
     var reminderPreferences: [ProfileReminderPreference]?
     var sharePermissionRawValue: String = ProfileSharePermission.edit.rawValue
+    var isSharedProfile: Bool = false
 
     init(profileID: UUID = UUID(),
          name: String? = nil,

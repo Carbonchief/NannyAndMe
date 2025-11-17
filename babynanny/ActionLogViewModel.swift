@@ -731,7 +731,7 @@ private extension ActionLogStore {
             logger.log("Applied \(snapshot.metadataUpdates.count, privacy: .public) metadata updates from Supabase.")
         }
 
-        applySharePermissions(snapshot.profilePermissions)
+        applySharePermissions(snapshot.profilePermissions, sharedProfileIDs: snapshot.sharedProfileIDs)
 
         var actionsByProfile = snapshot.actionsByProfile
         let totalIncomingActions = actionsByProfile.reduce(into: 0) { partialResult, element in
@@ -748,16 +748,26 @@ private extension ActionLogStore {
         applySupabaseActions(actionsByProfile, profileIdentifiers: snapshot.profileIdentifiers)
     }
 
-    private func applySharePermissions(_ permissions: [UUID: ProfileSharePermission]) {
-        guard permissions.isEmpty == false else { return }
+    private func applySharePermissions(_ permissions: [UUID: ProfileSharePermission],
+                                       sharedProfileIDs: Set<UUID>) {
+        let knownProfileIDs = Set(profileStore?.profiles.map(\.id) ?? [])
+        let targetProfileIDs = knownProfileIDs.union(permissions.keys)
+        guard targetProfileIDs.isEmpty == false else { return }
 
         let didMutate: Bool = performLocalMutation {
             var hasChanges = false
 
-            for (profileID, permission) in permissions {
+            for profileID in targetProfileIDs {
                 let model = profileModel(for: profileID)
-                if model.sharePermission != permission {
+                if let permission = permissions[profileID],
+                   model.sharePermission != permission {
                     model.sharePermission = permission
+                    hasChanges = true
+                }
+
+                let isShared = sharedProfileIDs.contains(profileID)
+                if model.isSharedProfile != isShared {
+                    model.isSharedProfile = isShared
                     hasChanges = true
                 }
             }
@@ -767,6 +777,7 @@ private extension ActionLogStore {
 
         guard didMutate else { return }
 
+        profileStore?.reloadProfilesFromStore()
         dataStack.scheduleSaveIfNeeded(on: modelContext, reason: "share-permission-update")
         notifyChange()
     }

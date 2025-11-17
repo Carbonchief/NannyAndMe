@@ -12,7 +12,6 @@ import UIKit
 @MainActor
 struct SettingsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
-    @EnvironmentObject private var actionStore: ActionLogStore
     @EnvironmentObject private var locationManager: LocationManager
     @Environment(\.openURL) private var openURL
     @AppStorage("trackActionLocations") private var trackActionLocations = false
@@ -233,7 +232,10 @@ struct SettingsView: View {
         }
     }
 
+    @ViewBuilder
     private func profileRow(for profile: ChildProfile) -> some View {
+        let isReadOnly = profile.sharePermission == .view
+
         HStack(spacing: 16) {
             ProfileAvatarView(imageData: profile.imageData,
                               size: 48)
@@ -247,6 +249,11 @@ struct SettingsView: View {
                 Text(profile.ageDescription())
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                if profile.isShared || isReadOnly {
+                    ProfileAccessBadges(isShared: profile.isShared,
+                                        isReadOnly: isReadOnly)
+                }
             }
 
             Spacer()

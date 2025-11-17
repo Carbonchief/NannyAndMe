@@ -1915,6 +1915,7 @@ struct ActionEditSheet: View {
         }
     }
 
+    @ViewBuilder
     private var deleteSection: some View {
         if isReadOnly == false {
             Section {

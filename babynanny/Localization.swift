@@ -454,6 +454,11 @@ enum L10n {
             localized: "profiles.photo.processing",
             defaultValue: "Preparing photo…"
         )
+        static let sharedBadge = String(localized: "profiles.sharedBadge", defaultValue: "Shared")
+        static let viewOnlyBadge = String(
+            localized: "profiles.viewOnlyBadge",
+            defaultValue: "View only"
+        )
 
         static func deleteConfirmationTitle(_ name: String) -> String {
             let format = String(localized: "profiles.delete.confirmationTitle", defaultValue: "Delete %@?")
