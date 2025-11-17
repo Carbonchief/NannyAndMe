@@ -65,6 +65,12 @@ final class SupabaseAuthManager: ObservableObject {
         case failure(String)
     }
 
+    struct ProfileShareOperationError: LocalizedError {
+        let message: String
+
+        var errorDescription: String? { message }
+    }
+
     init() {
         do {
             let configuration = try SupabaseConfiguration.loadFromBundle()
@@ -875,24 +881,25 @@ final class SupabaseAuthManager: ObservableObject {
     }
 
     func updateProfileSharePermission(shareID: UUID,
-                                      permission: ProfileSharePermission) async -> Result<Void, String> {
+                                      permission: ProfileSharePermission) async -> Result<Void, ProfileShareOperationError> {
         let update = BabyProfileShareUpdate(permission: permission.rawValue, status: nil)
         return await updateProfileShare(shareID: shareID, update: update)
     }
 
-    func revokeProfileShare(shareID: UUID) async -> Result<Void, String> {
+    func revokeProfileShare(shareID: UUID) async -> Result<Void, ProfileShareOperationError> {
         let update = BabyProfileShareUpdate(permission: nil, status: ProfileShareStatus.revoked.rawValue)
         return await updateProfileShare(shareID: shareID, update: update)
     }
 
-    private func updateProfileShare(shareID: UUID, update: BabyProfileShareUpdate) async -> Result<Void, String> {
+    private func updateProfileShare(shareID: UUID,
+                                    update: BabyProfileShareUpdate) async -> Result<Void, ProfileShareOperationError> {
         guard let client else {
             let message = configurationError ?? L10n.ShareData.Supabase.failureConfiguration
-            return .failure(message)
+            return .failure(ProfileShareOperationError(message: message))
         }
 
         guard isAuthenticated, let ownerID = currentUserID else {
-            return .failure(L10n.ShareData.Supabase.notAuthenticated)
+            return .failure(ProfileShareOperationError(message: L10n.ShareData.Supabase.notAuthenticated))
         }
 
         do {
@@ -905,7 +912,7 @@ final class SupabaseAuthManager: ObservableObject {
             return .success(())
         } catch {
             let message = Self.userFriendlyMessage(from: error)
-            return .failure(message)
+            return .failure(ProfileShareOperationError(message: message))
         }
     }
 

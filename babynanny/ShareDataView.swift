@@ -653,8 +653,8 @@ struct ShareDataView: View {
         switch result {
         case .success:
             await refreshShareInvitations()
-        case .failure(let message):
-            alert = ShareDataAlert(title: L10n.ShareData.Supabase.failureTitle, message: message)
+        case .failure(let error):
+            alert = ShareDataAlert(title: L10n.ShareData.Supabase.failureTitle, message: error.message)
         }
     }
 
@@ -668,8 +668,8 @@ struct ShareDataView: View {
         switch result {
         case .success:
             await refreshShareInvitations()
-        case .failure(let message):
-            alert = ShareDataAlert(title: L10n.ShareData.Supabase.failureTitle, message: message)
+        case .failure(let error):
+            alert = ShareDataAlert(title: L10n.ShareData.Supabase.failureTitle, message: error.message)
         }
     }
 
