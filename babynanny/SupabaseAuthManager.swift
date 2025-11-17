@@ -920,6 +920,11 @@ final class SupabaseAuthManager: ObservableObject {
         return await updateProfileShare(shareID: shareID, update: update)
     }
 
+    func reinviteProfileShare(shareID: UUID) async -> Result<Void, ProfileShareOperationError> {
+        let update = BabyProfileShareUpdate(permission: nil, status: ProfileShareStatus.pending.rawValue)
+        return await updateProfileShare(shareID: shareID, update: update)
+    }
+
     private func updateProfileShare(shareID: UUID,
                                     update: BabyProfileShareUpdate) async -> Result<Void, ProfileShareOperationError> {
         guard let client else {
