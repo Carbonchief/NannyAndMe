@@ -24,6 +24,7 @@ struct ShareDataView: View {
     @State private var isActiveProfileOwner: Bool?
     @State private var updatingShareIDs: Set<UUID> = []
     @State private var revokingShareIDs: Set<UUID> = []
+    @State private var pendingReinvite: PendingReinvite?
     @FocusState private var isSupabaseEmailFocused: Bool
     @State private var isShowingAccountPrompt = false
 
@@ -81,6 +82,20 @@ struct ShareDataView: View {
             Button(L10n.ShareData.Supabase.accountPromptDecline, role: .cancel) { }
         } message: {
             Text(L10n.ShareData.Supabase.accountPromptMessage)
+        }
+        .confirmationDialog(
+            L10n.ShareData.Supabase.Reinvite.promptTitle,
+            item: $pendingReinvite,
+            titleVisibility: .visible
+        ) { pending in
+            Button(L10n.ShareData.Supabase.Reinvite.confirmButton) {
+                Task { await reinviteShare(pending) }
+            }
+            Button(L10n.Common.cancel, role: .cancel) {
+                pendingReinvite = nil
+            }
+        } message: { pending in
+            Text(L10n.ShareData.Supabase.Reinvite.promptMessage(pending.email))
         }
         .sheet(item: $airDropShareItem) { item in
             AirDropShareSheet(item: item) { outcome in
@@ -529,6 +544,12 @@ struct ShareDataView: View {
                 title: L10n.ShareData.Supabase.alreadySharedTitle,
                 message: L10n.ShareData.Supabase.alreadySharedMessage(email)
             )
+        case .revokedShare(let shareID):
+            pendingReinvite = PendingReinvite(
+                shareID: shareID,
+                email: email,
+                permission: sharePermissionSelection
+            )
         case .notOwner:
             isActiveProfileOwner = false
             alert = ShareDataAlert(
@@ -667,6 +688,33 @@ struct ShareDataView: View {
         let result = await authManager.revokeProfileShare(shareID: entry.id)
         switch result {
         case .success:
+            await refreshShareInvitations()
+        case .failure(let error):
+            alert = ShareDataAlert(title: L10n.ShareData.Supabase.failureTitle, message: error.message)
+        }
+    }
+
+
+    @MainActor
+    private func reinviteShare(_ pending: PendingReinvite) async {
+        pendingReinvite = nil
+        guard isSharingProfile == false else { return }
+        isSharingProfile = true
+        defer { isSharingProfile = false }
+
+        let result = await authManager.reinviteProfileShare(
+            shareID: pending.shareID,
+            permission: pending.permission
+        )
+
+        switch result {
+        case .success:
+            alert = ShareDataAlert(
+                title: L10n.ShareData.Supabase.successTitle,
+                message: L10n.ShareData.Supabase.successMessage(pending.email)
+            )
+            supabaseShareEmail = ""
+            isSupabaseEmailFocused = false
             await refreshShareInvitations()
         case .failure(let error):
             alert = ShareDataAlert(title: L10n.ShareData.Supabase.failureTitle, message: error.message)
@@ -818,6 +866,14 @@ private struct ShareDataActionButton: View {
         .labelStyle(.titleAndIcon)
         .animation(.default, value: isLoading)
     }
+}
+
+private struct PendingReinvite: Identifiable {
+    let shareID: UUID
+    let email: String
+    let permission: ProfileSharePermission
+
+    var id: UUID { shareID }
 }
 
 private extension View {

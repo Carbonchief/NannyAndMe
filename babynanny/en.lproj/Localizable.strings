@@ -236,6 +236,9 @@
 "shareData.supabase.missing.message" = "We couldn't find an account for %@.";
 "shareData.supabase.alreadyShared.title" = "Already shared";
 "shareData.supabase.alreadyShared.message" = "This profile is already shared with %@.";
+"shareData.supabase.reinvite.title" = "Send a new invite?";
+"shareData.supabase.reinvite.message" = "Access for %@ was revoked. Send a new invite?";
+"shareData.supabase.reinvite.confirm" = "Send new invite";
 "shareData.supabase.failure.title" = "Share failed";
 "shareData.supabase.failure.configuration" = "Automatic sharing isn't configured. Please try again later.";
 "shareData.supabase.failure.notAuthenticated" = "Sign in to share profiles automatically.";

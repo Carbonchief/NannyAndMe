@@ -236,6 +236,9 @@
 "shareData.supabase.missing.message" = "No encontramos una cuenta para %@.";
 "shareData.supabase.alreadyShared.title" = "Ya compartido";
 "shareData.supabase.alreadyShared.message" = "Este perfil ya está compartido con %@.";
+"shareData.supabase.reinvite.title" = "¿Enviar una nueva invitación?";
+"shareData.supabase.reinvite.message" = "Se revocó el acceso para %@. ¿Quieres enviar una nueva invitación?";
+"shareData.supabase.reinvite.confirm" = "Enviar nueva invitación";
 "shareData.supabase.failure.title" = "Error al compartir";
 "shareData.supabase.failure.configuration" = "El uso compartido automático no está configurado. Inténtalo de nuevo más tarde.";
 "shareData.supabase.failure.notAuthenticated" = "Inicia sesión para compartir perfiles automáticamente.";

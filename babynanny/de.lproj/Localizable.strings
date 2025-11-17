@@ -236,6 +236,9 @@
 "shareData.supabase.missing.message" = "Wir konnten kein Konto für %@ finden.";
 "shareData.supabase.alreadyShared.title" = "Bereits geteilt";
 "shareData.supabase.alreadyShared.message" = "Dieses Profil wird bereits mit %@ geteilt.";
+"shareData.supabase.reinvite.title" = "Neue Einladung senden?";
+"shareData.supabase.reinvite.message" = "Der Zugriff für %@ wurde widerrufen. Möchtest du eine neue Einladung senden?";
+"shareData.supabase.reinvite.confirm" = "Neue Einladung senden";
 "shareData.supabase.failure.title" = "Teilen fehlgeschlagen";
 "shareData.supabase.failure.configuration" = "Automatisches Teilen ist nicht konfiguriert. Bitte versuche es später erneut.";
 "shareData.supabase.failure.notAuthenticated" = "Melde dich an, um Profile automatisch zu teilen.";

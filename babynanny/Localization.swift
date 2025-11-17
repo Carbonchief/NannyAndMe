@@ -1014,6 +1014,23 @@ enum L10n {
                 )
                 return String(format: format, locale: Locale.current, email)
             }
+            enum Reinvite {
+                static let promptTitle = String(
+                    localized: "shareData.supabase.reinvite.title",
+                    defaultValue: "Send a new invite?"
+                )
+                static func promptMessage(_ email: String) -> String {
+                    let format = String(
+                        localized: "shareData.supabase.reinvite.message",
+                        defaultValue: "Access for %@ was revoked. Send a new invite?"
+                    )
+                    return String(format: format, locale: Locale.current, email)
+                }
+                static let confirmButton = String(
+                    localized: "shareData.supabase.reinvite.confirm",
+                    defaultValue: "Send new invite"
+                )
+            }
             static let failureTitle = String(
                 localized: "shareData.supabase.failure.title",
                 defaultValue: "Share failed"

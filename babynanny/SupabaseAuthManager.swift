@@ -32,6 +32,7 @@ final class SupabaseAuthManager: ObservableObject {
         case success
         case recipientNotFound
         case alreadyShared
+        case revokedShare(shareID: UUID)
         case notOwner
         case failure(String)
     }
@@ -828,6 +829,31 @@ final class SupabaseAuthManager: ObservableObject {
                 return .recipientNotFound
             }
 
+            let existingShareResponse: PostgrestResponse<[BabyProfileShareStatusRecord]> = try await client.database
+                .from("baby_profile_shares")
+                .select("id, status")
+                .eq("baby_profile_id", value: profileID.uuidString.lowercased())
+                .eq("recipient_caregiver_id", value: recipientID.uuidString.lowercased())
+                .eq("owner_caregiver_id", value: ownerID.uuidString.lowercased())
+                .limit(1)
+                .execute()
+
+            let existingShares: [BabyProfileShareStatusRecord] = try decodeResponse(
+                existingShareResponse.value,
+                decoder: decoder,
+                context: "profile-share-existing-check"
+            )
+
+            if let existing = existingShares.first {
+                let rawStatus = existing.status?.lowercased()
+                let status = rawStatus.flatMap(ProfileShareStatus.init) ?? .pending
+                if status == .revoked {
+                    return .revokedShare(shareID: existing.id)
+                } else {
+                    return .alreadyShared
+                }
+            }
+
             let record = BabyProfileShareRecord(
                 babyProfileID: profileID,
                 ownerCaregiverID: ownerID,
@@ -919,6 +945,15 @@ final class SupabaseAuthManager: ObservableObject {
 
     func revokeProfileShare(shareID: UUID) async -> Result<Void, ProfileShareOperationError> {
         let update = BabyProfileShareUpdate(permission: nil, status: ProfileShareStatus.revoked.rawValue)
+        return await updateProfileShare(shareID: shareID, update: update)
+    }
+
+    func reinviteProfileShare(shareID: UUID,
+                              permission: ProfileSharePermission) async -> Result<Void, ProfileShareOperationError> {
+        let update = BabyProfileShareUpdate(
+            permission: permission.rawValue,
+            status: ProfileShareStatus.pending.rawValue
+        )
         return await updateProfileShare(shareID: shareID, update: update)
     }
 
@@ -1309,6 +1344,16 @@ private struct BabyProfileShareDetailRecord: Decodable {
         case updatedAt = "updated_at"
         case recipientCaregiverID = "recipient_caregiver_id"
         case recipient
+    }
+}
+
+private struct BabyProfileShareStatusRecord: Decodable {
+    var id: UUID
+    var status: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case status
     }
 }
 
