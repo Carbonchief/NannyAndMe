@@ -89,6 +89,14 @@ final class ActionLogStore: ObservableObject {
         return try work()
     }
 
+    private func guardCanMutateActions(for profileID: UUID) -> Bool {
+        guard canModifyActions(for: profileID) else {
+            logger.warning("Attempted to mutate read-only profile \(profileID, privacy: .public)")
+            return false
+        }
+        return true
+    }
+
     func registerProfileStore(_ store: ProfileStore) {
         profileStore = store
         scheduleReminders()
@@ -241,6 +249,14 @@ final class ActionLogStore: ObservableObject {
         return state
     }
 
+    func canModifyActions(for profileID: UUID) -> Bool {
+        sharePermission(for: profileID) == .edit
+    }
+
+    func isProfileReadOnly(_ profileID: UUID) -> Bool {
+        canModifyActions(for: profileID) == false
+    }
+
     func startAction(for profileID: UUID,
                      category: BabyActionCategory,
                      diaperType: BabyActionSnapshot.DiaperType? = nil,
@@ -248,6 +264,7 @@ final class ActionLogStore: ObservableObject {
                      bottleType: BabyActionSnapshot.BottleType? = nil,
                      bottleVolume: Int? = nil,
                      location: LoggedLocation? = nil) {
+        guard guardCanMutateActions(for: profileID) else { return }
         notifyChange()
         var profileState = state(for: profileID)
         let now = Date()
@@ -323,6 +340,7 @@ final class ActionLogStore: ObservableObject {
     }
 
     func stopAction(for profileID: UUID, category: BabyActionCategory) {
+        guard guardCanMutateActions(for: profileID) else { return }
         notifyChange()
         var profileState = state(for: profileID)
         guard var running = profileState.activeActions.removeValue(forKey: category) else { return }
@@ -341,6 +359,7 @@ final class ActionLogStore: ObservableObject {
         guard actionModel.endDate == nil else { return }
 
         let profileID = profileModel.resolvedProfileID
+        guard guardCanMutateActions(for: profileID) else { return }
         notifyChange()
         var profileState = state(for: profileID)
         var loggedCategories = Set<BabyActionCategory>()
@@ -374,6 +393,7 @@ final class ActionLogStore: ObservableObject {
     }
 
     func updateAction(for profileID: UUID, action updatedAction: BabyActionSnapshot) {
+        guard guardCanMutateActions(for: profileID) else { return }
         var profileState = state(for: profileID)
         let sanitized = updatedAction.withValidatedDates()
         var didChange = false
@@ -408,6 +428,7 @@ final class ActionLogStore: ObservableObject {
     }
 
     func addManualAction(for profileID: UUID, action manualAction: BabyActionSnapshot) {
+        guard guardCanMutateActions(for: profileID) else { return }
         notifyChange()
         var profileState = state(for: profileID)
         var sanitized = manualAction.withValidatedDates()
@@ -434,6 +455,7 @@ final class ActionLogStore: ObservableObject {
 
     func continueAction(for profileID: UUID, actionID: UUID) {
         guard canContinueAction(for: profileID, actionID: actionID) else { return }
+        guard guardCanMutateActions(for: profileID) else { return }
         notifyChange()
         var profileState = state(for: profileID)
         let now = Date()
@@ -450,12 +472,14 @@ final class ActionLogStore: ObservableObject {
     }
 
     func canContinueAction(for profileID: UUID, actionID: UUID) -> Bool {
+        guard canModifyActions(for: profileID) else { return false }
         let profileState = state(for: profileID)
         guard let action = profileState.history.first(where: { $0.id == actionID }) else { return false }
         return !profileState.activeActions.keys.contains(action.category)
     }
 
     func deleteAction(for profileID: UUID, actionID: UUID) {
+        guard guardCanMutateActions(for: profileID) else { return }
         notifyChange()
         var profileState = state(for: profileID)
         if let category = profileState.activeActions.first(where: { $0.value.id == actionID })?.key {
@@ -484,6 +508,7 @@ final class ActionLogStore: ObservableObject {
     }
 
     func mergeProfileState(_ importedState: ProfileActionState, for profileID: UUID) -> MergeSummary {
+        guard guardCanMutateActions(for: profileID) else { return .empty }
         notifyChange()
         var summary = MergeSummary.empty
         var profileState = state(for: profileID)
@@ -607,6 +632,10 @@ private extension ActionLogStore {
         return model
     }
 
+    func sharePermission(for profileID: UUID) -> ProfileSharePermission {
+        existingProfileModel(for: profileID)?.sharePermission ?? .view
+    }
+
     func persist(profileState: ProfileActionState, for profileID: UUID) {
         let pendingSync: PendingSupabaseSync = performLocalMutation {
             let model = profileModel(for: profileID)
@@ -702,6 +731,8 @@ private extension ActionLogStore {
             logger.log("Applied \(snapshot.metadataUpdates.count, privacy: .public) metadata updates from Supabase.")
         }
 
+        applySharePermissions(snapshot.profilePermissions, sharedProfileIDs: snapshot.sharedProfileIDs)
+
         var actionsByProfile = snapshot.actionsByProfile
         let totalIncomingActions = actionsByProfile.reduce(into: 0) { partialResult, element in
             partialResult += element.value.count
@@ -715,6 +746,40 @@ private extension ActionLogStore {
         }
 
         applySupabaseActions(actionsByProfile, profileIdentifiers: snapshot.profileIdentifiers)
+    }
+
+    private func applySharePermissions(_ permissions: [UUID: ProfileSharePermission],
+                                       sharedProfileIDs: Set<UUID>) {
+        let knownProfileIDs = Set(profileStore?.profiles.map(\.id) ?? [])
+        let targetProfileIDs = knownProfileIDs.union(permissions.keys)
+        guard targetProfileIDs.isEmpty == false else { return }
+
+        let didMutate: Bool = performLocalMutation {
+            var hasChanges = false
+
+            for profileID in targetProfileIDs {
+                let model = profileModel(for: profileID)
+                if let permission = permissions[profileID],
+                   model.sharePermission != permission {
+                    model.sharePermission = permission
+                    hasChanges = true
+                }
+
+                let isShared = sharedProfileIDs.contains(profileID)
+                if model.isSharedProfile != isShared {
+                    model.isSharedProfile = isShared
+                    hasChanges = true
+                }
+            }
+
+            return hasChanges
+        }
+
+        guard didMutate else { return }
+
+        profileStore?.reloadProfilesFromStore()
+        dataStack.scheduleSaveIfNeeded(on: modelContext, reason: "share-permission-update")
+        notifyChange()
     }
 
     private func applySupabaseActions(_ remoteActions: [UUID: [BabyActionSnapshot]],

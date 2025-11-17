@@ -125,6 +125,8 @@
 "profiles.crop.title" = "Foto zuschneiden";
 "profiles.crop.instruction" = "Bewegen und zoomen, um anzupassen.";
 "profiles.photo.processing" = "Foto wird vorbereitet…";
+"profiles.sharedBadge" = "Geteilt";
+"profiles.viewOnlyBadge" = "Nur ansehen";
 "profiles.age.format" = "%@ alt";
 "profiles.age.newborn" = "Neugeboren";
 "profiles.delete.confirmationTitle" = "Profil %@ löschen?";

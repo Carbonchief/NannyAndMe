@@ -20,6 +20,8 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
     var imageData: Data?
     var avatarURL: URL?
     var remindersEnabled: Bool
+    var isShared: Bool
+    var sharePermission: ProfileSharePermission
     private var actionReminderIntervals: [BabyActionCategory: TimeInterval]
     private var actionRemindersEnabled: [BabyActionCategory: Bool]
     private var actionReminderOverrides: [BabyActionCategory: ActionReminderOverride]
@@ -30,6 +32,8 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
          imageData: Data? = nil,
          avatarURL: URL? = nil,
          remindersEnabled: Bool = false,
+         isShared: Bool = false,
+         sharePermission: ProfileSharePermission = .edit,
          actionReminderIntervals: [BabyActionCategory: TimeInterval] = ChildProfile.defaultActionReminderIntervals(),
          actionRemindersEnabled: [BabyActionCategory: Bool] = ChildProfile.defaultActionRemindersEnabled(),
          actionReminderOverrides: [BabyActionCategory: ActionReminderOverride] = [:]) {
@@ -39,6 +43,8 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         self.imageData = imageData
         self.avatarURL = avatarURL
         self.remindersEnabled = remindersEnabled
+        self.isShared = isShared
+        self.sharePermission = sharePermission
         self.actionReminderIntervals = actionReminderIntervals
         self.actionRemindersEnabled = actionRemindersEnabled
         self.actionReminderOverrides = actionReminderOverrides
@@ -58,6 +64,8 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
                   imageData: model.imageData,
                   avatarURL: model.avatarURL.flatMap { URL(string: $0) },
                   remindersEnabled: model.remindersEnabled,
+                  isShared: model.isSharedProfile,
+                  sharePermission: model.sharePermission,
                   actionReminderIntervals: model.reminderIntervalsByCategory(),
                   actionRemindersEnabled: model.reminderEnabledByCategory(),
                   actionReminderOverrides: mappedOverrides)
@@ -184,6 +192,8 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         case imageData
         case avatarURL
         case remindersEnabled
+        case isShared
+        case sharePermissionRawValue
         case actionReminderIntervals
         case actionRemindersEnabled
         case actionReminderOverrides
@@ -197,6 +207,13 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         imageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
         avatarURL = try container.decodeIfPresent(URL.self, forKey: .avatarURL)
         remindersEnabled = try container.decodeIfPresent(Bool.self, forKey: .remindersEnabled) ?? false
+        isShared = try container.decodeIfPresent(Bool.self, forKey: .isShared) ?? false
+        if let rawPermission = try container.decodeIfPresent(String.self, forKey: .sharePermissionRawValue),
+           let permission = ProfileSharePermission(rawValue: rawPermission) {
+            sharePermission = permission
+        } else {
+            sharePermission = .edit
+        }
 
         if let rawIntervals = try container.decodeIfPresent([String: TimeInterval].self, forKey: .actionReminderIntervals) {
             actionReminderIntervals = rawIntervals.reduce(into: [:]) { partialResult, element in
@@ -243,6 +260,8 @@ struct ChildProfile: Identifiable, Equatable, Codable, Sendable {
         try container.encodeIfPresent(imageData, forKey: .imageData)
         try container.encodeIfPresent(avatarURL, forKey: .avatarURL)
         try container.encode(remindersEnabled, forKey: .remindersEnabled)
+        try container.encode(isShared, forKey: .isShared)
+        try container.encode(sharePermission.rawValue, forKey: .sharePermissionRawValue)
         let rawIntervals = Dictionary(uniqueKeysWithValues: actionReminderIntervals.map { ($0.key.rawValue, $0.value) })
         try container.encode(rawIntervals, forKey: .actionReminderIntervals)
         let rawEnabled = Dictionary(uniqueKeysWithValues: actionRemindersEnabled.map { ($0.key.rawValue, $0.value) })
@@ -373,6 +392,11 @@ final class ProfileStore: ObservableObject {
 
     func rescheduleRemindersAfterOnboarding() {
         scheduleReminders()
+    }
+
+    func reloadProfilesFromStore() {
+        refreshProfiles()
+        ensureActiveProfileExists()
     }
 
     func setActiveProfile(_ profile: ChildProfile) {

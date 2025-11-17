@@ -190,6 +190,63 @@ struct ActionLogStoreTests {
         let storedOffline = try #require(storedActions.first(where: { $0.id == offlineAction.id }))
         #expect(storedOffline.isPendingSync)
     }
+
+    @Test
+    func preventsMutationsWhenProfileIsReadOnly() async {
+        let stack = await AppDataStack(modelContainer: AppDataStack.makeModelContainer(inMemory: true))
+        let actionStore = await ActionLogStore(modelContext: stack.mainContext, dataStack: stack)
+        let profileID = UUID()
+
+        let model = ProfileActionStateModel(profileID: profileID)
+        model.sharePermission = .view
+        stack.mainContext.insert(model)
+
+        await actionStore.startAction(for: profileID, category: .sleep)
+        let state = await actionStore.state(for: profileID)
+        #expect(state.activeActions[.sleep] == nil)
+    }
+
+    @Test
+    func preventsManualEntriesWhenProfileIsReadOnly() async {
+        let stack = await AppDataStack(modelContainer: AppDataStack.makeModelContainer(inMemory: true))
+        let actionStore = await ActionLogStore(modelContext: stack.mainContext, dataStack: stack)
+        let profileID = UUID()
+
+        let model = ProfileActionStateModel(profileID: profileID)
+        model.sharePermission = .view
+        stack.mainContext.insert(model)
+
+        var snapshot = BabyActionSnapshot(category: .feeding,
+                                          startDate: Date().addingTimeInterval(-300),
+                                          endDate: Date(),
+                                          feedingType: .bottle,
+                                          bottleType: .formula,
+                                          bottleVolume: 90)
+        snapshot.updatedAt = Date()
+
+        await actionStore.addManualAction(for: profileID, action: snapshot)
+
+        let state = await actionStore.state(for: profileID)
+        #expect(state.history.isEmpty)
+        #expect(state.activeActions.isEmpty)
+    }
+
+    @Test
+    func treatsUnknownProfilesAsReadOnlyUntilPermissionIsKnown() async throws {
+        let stack = await AppDataStack(modelContainer: AppDataStack.makeModelContainer(inMemory: true))
+        let actionStore = await ActionLogStore(modelContext: stack.mainContext, dataStack: stack)
+        let unknownProfileID = UUID()
+
+        await actionStore.startAction(for: unknownProfileID, category: .sleep)
+
+        let descriptor = FetchDescriptor<ProfileActionStateModel>()
+        let storedModels = try stack.mainContext.fetch(descriptor)
+        #expect(storedModels.isEmpty)
+
+        let resultingState = await actionStore.state(for: unknownProfileID)
+        #expect(resultingState.activeActions.isEmpty)
+        #expect(resultingState.history.isEmpty)
+    }
 }
 
 @MainActor

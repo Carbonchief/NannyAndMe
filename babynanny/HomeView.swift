@@ -104,7 +104,8 @@ struct HomeView: View {
             )
         }
         .overlay {
-            RecentActionDetailDialogOverlay(detailState: $recentActionDetail) { actionToEdit in
+            RecentActionDetailDialogOverlay(detailState: $recentActionDetail,
+                                            isEditingEnabled: isActiveProfileReadOnly == false) { actionToEdit in
                 editingAction = actionToEdit
             }
         }
@@ -132,7 +133,7 @@ struct HomeView: View {
                                 category: category,
                                 activeAction: state.activeAction(for: category),
                                 lastCompleted: state.lastCompletedAction(for: category),
-                                isInteractionDisabled: throttledCategories.contains(category),
+                                isInteractionDisabled: throttledCategories.contains(category) || isActiveProfileReadOnly,
                                 onStart: { handleStartTap(for: category) },
                                 onStop: { handleStopTap(for: category) },
                                 onLongPress: { handleReminderLongPress(for: category) }
@@ -562,12 +563,17 @@ struct HomeView: View {
         profileStore.activeProfile.id
     }
 
+    private var isActiveProfileReadOnly: Bool {
+        actionStore.isProfileReadOnly(activeProfileID)
+    }
+
     private var currentState: ProfileActionState {
         actionStore.state(for: activeProfileID)
     }
 
     @MainActor
     private func registerCardInteraction(for category: BabyActionCategory) -> Bool {
+        guard isActiveProfileReadOnly == false else { return false }
         guard throttledCategories.contains(category) == false else { return false }
 
         throttledCategories.insert(category)
@@ -964,6 +970,7 @@ private struct ActionCard: View {
 
 private struct RecentActionDetailDialogOverlay: View {
     @Binding var detailState: RecentActionDetailState?
+    let isEditingEnabled: Bool
     let onEdit: (BabyActionSnapshot) -> Void
 
     var body: some View {
@@ -978,6 +985,7 @@ private struct RecentActionDetailDialogOverlay: View {
 
                     RecentActionDetailDialog(
                         action: action,
+                        isEditingEnabled: isEditingEnabled,
                         onDone: {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 self.detailState = nil
@@ -1003,6 +1011,7 @@ private struct RecentActionDetailDialogOverlay: View {
 
 private struct RecentActionDetailDialog: View {
     let action: BabyActionSnapshot
+    let isEditingEnabled: Bool
     let onDone: () -> Void
     let onEdit: () -> Void
 
@@ -1043,11 +1052,13 @@ private struct RecentActionDetailDialog: View {
                 }
                 .buttonStyle(.bordered)
 
-                Button(L10n.Logs.editAction) {
-                    onEdit()
+                if isEditingEnabled {
+                    Button(L10n.Logs.editAction) {
+                        onEdit()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(action.category.accentColor)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(action.category.accentColor)
             }
         }
         .padding(.horizontal, 24)
@@ -1695,6 +1706,10 @@ struct ActionEditSheet: View {
     @State private var customBottleVolume: String
     @State private var endDate: Date?
 
+    private var isReadOnly: Bool {
+        actionStore.isProfileReadOnly(profileStore.activeProfile.id)
+    }
+
     init(
         action: BabyActionSnapshot,
         showsContinueButton: Bool = true,
@@ -1750,7 +1765,7 @@ struct ActionEditSheet: View {
                     Button(L10n.Common.done) {
                         save()
                     }
-                    .disabled(isSaveDisabled)
+                    .disabled(isSaveDisabled || isReadOnly)
                 }
             }
         }
@@ -1887,7 +1902,7 @@ struct ActionEditSheet: View {
 
     @ViewBuilder
     private var continueSection: some View {
-        if showsContinueButton && canContinueAction {
+        if showsContinueButton && canContinueAction && isReadOnly == false {
             Section(
                 footer: Text(L10n.Logs.continueActionInfo)
                     .font(.footnote)
@@ -1900,10 +1915,13 @@ struct ActionEditSheet: View {
         }
     }
 
+    @ViewBuilder
     private var deleteSection: some View {
-        Section {
-            Button(role: .destructive, action: deleteAction) {
-                Label(L10n.Logs.deleteAction, systemImage: "trash")
+        if isReadOnly == false {
+            Section {
+                Button(role: .destructive, action: deleteAction) {
+                    Label(L10n.Logs.deleteAction, systemImage: "trash")
+                }
             }
         }
     }
@@ -1959,12 +1977,14 @@ struct ActionEditSheet: View {
     }
 
     private func save() {
+        guard isReadOnly == false else { return }
         let updated = makeUpdatedAction(removingEndDate: false)
         onSave(updated)
         dismiss()
     }
 
     private func continueAction() {
+        guard isReadOnly == false else { return }
         let updated = makeUpdatedAction(removingEndDate: true)
         onSave(updated)
         actionStore.continueAction(for: profileStore.activeProfile.id, actionID: updated.id)
@@ -1972,6 +1992,7 @@ struct ActionEditSheet: View {
     }
 
     private func deleteAction() {
+        guard isReadOnly == false else { return }
         actionStore.deleteAction(for: profileStore.activeProfile.id, actionID: action.id)
         dismiss()
     }
@@ -2013,6 +2034,10 @@ private struct ActionDetailSheet: View {
     @State private var bottleTypeSelection: BabyActionSnapshot.BottleType = .formula
     @State private var bottleSelection: BottleVolumeOption = .preset(120)
     @State private var customBottleVolume: String = ""
+
+    private var isReadOnly: Bool {
+        actionStore.isProfileReadOnly(profileStore.activeProfile.id)
+    }
 
     var body: some View {
         NavigationStack {
@@ -2150,6 +2175,7 @@ private struct ActionDetailSheet: View {
 
     private func startIfReady() {
         guard isStartDisabled == false else { return }
+        guard isReadOnly == false else { return }
         let didStart = onStart(configuration)
 
         if didStart {
@@ -2158,6 +2184,9 @@ private struct ActionDetailSheet: View {
     }
 
     private var isStartDisabled: Bool {
+        if isReadOnly {
+            return true
+        }
         if category == .feeding && feedingSelection.requiresVolume {
             return resolvedBottleVolume == nil
         }

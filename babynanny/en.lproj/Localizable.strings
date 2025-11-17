@@ -125,6 +125,8 @@
 "profiles.crop.title" = "Crop Photo";
 "profiles.crop.instruction" = "Move and scale to adjust.";
 "profiles.photo.processing" = "Preparing photo…";
+"profiles.sharedBadge" = "Shared";
+"profiles.viewOnlyBadge" = "View only";
 "profiles.age.format" = "%@ old";
 "profiles.age.newborn" = "Newborn";
 "profiles.delete.confirmationTitle" = "Delete %@?";

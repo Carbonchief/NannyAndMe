@@ -6,6 +6,7 @@ struct AllLogsRowView: View {
     let timeFormatter: DateFormatter
     let onEdit: (BabyActionSnapshot) -> Void
     let onDelete: (BabyActionSnapshot) -> Void
+    let allowsEditingActions: Bool
 
     var body: some View {
         Button {
@@ -37,18 +38,22 @@ struct AllLogsRowView: View {
         }
         .buttonStyle(.plain)
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
-            Button {
-                onEdit(action)
-            } label: {
-                Label(L10n.Logs.editAction, systemImage: "square.and.pencil")
+            if allowsEditingActions {
+                Button {
+                    onEdit(action)
+                } label: {
+                    Label(L10n.Logs.editAction, systemImage: "square.and.pencil")
+                }
+                .tint(.accentColor)
             }
-            .tint(.accentColor)
         }
         .swipeActions(edge: .trailing) {
-            Button(role: .destructive) {
-                onDelete(action)
-            } label: {
-                Label(L10n.Logs.deleteAction, systemImage: "trash")
+            if allowsEditingActions {
+                Button(role: .destructive) {
+                    onDelete(action)
+                } label: {
+                    Label(L10n.Logs.deleteAction, systemImage: "trash")
+                }
             }
         }
     }

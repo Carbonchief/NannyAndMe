@@ -505,6 +505,8 @@ final class Profile {
     var storedActions: [BabyAction]?
     @Relationship(deleteRule: .cascade)
     var reminderPreferences: [ProfileReminderPreference]?
+    var sharePermissionRawValue: String = ProfileSharePermission.edit.rawValue
+    var isSharedProfile: Bool = false
 
     init(profileID: UUID = UUID(),
          name: String? = nil,
@@ -538,6 +540,11 @@ final class Profile {
     var resolvedProfileID: UUID {
         get { profileID }
         set { profileID = newValue }
+    }
+
+    var sharePermission: ProfileSharePermission {
+        get { ProfileSharePermission(rawValue: sharePermissionRawValue) ?? .edit }
+        set { sharePermissionRawValue = newValue.rawValue }
     }
 
     var actions: [BabyAction] {

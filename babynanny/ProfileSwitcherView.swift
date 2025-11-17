@@ -15,6 +15,8 @@ struct ProfileSwitcherView: View {
             List {
                 Section(header: Text(L10n.Profiles.activeSection)) {
                     ForEach(profileStore.profiles) { profile in
+                        let isReadOnly = profile.sharePermission == .view
+
                         Button {
                             profileStore.setActiveProfile(profile)
                             dismiss()
@@ -30,6 +32,11 @@ struct ProfileSwitcherView: View {
                                     Text(profile.birthDate, style: .date)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
+
+                                    if profile.isShared || isReadOnly {
+                                        ProfileAccessBadges(isShared: profile.isShared,
+                                                            isReadOnly: isReadOnly)
+                                    }
                                 }
 
                                 Spacer()
@@ -114,6 +121,35 @@ struct ProfileSwitcherView: View {
             }
         }
         .presentationDetents([.medium, .large])
+    }
+}
+
+struct ProfileAccessBadges: View {
+    let isShared: Bool
+    let isReadOnly: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if isShared {
+                badge(text: L10n.Profiles.sharedBadge, color: .blue)
+            }
+            if isReadOnly {
+                badge(text: L10n.Profiles.viewOnlyBadge, color: .orange)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func badge(text: String, color: Color) -> some View {
+        Text(text)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .foregroundStyle(color)
+            .background(
+                Capsule()
+                    .fill(color.opacity(0.15))
+            )
     }
 }
 
