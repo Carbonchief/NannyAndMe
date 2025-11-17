@@ -1062,6 +1062,10 @@ enum L10n {
                     localized: "shareData.supabase.invitations.revokeButton",
                     defaultValue: "Revoke Access"
                 )
+                static let reinviteButton = String(
+                    localized: "shareData.supabase.invitations.reinviteButton",
+                    defaultValue: "Reinvite"
+                )
                 static let statusPending = String(
                     localized: "shareData.supabase.invitations.status.pending",
                     defaultValue: "Pending"

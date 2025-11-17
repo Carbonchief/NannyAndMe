@@ -249,6 +249,7 @@
 "shareData.supabase.invitations.error" = "Die eingeladenen Betreuungspersonen konnten nicht geladen werden.";
 "shareData.supabase.invitations.unknownEmail" = "Unbekannte Betreuungsperson";
 "shareData.supabase.invitations.revokeButton" = "Zugriff entziehen";
+"shareData.supabase.invitations.reinviteButton" = "Erneut einladen";
 "shareData.supabase.invitations.status.pending" = "Ausstehend";
 "shareData.supabase.invitations.status.accepted" = "Akzeptiert";
 "shareData.supabase.invitations.status.revoked" = "Entzogen";

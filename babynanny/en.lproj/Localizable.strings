@@ -249,6 +249,7 @@
 "shareData.supabase.invitations.error" = "We couldn't load invited caregivers.";
 "shareData.supabase.invitations.unknownEmail" = "Unknown caregiver";
 "shareData.supabase.invitations.revokeButton" = "Revoke Access";
+"shareData.supabase.invitations.reinviteButton" = "Reinvite";
 "shareData.supabase.invitations.status.pending" = "Pending";
 "shareData.supabase.invitations.status.accepted" = "Accepted";
 "shareData.supabase.invitations.status.revoked" = "Revoked";

@@ -249,6 +249,7 @@
 "shareData.supabase.invitations.error" = "No pudimos cargar a los cuidadores invitados.";
 "shareData.supabase.invitations.unknownEmail" = "Cuidador desconocido";
 "shareData.supabase.invitations.revokeButton" = "Revocar acceso";
+"shareData.supabase.invitations.reinviteButton" = "Volver a invitar";
 "shareData.supabase.invitations.status.pending" = "Pendiente";
 "shareData.supabase.invitations.status.accepted" = "Aceptado";
 "shareData.supabase.invitations.status.revoked" = "Revocado";

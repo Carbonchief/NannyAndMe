@@ -24,6 +24,7 @@ struct ShareDataView: View {
     @State private var isActiveProfileOwner: Bool?
     @State private var updatingShareIDs: Set<UUID> = []
     @State private var revokingShareIDs: Set<UUID> = []
+    @State private var reinvitingShareIDs: Set<UUID> = []
     @FocusState private var isSupabaseEmailFocused: Bool
     @State private var isShowingAccountPrompt = false
 
@@ -319,13 +320,23 @@ struct ShareDataView: View {
                 .disabled(shouldDisablePermissionControls(for: entry))
             }
 
-            Button(role: .destructive) {
-                Task { await revokeShare(entry) }
-            } label: {
-                Text(L10n.ShareData.Supabase.Invitations.revokeButton)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            if entry.status == .revoked {
+                Button {
+                    Task { await reinviteShare(entry) }
+                } label: {
+                    Text(L10n.ShareData.Supabase.Invitations.reinviteButton)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .disabled(shouldDisableReinvite(for: entry))
+            } else {
+                Button(role: .destructive) {
+                    Task { await revokeShare(entry) }
+                } label: {
+                    Text(L10n.ShareData.Supabase.Invitations.revokeButton)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .disabled(shouldDisableRevoke(for: entry))
             }
-            .disabled(shouldDisableRevoke(for: entry))
         }
         .padding(12)
         .background(Color(.secondarySystemGroupedBackground))
@@ -558,13 +569,21 @@ struct ShareDataView: View {
     private func shouldDisablePermissionControls(for entry: SupabaseAuthManager.ProfileShareEntry) -> Bool {
         updatingShareIDs.contains(entry.id)
             || revokingShareIDs.contains(entry.id)
+            || reinvitingShareIDs.contains(entry.id)
             || entry.status == .revoked
             || isLoadingShareInvitations
     }
 
     private func shouldDisableRevoke(for entry: SupabaseAuthManager.ProfileShareEntry) -> Bool {
         revokingShareIDs.contains(entry.id)
+            || reinvitingShareIDs.contains(entry.id)
             || entry.status == .revoked
+            || isLoadingShareInvitations
+    }
+
+    private func shouldDisableReinvite(for entry: SupabaseAuthManager.ProfileShareEntry) -> Bool {
+        reinvitingShareIDs.contains(entry.id)
+            || entry.status != .revoked
             || isLoadingShareInvitations
     }
 
@@ -665,6 +684,21 @@ struct ShareDataView: View {
         defer { revokingShareIDs.remove(entry.id) }
 
         let result = await authManager.revokeProfileShare(shareID: entry.id)
+        switch result {
+        case .success:
+            await refreshShareInvitations()
+        case .failure(let error):
+            alert = ShareDataAlert(title: L10n.ShareData.Supabase.failureTitle, message: error.message)
+        }
+    }
+
+    @MainActor
+    private func reinviteShare(_ entry: SupabaseAuthManager.ProfileShareEntry) async {
+        guard reinvitingShareIDs.contains(entry.id) == false else { return }
+        reinvitingShareIDs.insert(entry.id)
+        defer { reinvitingShareIDs.remove(entry.id) }
+
+        let result = await authManager.reinviteProfileShare(shareID: entry.id)
         switch result {
         case .success:
             await refreshShareInvitations()
