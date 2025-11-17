@@ -731,7 +731,9 @@ private extension ActionLogStore {
             logger.log("Applied \(snapshot.metadataUpdates.count, privacy: .public) metadata updates from Supabase.")
         }
 
-        applySharePermissions(snapshot.profilePermissions, sharedProfileIDs: snapshot.sharedProfileIDs)
+        applySharePermissions(snapshot.profilePermissions,
+                              sharedProfileIDs: snapshot.sharedProfileIDs,
+                              shareStatuses: snapshot.shareStatuses)
 
         var actionsByProfile = snapshot.actionsByProfile
         let totalIncomingActions = actionsByProfile.reduce(into: 0) { partialResult, element in
@@ -749,9 +751,12 @@ private extension ActionLogStore {
     }
 
     private func applySharePermissions(_ permissions: [UUID: ProfileSharePermission],
-                                       sharedProfileIDs: Set<UUID>) {
+                                       sharedProfileIDs: Set<UUID>,
+                                       shareStatuses: [UUID: ProfileShareStatus]) {
         let knownProfileIDs = Set(profileStore?.profiles.map(\.id) ?? [])
-        let targetProfileIDs = knownProfileIDs.union(permissions.keys)
+        let targetProfileIDs = knownProfileIDs
+            .union(permissions.keys)
+            .union(shareStatuses.keys)
         guard targetProfileIDs.isEmpty == false else { return }
 
         let didMutate: Bool = performLocalMutation {
@@ -759,9 +764,29 @@ private extension ActionLogStore {
 
             for profileID in targetProfileIDs {
                 let model = profileModel(for: profileID)
-                if let permission = permissions[profileID],
-                   model.sharePermission != permission {
-                    model.sharePermission = permission
+                if let status = shareStatuses[profileID] {
+                    if model.shareStatus != status {
+                        model.shareStatus = status
+                        hasChanges = true
+                    }
+
+                    switch status {
+                    case .accepted:
+                        if let permission = permissions[profileID],
+                           model.sharePermission != permission {
+                            model.sharePermission = permission
+                            hasChanges = true
+                        }
+                    case .pending:
+                        if model.sharePermission != .view {
+                            model.sharePermission = .view
+                            hasChanges = true
+                        }
+                    case .revoked, .rejected:
+                        break
+                    }
+                } else if model.shareStatus != nil {
+                    model.shareStatus = nil
                     hasChanges = true
                 }
 

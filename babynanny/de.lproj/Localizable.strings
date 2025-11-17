@@ -127,6 +127,10 @@
 "profiles.photo.processing" = "Foto wird vorbereitet…";
 "profiles.sharedBadge" = "Geteilt";
 "profiles.viewOnlyBadge" = "Nur ansehen";
+"profiles.pendingShare.title" = "Geteiltes Profil annehmen?";
+"profiles.pendingShare.message" = "%@ wurde mit dir geteilt. Möchtest du die Einladung annehmen?";
+"profiles.pendingShare.accept" = "Einladung annehmen";
+"profiles.pendingShare.decline" = "Einladung ablehnen";
 "profiles.age.format" = "%@ alt";
 "profiles.age.newborn" = "Neugeboren";
 "profiles.delete.confirmationTitle" = "Profil %@ löschen?";
