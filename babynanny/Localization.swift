@@ -15,6 +15,7 @@ enum L10n {
         static let done = String(localized: "common.done", defaultValue: "Done")
         static let unspecified = String(localized: "common.unspecified", defaultValue: "Unspecified")
         static let close = String(localized: "common.close", defaultValue: "Close")
+        static let retry = String(localized: "common.retry", defaultValue: "Retry")
     }
 
     enum Splash {
@@ -1014,6 +1015,69 @@ enum L10n {
                 localized: "shareData.supabase.prompt.decline",
                 defaultValue: "No"
             )
+            static let ownerOnlyDescription = String(
+                localized: "shareData.supabase.ownerOnly.description",
+                defaultValue: "Only the profile owner can manage automatic sharing."
+            )
+            static let ownerOnlyFooter = String(
+                localized: "shareData.supabase.ownerOnly.footer",
+                defaultValue: "Automatic sharing is limited to the caregiver who created this profile."
+            )
+            static let permissionLabel = String(
+                localized: "shareData.supabase.permission.label",
+                defaultValue: "Permission"
+            )
+            static let permissionView = String(
+                localized: "shareData.supabase.permission.view",
+                defaultValue: "View only"
+            )
+            static let permissionEdit = String(
+                localized: "shareData.supabase.permission.edit",
+                defaultValue: "Edit access"
+            )
+
+            enum Invitations {
+                static let title = String(
+                    localized: "shareData.supabase.invitations.title",
+                    defaultValue: "Shared caregivers"
+                )
+                static let empty = String(
+                    localized: "shareData.supabase.invitations.empty",
+                    defaultValue: "No caregivers have been invited yet."
+                )
+                static let loadFailed = String(
+                    localized: "shareData.supabase.invitations.error",
+                    defaultValue: "We couldn't load invited caregivers."
+                )
+                static let unknownEmail = String(
+                    localized: "shareData.supabase.invitations.unknownEmail",
+                    defaultValue: "Unknown caregiver"
+                )
+                static let revokeButton = String(
+                    localized: "shareData.supabase.invitations.revokeButton",
+                    defaultValue: "Revoke Access"
+                )
+                static let statusPending = String(
+                    localized: "shareData.supabase.invitations.status.pending",
+                    defaultValue: "Pending"
+                )
+                static let statusAccepted = String(
+                    localized: "shareData.supabase.invitations.status.accepted",
+                    defaultValue: "Accepted"
+                )
+                static let statusRevoked = String(
+                    localized: "shareData.supabase.invitations.status.revoked",
+                    defaultValue: "Revoked"
+                )
+                static let statusRejected = String(
+                    localized: "shareData.supabase.invitations.status.rejected",
+                    defaultValue: "Rejected"
+                )
+                static let statusUnknown = String(
+                    localized: "shareData.supabase.invitations.status.unknown",
+                    defaultValue: "Unknown"
+                )
+            }
         }
     }
 
