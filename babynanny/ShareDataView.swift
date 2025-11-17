@@ -17,7 +17,7 @@ struct ShareDataView: View {
     @State private var processedExternalImportID: ShareDataCoordinator.ExternalImportRequest.ID?
     @State private var supabaseShareEmail = ""
     @State private var isSharingProfile = false
-    @State private var sharePermissionSelection: SupabaseAuthManager.ProfileSharePermission = .view
+    @State private var sharePermissionSelection: ProfileSharePermission = .view
     @State private var shareInvitations: [SupabaseAuthManager.ProfileShareEntry] = []
     @State private var isLoadingShareInvitations = false
     @State private var shareInvitationsError: String?
@@ -200,9 +200,9 @@ struct ShareDataView: View {
 
                     Picker(L10n.ShareData.Supabase.permissionLabel, selection: $sharePermissionSelection) {
                         Text(L10n.ShareData.Supabase.permissionView)
-                            .tag(SupabaseAuthManager.ProfileSharePermission.view)
+                            .tag(ProfileSharePermission.view)
                         Text(L10n.ShareData.Supabase.permissionEdit)
-                            .tag(SupabaseAuthManager.ProfileSharePermission.edit)
+                            .tag(ProfileSharePermission.edit)
                     }
                     .pickerStyle(.segmented)
                 }
@@ -311,9 +311,9 @@ struct ShareDataView: View {
 
                 Picker(L10n.ShareData.Supabase.permissionLabel, selection: permissionBinding(for: entry)) {
                     Text(L10n.ShareData.Supabase.permissionView)
-                        .tag(SupabaseAuthManager.ProfileSharePermission.view)
+                        .tag(ProfileSharePermission.view)
                     Text(L10n.ShareData.Supabase.permissionEdit)
-                        .tag(SupabaseAuthManager.ProfileSharePermission.edit)
+                        .tag(ProfileSharePermission.edit)
                 }
                 .pickerStyle(.segmented)
                 .disabled(shouldDisablePermissionControls(for: entry))
@@ -543,7 +543,7 @@ struct ShareDataView: View {
         }
     }
 
-    private func permissionBinding(for entry: SupabaseAuthManager.ProfileShareEntry) -> Binding<SupabaseAuthManager.ProfileSharePermission> {
+    private func permissionBinding(for entry: SupabaseAuthManager.ProfileShareEntry) -> Binding<ProfileSharePermission> {
         Binding(
             get: {
                 shareInvitations.first(where: { $0.id == entry.id })?.permission ?? entry.permission
@@ -569,7 +569,7 @@ struct ShareDataView: View {
     }
 
     @ViewBuilder
-    private func statusBadge(for status: SupabaseAuthManager.ProfileShareStatus) -> some View {
+    private func statusBadge(for status: ProfileShareStatus) -> some View {
         Text(statusText(for: status))
             .font(.caption)
             .padding(.horizontal, 8)
@@ -579,7 +579,7 @@ struct ShareDataView: View {
             .clipShape(Capsule())
     }
 
-    private func statusText(for status: SupabaseAuthManager.ProfileShareStatus) -> String {
+    private func statusText(for status: ProfileShareStatus) -> String {
         switch status {
         case .pending:
             return L10n.ShareData.Supabase.Invitations.statusPending
@@ -592,7 +592,7 @@ struct ShareDataView: View {
         }
     }
 
-    private func statusColor(for status: SupabaseAuthManager.ProfileShareStatus) -> Color {
+    private func statusColor(for status: ProfileShareStatus) -> Color {
         switch status {
         case .pending:
             return .orange
@@ -644,7 +644,7 @@ struct ShareDataView: View {
 
     @MainActor
     private func updateSharePermission(for shareID: UUID,
-                                       permission: SupabaseAuthManager.ProfileSharePermission) async {
+                                       permission: ProfileSharePermission) async {
         guard updatingShareIDs.contains(shareID) == false else { return }
         updatingShareIDs.insert(shareID)
         defer { updatingShareIDs.remove(shareID) }

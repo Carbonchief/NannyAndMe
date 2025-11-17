@@ -38,6 +38,10 @@ struct ContentView: View {
         return [.home, .reports, .map]
     }
 
+    private var isActiveProfileReadOnly: Bool {
+        actionStore.isProfileReadOnly(profileStore.activeProfile.id)
+    }
+
     var body: some View {
         let tabs = visibleTabs
 
@@ -103,6 +107,7 @@ struct ContentView: View {
                                     .foregroundStyle(Color.accentColor)
                             }
                             .buttonStyle(.plain)
+                            .disabled(isActiveProfileReadOnly)
                             .background(.ultraThinMaterial, in: Circle())
                             .accessibilityLabel(L10n.ManualEntry.title)
                             .accessibilityHint(L10n.ManualEntry.accessibilityHint)

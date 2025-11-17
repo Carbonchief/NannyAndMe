@@ -14,6 +14,10 @@ struct ManualActionEntrySheet: View {
     @State private var startDate: Date = Date()
     @State private var endDate: Date = Date()
 
+    private var isReadOnly: Bool {
+        actionStore.isProfileReadOnly(profileStore.activeProfile.id)
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -36,7 +40,7 @@ struct ManualActionEntrySheet: View {
                     Button(L10n.ManualEntry.saveButton) {
                         save()
                     }
-                    .disabled(isSaveDisabled)
+                    .disabled(isSaveDisabled || isReadOnly)
                 }
             }
         }
@@ -167,6 +171,7 @@ struct ManualActionEntrySheet: View {
     }
 
     private func save() {
+        guard isReadOnly == false else { return }
         let endValue: Date? = category.isInstant ? startDate : endDate
         let bottleVolume = feedingSelection.requiresVolume ? resolvedBottleVolume : nil
         let bottleType = feedingSelection == .bottle ? bottleTypeSelection : nil

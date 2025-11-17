@@ -82,6 +82,7 @@ struct AllLogsView: View {
     @ViewBuilder
     private func content(asOf referenceDate: Date) -> some View {
         let grouped = groupedActions()
+        let isReadOnly = actionStore.isProfileReadOnly(profileStore.activeProfile.id)
 
         if grouped.isEmpty {
             VStack(spacing: 16) {
@@ -107,7 +108,8 @@ struct AllLogsView: View {
                                 referenceDate: referenceDate,
                                 timeFormatter: timeFormatter,
                                 onEdit: { editingAction = $0 },
-                                onDelete: { actionPendingDeletion = $0 }
+                                onDelete: { actionPendingDeletion = $0 },
+                                allowsEditingActions: isReadOnly == false
                             )
                             .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                         }

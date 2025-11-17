@@ -36,20 +36,6 @@ final class SupabaseAuthManager: ObservableObject {
         case failure(String)
     }
 
-    enum ProfileSharePermission: String, CaseIterable, Identifiable {
-        case view
-        case edit
-
-        var id: String { rawValue }
-    }
-
-    enum ProfileShareStatus: String {
-        case pending
-        case accepted
-        case revoked
-        case rejected
-    }
-
     struct ProfileShareEntry: Identifiable, Equatable {
         let id: UUID
         let email: String?
@@ -576,6 +562,16 @@ final class SupabaseAuthManager: ObservableObject {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom(SupabaseDateDecoder.decode)
 
+        let caregiverID: UUID
+        if let existingID = currentUserID {
+            caregiverID = existingID
+        } else {
+            let session = try await client.auth.session
+            caregiverID = session.user.id
+            currentUserID = caregiverID
+            currentUserEmail = session.user.email
+        }
+
         let profilesResponse: PostgrestResponse<[BabyProfileRecord]> = try await client.database
             .from("baby_profiles")
             .select()
@@ -595,6 +591,8 @@ final class SupabaseAuthManager: ObservableObject {
                                                                    decoder: decoder,
                                                                    context: "actions")
 
+        let sharePermissions = try await fetchSharePermissions(for: caregiverID, client: client)
+
         Self.snapshotLogger.log("Decoded snapshot successfully. profiles=\(profileRecords.count, privacy: .public) actions=\(actionRecords.count, privacy: .public)")
         for record in profileRecords {
             if let avatarURL = record.avatarURL, avatarURL.isEmpty == false {
@@ -604,7 +602,38 @@ final class SupabaseAuthManager: ObservableObject {
             }
         }
 
-        return CaregiverSnapshot(profiles: profileRecords, actions: actionRecords)
+        return CaregiverSnapshot(caregiverID: caregiverID,
+                                 profiles: profileRecords,
+                                 actions: actionRecords,
+                                 sharePermissions: sharePermissions)
+    }
+
+    private func fetchSharePermissions(for caregiverID: UUID,
+                                       client: SupabaseClient) async throws -> [UUID: ProfileSharePermission] {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(SupabaseDateDecoder.decode)
+
+        let response: PostgrestResponse<[BabyProfileSharePermissionRecord]> = try await client.database
+            .from("baby_profile_shares")
+            .select("baby_profile_id, permission, status")
+            .eq("recipient_caregiver_id", value: caregiverID.uuidString.lowercased())
+            .execute()
+
+        let records: [BabyProfileSharePermissionRecord] = try decodeResponse(response.value,
+                                                                             decoder: decoder,
+                                                                             context: "profile-share-permissions")
+
+        var permissions: [UUID: ProfileSharePermission] = [:]
+
+        for record in records {
+            let rawStatus = record.status?.lowercased()
+            let status = rawStatus.flatMap { ProfileShareStatus(rawValue: $0) } ?? .accepted
+            guard status == .accepted else { continue }
+            let permission = record.permission.flatMap { ProfileSharePermission(rawValue: $0.lowercased()) } ?? .view
+            permissions[record.babyProfileID] = permission
+        }
+
+        return permissions
     }
 
     func deleteBabyProfile(withID id: UUID) async {
@@ -1255,6 +1284,18 @@ private struct BabyProfileShareDetailRecord: Decodable {
     }
 }
 
+private struct BabyProfileSharePermissionRecord: Decodable {
+    var babyProfileID: UUID
+    var permission: String?
+    var status: String?
+
+    enum CodingKeys: String, CodingKey {
+        case babyProfileID = "baby_profile_id"
+        case permission
+        case status
+    }
+}
+
 private struct BabyProfileShareMembershipRecord: Decodable {
     var babyProfileID: UUID
     var ownerCaregiverID: UUID
@@ -1463,20 +1504,25 @@ extension SupabaseAuthManager {
     }
 
     struct CaregiverSnapshot: Sendable {
+        private let caregiverID: UUID
         private let profiles: [BabyProfileRecord]
         private let actions: [BabyActionRecord]
         private let explicitProfileIdentifiers: Set<UUID>
+        private let sharedPermissions: [UUID: ProfileSharePermission]
 
-        fileprivate init(profiles: [BabyProfileRecord],
+        fileprivate init(caregiverID: UUID,
+                         profiles: [BabyProfileRecord],
                          actions: [BabyActionRecord],
+                         sharePermissions: [UUID: ProfileSharePermission] = [:],
                          explicitProfileIdentifiers: Set<UUID> = []) {
+            self.caregiverID = caregiverID
             self.profiles = profiles
             self.actions = actions
+            self.sharedPermissions = sharePermissions
             self.explicitProfileIdentifiers = explicitProfileIdentifiers
         }
 
-        init(actionsByProfile: [UUID: [BabyActionSnapshot]]) {
-            let caregiverID = UUID()
+        init(actionsByProfile: [UUID: [BabyActionSnapshot]], caregiverID: UUID = UUID()) {
             var actionRecords: [BabyActionRecord] = []
             for (profileID, snapshots) in actionsByProfile {
                 for snapshot in snapshots {
@@ -1486,8 +1532,10 @@ extension SupabaseAuthManager {
                     actionRecords.append(record)
                 }
             }
-            self.init(profiles: [],
+            self.init(caregiverID: caregiverID,
+                      profiles: [],
                       actions: actionRecords,
+                      sharePermissions: [:],
                       explicitProfileIdentifiers: Set(actionsByProfile.keys))
         }
 
@@ -1539,6 +1587,24 @@ extension SupabaseAuthManager {
 
         var actionCount: Int {
             actions.count
+        }
+
+        var profilePermissions: [UUID: ProfileSharePermission] {
+            var permissions = sharedPermissions
+
+            for profile in profiles {
+                if profile.caregiverID == caregiverID {
+                    permissions[profile.id] = .edit
+                } else if permissions[profile.id] == nil {
+                    permissions[profile.id] = .view
+                }
+            }
+
+            for identifier in profileIdentifiers where permissions[identifier] == nil {
+                permissions[identifier] = .view
+            }
+
+            return permissions
         }
     }
 
