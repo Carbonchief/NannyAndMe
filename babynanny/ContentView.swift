@@ -622,18 +622,16 @@ private extension ContentView {
 
     func maybePresentLocationPrompt() {
         guard trackActionLocations == false else { return }
-        guard locationManager.authorizationStatus != .denied,
-              locationManager.authorizationStatus != .restricted else { return }
         isLocationPromptPresented = true
     }
 
     func enableActionLocations() {
         guard hasUnlockedPremium else { return }
+        locationManager.requestPermissionIfNeeded()
+        locationManager.ensurePreciseAccuracyIfNeeded()
         withAnimation {
             trackActionLocations = true
         }
-        locationManager.requestPermissionIfNeeded()
-        locationManager.ensurePreciseAccuracyIfNeeded()
     }
 
     func locationTrackingAlert() -> Alert {
