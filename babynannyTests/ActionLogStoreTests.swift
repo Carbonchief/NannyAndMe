@@ -192,6 +192,48 @@ struct ActionLogStoreTests {
     }
 
     @Test
+    func userRefreshOnlyQueuesModifiedActionsAfterNoOp() async throws {
+        let container = AppDataStack.makeModelContainer(inMemory: true)
+        let stack = await AppDataStack(modelContainer: container)
+        let actionStore = await ActionLogStore(modelContext: stack.mainContext, dataStack: stack)
+        let profileID = UUID()
+
+        var remoteAction = BabyActionSnapshot(category: .sleep,
+                                              startDate: Date().addingTimeInterval(-600),
+                                              endDate: Date().addingTimeInterval(-300))
+        remoteAction.updatedAt = Date()
+        let remoteSnapshot = SupabaseAuthManager.CaregiverSnapshot(actionsByProfile: [profileID: [remoteAction]])
+
+        var capturedPushes: [(UUID, [BabyActionSnapshot], [UUID])] = []
+        actionStore.syncObserver = { profile, upserts, deletions in
+            capturedPushes.append((profile, upserts, deletions))
+        }
+
+        await actionStore.performUserInitiatedRefresh(using: remoteSnapshot)
+        #expect(capturedPushes.isEmpty)
+
+        capturedPushes.removeAll()
+        await actionStore.performUserInitiatedRefresh(using: remoteSnapshot)
+        #expect(capturedPushes.isEmpty)
+
+        var currentState = await actionStore.state(for: profileID)
+        var modifiedAction = try #require(currentState.history.first(where: { $0.id == remoteAction.id }))
+        modifiedAction.endDate = modifiedAction.endDate?.addingTimeInterval(60)
+
+        await actionStore.updateAction(for: profileID, action: modifiedAction)
+        await stack.flushPendingSaves()
+
+        capturedPushes.removeAll()
+        await actionStore.performUserInitiatedRefresh(using: remoteSnapshot)
+
+        let pendingSync = try #require(capturedPushes.first)
+        #expect(pendingSync.0 == profileID)
+        #expect(pendingSync.1.count == 1)
+        #expect(pendingSync.1.first?.id == modifiedAction.id)
+        #expect(pendingSync.2.isEmpty)
+    }
+
+    @Test
     func preventsMutationsWhenProfileIsReadOnly() async {
         let stack = await AppDataStack(modelContainer: AppDataStack.makeModelContainer(inMemory: true))
         let actionStore = await ActionLogStore(modelContext: stack.mainContext, dataStack: stack)
