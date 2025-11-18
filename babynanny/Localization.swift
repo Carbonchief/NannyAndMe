@@ -680,6 +680,21 @@ enum L10n {
                 defaultValue: "Turn On"
             )
         }
+
+        enum LocationPermissionFixPrompt {
+            static let title = String(
+                localized: "map.locationPermissionFixPrompt.title",
+                defaultValue: "Allow Location Access?"
+            )
+            static let message = String(
+                localized: "map.locationPermissionFixPrompt.message",
+                defaultValue: "Location access for Nanny & Me is turned off in Settings. Re-enable it to keep tracking Action Locations."
+            )
+            static let openSettings = String(
+                localized: "map.locationPermissionFixPrompt.openSettings",
+                defaultValue: "Open Settings"
+            )
+        }
     }
 
     enum Notifications {

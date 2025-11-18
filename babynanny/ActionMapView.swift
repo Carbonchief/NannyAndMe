@@ -1,15 +1,22 @@
 import CoreLocation
 import MapKit
 import SwiftUI
+import UIKit
 
 struct ActionMapView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
+    @EnvironmentObject private var locationManager: LocationManager
+    @Environment(\.openURL) private var openURL
+    @AppStorage("trackActionLocations") private var trackActionLocations = false
+    @AppStorage("hasUnlockedPremium") private var hasUnlockedPremium = false
+    @AppStorage("actionLocationPermissionNeedsFix") private var actionLocationPermissionNeedsFix = false
     @State private var selectedCategory: BabyActionCategory?
     @State private var dateFilter: ActionMapDateFilter = .sevenDays
     @State private var selectedCluster: ActionCluster?
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var hasInitializedCamera = false
+    @State private var activeLocationPrompt: LocationPromptType?
 
     private let clusterRadius: CLLocationDistance = 150
     private let tabResetID: UUID
@@ -53,10 +60,13 @@ struct ActionMapView: View {
         }
         .navigationTitle(L10n.Map.title)
         .navigationBarTitleDisplayMode(.inline)
+        .alert(item: $activeLocationPrompt, content: locationTrackingAlert)
         .onAppear {
             if hasInitializedCamera == false {
                 initializeCameraIfNeeded(for: clusters)
             }
+            synchronizeTrackingPreference(with: locationManager.authorizationStatus)
+            presentLocationPromptIfNeeded()
         }
         .onChange(of: clusters) { _, newClusters in
             synchronizeSelection(with: newClusters)
@@ -66,6 +76,17 @@ struct ActionMapView: View {
             if newClusters.isEmpty {
                 hasInitializedCamera = false
                 cameraPosition = .automatic
+            }
+        }
+        .onChange(of: trackActionLocations) { _, newValue in
+            if newValue == false {
+                presentLocationPromptIfNeeded()
+            }
+        }
+        .onChange(of: locationManager.authorizationStatus) { _, status in
+            synchronizeTrackingPreference(with: status)
+            if status != .denied && status != .restricted {
+                presentLocationPromptIfNeeded()
             }
         }
         .onChange(of: selectedCluster) { _, newValue in
@@ -81,6 +102,22 @@ struct ActionMapView: View {
             }
             hasInitializedCamera = false
             initializeCameraIfNeeded(for: clusters)
+        }
+    }
+}
+
+private extension ActionMapView {
+    enum LocationPromptType: Identifiable {
+        case enableTracking
+        case permissionFix
+
+        var id: String {
+            switch self {
+            case .enableTracking:
+                return "enable"
+            case .permissionFix:
+                return "permissionFix"
+            }
         }
     }
 }
@@ -277,6 +314,69 @@ private extension ActionMapView {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color(.secondarySystemBackground))
         )
+    }
+
+    func presentLocationPromptIfNeeded() {
+        if actionLocationPermissionNeedsFix,
+           locationManager.authorizationStatus == .denied || locationManager.authorizationStatus == .restricted {
+            activeLocationPrompt = .permissionFix
+            actionLocationPermissionNeedsFix = false
+            return
+        }
+
+        guard trackActionLocations == false else { return }
+        activeLocationPrompt = .enableTracking
+    }
+
+    func enableActionLocations() {
+        guard hasUnlockedPremium else { return }
+        locationManager.requestPermissionIfNeeded()
+        locationManager.ensurePreciseAccuracyIfNeeded()
+        withAnimation {
+            trackActionLocations = true
+        }
+    }
+
+    func locationTrackingAlert(for prompt: LocationPromptType) -> Alert {
+        switch prompt {
+        case .enableTracking:
+            return Alert(
+                title: Text(L10n.Map.LocationPrompt.title),
+                message: Text(L10n.Map.LocationPrompt.message),
+                primaryButton: .default(Text(L10n.Map.LocationPrompt.enable)) {
+                    enableActionLocations()
+                },
+                secondaryButton: .cancel(Text(L10n.Common.cancel))
+            )
+        case .permissionFix:
+            return Alert(
+                title: Text(L10n.Map.LocationPermissionFixPrompt.title),
+                message: Text(L10n.Map.LocationPermissionFixPrompt.message),
+                primaryButton: .default(Text(L10n.Map.LocationPermissionFixPrompt.openSettings)) {
+                    openSystemSettings()
+                },
+                secondaryButton: .cancel(Text(L10n.Common.cancel))
+            )
+        }
+    }
+
+    func synchronizeTrackingPreference(with status: CLAuthorizationStatus) {
+        if status == .denied || status == .restricted {
+            guard trackActionLocations else { return }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                trackActionLocations = false
+            }
+            actionLocationPermissionNeedsFix = true
+            activeLocationPrompt = nil
+            return
+        }
+
+        actionLocationPermissionNeedsFix = false
+    }
+
+    func openSystemSettings() {
+        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+        openURL(settingsURL)
     }
 
     func clusterSecondaryDescription(for cluster: ActionCluster) -> String {

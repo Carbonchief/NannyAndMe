@@ -283,6 +283,9 @@
 "map.locationPrompt.title" = "¿Activar ubicaciones de acciones?";
 "map.locationPrompt.message" = "Enciende las ubicaciones de acciones para que podamos mostrar el cuidado de tu bebé en el mapa.";
 "map.locationPrompt.enable" = "Activar";
+"map.locationPermissionFixPrompt.title" = "¿Permitir acceso a la ubicación?";
+"map.locationPermissionFixPrompt.message" = "El acceso a la ubicación de Nanny & Me está desactivado en Configuración. Actívalo de nuevo para seguir registrando las ubicaciones de las acciones.";
+"map.locationPermissionFixPrompt.openSettings" = "Abrir Configuración";
 "shareData.error.mismatchedProfile" = "Este archivo pertenece a otro perfil. Cambia a ese perfil e inténtalo de nuevo.";
 "shareData.error.readFailed" = "No se pudo leer el archivo. Asegúrate de seleccionar una exportación de Nanny & Me.";
 "logs.title" = "Todos los registros";
