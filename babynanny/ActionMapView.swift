@@ -5,11 +5,15 @@ import SwiftUI
 struct ActionMapView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
+    @EnvironmentObject private var locationManager: LocationManager
+    @AppStorage("trackActionLocations") private var trackActionLocations = false
+    @AppStorage("hasUnlockedPremium") private var hasUnlockedPremium = false
     @State private var selectedCategory: BabyActionCategory?
     @State private var dateFilter: ActionMapDateFilter = .sevenDays
     @State private var selectedCluster: ActionCluster?
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var hasInitializedCamera = false
+    @State private var isLocationPromptPresented = false
 
     private let clusterRadius: CLLocationDistance = 150
     private let tabResetID: UUID
@@ -53,10 +57,12 @@ struct ActionMapView: View {
         }
         .navigationTitle(L10n.Map.title)
         .navigationBarTitleDisplayMode(.inline)
+        .alert(isPresented: $isLocationPromptPresented, content: locationTrackingAlert)
         .onAppear {
             if hasInitializedCamera == false {
                 initializeCameraIfNeeded(for: clusters)
             }
+            presentLocationPromptIfNeeded()
         }
         .onChange(of: clusters) { _, newClusters in
             synchronizeSelection(with: newClusters)
@@ -66,6 +72,11 @@ struct ActionMapView: View {
             if newClusters.isEmpty {
                 hasInitializedCamera = false
                 cameraPosition = .automatic
+            }
+        }
+        .onChange(of: trackActionLocations) { _, newValue in
+            if newValue == false {
+                presentLocationPromptIfNeeded()
             }
         }
         .onChange(of: selectedCluster) { _, newValue in
@@ -276,6 +287,31 @@ private extension ActionMapView {
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color(.secondarySystemBackground))
+        )
+    }
+
+    func presentLocationPromptIfNeeded() {
+        guard trackActionLocations == false else { return }
+        isLocationPromptPresented = true
+    }
+
+    func enableActionLocations() {
+        guard hasUnlockedPremium else { return }
+        withAnimation {
+            trackActionLocations = true
+        }
+        locationManager.requestPermissionIfNeeded()
+        locationManager.ensurePreciseAccuracyIfNeeded()
+    }
+
+    func locationTrackingAlert() -> Alert {
+        Alert(
+            title: Text(L10n.Map.LocationPrompt.title),
+            message: Text(L10n.Map.LocationPrompt.message),
+            primaryButton: .default(Text(L10n.Map.LocationPrompt.enable)) {
+                enableActionLocations()
+            },
+            secondaryButton: .cancel(Text(L10n.Common.cancel))
         )
     }
 
