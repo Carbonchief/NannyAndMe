@@ -74,6 +74,9 @@
             ReferencedContainer = "container:babynanny.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <StoreKitConfigurationFileReference
+         identifier = "../../babynanny/Nanny &amp; Me - Baby Tracker.storekit">
+      </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

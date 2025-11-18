@@ -1,0 +1,164 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "13473F21",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "49.99",
+      "familyShareable" : true,
+      "internalID" : "6754845050",
+      "localizations" : [
+        {
+          "description" : "This unlocks Premium Access for life. (Forever)",
+          "displayName" : "Lifetime Plan",
+          "locale" : "en_GB"
+        }
+      ],
+      "productID" : "NAMlifetime",
+      "referenceName" : "Nanny & Me - Lifetime Plan",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6749932794",
+    "_developerTeamID" : "4X6WL3Y28W",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 785145960.31624901,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21809402",
+      "localizations" : [
+
+      ],
+      "name" : "Nanny And Me - Subscriptions",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "6.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "6755419595",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Nanny & Me - Premium Access billed monthly.",
+              "displayName" : "Monthly Premium Subscription",
+              "locale" : "en_GB"
+            }
+          ],
+          "productID" : "NAMMonthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Monthly - Sub",
+          "subscriptionGroupID" : "21809402",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4.99",
+          "familyShareable" : true,
+          "groupNumber" : 1,
+          "internalID" : "6754166652",
+          "introductoryOffer" : {
+            "internalID" : "8825E477",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P3D"
+          },
+          "localizations" : [
+            {
+              "description" : "Premium access billed every week.",
+              "displayName" : "Premium Access - Weekly",
+              "locale" : "en_GB"
+            }
+          ],
+          "productID" : "NAMWeekly",
+          "recurringSubscriptionPeriod" : "P1W",
+          "referenceName" : "Weekly - sub",
+          "subscriptionGroupID" : "21809402",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}
