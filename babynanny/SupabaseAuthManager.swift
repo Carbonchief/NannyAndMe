@@ -366,10 +366,11 @@ final class SupabaseAuthManager: ObservableObject {
         }
     }
 
+    @discardableResult
     func syncBabyActions(upserting actions: [BabyActionSnapshot],
                          deletingIDs: [UUID],
-                         profileID: UUID) async {
-        guard let client, isAuthenticated, let caregiverID = currentUserID else { return }
+                         profileID: UUID) async -> Bool {
+        guard let client, isAuthenticated, let caregiverID = currentUserID else { return false }
 
         let sanitizedActions = actions.map { $0.withValidatedDates() }
         let records = sanitizedActions.compactMap { action in
@@ -379,7 +380,7 @@ final class SupabaseAuthManager: ObservableObject {
         let shouldUpsert = records.isEmpty == false
         let shouldDelete = deletingIDs.isEmpty == false
 
-        guard shouldUpsert || shouldDelete else { return }
+        guard shouldUpsert || shouldDelete else { return true }
 
         if records.count < sanitizedActions.count {
             logger.warning("Skipping \(sanitizedActions.count - records.count, privacy: .public) actions without a Supabase subtype mapping")
@@ -403,7 +404,10 @@ final class SupabaseAuthManager: ObservableObject {
             }
         } catch {
             logger.error("Failed to synchronize baby actions: \(error.localizedDescription, privacy: .public)")
+            return false
         }
+
+        return true
     }
 
     private func upsertCaregiver(for user: User) async throws {

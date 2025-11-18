@@ -887,25 +887,18 @@ private extension ActionLogStore {
         refreshDurationActivities()
     }
 
-    private func pushLocalStateToSupabase(localStates: [UUID: ProfileActionState],
-                                          remoteActionIDsByProfile: [UUID: Set<UUID>]) async {
+    private func pushLocalStateToSupabase(localStates _: [UUID: ProfileActionState],
+                                          remoteActionIDsByProfile _: [UUID: Set<UUID>]) async {
+        let pendingUpsertsByProfile = pendingSnapshotsByProfileID()
+        let profilesWithPendingDeletions = Set(pendingRemoteDeletions.keys)
+        let profileIDsToSync = Set(pendingUpsertsByProfile.keys).union(profilesWithPendingDeletions)
         var pendingPushes: [(UUID, [BabyActionSnapshot], [UUID])] = []
 
-        for (profileID, state) in localStates {
-            let actions = (state.activeActions.values + state.history).map { $0.withValidatedDates() }
-            let localIDs = Set(actions.map(\.id))
-            let remoteIDs = remoteActionIDsByProfile[profileID] ?? []
-            let deletions = Array(remoteIDs.subtracting(localIDs))
-            if actions.isEmpty == false || deletions.isEmpty == false {
-                pendingPushes.append((profileID, actions, deletions))
-            }
-        }
-
-        let remoteOnlyProfiles = Set(remoteActionIDsByProfile.keys).subtracting(localStates.keys)
-        for profileID in remoteOnlyProfiles {
-            let deletions = Array(remoteActionIDsByProfile[profileID] ?? [])
-            guard deletions.isEmpty == false else { continue }
-            pendingPushes.append((profileID, [], deletions))
+        for profileID in profileIDsToSync {
+            let upserts = pendingUpsertsByProfile[profileID] ?? []
+            let deletions = Array(pendingRemoteDeletions[profileID] ?? [])
+            guard upserts.isEmpty == false || deletions.isEmpty == false else { continue }
+            pendingPushes.append((profileID, upserts, deletions))
         }
 
         for (profileID, actions, deletions) in pendingPushes {
@@ -913,18 +906,80 @@ private extension ActionLogStore {
         }
 
         guard let authManager, authManager.isAuthenticated else { return }
-        logger.log("Pushing local state for \(localStates.count, privacy: .public) profiles back to Supabase.")
+        logger.log("Pushing pending local changes for \(pendingPushes.count, privacy: .public) profiles back to Supabase.")
+
+        var didMutateAfterSync = false
 
         for (profileID, actions, deletions) in pendingPushes where actions.isEmpty == false || deletions.isEmpty == false {
-            await authManager.syncBabyActions(upserting: actions,
-                                              deletingIDs: deletions,
-                                              profileID: profileID)
+            let didSync = await authManager.syncBabyActions(upserting: actions,
+                                                            deletingIDs: deletions,
+                                                            profileID: profileID)
+            if didSync {
+                let completed = completeSupabaseSync(for: profileID,
+                                                     syncedActionIDs: actions.map(\.id),
+                                                     clearedDeletionIDs: deletions)
+                didMutateAfterSync = didMutateAfterSync || completed
+            } else {
+                logger.error("Failed to push pending changes for profile \(profileID, privacy: .public); will retry on next sync.")
+            }
+
             if actions.isEmpty {
                 logger.log("Queued remote-only deletion sync for profile \(profileID, privacy: .public) with \(deletions.count, privacy: .public) deletions.")
             } else {
                 logger.log("Queued sync for profile \(profileID, privacy: .public). upserts=\(actions.count, privacy: .public) deletions=\(deletions.count, privacy: .public)")
             }
         }
+
+        if didMutateAfterSync {
+            dataStack.saveIfNeeded(on: modelContext, reason: "supabase-sync-complete")
+        }
+    }
+
+    private func pendingSnapshotsByProfileID() -> [UUID: [BabyActionSnapshot]] {
+        let descriptor = FetchDescriptor<ProfileActionStateModel>()
+        guard let models = try? modelContext.fetch(descriptor) else { return [:] }
+
+        return models.reduce(into: [UUID: [BabyActionSnapshot]]()) { partialResult, model in
+            let pending = model.actions.compactMap { action -> BabyActionSnapshot? in
+                guard action.isPendingSync else { return nil }
+                return action.asSnapshot().withValidatedDates()
+            }
+            if pending.isEmpty == false {
+                partialResult[model.resolvedProfileID] = pending
+            }
+        }
+    }
+
+    @discardableResult
+    private func completeSupabaseSync(for profileID: UUID,
+                                      syncedActionIDs: [UUID],
+                                      clearedDeletionIDs: [UUID]) -> Bool {
+        var didMutate = false
+
+        if syncedActionIDs.isEmpty == false {
+            let identifiers = Set(syncedActionIDs)
+            performLocalMutation {
+                guard let model = existingProfileModel(for: profileID) else { return }
+                for action in model.actions where identifiers.contains(action.id) {
+                    if action.isPendingSync {
+                        action.isPendingSync = false
+                        didMutate = true
+                    }
+                }
+            }
+        }
+
+        if clearedDeletionIDs.isEmpty == false {
+            var pending = pendingRemoteDeletions[profileID] ?? []
+            pending.subtract(clearedDeletionIDs)
+            if pending.isEmpty {
+                pendingRemoteDeletions.removeValue(forKey: profileID)
+            } else {
+                pendingRemoteDeletions[profileID] = pending
+            }
+        }
+
+        return didMutate
     }
 
     static func clamp(_ action: BabyActionSnapshot, avoiding conflicts: [BabyActionSnapshot]) -> BabyActionSnapshot {
