@@ -911,13 +911,18 @@ private extension ActionLogStore {
         var didMutateAfterSync = false
 
         for (profileID, actions, deletions) in pendingPushes where actions.isEmpty == false || deletions.isEmpty == false {
-            await authManager.syncBabyActions(upserting: actions,
-                                              deletingIDs: deletions,
-                                              profileID: profileID)
-            let completed = completeSupabaseSync(for: profileID,
-                                                 syncedActionIDs: actions.map(\.id),
-                                                 clearedDeletionIDs: deletions)
-            didMutateAfterSync = didMutateAfterSync || completed
+            let didSync = await authManager.syncBabyActions(upserting: actions,
+                                                            deletingIDs: deletions,
+                                                            profileID: profileID)
+            if didSync {
+                let completed = completeSupabaseSync(for: profileID,
+                                                     syncedActionIDs: actions.map(\.id),
+                                                     clearedDeletionIDs: deletions)
+                didMutateAfterSync = didMutateAfterSync || completed
+            } else {
+                logger.error("Failed to push pending changes for profile \(profileID, privacy: .public); will retry on next sync.")
+            }
+
             if actions.isEmpty {
                 logger.log("Queued remote-only deletion sync for profile \(profileID, privacy: .public) with \(deletions.count, privacy: .public) deletions.")
             } else {
