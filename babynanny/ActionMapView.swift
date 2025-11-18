@@ -126,39 +126,44 @@ private extension ActionMapView {
 
     @ViewBuilder
     func mapContent(for clusters: [ActionCluster]) -> some View {
-        if clusters.isEmpty {
-            Color(.systemGroupedBackground)
-                .overlay {
-                    VStack(spacing: 12) {
-                        Image(systemName: "map")
-                            .font(.system(size: 40, weight: .semibold))
-                            .foregroundStyle(.secondary)
-
-                        Text(L10n.Map.emptyState)
-                            .font(.headline)
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 24)
-                    }
-                }
-        } else {
-            Map(position: $cameraPosition) {
-                ForEach(clusters) { cluster in
-                    Annotation("", coordinate: cluster.coordinate) {
-                        Button {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                selectedCluster = cluster
-                            }
-                        } label: {
-                            ActionMapAnnotationView(cluster: cluster)
+        Map(position: $cameraPosition) {
+            ForEach(clusters) { cluster in
+                Annotation("", coordinate: cluster.coordinate) {
+                    Button {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            selectedCluster = cluster
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(cluster.accessibilityLabel)
+                    } label: {
+                        ActionMapAnnotationView(cluster: cluster)
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(cluster.accessibilityLabel)
                 }
             }
-            .mapControls {
-                MapUserLocationButton()
+        }
+        .mapControls {
+            MapUserLocationButton()
+        }
+        .overlay(alignment: .center) {
+            if clusters.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "map")
+                        .font(.system(size: 40, weight: .semibold))
+                        .foregroundStyle(.secondary)
+
+                    Text(L10n.Map.emptyState)
+                        .font(.headline)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 24)
+                }
+                .padding(20)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                )
+                .padding(24)
+                .allowsHitTesting(false)
             }
         }
     }
