@@ -287,6 +287,9 @@
 "map.locationPrompt.title" = "Enable Action Locations?";
 "map.locationPrompt.message" = "Turn on Action Locations so we can place your baby's care on the map.";
 "map.locationPrompt.enable" = "Turn On";
+"map.locationPermissionFixPrompt.title" = "Allow Location Access?";
+"map.locationPermissionFixPrompt.message" = "Location access for Nanny & Me is turned off in Settings. Re-enable it to keep tracking Action Locations.";
+"map.locationPermissionFixPrompt.openSettings" = "Open Settings";
 "shareData.error.mismatchedProfile" = "This file belongs to a different profile. Switch to that profile and try again.";
 "shareData.error.readFailed" = "The file could not be read. Make sure you selected a Nanny & Me export.";
 "logs.title" = "All Logs";

@@ -7,6 +7,7 @@
 
 import CoreLocation
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     @EnvironmentObject private var profileStore: ProfileStore
@@ -14,9 +15,11 @@ struct ContentView: View {
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
     @EnvironmentObject private var authManager: SupabaseAuthManager
     @EnvironmentObject private var locationManager: LocationManager
+    @Environment(\.openURL) private var openURL
     @AppStorage("trackActionLocations") private var trackActionLocations = false
     @AppStorage("hasUnlockedPremium") private var hasUnlockedPremium = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @AppStorage("actionLocationPermissionNeedsFix") private var actionLocationPermissionNeedsFix = false
     @StateObject private var paywallViewModel = OnboardingPaywallViewModel()
     @State private var selectedTab: Tab = .home
     @State private var previousTab: Tab = .home
@@ -32,7 +35,7 @@ struct ContentView: View {
     @State private var isPaywallPresented = false
     @State private var selectedPaywallPlan: PaywallPlan = .trial
     @State private var pendingMapUnlock = false
-    @State private var isLocationPromptPresented = false
+    @State private var activeLocationPrompt: LocationPromptType?
     @State private var menuDragOffset: CGFloat = 0
     @State private var pendingShareAlertProfile: ChildProfile?
     @State private var shareResponseErrorMessage: String?
@@ -250,7 +253,7 @@ struct ContentView: View {
                         Text(shareResponseErrorMessage ?? "")
                     }
             }
-            .alert(isPresented: $isLocationPromptPresented, content: locationTrackingAlert)
+            .alert(item: $activeLocationPrompt, content: locationTrackingAlert)
             .onChange(of: authManager.isAuthenticated) { _, isAuthenticated in
                 if isAuthenticated {
                     isAuthSheetPresented = false
@@ -621,8 +624,15 @@ private extension ContentView {
     }
 
     func maybePresentLocationPrompt() {
+        if actionLocationPermissionNeedsFix,
+           locationManager.authorizationStatus == .denied || locationManager.authorizationStatus == .restricted {
+            activeLocationPrompt = .permissionFix
+            actionLocationPermissionNeedsFix = false
+            return
+        }
+
         guard trackActionLocations == false else { return }
-        isLocationPromptPresented = true
+        activeLocationPrompt = .enableTracking
     }
 
     func enableActionLocations() {
@@ -634,15 +644,27 @@ private extension ContentView {
         }
     }
 
-    func locationTrackingAlert() -> Alert {
-        Alert(
-            title: Text(L10n.Map.LocationPrompt.title),
-            message: Text(L10n.Map.LocationPrompt.message),
-            primaryButton: .default(Text(L10n.Map.LocationPrompt.enable)) {
-                enableActionLocations()
-            },
-            secondaryButton: .cancel(Text(L10n.Common.cancel))
-        )
+    func locationTrackingAlert(for prompt: LocationPromptType) -> Alert {
+        switch prompt {
+        case .enableTracking:
+            return Alert(
+                title: Text(L10n.Map.LocationPrompt.title),
+                message: Text(L10n.Map.LocationPrompt.message),
+                primaryButton: .default(Text(L10n.Map.LocationPrompt.enable)) {
+                    enableActionLocations()
+                },
+                secondaryButton: .cancel(Text(L10n.Common.cancel))
+            )
+        case .permissionFix:
+            return Alert(
+                title: Text(L10n.Map.LocationPermissionFixPrompt.title),
+                message: Text(L10n.Map.LocationPermissionFixPrompt.message),
+                primaryButton: .default(Text(L10n.Map.LocationPermissionFixPrompt.openSettings)) {
+                    openSystemSettings()
+                },
+                secondaryButton: .cancel(Text(L10n.Common.cancel))
+            )
+        }
     }
 
     func ensureSelectionIsVisible(in tabs: [Tab]) {
@@ -656,15 +678,40 @@ private extension ContentView {
     }
 
     func synchronizeTrackingPreference(with status: CLAuthorizationStatus) {
-        guard status == .denied || status == .restricted else { return }
-        guard trackActionLocations else { return }
-        withAnimation(.easeInOut(duration: 0.2)) {
-            trackActionLocations = false
+        if status == .denied || status == .restricted {
+            guard trackActionLocations else { return }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                trackActionLocations = false
+            }
+            actionLocationPermissionNeedsFix = true
+            activeLocationPrompt = nil
+            return
         }
+
+        actionLocationPermissionNeedsFix = false
+    }
+
+    func openSystemSettings() {
+        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+        openURL(settingsURL)
     }
 }
 
 private extension ContentView {
+    enum LocationPromptType: Identifiable {
+        case enableTracking
+        case permissionFix
+
+        var id: String {
+            switch self {
+            case .enableTracking:
+                return "enable"
+            case .permissionFix:
+                return "permissionFix"
+            }
+        }
+    }
+
     func nextTab(after tab: Tab, in tabs: [Tab]) -> Tab? {
         guard let index = tabs.firstIndex(of: tab), index < tabs.count - 1 else { return nil }
         return tabs[index + 1]
