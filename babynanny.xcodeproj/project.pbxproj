@@ -7,10 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		EDBCCD052E9A324500C65A0E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBCCD042E9A324500C65A0E /* WidgetKit.framework */; };
-		EDBCCD072E9A324500C65A0E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBCCD062E9A324500C65A0E /* SwiftUI.framework */; };
-		EDBCCD182E9A324800C65A0E /* DurationActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EDBCCD022E9A324500C65A0E /* DurationActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		EDFCEBA02F0A5E1C00A9F08A /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = EDFCEBA12F0A5E1C00A9F08A /* Supabase */; };
+                EDBCCD052E9A324500C65A0E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBCCD042E9A324500C65A0E /* WidgetKit.framework */; };
+                EDBCCD072E9A324500C65A0E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBCCD062E9A324500C65A0E /* SwiftUI.framework */; };
+                EDBCCD182E9A324800C65A0E /* DurationActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EDBCCD022E9A324500C65A0E /* DurationActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+                EDFCEBA02F0A5E1C00A9F08A /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = EDFCEBA12F0A5E1C00A9F08A /* Supabase */; };
+                25168EF5DE4749179635741D /* PushNotificationRegistrar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2554EF95714D4165B613194A /* PushNotificationRegistrar.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -52,12 +53,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		EDBCCD022E9A324500C65A0E /* DurationActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DurationActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		EDBCCD042E9A324500C65A0E /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
-		EDBCCD062E9A324500C65A0E /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
-		EDD049912E93FE1A00795772 /* babynanny.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = babynanny.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		EDD049A12E93FE1E00795772 /* babynannyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = babynannyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		EDD049AB2E93FE1E00795772 /* babynannyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = babynannyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+                EDBCCD022E9A324500C65A0E /* DurationActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DurationActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+                EDBCCD042E9A324500C65A0E /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+                EDBCCD062E9A324500C65A0E /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+                EDD049912E93FE1A00795772 /* babynanny.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = babynanny.app; sourceTree = BUILT_PRODUCTS_DIR; };
+                EDD049A12E93FE1E00795772 /* babynannyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = babynannyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+                EDD049AB2E93FE1E00795772 /* babynannyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = babynannyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+                2554EF95714D4165B613194A /* PushNotificationRegistrar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = babynanny/PushNotificationRegistrar.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -377,13 +379,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		EDD0498D2E93FE1A00795772 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
+               EDD0498D2E93FE1A00795772 /* Sources */ = {
+                       isa = PBXSourcesBuildPhase;
+                       buildActionMask = 2147483647;
+                       files = (
+                                25168EF5DE4749179635741D /* PushNotificationRegistrar.swift in Sources */,
+                        );
+                       runOnlyForDeploymentPostprocessing = 0;
+               };
 		EDD0499D2E93FE1E00795772 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;

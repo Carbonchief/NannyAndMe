@@ -411,17 +411,25 @@ final class SupabaseAuthManager: ObservableObject {
 
         guard let email = user.email ?? currentUserEmail else { return }
 
+        let apnsToken = currentAPNSToken()
+
         let record = CaregiverRecord(
             id: user.id,
             email: email,
             passwordHash: resolvedPasswordHash(from: user),
-            lastSignInAt: Date()
+            lastSignInAt: Date(),
+            apnsToken: apnsToken
         )
 
-        _ = try await client.database
-            .from("caregivers")
-            .upsert([record], onConflict: "id", returning: .minimal)
-            .execute()
+        do {
+            _ = try await client.database
+                .from("caregivers")
+                .upsert([record], onConflict: "id", returning: .minimal)
+                .execute()
+        } catch {
+            logger.error("Failed to upsert caregiver record: \(error.localizedDescription, privacy: .public)")
+            throw error
+        }
     }
 
     private func upsertBabyProfiles(_ profiles: [ChildProfile], caregiverID: UUID) async throws {
@@ -1029,6 +1037,13 @@ final class SupabaseAuthManager: ObservableObject {
         user.id.uuidString
     }
 
+    private func currentAPNSToken() -> String? {
+        let token = UserDefaults.standard.string(forKey: AppStorageKey.pushNotificationDeviceToken)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let token, token.isEmpty == false else { return nil }
+        return token
+    }
+
     private enum AppleSignInError: LocalizedError {
         case invalidCredential
         case missingIdentityToken
@@ -1203,12 +1218,14 @@ private struct CaregiverRecord: Codable, Identifiable {
     var email: String
     var passwordHash: String
     var lastSignInAt: Date
+    var apnsToken: String?
 
     enum CodingKeys: String, CodingKey {
         case id
         case email
         case passwordHash = "password_hash"
         case lastSignInAt = "last_sign_in_at"
+        case apnsToken = "apns_token"
     }
 }
 
