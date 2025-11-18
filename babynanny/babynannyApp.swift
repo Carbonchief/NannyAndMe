@@ -20,6 +20,7 @@ struct babynannyApp: App {
     @StateObject private var profileStore: ProfileStore
     @StateObject private var actionStore: ActionLogStore
     @StateObject private var authManager: SupabaseAuthManager
+    @StateObject private var pushNotificationRegistrar: PushNotificationRegistrar
     @State private var isShowingSplashScreen = true
 
     init() {
@@ -41,6 +42,9 @@ struct babynannyApp: App {
         _profileStore = StateObject(wrappedValue: profileStore)
         _actionStore = StateObject(wrappedValue: actionStore)
         _authManager = StateObject(wrappedValue: authManager)
+        _pushNotificationRegistrar = StateObject(
+            wrappedValue: PushNotificationRegistrar(reminderScheduler: scheduler)
+        )
     }
 
     var body: some Scene {
@@ -77,6 +81,9 @@ struct babynannyApp: App {
                         isShowingSplashScreen = false
                     }
                 }
+            }
+            .task {
+                await pushNotificationRegistrar.registerForRemoteNotifications()
             }
             .modelContainer(appDataStack.modelContainer)
         }
@@ -124,5 +131,16 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         return true
+    }
+
+    func application(_ application: UIApplication,
+                     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        let token = deviceToken.map { String(format: "%02x", $0) }.joined()
+        logger.info("Successfully registered for APNs with token: \(token, privacy: .private)")
+    }
+
+    func application(_ application: UIApplication,
+                     didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        logger.error("Failed to register for APNs: \(error.localizedDescription, privacy: .public)")
     }
 }
