@@ -136,11 +136,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         let token = deviceToken.map { String(format: "%02x", $0) }.joined()
+        UserDefaults.standard.set(token, forKey: AppStorageKey.pushNotificationDeviceToken)
         logger.info("Successfully registered for APNs with token: \(token, privacy: .private)")
     }
 
     func application(_ application: UIApplication,
                      didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        UserDefaults.standard.removeObject(forKey: AppStorageKey.pushNotificationDeviceToken)
         logger.error("Failed to register for APNs: \(error.localizedDescription, privacy: .public)")
     }
+}
+
+enum AppStorageKey {
+    static let pushNotificationDeviceToken = "pushNotificationDeviceToken"
 }
