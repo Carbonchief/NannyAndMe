@@ -62,6 +62,7 @@ struct ActionMapView: View {
             if hasInitializedCamera == false {
                 initializeCameraIfNeeded(for: clusters)
             }
+            synchronizeTrackingPreference(with: locationManager.authorizationStatus)
             presentLocationPromptIfNeeded()
         }
         .onChange(of: clusters) { _, newClusters in
@@ -76,6 +77,12 @@ struct ActionMapView: View {
         }
         .onChange(of: trackActionLocations) { _, newValue in
             if newValue == false {
+                presentLocationPromptIfNeeded()
+            }
+        }
+        .onChange(of: locationManager.authorizationStatus) { _, status in
+            synchronizeTrackingPreference(with: status)
+            if status != .denied && status != .restricted {
                 presentLocationPromptIfNeeded()
             }
         }
@@ -292,6 +299,11 @@ private extension ActionMapView {
 
     func presentLocationPromptIfNeeded() {
         guard trackActionLocations == false else { return }
+        guard locationManager.authorizationStatus != .denied,
+              locationManager.authorizationStatus != .restricted else {
+            isLocationPromptPresented = false
+            return
+        }
         isLocationPromptPresented = true
     }
 
@@ -313,6 +325,15 @@ private extension ActionMapView {
             },
             secondaryButton: .cancel(Text(L10n.Common.cancel))
         )
+    }
+
+    func synchronizeTrackingPreference(with status: CLAuthorizationStatus) {
+        guard status == .denied || status == .restricted else { return }
+        guard trackActionLocations else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            trackActionLocations = false
+        }
+        isLocationPromptPresented = false
     }
 
     func clusterSecondaryDescription(for cluster: ActionCluster) -> String {

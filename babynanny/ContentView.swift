@@ -5,6 +5,7 @@
 //  Created by Luan van der Walt on 2025/10/06.
 //
 
+import CoreLocation
 import SwiftUI
 
 struct ContentView: View {
@@ -416,6 +417,10 @@ struct ContentView: View {
         }
         .onAppear {
             ensureSelectionIsVisible(in: visibleTabs)
+            synchronizeTrackingPreference(with: locationManager.authorizationStatus)
+        }
+        .onChange(of: locationManager.authorizationStatus) { _, status in
+            synchronizeTrackingPreference(with: status)
         }
         .onChange(of: hasUnlockedPremium) { _, newValue in
             if newValue {
@@ -617,6 +622,8 @@ private extension ContentView {
 
     func maybePresentLocationPrompt() {
         guard trackActionLocations == false else { return }
+        guard locationManager.authorizationStatus != .denied,
+              locationManager.authorizationStatus != .restricted else { return }
         isLocationPromptPresented = true
     }
 
@@ -647,6 +654,14 @@ private extension ContentView {
             selectedTab = first
         } else {
             selectedTab = .home
+        }
+    }
+
+    func synchronizeTrackingPreference(with status: CLAuthorizationStatus) {
+        guard status == .denied || status == .restricted else { return }
+        guard trackActionLocations else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            trackActionLocations = false
         }
     }
 }
