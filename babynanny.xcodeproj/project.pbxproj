@@ -13,7 +13,6 @@ EDBCCD182E9A324800C65A0E /* DurationActivityExtension.appex in Embed Foundation 
 EDFCEBA02F0A5E1C00A9F08A /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = EDFCEBA12F0A5E1C00A9F08A /* Supabase */; };
 F0E1E0030000000100000001 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = F0E1E1010000000100000001 /* RevenueCat */; };
 F0E1E0040000000100000001 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = F0E1E1020000000100000001 /* RevenueCatUI */; };
-F0E1E0050000000100000001 /* RevenueCatCustomerCenter in Frameworks */ = {isa = PBXBuildFile; productRef = F0E1E1030000000100000001 /* RevenueCatCustomerCenter */; };
                 25168EF5DE4749179635741D /* PushNotificationRegistrar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2554EF95714D4165B613194A /* PushNotificationRegistrar.swift */; };
 /* End PBXBuildFile section */
 
@@ -126,17 +125,16 @@ F0E1E0050000000100000001 /* RevenueCatCustomerCenter in Frameworks */ = {isa = P
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-EDD0498E2E93FE1A00795772 /* Frameworks */ = {
-isa = PBXFrameworksBuildPhase;
-buildActionMask = 2147483647;
-files = (
-EDFCEBA02F0A5E1C00A9F08A /* Supabase in Frameworks */,
-F0E1E0030000000100000001 /* RevenueCat in Frameworks */,
-F0E1E0040000000100000001 /* RevenueCatUI in Frameworks */,
-F0E1E0050000000100000001 /* RevenueCatCustomerCenter in Frameworks */,
-);
-runOnlyForDeploymentPostprocessing = 0;
-};
+                EDD0498E2E93FE1A00795772 /* Frameworks */ = {
+                        isa = PBXFrameworksBuildPhase;
+                        buildActionMask = 2147483647;
+                        files = (
+                                EDFCEBA02F0A5E1C00A9F08A /* Supabase in Frameworks */,
+                                F0E1E0030000000100000001 /* RevenueCat in Frameworks */,
+                                F0E1E0040000000100000001 /* RevenueCatUI in Frameworks */,
+                        );
+                        runOnlyForDeploymentPostprocessing = 0;
+                };
 		EDD0499E2E93FE1E00795772 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -232,12 +230,11 @@ runOnlyForDeploymentPostprocessing = 0;
 				EDFCEBC62F1A3A5D00A9F08A /* Shared */,
 			);
 			name = babynanny;
-packageProductDependencies = (
-EDFCEBA12F0A5E1C00A9F08A /* Supabase */,
-F0E1E1010000000100000001 /* RevenueCat */,
-F0E1E1020000000100000001 /* RevenueCatUI */,
-F0E1E1030000000100000001 /* RevenueCatCustomerCenter */,
-);
+                        packageProductDependencies = (
+                                EDFCEBA12F0A5E1C00A9F08A /* Supabase */,
+                                F0E1E1010000000100000001 /* RevenueCat */,
+                                F0E1E1020000000100000001 /* RevenueCatUI */,
+                        );
 			productName = babynanny;
 			productReference = EDD049912E93FE1A00795772 /* babynanny.app */;
 			productType = "com.apple.product-type.application";
@@ -839,11 +836,6 @@ F0E1E1020000000100000001 /* RevenueCatUI */ = {
 isa = XCSwiftPackageProductDependency;
 package = F0E1E2010000000100000001 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
 productName = RevenueCatUI;
-};
-F0E1E1030000000100000001 /* RevenueCatCustomerCenter */ = {
-isa = XCSwiftPackageProductDependency;
-package = F0E1E2010000000100000001 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
-productName = RevenueCatCustomerCenter;
 };
 /* End XCSwiftPackageProductDependency section */
 	};

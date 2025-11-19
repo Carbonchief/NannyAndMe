@@ -1,6 +1,5 @@
 import Foundation
 import RevenueCat
-import RevenueCatCustomerCenter
 import RevenueCatUI
 import SwiftUI
 import UIKit
