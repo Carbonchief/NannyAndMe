@@ -15,6 +15,7 @@ struct SettingsView: View {
     @EnvironmentObject private var locationManager: LocationManager
     @Environment(\.openURL) private var openURL
     @AppStorage("trackActionLocations") private var trackActionLocations = false
+    @AppStorage(UserDefaultsKey.actionHapticsEnabled) private var actionHapticsEnabled = true
     @AppStorage("hasUnlockedPremium") private var hasUnlockedPremium = false
     @StateObject private var paywallViewModel = OnboardingPaywallViewModel()
     @State private var selectedPhoto: PhotosPickerItem?
@@ -405,6 +406,15 @@ struct SettingsView: View {
                 Text(L10n.Settings.showRecentActivity)
             }
             .onChange(of: profileStore.showRecentActivityOnHome) { _, newValue in
+            }
+
+            Toggle(isOn: $actionHapticsEnabled) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.Settings.actionHapticsToggle)
+                    Text(L10n.Settings.actionHapticsDescription)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }

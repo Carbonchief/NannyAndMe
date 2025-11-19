@@ -140,6 +140,8 @@
 "settings.notifications.enable" = "Erinnerungen aktivieren";
 "settings.home.section" = "Startseite";
 "settings.home.showRecentActivity" = "Aktuelle Aktivitäten anzeigen";
+"settings.home.haptics.toggle" = "Haptisches Feedback";
+"settings.home.haptics.description" = "Spüre ein leichtes Tippen, wenn du eine Aktion protokollierst.";
 "settings.notifications.nextReminder.label" = "Nächste Erinnerung";
 "settings.notifications.nextReminder.disabled" = "Erinnerungen sind deaktiviert.";
 "settings.notifications.nextReminder.unavailable" = "Noch keine Erinnerungen geplant.";
