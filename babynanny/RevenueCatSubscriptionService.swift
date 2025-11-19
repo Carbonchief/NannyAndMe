@@ -1,5 +1,6 @@
 import Foundation
 import RevenueCat
+import RevenueCatCustomerCenter
 import RevenueCatUI
 import SwiftUI
 import UIKit
@@ -75,8 +76,8 @@ final class RevenueCatSubscriptionService: NSObject, ObservableObject, Purchases
 
     func logOutIfNeeded() async {
         do {
-            try await Purchases.shared.logOut()
-            customerInfo = try? await Purchases.shared.customerInfo()
+            let result = try await Purchases.shared.logOut()
+            customerInfo = result
             lastError = nil
         } catch {
             lastError = error
@@ -97,7 +98,7 @@ final class RevenueCatSubscriptionService: NSObject, ObservableObject, Purchases
         lastError = nil
     }
 
-    func purchases(_ purchases: Purchases, receivedUpdated customerInfo: CustomerInfo) {
+    nonisolated func purchases(_ purchases: Purchases, receivedUpdated customerInfo: CustomerInfo) {
         Task { @MainActor in
             self.customerInfo = customerInfo
         }
