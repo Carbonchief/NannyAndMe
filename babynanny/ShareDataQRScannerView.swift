@@ -2,6 +2,8 @@ import SwiftUI
 import UIKit
 import AVFoundation
 
+extension AVCaptureSession: @unchecked Sendable {}
+
 struct ShareDataQRScannerView: View {
     let onScan: (String) -> Void
 
@@ -154,6 +156,7 @@ final class QRCodeScannerController: UIViewController, AVCaptureMetadataOutputOb
     var onError: ((Error) -> Void)?
 
     private let session = AVCaptureSession()
+    private let sessionQueue = DispatchQueue(label: "sharedata.qr.session", qos: .userInitiated)
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private var hasReportedResult = false
 
@@ -200,7 +203,7 @@ final class QRCodeScannerController: UIViewController, AVCaptureMetadataOutputOb
         view.layer.addSublayer(previewLayer)
         self.previewLayer = previewLayer
 
-        DispatchQueue.global(qos: .userInitiated).async { [session] in
+        sessionQueue.async { [session] in
             session.startRunning()
         }
     }
@@ -218,7 +221,9 @@ final class QRCodeScannerController: UIViewController, AVCaptureMetadataOutputOb
     }
 
     func stopScanning() {
-        session.stopRunning()
+        sessionQueue.async { [session] in
+            session.stopRunning()
+        }
         hasReportedResult = false
     }
 }

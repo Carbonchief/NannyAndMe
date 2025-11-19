@@ -32,24 +32,7 @@ struct ShareDataView: View {
 
     var body: some View {
         Form {
-            Section(header: Text(L10n.ShareData.profileSectionTitle)) {
-                let profile = profileStore.activeProfile
-                let historyCount = actionStore.state(for: profile.id).history.count
-
-                HStack(spacing: 16) {
-                    ProfileAvatarView(imageData: profile.imageData,
-                                      size: 44)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(L10n.ShareData.profileName(profile.displayName))
-
-                        Text(L10n.ShareData.logCount(historyCount))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
+            profileOverviewSection
             supabaseShareSection
 
             manualShareSection
@@ -167,6 +150,26 @@ struct ShareDataView: View {
             return L10n.ShareData.Supabase.ownerOnlyFooter
         }
         return L10n.ShareData.Supabase.footerAuthenticated
+    }
+
+    private var profileOverviewSection: some View {
+        Section(header: Text(L10n.ShareData.profileSectionTitle)) {
+            let profile = profileStore.activeProfile
+            let historyCount = actionStore.state(for: profile.id).history.count
+
+            HStack(spacing: 16) {
+                ProfileAvatarView(imageData: profile.imageData,
+                                  size: 44)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L10n.ShareData.profileName(profile.displayName))
+
+                    Text(L10n.ShareData.logCount(historyCount))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 
     private var isAutomaticShareButtonDisabled: Bool {

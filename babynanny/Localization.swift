@@ -1119,7 +1119,8 @@ enum L10n {
                 static let statusUnknown = String(
                     localized: "shareData.supabase.invitations.status.unknown",
                     defaultValue: "Unknown"
-            )
+                )
+            }
         }
 
         enum QRCode {
@@ -1179,7 +1180,6 @@ enum L10n {
                 defaultValue: "That QR code didn't contain a valid email address."
             )
         }
-    }
     }
 
     enum Logs {
