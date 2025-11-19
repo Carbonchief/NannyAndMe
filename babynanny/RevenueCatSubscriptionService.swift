@@ -1,7 +1,5 @@
 import Foundation
 import RevenueCat
-import RevenueCatCustomerCenter
-import RevenueCatUI
 import SwiftUI
 import UIKit
 
@@ -84,17 +82,6 @@ final class RevenueCatSubscriptionService: NSObject, ObservableObject, Purchases
         }
     }
 
-    func presentCustomerCenter(from scene: UIWindowScene) async {
-        guard let controller = scene.windows.first(where: { $0.isKeyWindow })?.rootViewController else { return }
-
-        do {
-            try await CustomerCenter.present(from: controller)
-            lastError = nil
-        } catch {
-            lastError = error
-        }
-    }
-
     func clearError() {
         lastError = nil
     }
@@ -105,4 +92,3 @@ final class RevenueCatSubscriptionService: NSObject, ObservableObject, Purchases
         }
     }
 }
-

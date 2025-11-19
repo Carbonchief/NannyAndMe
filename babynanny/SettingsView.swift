@@ -8,6 +8,7 @@
 import SwiftUI
 import PhotosUI
 import UIKit
+import RevenueCatUI
 
 @MainActor
 struct SettingsView: View {
@@ -33,6 +34,7 @@ struct SettingsView: View {
     @State private var isPaywallPresented = false
     @State private var pendingLocationUnlock = false
     @State private var pendingAddProfileUnlock = false
+    @State private var isCustomerCenterPresented = false
 
     var body: some View {
         Form {
@@ -90,6 +92,9 @@ struct SettingsView: View {
             AddProfilePromptView { name, birthDate, imageData in
                 profileStore.addProfile(name: name, birthDate: birthDate, imageData: imageData)
             }
+        }
+        .sheet(isPresented: $isCustomerCenterPresented) {
+            CustomerCenterView()
         }
         .fullScreenCover(item: $pendingCrop) { crop in
             ImageCropperView(image: crop.image) {
@@ -235,7 +240,7 @@ struct SettingsView: View {
         Section(header: Text(L10n.Settings.Subscription.sectionTitle)) {
             if subscriptionService.hasProAccess {
                 Button {
-                    presentCustomerCenter()
+                    isCustomerCenterPresented = true
                 } label: {
                     Label(L10n.Settings.Subscription.manageButton, systemImage: "person.crop.circle.badge.checkmark")
                 }
@@ -552,16 +557,6 @@ struct SettingsView: View {
                 secondaryButton: .cancel(Text(L10n.Settings.notificationsPermissionCancel)) {
                 }
             )
-        }
-    }
-
-    private func presentCustomerCenter() {
-        guard let scene = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .first(where: { $0.activationState == .foregroundActive }) else { return }
-
-        Task {
-            await subscriptionService.presentCustomerCenter(from: scene)
         }
     }
 
