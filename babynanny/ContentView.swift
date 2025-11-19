@@ -187,9 +187,7 @@ struct ContentView: View {
                 }
             }) {
                 NavigationStack {
-                    RevenueCatPaywallContainer {
-                        isPaywallPresented = false
-                    }
+                    RevenueCatPaywallContainer()
                     .padding(.top, 24)
                     .padding(.horizontal, 24)
                     .background(Color(.systemBackground).ignoresSafeArea())
