@@ -6,6 +6,9 @@
 "feeding.leftBreast" = "Linke Brust";
 "feeding.rightBreast" = "Rechte Brust";
 "feeding.meal" = "Mahlzeit";
+"feeding.bottleType.formula" = "Milchpulver";
+"feeding.bottleType.breastMilk" = "Muttermilch";
+"feeding.bottleType.cowMilk" = "Kuhmilch";
 "common.stop" = "Stopp";
 "profile.new" = "Neues Profil";
 "formatter.justNow" = "Gerade eben";

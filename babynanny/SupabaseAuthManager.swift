@@ -1558,6 +1558,7 @@ private enum SupabaseActionSubtypeID {
     static let peeAndPoo = UUID(uuidString: "bf8ae717-96ab-4814-8d8f-b0d5670fe0ee")!
     static let bottleFormula = UUID(uuidString: "50fda70f-6828-4364-b030-dfc4f5c7f98a")!
     static let bottleBreastMilk = UUID(uuidString: "173128c8-1b16-4e36-be6a-892ad0e021ec")!
+    static let bottleCowMilk = UUID(uuidString: "54d9a6e7-4f3e-4967-bd73-6efd74555fa5")!
     static let meal = UUID(uuidString: "dbb27605-c426-4185-b3b6-f703b35b986d")!
     static let leftBreast = UUID(uuidString: "a4e20539-c7e2-4ef3-b04e-ad3665602588")!
     static let rightBreast = UUID(uuidString: "43572b05-637a-4a5b-a85c-ce9c47a08aa5")!
@@ -1726,6 +1727,8 @@ extension SupabaseAuthManager {
                         return SupabaseActionSubtypeID.bottleFormula
                     case .breastMilk:
                         return SupabaseActionSubtypeID.bottleBreastMilk
+                    case .cowMilk:
+                        return SupabaseActionSubtypeID.bottleCowMilk
                     }
                 case .leftBreast:
                     return SupabaseActionSubtypeID.leftBreast
@@ -1741,6 +1744,8 @@ extension SupabaseAuthManager {
                     return SupabaseActionSubtypeID.bottleFormula
                 case .breastMilk:
                     return SupabaseActionSubtypeID.bottleBreastMilk
+                case .cowMilk:
+                    return SupabaseActionSubtypeID.bottleCowMilk
                 }
             } else {
                 return SupabaseActionSubtypeID.meal
@@ -1843,6 +1848,20 @@ extension SupabaseAuthManager {
                 endDate: record.stopped,
                 feedingType: .bottle,
                 bottleType: .breastMilk,
+                bottleVolume: metadata.volume,
+                latitude: metadata.latitude,
+                longitude: metadata.longitude,
+                placename: metadata.placename,
+                updatedAt: baseUpdatedAt
+            ).withValidatedDates()
+        case SupabaseActionSubtypeID.bottleCowMilk:
+            return BabyActionSnapshot(
+                id: record.id,
+                category: .feeding,
+                startDate: record.started,
+                endDate: record.stopped,
+                feedingType: .bottle,
+                bottleType: .cowMilk,
                 bottleVolume: metadata.volume,
                 latitude: metadata.latitude,
                 longitude: metadata.longitude,

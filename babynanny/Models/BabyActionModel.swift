@@ -137,6 +137,8 @@ extension BabyActionBottleType: Identifiable {
             return L10n.BottleType.formula
         case .breastMilk:
             return L10n.BottleType.breastMilk
+        case .cowMilk:
+            return L10n.BottleType.cowMilk
         @unknown default:
             return L10n.BottleType.formula
         }

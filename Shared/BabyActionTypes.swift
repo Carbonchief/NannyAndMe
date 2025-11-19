@@ -22,4 +22,5 @@ enum BabyActionFeedingType: String, CaseIterable, Codable, Sendable {
 enum BabyActionBottleType: String, CaseIterable, Codable, Sendable {
     case formula
     case breastMilk
+    case cowMilk
 }

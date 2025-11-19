@@ -109,6 +109,8 @@ private extension BabyActionBottleType {
             return WidgetL10n.BottleType.formula
         case .breastMilk:
             return WidgetL10n.BottleType.breastMilk
+        case .cowMilk:
+            return WidgetL10n.BottleType.cowMilk
         @unknown default:
             return WidgetL10n.BottleType.formula
         }

@@ -393,6 +393,7 @@
 "feeding.bottle" = "Bottle";
 "feeding.bottleType.formula" = "Formula";
 "feeding.bottleType.breastMilk" = "Breast milk";
+"feeding.bottleType.cowMilk" = "Cow's milk";
 "feeding.leftBreast" = "Left Breast";
 "feeding.rightBreast" = "Right Breast";
 "feeding.meal" = "Meal";

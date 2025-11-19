@@ -389,6 +389,7 @@
 "feeding.bottle" = "Flasche";
 "feeding.bottleType.formula" = "Milchpulver";
 "feeding.bottleType.breastMilk" = "Muttermilch";
+"feeding.bottleType.cowMilk" = "Kuhmilch";
 "feeding.leftBreast" = "Linke Brust";
 "feeding.rightBreast" = "Rechte Brust";
 "feeding.meal" = "Mahlzeit";
