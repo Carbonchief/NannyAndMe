@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 import AVFoundation
 
+@MainActor
 struct ShareDataQRScannerView: View {
     let onScan: (String) -> Void
 
@@ -113,12 +114,12 @@ struct ShareDataQRScannerView: View {
         hasRequestedAccess = true
         let granted = await withCheckedContinuation { continuation in
             AVCaptureDevice.requestAccess(for: .video) { granted in
-                continuation.resume(returning: granted)
+                Task { @MainActor in
+                    continuation.resume(returning: granted)
+                }
             }
         }
-        await MainActor.run {
-            authorizationStatus = granted ? .authorized : .denied
-        }
+        authorizationStatus = granted ? .authorized : .denied
     }
 }
 
