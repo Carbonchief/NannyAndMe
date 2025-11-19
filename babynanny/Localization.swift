@@ -79,7 +79,8 @@ enum L10n {
             )
             static let accountDecisionMessage = String(
                 localized: "onboarding.firstLaunch.accountDecision.message",
-                defaultValue: "Create a free account to sync and share, or stay local on this device."
+                defaultValue: "Create a free account to sync and share, or stay local on this device. "
+                    + "You can reset your password anytime from the login screen."
             )
             static let accountDecisionCreateAccount = String(
                 localized: "onboarding.firstLaunch.accountDecision.createAccount",
@@ -844,7 +845,8 @@ enum L10n {
         static let title = String(localized: "auth.title", defaultValue: "Account")
         static let description = String(
             localized: "auth.description",
-            defaultValue: "Enter your email and password. We'll create an account if needed or sign you in."
+            defaultValue: "Enter your email and password. We'll create an account if needed or sign you in. "
+                + "You can reset your password anytime."
         )
         static let emailLabel = String(localized: "auth.email", defaultValue: "Email")
         static let passwordLabel = String(localized: "auth.password", defaultValue: "Password")
@@ -865,6 +867,10 @@ enum L10n {
             localized: "auth.password.hint",
             defaultValue: "Password must be at least 6 characters."
         )
+        static let forgotPassword = String(
+            localized: "auth.password.forgot",
+            defaultValue: "Forgot password?"
+        )
         static let appleSignInFailed = String(
             localized: "auth.apple.failure",
             defaultValue: "Unable to sign in with Apple. Please try again."
@@ -877,6 +883,10 @@ enum L10n {
         static let configurationInvalidFormat = String(
             localized: "auth.error.invalidFormat",
             defaultValue: "SupabaseConfig.plist has an unexpected structure."
+        )
+        static let invalidEmail = String(
+            localized: "auth.error.invalidEmail",
+            defaultValue: "Enter a valid email address."
         )
         static func configurationInvalidURL(_ value: String) -> String {
             let format = String(
@@ -892,6 +902,44 @@ enum L10n {
         static let configurationPlaceholder = String(
             localized: "auth.error.placeholder",
             defaultValue: "Supabase credentials still use placeholder values."
+        )
+        static func passwordResetEmailSent(_ email: String) -> String {
+            let format = String(
+                localized: "auth.reset.emailSent",
+                defaultValue: "If an account exists for %1$@, you'll receive a reset link shortly."
+            )
+            return String(format: format, locale: Locale.current, email)
+        }
+        static let passwordResetTitle = String(
+            localized: "auth.reset.title",
+            defaultValue: "Reset password"
+        )
+        static func passwordResetPrompt(_ email: String) -> String {
+            let format = String(
+                localized: "auth.reset.prompt",
+                defaultValue: "We confirmed your reset link for %1$@. Choose a new password to finish."
+            )
+            return String(format: format, locale: Locale.current, email)
+        }
+        static let passwordResetPromptFallback = String(
+            localized: "auth.reset.promptFallback",
+            defaultValue: "We confirmed your reset link. Choose a new password to finish."
+        )
+        static let newPasswordLabel = String(
+            localized: "auth.reset.newPasswordLabel",
+            defaultValue: "New password"
+        )
+        static let passwordResetAction = String(
+            localized: "auth.reset.action",
+            defaultValue: "Update password"
+        )
+        static let passwordResetSuccess = String(
+            localized: "auth.reset.success",
+            defaultValue: "Password updated. You can now sign in."
+        )
+        static let passwordResetSessionReady = String(
+            localized: "auth.reset.sessionReady",
+            defaultValue: "Recovery link confirmed. Set a new password to continue."
         )
     }
 

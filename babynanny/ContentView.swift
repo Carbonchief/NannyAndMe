@@ -197,6 +197,18 @@ struct ContentView: View {
                 SupabaseAuthView()
                     .environmentObject(authManager)
             }
+            .sheet(
+                isPresented: Binding(
+                    get: { authManager.isPresentingPasswordResetPrompt },
+                    set: { isPresented in
+                        if isPresented == false {
+                            authManager.dismissPasswordResetPrompt()
+                        }
+                    }
+                )
+            ) {
+                PasswordResetPromptView(email: authManager.passwordRecoveryEmail ?? authManager.currentUserEmail)
+            }
             .fullScreenCover(isPresented: $isOnboardingPresented) {
                 OnboardingFlowView(isPresented: $isOnboardingPresented)
             }

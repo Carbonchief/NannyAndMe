@@ -70,7 +70,7 @@ NannyAndMe/
    - Open `babynanny/SupabaseConfig.plist`.
    - Replace the placeholder URL and anonymous key with the values from your Supabase project.
    - Keep your real credentials out of commits (e.g., by resetting the file before pushing).
-   - Add `nannyme://auth/verify` to your Supabase project's list of allowed redirect URLs so email verification links reopen the app.
+   - Add `nannyme://auth/verify` and `nannyme://auth/recovery` to your Supabase project's list of allowed redirect URLs so email verification and password recovery links reopen the app.
 5. **Configure RevenueCat**
    - Add the app to your RevenueCat project and replace the public API key in `babynannyApp` when you move beyond the provided test key.
    - Create an entitlement named **Nanny & Me Pro** so it matches `RevenueCatSubscriptionService.entitlementID`.

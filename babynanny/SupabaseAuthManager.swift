@@ -13,6 +13,9 @@ final class SupabaseAuthManager: ObservableObject {
     @Published var lastErrorMessage: String?
     @Published var infoMessage: String?
     @Published var isLoading = false
+    @Published private(set) var isPerformingPasswordReset = false
+    @Published private(set) var isPresentingPasswordResetPrompt = false
+    @Published private(set) var passwordRecoveryEmail: String?
 
     private let client: SupabaseClient?
     private let supabaseAnonKey: String?
@@ -27,6 +30,7 @@ final class SupabaseAuthManager: ObservableObject {
     private var currentAccessToken: String?
     private weak var subscriptionService: RevenueCatSubscriptionService?
     private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
+    private static let passwordRecoveryRedirectURL = URL(string: "nannyme://auth/recovery")
     private static let profilePhotosBucketName = "ProfilePhotos"
 
     enum ProfileShareResult {
@@ -90,6 +94,7 @@ final class SupabaseAuthManager: ObservableObject {
         }
 
         clearMessages()
+        isPerformingPasswordReset = false
         isLoading = true
         defer { isLoading = false }
 
@@ -145,6 +150,37 @@ final class SupabaseAuthManager: ObservableObject {
                 lastErrorMessage = Self.userFriendlyMessage(from: error)
                 return false
             }
+        }
+    }
+
+    func requestPasswordReset(email: String) async {
+        guard let client else {
+            lastErrorMessage = configurationError
+            return
+        }
+
+        clearMessages()
+        let sanitizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard Self.isValidEmail(sanitizedEmail) else {
+            lastErrorMessage = L10n.Auth.invalidEmail
+            return
+        }
+
+        isLoading = true
+        isPerformingPasswordReset = true
+        defer {
+            isLoading = false
+            isPerformingPasswordReset = false
+        }
+
+        do {
+            try await client.auth.resetPasswordForEmail(
+                sanitizedEmail,
+                redirectTo: Self.passwordRecoveryRedirectURL
+            )
+            infoMessage = L10n.Auth.passwordResetEmailSent(sanitizedEmail)
+        } catch {
+            lastErrorMessage = Self.userFriendlyMessage(from: error)
         }
     }
 
@@ -213,6 +249,9 @@ final class SupabaseAuthManager: ObservableObject {
             currentUserID = nil
             currentAccessToken = nil
             hasSynchronizedCaregiverDataForCurrentSession = false
+            isPresentingPasswordResetPrompt = false
+            passwordRecoveryEmail = nil
+            isPerformingPasswordReset = false
             await subscriptionService?.logOutIfNeeded()
         } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
@@ -235,6 +274,8 @@ final class SupabaseAuthManager: ObservableObject {
         currentUserID = session.user.id
         currentAccessToken = session.accessToken
         infoMessage = nil
+        isPresentingPasswordResetPrompt = false
+        passwordRecoveryEmail = nil
         hasSynchronizedCaregiverDataForCurrentSession = false
         Task { @MainActor [weak subscriptionService] in
             guard let service = subscriptionService else { return }
@@ -288,12 +329,57 @@ final class SupabaseAuthManager: ObservableObject {
     func handleAuthenticationURL(_ url: URL) async {
         guard let client else { return }
         clearMessages()
+        let isRecoveryLink = Self.isPasswordRecoveryURL(url)
         do {
             let session = try await client.auth.session(from: url)
             apply(session: session)
+            if isRecoveryLink {
+                passwordRecoveryEmail = session.user.email
+                isPresentingPasswordResetPrompt = true
+                infoMessage = L10n.Auth.passwordResetSessionReady
+            }
         } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
         }
+    }
+
+    func completePasswordReset(newPassword: String) async -> Bool {
+        guard let client else {
+            lastErrorMessage = configurationError
+            return false
+        }
+
+        clearMessages()
+        let sanitizedPassword = newPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard sanitizedPassword.count >= 6 else {
+            lastErrorMessage = L10n.Auth.passwordHint
+            return false
+        }
+
+        isLoading = true
+        isPerformingPasswordReset = true
+        defer {
+            isLoading = false
+            isPerformingPasswordReset = false
+        }
+
+        do {
+            let user = try await client.auth.updateUser(UserAttributes(password: sanitizedPassword))
+            currentUserEmail = user.email
+            currentUserID = user.id
+            isPresentingPasswordResetPrompt = false
+            passwordRecoveryEmail = nil
+            infoMessage = L10n.Auth.passwordResetSuccess
+            return true
+        } catch {
+            lastErrorMessage = Self.userFriendlyMessage(from: error)
+            return false
+        }
+    }
+
+    func dismissPasswordResetPrompt() {
+        isPresentingPasswordResetPrompt = false
+        passwordRecoveryEmail = nil
     }
 
     func synchronizeCaregiverAccount(with profiles: [ChildProfile]) async -> CaregiverSnapshot? {
@@ -1064,6 +1150,24 @@ final class SupabaseAuthManager: ObservableObject {
         case missingNonce
 
         var errorDescription: String? { L10n.Auth.appleSignInFailed }
+    }
+
+    private static func isValidEmail(_ value: String) -> Bool {
+        guard value.isEmpty == false else { return false }
+        let components = value.split(separator: "@")
+        return components.count == 2 && components.allSatisfy { $0.isEmpty == false }
+    }
+
+    private static func isPasswordRecoveryURL(_ url: URL) -> Bool {
+        if let typeQuery = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { item in
+            item.name.lowercased() == "type"
+        })?.value?.lowercased(), typeQuery == "recovery" {
+            return true
+        }
+
+        return url.pathComponents.contains(where: { component in
+            component.localizedCaseInsensitiveContains("recovery")
+        })
     }
 
     private func randomNonce(length: Int = 32) -> String {

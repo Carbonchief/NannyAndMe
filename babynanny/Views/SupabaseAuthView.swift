@@ -86,11 +86,23 @@ struct SupabaseAuthView: View {
         return sanitizedEmail.isEmpty || sanitizedPassword.count < 6 || authManager.isLoading
     }
 
+    private var isForgotPasswordDisabled: Bool {
+        guard authManager.configurationError == nil else { return true }
+        return sanitizedEmail.isEmpty || authManager.isLoading
+    }
+
     private func performPrimaryAction() {
         authManager.clearMessages()
         let email = sanitizedEmail
         let password = sanitizedPassword
         Task { await authManager.authenticate(email: email, password: password) }
+    }
+
+    private func performPasswordResetRequest() {
+        authManager.clearMessages()
+        let email = sanitizedEmail
+        guard email.isEmpty == false else { return }
+        Task { await authManager.requestPasswordReset(email: email) }
     }
 
     private var sanitizedEmail: String {
@@ -160,6 +172,20 @@ struct SupabaseAuthView: View {
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .stroke(Color.primary.opacity(0.06), lineWidth: 1)
                 )
+
+            HStack {
+                Spacer()
+                Button(action: performPasswordResetRequest) {
+                    if authManager.isPerformingPasswordReset {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                    } else {
+                        Text(L10n.Auth.forgotPassword)
+                            .font(.footnote.weight(.semibold))
+                    }
+                }
+                .disabled(isForgotPasswordDisabled)
+            }
 
             Text(L10n.Auth.passwordHint)
                 .font(.footnote)
