@@ -424,3 +424,4 @@
 "settings.subscription.unlockDescription" = "Weekly and lifetime plans are available with a free trial.";
 "settings.subscription.loading" = "Loading plans…";
 "settings.subscription.error" = "Subscription issue";
+"settings.subscription.customerCenterUnavailable" = "Customer Center isn't included in this build yet.";

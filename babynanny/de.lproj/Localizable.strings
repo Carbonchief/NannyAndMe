@@ -424,3 +424,4 @@
 "settings.subscription.unlockDescription" = "Wöchentliche und Lifetime-Pläne sind mit kostenloser Testphase verfügbar.";
 "settings.subscription.loading" = "Tarife werden geladen …";
 "settings.subscription.error" = "Abo-Problem";
+"settings.subscription.customerCenterUnavailable" = "Customer Center ist in diesem Build noch nicht enthalten.";

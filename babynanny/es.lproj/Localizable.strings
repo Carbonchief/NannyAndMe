@@ -424,3 +424,4 @@
 "settings.subscription.unlockDescription" = "Planes semanales y de pago único disponibles con prueba gratuita.";
 "settings.subscription.loading" = "Cargando planes…";
 "settings.subscription.error" = "Problema con la suscripción";
+"settings.subscription.customerCenterUnavailable" = "Customer Center no está incluido en esta compilación.";

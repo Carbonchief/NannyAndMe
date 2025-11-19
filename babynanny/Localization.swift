@@ -648,6 +648,10 @@ enum L10n {
                 localized: "settings.subscription.error",
                 defaultValue: "Subscription issue"
             )
+            static let customerCenterUnavailable = String(
+                localized: "settings.subscription.customerCenterUnavailable",
+                defaultValue: "Customer Center isn't included in this build yet."
+            )
         }
 
     }
