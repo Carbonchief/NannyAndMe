@@ -384,6 +384,7 @@
 "diaper.poo" = "Stuhl";
 "diaper.both" = "Nass & Stuhl";
 "feeding.bottle" = "Flasche";
+"feeding.cowMilk" = "Kuhmilch";
 "feeding.bottleType.formula" = "Milchpulver";
 "feeding.bottleType.breastMilk" = "Muttermilch";
 "feeding.leftBreast" = "Linke Brust";

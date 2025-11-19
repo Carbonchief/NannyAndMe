@@ -103,6 +103,8 @@ extension BabyActionFeedingType: Identifiable {
             return L10n.FeedingType.rightBreast
         case .meal:
             return L10n.FeedingType.meal
+        case .cowMilk:
+            return L10n.FeedingType.cowMilk
         @unknown default:
             return L10n.FeedingType.bottle
         }
@@ -118,6 +120,8 @@ extension BabyActionFeedingType: Identifiable {
             return "heart.circle.fill"
         case .meal:
             return "fork.knife.circle.fill"
+        case .cowMilk:
+            return "carton.fill"
         @unknown default:
             return "fork.knife"
         }

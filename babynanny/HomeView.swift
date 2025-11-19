@@ -1283,6 +1283,8 @@ private extension BabyActionSnapshot.FeedingType {
         switch self {
         case .bottle:
             return .orange
+        case .cowMilk:
+            return .cyan
         case .leftBreast:
             return .pink
         case .rightBreast:
@@ -1598,7 +1600,7 @@ private protocol ActionTypeOption: Identifiable, Hashable {
 extension BabyActionSnapshot.DiaperType: ActionTypeOption { }
 extension BabyActionSnapshot.FeedingType: ActionTypeOption {
     static var newActionOptions: [BabyActionSnapshot.FeedingType] {
-        [.bottle, .meal, .leftBreast, .rightBreast]
+        [.bottle, .cowMilk, .leftBreast, .rightBreast, .meal]
     }
 }
 

@@ -83,6 +83,8 @@ struct DurationWidgetAction: Identifiable, Codable, Equatable, Sendable {
                 return WidgetL10n.Actions.feedingWithType(WidgetL10n.FeedingType.rightBreast)
             case .meal:
                 return WidgetL10n.Actions.feedingWithType(WidgetL10n.FeedingType.meal)
+            case .cowMilk:
+                return WidgetL10n.Actions.feedingWithType(WidgetL10n.FeedingType.cowMilk)
             @unknown default:
                 return WidgetL10n.Actions.feeding
             }

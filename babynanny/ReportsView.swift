@@ -1638,6 +1638,8 @@ private enum ActionSubtype: Hashable {
                 return .purple
             case .meal:
                 return .green
+            case .cowMilk:
+                return .cyan
             }
         case .unspecified:
             return Color(.systemGray3)
@@ -1721,12 +1723,14 @@ private extension BabyActionSnapshot.FeedingType {
         switch self {
         case .bottle:
             return 0
-        case .leftBreast:
+        case .cowMilk:
             return 1
-        case .rightBreast:
+        case .leftBreast:
             return 2
-        case .meal:
+        case .rightBreast:
             return 3
+        case .meal:
+            return 4
         }
     }
 }

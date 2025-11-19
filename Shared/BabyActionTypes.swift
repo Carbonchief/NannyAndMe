@@ -14,6 +14,7 @@ enum BabyActionDiaperType: String, CaseIterable, Codable, Sendable {
 
 enum BabyActionFeedingType: String, CaseIterable, Codable, Sendable {
     case bottle
+    case cowMilk
     case leftBreast
     case rightBreast
     case meal

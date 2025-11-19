@@ -384,6 +384,7 @@
 "diaper.poo" = "Sólido";
 "diaper.both" = "Mojado y sólido";
 "feeding.bottle" = "Biberón";
+"feeding.cowMilk" = "Leche de vaca";
 "feeding.bottleType.formula" = "Leche de fórmula";
 "feeding.bottleType.breastMilk" = "Leche materna";
 "feeding.leftBreast" = "Pecho izquierdo";

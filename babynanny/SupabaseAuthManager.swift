@@ -1551,6 +1551,7 @@ private enum SupabaseActionSubtypeID {
     static let meal = UUID(uuidString: "dbb27605-c426-4185-b3b6-f703b35b986d")!
     static let leftBreast = UUID(uuidString: "a4e20539-c7e2-4ef3-b04e-ad3665602588")!
     static let rightBreast = UUID(uuidString: "43572b05-637a-4a5b-a85c-ce9c47a08aa5")!
+    static let cowMilk = UUID(uuidString: "54d9a6e7-4f3e-4967-bd73-6efd74555fa5")!
 }
 
 extension SupabaseAuthManager {
@@ -1723,6 +1724,8 @@ extension SupabaseAuthManager {
                     return SupabaseActionSubtypeID.rightBreast
                 case .meal:
                     return SupabaseActionSubtypeID.meal
+                case .cowMilk:
+                    return SupabaseActionSubtypeID.cowMilk
                 }
             } else if action.bottleVolume != nil || action.bottleType != nil {
                 let bottleType = action.bottleType ?? .formula
@@ -1846,6 +1849,18 @@ extension SupabaseAuthManager {
                 startDate: record.started,
                 endDate: record.stopped,
                 feedingType: .meal,
+                latitude: metadata.latitude,
+                longitude: metadata.longitude,
+                placename: metadata.placename,
+                updatedAt: baseUpdatedAt
+            ).withValidatedDates()
+        case SupabaseActionSubtypeID.cowMilk:
+            return BabyActionSnapshot(
+                id: record.id,
+                category: .feeding,
+                startDate: record.started,
+                endDate: record.stopped,
+                feedingType: .cowMilk,
                 latitude: metadata.latitude,
                 longitude: metadata.longitude,
                 placename: metadata.placename,

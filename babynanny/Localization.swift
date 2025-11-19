@@ -1412,6 +1412,7 @@ enum L10n {
 
     enum FeedingType {
         static let bottle = String(localized: "feeding.bottle", defaultValue: "Bottle")
+        static let cowMilk = String(localized: "feeding.cowMilk", defaultValue: "Cow's milk")
         static let leftBreast = String(localized: "feeding.leftBreast", defaultValue: "Left Breast")
         static let rightBreast = String(localized: "feeding.rightBreast", defaultValue: "Right Breast")
         static let meal = String(localized: "feeding.meal", defaultValue: "Meal")
