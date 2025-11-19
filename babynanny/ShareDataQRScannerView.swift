@@ -205,14 +205,16 @@ final class QRCodeScannerController: UIViewController, AVCaptureMetadataOutputOb
         }
     }
 
-    func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
-        guard hasReportedResult == false else { return }
+    nonisolated func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
         guard let object = metadataObjects.compactMap({ $0 as? AVMetadataMachineReadableCodeObject }).first,
               let value = object.stringValue else { return }
 
-        hasReportedResult = true
-        session.stopRunning()
-        onResult?(value)
+        Task { @MainActor [weak self] in
+            guard let self, self.hasReportedResult == false else { return }
+            self.hasReportedResult = true
+            self.session.stopRunning()
+            self.onResult?(value)
+        }
     }
 
     func stopScanning() {
