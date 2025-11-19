@@ -28,14 +28,16 @@
 			</array>
 		</dict>
 	</array>
-	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
-	<dict>
-		<key>ActionLoggingPreciseAccuracy</key>
-		<string>We request precise location temporarily so action pins are accurate within about 50 meters.</string>
-	</dict>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We use your location to show where your baby's actions were logged on the map.</string>
-	<key>NSUserNotificationUsageDescription</key>
-	<string>Nanny &amp; Me uses notifications to remind you about your baby's care activities.</string>
+        <key>NSLocationTemporaryUsageDescriptionDictionary</key>
+        <dict>
+                <key>ActionLoggingPreciseAccuracy</key>
+                <string>We request precise location temporarily so action pins are accurate within about 50 meters.</string>
+        </dict>
+        <key>NSLocationWhenInUseUsageDescription</key>
+        <string>We use your location to show where your baby's actions were logged on the map.</string>
+        <key>NSUserNotificationUsageDescription</key>
+        <string>Nanny &amp; Me uses notifications to remind you about your baby's care activities.</string>
+        <key>NSCameraUsageDescription</key>
+        <string>The camera lets you scan QR codes to share caregiver profiles.</string>
 </dict>
 </plist>
