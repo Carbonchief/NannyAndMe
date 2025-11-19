@@ -1,9 +1,5 @@
 import Foundation
 import RevenueCat
-import RevenueCatUI
-#if canImport(RevenueCatCustomerCenter)
-import RevenueCatCustomerCenter
-#endif
 import SwiftUI
 import UIKit
 
@@ -86,21 +82,6 @@ final class RevenueCatSubscriptionService: NSObject, ObservableObject, Purchases
         }
     }
 
-    func presentCustomerCenter(from scene: UIWindowScene) async {
-        guard let controller = scene.windows.first(where: { $0.isKeyWindow })?.rootViewController else { return }
-
-#if canImport(RevenueCatCustomerCenter)
-        do {
-            try await CustomerCenter.present(from: controller)
-            lastError = nil
-        } catch {
-            lastError = error
-        }
-#else
-        lastError = RevenueCatSubscriptionServiceError.customerCenterUnavailable
-#endif
-    }
-
     func clearError() {
         lastError = nil
     }
@@ -108,17 +89,6 @@ final class RevenueCatSubscriptionService: NSObject, ObservableObject, Purchases
     nonisolated func purchases(_ purchases: Purchases, receivedUpdated customerInfo: CustomerInfo) {
         Task { @MainActor in
             self.customerInfo = customerInfo
-        }
-    }
-}
-
-private enum RevenueCatSubscriptionServiceError: LocalizedError {
-    case customerCenterUnavailable
-
-    var errorDescription: String? {
-        switch self {
-        case .customerCenterUnavailable:
-            return L10n.Settings.Subscription.customerCenterUnavailable
         }
     }
 }
