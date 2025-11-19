@@ -457,6 +457,7 @@ struct HomeView: View {
                                     bottleType: configuration.bottleType,
                                     bottleVolume: configuration.bottleVolume,
                                     location: nil)
+            ActionHaptics.playLogSuccess()
         }
 
         guard shouldCaptureLocation else {
@@ -481,6 +482,7 @@ struct HomeView: View {
                                     bottleType: configuration.bottleType,
                                     bottleVolume: configuration.bottleVolume,
                                     location: loggedLocation)
+            ActionHaptics.playLogSuccess()
         }
     }
 

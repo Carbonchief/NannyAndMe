@@ -140,6 +140,8 @@
 "settings.notifications.enable" = "Enable reminders";
 "settings.home.section" = "Home";
 "settings.home.showRecentActivity" = "Show recent activity";
+"settings.home.haptics.toggle" = "Action haptics";
+"settings.home.haptics.description" = "Play a gentle tap when logging an action.";
 "settings.notifications.nextReminder.label" = "Next reminder";
 "settings.notifications.nextReminder.disabled" = "Reminders are turned off.";
 "settings.notifications.nextReminder.unavailable" = "No reminders scheduled yet.";

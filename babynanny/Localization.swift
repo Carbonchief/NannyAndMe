@@ -510,6 +510,14 @@ enum L10n {
             localized: "settings.home.showRecentActivity",
             defaultValue: "Show recent activity"
         )
+        static let actionHapticsToggle = String(
+            localized: "settings.home.haptics.toggle",
+            defaultValue: "Action haptics"
+        )
+        static let actionHapticsDescription = String(
+            localized: "settings.home.haptics.description",
+            defaultValue: "Play a gentle tap when logging an action."
+        )
         static let aboutSection = String(localized: "settings.about.section", defaultValue: "About")
         static let appVersion = String(localized: "settings.about.appVersion", defaultValue: "App Version")
         static let title = String(localized: "settings.title", defaultValue: "Settings")

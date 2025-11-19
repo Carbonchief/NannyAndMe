@@ -187,6 +187,7 @@ struct ManualActionEntrySheet: View {
         )
 
         actionStore.addManualAction(for: profileStore.activeProfile.id, action: action)
+        ActionHaptics.playLogSuccess()
         dismiss()
     }
 }
