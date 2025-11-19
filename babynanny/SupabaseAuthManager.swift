@@ -364,7 +364,7 @@ final class SupabaseAuthManager: ObservableObject {
         }
 
         do {
-            let user = try await client.auth.updateUser(UserAttributes(password: sanitizedPassword))
+            let user = try await client.auth.update(user: UserAttributes(password: sanitizedPassword))
             currentUserEmail = user.email
             currentUserID = user.id
             isPresentingPasswordResetPrompt = false
