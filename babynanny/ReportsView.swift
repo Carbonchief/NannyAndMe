@@ -90,9 +90,7 @@ struct ReportsView: View {
             }
         }) {
             NavigationStack {
-                RevenueCatPaywallContainer {
-                    isPaywallPresented = false
-                }
+                RevenueCatPaywallContainer()
                 .padding(.horizontal, 24)
                 .padding(.top, 24)
                 .background(Color(.systemBackground).ignoresSafeArea())

@@ -181,9 +181,7 @@ private extension OnboardingFlowView {
     }
 
     var paywallPage: some View {
-        RevenueCatPaywallContainer {
-            completeOnboarding()
-        }
+        RevenueCatPaywallContainer()
     }
 
     func benefitRow(icon: String, text: String) -> some View {
