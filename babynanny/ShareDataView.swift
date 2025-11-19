@@ -142,6 +142,10 @@ struct ShareDataView: View {
         supabaseShareEmail.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var canModifyAutomaticShares: Bool {
+        authManager.isAuthenticated && isActiveProfileOwner == true
+    }
+
     private var automaticShareFooter: String {
         if authManager.isAuthenticated == false {
             return L10n.ShareData.Supabase.footerSignedOut
@@ -174,8 +178,13 @@ struct ShareDataView: View {
 
     private var isAutomaticShareButtonDisabled: Bool {
         if isSharingProfile { return true }
-        guard authManager.isAuthenticated, isActiveProfileOwner == true else { return true }
+        guard canModifyAutomaticShares else { return true }
         return trimmedSupabaseEmail.isEmpty
+    }
+
+    private var isQRScannerButtonDisabled: Bool {
+        if isSharingProfile { return true }
+        return canModifyAutomaticShares == false
     }
 
     @ViewBuilder
@@ -266,7 +275,7 @@ struct ShareDataView: View {
                     .buttonStyle(.bordered)
                     .tint(.purple)
                     .controlSize(.large)
-                    .disabled(isAutomaticShareButtonDisabled)
+                    .disabled(isQRScannerButtonDisabled)
                     .accessibilityLabel(L10n.ShareData.QRScanner.button)
                 }
 
