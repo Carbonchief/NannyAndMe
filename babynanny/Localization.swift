@@ -79,8 +79,10 @@ enum L10n {
             )
             static let accountDecisionMessage = String(
                 localized: "onboarding.firstLaunch.accountDecision.message",
-                defaultValue: "Create a free account to sync and share, or stay local on this device. "
-                    + "You can reset your password anytime from the login screen."
+                defaultValue: String.LocalizationValue(
+                    "Create a free account to sync and share, or stay local on this device. "
+                        + "You can reset your password anytime from the login screen."
+                )
             )
             static let accountDecisionCreateAccount = String(
                 localized: "onboarding.firstLaunch.accountDecision.createAccount",
@@ -845,8 +847,10 @@ enum L10n {
         static let title = String(localized: "auth.title", defaultValue: "Account")
         static let description = String(
             localized: "auth.description",
-            defaultValue: "Enter your email and password. We'll create an account if needed or sign you in. "
-                + "You can reset your password anytime."
+            defaultValue: String.LocalizationValue(
+                "Enter your email and password. We'll create an account if needed or sign you in. "
+                    + "You can reset your password anytime."
+            )
         )
         static let emailLabel = String(localized: "auth.email", defaultValue: "Email")
         static let passwordLabel = String(localized: "auth.password", defaultValue: "Password")
