@@ -27,7 +27,7 @@ struct babynannyApp: App {
 
     init() {
         let configuration = Configuration.Builder(withAPIKey: "test_ZOvBHiTttFESXkDpIwmtIaZZQSC")
-            .with(storeKitVersion: .storeKit2IfAvailable)
+            .with(storeKitVersion: .storeKit2)
             .build()
         Purchases.logLevel = .warn
         Purchases.configure(with: configuration)
