@@ -56,6 +56,8 @@ struct babynannyApp: App {
             wrappedValue: PushNotificationRegistrar(reminderScheduler: scheduler)
         )
         _subscriptionService = StateObject(wrappedValue: subscriptionService)
+
+        appDelegate.authManager = authManager
     }
 
     var body: some Scene {
@@ -139,6 +141,7 @@ private extension babynannyApp {
 @MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
     let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "appdelegate")
+    weak var authManager: SupabaseAuthManager?
 
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
@@ -150,6 +153,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         let token = deviceToken.map { String(format: "%02x", $0) }.joined()
         UserDefaults.standard.set(token, forKey: AppStorageKey.pushNotificationDeviceToken)
         logger.info("Successfully registered for APNs with token: \(token, privacy: .private)")
+
+        Task { [weak authManager] in
+            await authManager?.upsertCurrentCaregiverAPNSToken()
+        }
     }
 
     func application(_ application: UIApplication,

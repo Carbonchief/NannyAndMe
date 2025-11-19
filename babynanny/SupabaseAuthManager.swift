@@ -260,6 +260,37 @@ final class SupabaseAuthManager: ObservableObject {
         }
     }
 
+    func upsertCurrentCaregiverAPNSToken() async {
+        guard let client else { return }
+        guard isAuthenticated else { return }
+        guard let apnsToken = currentAPNSToken() else { return }
+
+        do {
+            let session = try await client.auth.session
+            guard let email = session.user.email ?? currentUserEmail else { return }
+
+            let record = CaregiverRecord(
+                id: session.user.id,
+                email: email,
+                passwordHash: resolvedPasswordHash(from: session.user),
+                lastSignInAt: Date(),
+                apnsToken: apnsToken
+            )
+
+            _ = try await client.database
+                .from("caregivers")
+                .upsert([record], onConflict: "id", returning: .minimal)
+                .execute()
+
+            currentUserID = session.user.id
+            currentUserEmail = email
+            hasSynchronizedCaregiverDataForCurrentSession = false
+        } catch {
+            logger.error("Failed to upsert APNs token for caregiver: \(error.localizedDescription, privacy: .public)")
+            lastErrorMessage = Self.userFriendlyMessage(from: error)
+        }
+    }
+
     func downloadAvatarImage(from url: URL) async throws -> Data {
         guard let token = currentAccessToken else {
             throw AvatarDownloadError.missingSession
