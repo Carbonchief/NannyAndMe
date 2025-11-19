@@ -270,7 +270,7 @@ struct ShareDataView: View {
                     } label: {
                         Label(L10n.ShareData.QRScanner.button, systemImage: "qrcode.viewfinder")
                             .labelStyle(.iconOnly)
-                            .frame(width: 52, height: 52)
+                            .frame(width: 52)
                     }
                     .buttonStyle(.bordered)
                     .tint(.purple)

@@ -2,7 +2,19 @@ import SwiftUI
 import UIKit
 import AVFoundation
 
-@MainActor
+/// Non-isolated helper that wraps AVCaptureDevice.requestAccess in async/await.
+/// Safe to be called from any actor / thread.
+nonisolated
+func requestCameraAccessTCCBridge() async -> Bool {
+    await withCheckedContinuation { continuation in
+        AVCaptureDevice.requestAccess(for: .video) { granted in
+            // This runs on TCC's queue; the continuation is non-isolated,
+            // so it's safe to resume directly here.
+            continuation.resume(returning: granted)
+        }
+    }
+}
+
 struct ShareDataQRScannerView: View {
     let onScan: (String) -> Void
 
@@ -112,13 +124,10 @@ struct ShareDataQRScannerView: View {
     private func requestCameraAccessIfNeeded() async {
         guard authorizationStatus == .notDetermined, hasRequestedAccess == false else { return }
         hasRequestedAccess = true
-        let granted = await withCheckedContinuation { continuation in
-            AVCaptureDevice.requestAccess(for: .video) { granted in
-                Task { @MainActor in
-                    continuation.resume(returning: granted)
-                }
-            }
-        }
+
+        // Await the nonisolated helper. When this returns, we're back in whatever
+        // context .task used (SwiftUI will run this on the main actor).
+        let granted = await requestCameraAccessTCCBridge()
         authorizationStatus = granted ? .authorized : .denied
     }
 }
@@ -207,7 +216,11 @@ final class QRCodeScannerController: UIViewController, AVCaptureMetadataOutputOb
         }
     }
 
-    nonisolated func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
+    nonisolated func metadataOutput(
+        _ output: AVCaptureMetadataOutput,
+        didOutput metadataObjects: [AVMetadataObject],
+        from connection: AVCaptureConnection
+    ) {
         guard let object = metadataObjects.compactMap({ $0 as? AVMetadataMachineReadableCodeObject }).first,
               let value = object.stringValue else { return }
 
