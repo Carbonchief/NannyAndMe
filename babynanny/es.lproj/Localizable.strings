@@ -389,6 +389,7 @@
 "feeding.bottle" = "Biberón";
 "feeding.bottleType.formula" = "Leche de fórmula";
 "feeding.bottleType.breastMilk" = "Leche materna";
+"feeding.bottleType.cowMilk" = "Leche de vaca";
 "feeding.leftBreast" = "Pecho izquierdo";
 "feeding.rightBreast" = "Pecho derecho";
 "feeding.meal" = "Comida";

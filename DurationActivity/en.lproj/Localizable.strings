@@ -10,6 +10,7 @@
 "feeding.meal" = "Meal";
 "feeding.bottleType.formula" = "Formula";
 "feeding.bottleType.breastMilk" = "Breast milk";
+"feeding.bottleType.cowMilk" = "Cow's milk";
 "common.stop" = "Stop";
 "profile.new" = "New Profile";
 "formatter.justNow" = "Just now";

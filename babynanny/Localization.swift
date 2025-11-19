@@ -1435,6 +1435,7 @@ enum L10n {
     enum BottleType {
         static let formula = String(localized: "feeding.bottleType.formula", defaultValue: "Formula")
         static let breastMilk = String(localized: "feeding.bottleType.breastMilk", defaultValue: "Breast milk")
+        static let cowMilk = String(localized: "feeding.bottleType.cowMilk", defaultValue: "Cow's milk")
     }
 
     enum Profile {
