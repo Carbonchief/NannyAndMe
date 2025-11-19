@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 
 enum ActionHaptics {
+    @MainActor
     static func playLogSuccess() {
         guard isEnabled else { return }
         let generator = UINotificationFeedbackGenerator()
