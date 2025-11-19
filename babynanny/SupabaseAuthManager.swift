@@ -1424,6 +1424,7 @@ private struct BabyActionRecord: Codable, Identifiable {
     var createdAt: Date?
     var editedAt: Date?
     var profileReferenceID: UUID?
+    var lastEditedBy: UUID?
     private static let decodingLogger = Logger(subsystem: "com.prioritybit.babynanny", category: "supabase-actions-decoding")
 
     init?(action: BabyActionSnapshot, caregiverID: UUID, profileID: UUID) {
@@ -1438,6 +1439,7 @@ private struct BabyActionRecord: Codable, Identifiable {
         self.createdAt = action.startDate.normalizedToUTC()
         self.editedAt = action.updatedAt
         self.profileReferenceID = profileID
+        self.lastEditedBy = caregiverID
     }
 
     var profileID: UUID? {
@@ -1467,6 +1469,7 @@ private struct BabyActionRecord: Codable, Identifiable {
         case updatedAt = "updated_at"
         case profileIDLower = "profile_id"
         case profileIDLegacy = "Profile_Id"
+        case lastEditedBy = "last_edited_by"
     }
 
     init(from decoder: Decoder) throws {
@@ -1500,6 +1503,8 @@ private struct BabyActionRecord: Codable, Identifiable {
         if profileReferenceID == nil, let rawNote2 = note2 {
             profileReferenceID = UUID(uuidString: rawNote2)
         }
+
+        lastEditedBy = try container.decodeIfPresent(UUID.self, forKey: .lastEditedBy)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -1537,6 +1542,11 @@ private struct BabyActionRecord: Codable, Identifiable {
             try container.encode(editedAt, forKey: .editedAt)
         } else {
             try container.encodeNil(forKey: .editedAt)
+        }
+        if let lastEditedBy {
+            try container.encode(lastEditedBy, forKey: .lastEditedBy)
+        } else {
+            try container.encodeNil(forKey: .lastEditedBy)
         }
     }
 }
