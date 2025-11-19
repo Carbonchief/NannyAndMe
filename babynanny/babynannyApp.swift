@@ -26,10 +26,9 @@ struct babynannyApp: App {
     @State private var isShowingSplashScreen = true
 
     init() {
-        var configuration = Configuration.Builder(withAPIKey: "test_ZOvBHiTttFESXkDpIwmtIaZZQSC")
-            .with(usesStoreKit2IfAvailable: true)
+        let configuration = Configuration.Builder(withAPIKey: "test_ZOvBHiTttFESXkDpIwmtIaZZQSC")
+            .with(storeKitVersion: .storeKit2IfAvailable)
             .build()
-        configuration.entitlementVerificationMode = .informational
         Purchases.logLevel = .warn
         Purchases.configure(with: configuration)
 
