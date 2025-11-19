@@ -225,6 +225,7 @@
 "shareData.alert.airdropFailure.message" = "AirDrop konnte den Export nicht teilen.";
 "shareData.alert.airdropFailure.messageWithReason" = "AirDrop konnte den Export nicht teilen. (%@)";
 "shareData.supabase.title" = "Automatisches Teilen";
+"shareData.supabase.premiumDescription" = "Automatisches Teilen ist eine Pro-Funktion. Schalte Nanny & Me Pro frei, um Betreuer automatisch einzuladen.";
 "shareData.supabase.emailPlaceholder" = "E-Mail-Adresse des Empfängers";
 "shareData.supabase.shareButton" = "Profil teilen";
 "shareData.supabase.footer.authenticated" = "Lade eine andere Betreuungsperson ein, dieses Profil über ihr Konto zu nutzen.";

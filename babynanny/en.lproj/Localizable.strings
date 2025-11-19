@@ -225,6 +225,7 @@
 "shareData.alert.airdropFailure.message" = "AirDrop could not share the export.";
 "shareData.alert.airdropFailure.messageWithReason" = "AirDrop could not share the export. (%@)";
 "shareData.supabase.title" = "Automatic Sharing";
+"shareData.supabase.premiumDescription" = "Automatic sharing is a Pro feature. Unlock Nanny & Me Pro to invite caregivers automatically.";
 "shareData.supabase.emailPlaceholder" = "Recipient email address";
 "shareData.supabase.shareButton" = "Share Profile";
 "shareData.supabase.footer.authenticated" = "Invite another caregiver to access this profile from their account.";

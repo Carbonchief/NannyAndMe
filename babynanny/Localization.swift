@@ -1016,6 +1016,10 @@ enum L10n {
                 localized: "shareData.supabase.title",
                 defaultValue: "Automatic Sharing"
             )
+            static let premiumDescription = String(
+                localized: "shareData.supabase.premiumDescription",
+                defaultValue: "Automatic sharing is a Pro feature. Unlock Nanny & Me Pro to invite caregivers automatically."
+            )
             static let emailPlaceholder = String(
                 localized: "shareData.supabase.emailPlaceholder",
                 defaultValue: "Recipient email address"
