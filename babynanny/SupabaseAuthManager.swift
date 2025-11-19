@@ -25,6 +25,7 @@ final class SupabaseAuthManager: ObservableObject {
     private var hasSynchronizedCaregiverDataForCurrentSession = false
     private var currentAppleNonce: String?
     private var currentAccessToken: String?
+    private weak var subscriptionService: RevenueCatSubscriptionService?
     private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
     private static let profilePhotosBucketName = "ProfilePhotos"
 
@@ -71,6 +72,10 @@ final class SupabaseAuthManager: ObservableObject {
             supabaseBaseURL = nil
             configurationError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
+    }
+
+    func registerSubscriptionService(_ service: RevenueCatSubscriptionService) {
+        subscriptionService = service
     }
 
     func clearMessages() {
@@ -208,6 +213,7 @@ final class SupabaseAuthManager: ObservableObject {
             currentUserID = nil
             currentAccessToken = nil
             hasSynchronizedCaregiverDataForCurrentSession = false
+            await subscriptionService?.logOutIfNeeded()
         } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
         }
@@ -230,6 +236,10 @@ final class SupabaseAuthManager: ObservableObject {
         currentAccessToken = session.accessToken
         infoMessage = nil
         hasSynchronizedCaregiverDataForCurrentSession = false
+        Task { @MainActor [weak subscriptionService] in
+            guard let service = subscriptionService else { return }
+            await service.logInIfNeeded(appUserID: session.user.id.uuidString)
+        }
     }
 
     private func refreshSession() async {

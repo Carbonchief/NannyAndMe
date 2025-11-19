@@ -415,3 +415,13 @@
 "sync.progressPercentage" = "%.0f%% completado";
 "sync.preparingUpdates" = "Preparando tus últimas actualizaciones…";
 "sync.initialSyncFailed" = "No pudimos terminar de descargar tus datos. Seguiremos intentándolo en segundo plano.";
+"settings.subscription.section" = "Nanny & Me Pro";
+"settings.subscription.manage" = "Administrar suscripción";
+"settings.subscription.restore" = "Restaurar compras";
+"settings.subscription.restoreInProgress" = "Restaurando…";
+"settings.subscription.activeDescription" = "Tienes acceso a todas las funciones Pro en este dispositivo.";
+"settings.subscription.unlock" = "Desbloquear Nanny & Me Pro";
+"settings.subscription.unlockDescription" = "Planes semanales y de pago único disponibles con prueba gratuita.";
+"settings.subscription.loading" = "Cargando planes…";
+"settings.subscription.error" = "Problema con la suscripción";
+"settings.subscription.customerCenterUnavailable" = "Customer Center no está incluido en esta compilación.";

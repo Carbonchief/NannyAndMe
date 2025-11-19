@@ -12,10 +12,9 @@ import UIKit
 struct ReportsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
+    @EnvironmentObject private var subscriptionService: RevenueCatSubscriptionService
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @AppStorage("reports.lastSelectedTab") private var persistedTabIdentifier = ReportsTab.dailySnapshot.persistenceIdentifier
-    @AppStorage("hasUnlockedPremium") private var hasUnlockedPremium = false
-    @StateObject private var paywallViewModel: OnboardingPaywallViewModel
     @State private var selectedTab: ReportsTab = .dailySnapshot
     @State private var calendarSelectedDate = Date()
     @State private var didInitializeTab = false
@@ -23,7 +22,6 @@ struct ReportsView: View {
     @State private var shareContentWidth: CGFloat = 0
     @State private var highlightedTrendDay: Date?
     @State private var isPaywallPresented = false
-    @State private var selectedPaywallPlan: PaywallPlan = .trial
     @State private var pendingCalendarUnlock = false
     private let tabResetID: UUID
 
@@ -32,7 +30,6 @@ struct ReportsView: View {
     }
 
     init(tabResetID: UUID) {
-        _paywallViewModel = StateObject(wrappedValue: OnboardingPaywallViewModel())
         self.tabResetID = tabResetID
     }
 
@@ -88,32 +85,20 @@ struct ReportsView: View {
             }
         }
         .sheet(isPresented: $isPaywallPresented, onDismiss: {
-            if !hasUnlockedPremium {
+            if subscriptionService.hasProAccess == false {
                 pendingCalendarUnlock = false
             }
         }) {
             NavigationStack {
-                PaywallContentView(
-                    selectedPlan: $selectedPaywallPlan,
-                    viewModel: paywallViewModel,
-                    onClose: { isPaywallPresented = false }
-                ) {
-                    PaywallPurchaseButton(
-                        selectedPlan: $selectedPaywallPlan,
-                        viewModel: paywallViewModel,
-                        analyticsLabel: "reports_purchase_button_paywall"
-                    )
-                    .padding(.top, 12)
+                RevenueCatPaywallContainer {
+                    isPaywallPresented = false
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 24)
                 .background(Color(.systemBackground).ignoresSafeArea())
             }
-            .task {
-                await paywallViewModel.loadProductsIfNeeded()
-            }
         }
-        .onChange(of: hasUnlockedPremium) { _, newValue in
+        .onChange(of: subscriptionService.hasProAccess) { _, newValue in
             if newValue {
                 if pendingCalendarUnlock {
                     pendingCalendarUnlock = false
@@ -125,6 +110,12 @@ struct ReportsView: View {
                 isPaywallPresented = false
             } else {
                 pendingCalendarUnlock = false
+                if selectedTab.isCalendar {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                        selectedTab = .dailySnapshot
+                    }
+                    persistedTabIdentifier = ReportsTab.dailySnapshot.persistenceIdentifier
+                }
             }
         }
     }
@@ -207,10 +198,8 @@ struct ReportsView: View {
     private func select(tab: ReportsTab) {
         guard tab != selectedTab else { return }
 
-        if tab.isCalendar && !hasUnlockedPremium {
+        if tab.isCalendar && !subscriptionService.hasProAccess {
             pendingCalendarUnlock = true
-            selectedPaywallPlan = .trial
-            paywallViewModel.errorMessage = nil
             isPaywallPresented = true
             return
         }
@@ -226,8 +215,6 @@ struct ReportsView: View {
         }
 
 
-        if tab.isCalendar {
-        }
     }
 
     private func initializeTabIfNeeded() {
@@ -1867,6 +1854,7 @@ private extension ReportsView {
     return ReportsView(tabResetID: UUID())
         .environmentObject(profileStore)
         .environmentObject(actionStore)
+        .environmentObject(RevenueCatSubscriptionService())
 }
 
 private let summaryDurationFormatter: DateComponentsFormatter = {

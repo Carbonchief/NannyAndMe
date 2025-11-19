@@ -7,9 +7,9 @@ struct ActionMapView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
     @EnvironmentObject private var locationManager: LocationManager
+    @EnvironmentObject private var subscriptionService: RevenueCatSubscriptionService
     @Environment(\.openURL) private var openURL
     @AppStorage("trackActionLocations") private var trackActionLocations = false
-    @AppStorage("hasUnlockedPremium") private var hasUnlockedPremium = false
     @AppStorage("actionLocationPermissionNeedsFix") private var actionLocationPermissionNeedsFix = false
     @State private var selectedCategory: BabyActionCategory?
     @State private var dateFilter: ActionMapDateFilter = .sevenDays
@@ -329,7 +329,7 @@ private extension ActionMapView {
     }
 
     func enableActionLocations() {
-        guard hasUnlockedPremium else { return }
+        guard subscriptionService.hasProAccess else { return }
         locationManager.requestPermissionIfNeeded()
         locationManager.ensurePreciseAccuracyIfNeeded()
         withAnimation {
@@ -675,4 +675,5 @@ private enum ActionMapDateFilter: Hashable, CaseIterable, Identifiable {
             .environmentObject(actionStore)
     }
     .environmentObject(LocationManager.shared)
+    .environmentObject(RevenueCatSubscriptionService())
 }

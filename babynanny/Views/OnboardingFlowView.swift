@@ -3,14 +3,12 @@ import SwiftUI
 struct OnboardingFlowView: View {
     @Binding var isPresented: Bool
     @EnvironmentObject private var authManager: SupabaseAuthManager
-    @StateObject private var paywallViewModel = OnboardingPaywallViewModel()
+    @EnvironmentObject private var subscriptionService: RevenueCatSubscriptionService
     @State private var selection: Page = .welcome
-    @State private var selectedPlan: PaywallPlan = .trial
     @State private var showAccountDecisionPage = true
     @State private var isAuthSheetPresented = false
     @State private var hasInitializedSelection = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
-    @AppStorage("hasUnlockedPremium") private var hasUnlockedPremium = false
 
     var body: some View {
         NavigationStack {
@@ -47,21 +45,14 @@ struct OnboardingFlowView: View {
             .background(Color(.systemBackground).ignoresSafeArea())
         }
         .interactiveDismissDisabled()
-        .task {
-            await paywallViewModel.loadProductsIfNeeded()
-        }
         .onAppear {
             guard hasInitializedSelection == false else { return }
             hasInitializedSelection = true
             configureInitialSelection()
         }
-        .onChange(of: paywallViewModel.hasUnlockedPremium) { _, newValue in
-            hasUnlockedPremium = newValue
+        .onChange(of: subscriptionService.hasProAccess) { _, newValue in
             guard newValue else { return }
             completeOnboarding()
-        }
-        .onChange(of: selectedPlan) { _, _ in
-            paywallViewModel.errorMessage = nil
         }
         .onChange(of: authManager.isAuthenticated) { _, isAuthenticated in
             guard isAuthenticated else { return }
@@ -190,11 +181,9 @@ private extension OnboardingFlowView {
     }
 
     var paywallPage: some View {
-        PaywallContentView(
-            selectedPlan: $selectedPlan,
-            viewModel: paywallViewModel,
-            onClose: completeOnboarding
-        )
+        RevenueCatPaywallContainer {
+            completeOnboarding()
+        }
     }
 
     func benefitRow(icon: String, text: String) -> some View {
@@ -268,23 +257,10 @@ private extension OnboardingFlowView {
             handlePrimaryAction()
         } label: {
             ZStack {
-                if selection == .paywall && paywallViewModel.isProcessingPurchase {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                            .tint(Color.white)
-
-                        Text(primaryButtonTitle)
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                    }
+                Text(primaryButtonTitle)
+                    .font(.headline)
+                    .fontWeight(.semibold)
                     .frame(maxWidth: .infinity)
-                } else {
-                    Text(primaryButtonTitle)
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity)
-                }
             }
             .frame(height: 48)
             .background(Color.accentColor)
@@ -292,7 +268,6 @@ private extension OnboardingFlowView {
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
-        .disabled(isPrimaryButtonDisabled)
     }
 
     var primaryButtonTitle: String {
@@ -302,38 +277,7 @@ private extension OnboardingFlowView {
         case .welcome, .benefits:
             return L10n.Onboarding.FirstLaunch.next
         case .paywall:
-            if paywallViewModel.isProcessingPurchase {
-                return L10n.Onboarding.FirstLaunch.processingPurchase
-            }
-            if selectedPlan == .lifetime {
-                return L10n.Onboarding.FirstLaunch.purchaseLifetime
-            } else {
-                return L10n.Onboarding.FirstLaunch.startTrial
-            }
-        }
-    }
-
-    var isPrimaryButtonDisabled: Bool {
-        switch selection {
-        case .accountDecision, .welcome, .benefits:
-            return false
-        case .paywall:
-            return paywallViewModel.isProcessingPurchase
-                || paywallViewModel.isRestoringPurchases
-                || paywallViewModel.isLoadingProducts
-        }
-    }
-
-    var primaryButtonAnalyticsLabel: String {
-        switch selection {
-        case .accountDecision:
-            return "onboarding_account_stay_local"
-        case .welcome:
-            return "onboarding_next_button_welcome"
-        case .benefits:
-            return "onboarding_next_button_benefits"
-        case .paywall:
-            return selectedPlan.analyticsLabel
+            return L10n.Onboarding.FirstLaunch.maybeLater
         }
     }
 
@@ -354,9 +298,7 @@ private extension OnboardingFlowView {
         case .accountDecision:
             advancePastAccountDecision()
         case .paywall:
-            Task {
-                await paywallViewModel.purchase(plan: selectedPlan)
-            }
+            completeOnboarding()
         }
     }
 
@@ -406,4 +348,5 @@ private extension OnboardingFlowView {
 #Preview {
     OnboardingFlowView(isPresented: .constant(true))
         .environmentObject(SupabaseAuthManager())
+        .environmentObject(RevenueCatSubscriptionService())
 }

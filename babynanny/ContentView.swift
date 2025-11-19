@@ -15,12 +15,11 @@ struct ContentView: View {
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
     @EnvironmentObject private var authManager: SupabaseAuthManager
     @EnvironmentObject private var locationManager: LocationManager
+    @EnvironmentObject private var subscriptionService: RevenueCatSubscriptionService
     @Environment(\.openURL) private var openURL
     @AppStorage("trackActionLocations") private var trackActionLocations = false
-    @AppStorage("hasUnlockedPremium") private var hasUnlockedPremium = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage("actionLocationPermissionNeedsFix") private var actionLocationPermissionNeedsFix = false
-    @StateObject private var paywallViewModel = OnboardingPaywallViewModel()
     @State private var selectedTab: Tab = .home
     @State private var previousTab: Tab = .home
     @State private var tabResetID = UUID()
@@ -33,7 +32,6 @@ struct ContentView: View {
     @State private var isAuthSheetPresented = false
     @State private var isOnboardingPresented = false
     @State private var isPaywallPresented = false
-    @State private var selectedPaywallPlan: PaywallPlan = .trial
     @State private var pendingMapUnlock = false
     @State private var activeLocationPrompt: LocationPromptType?
     @State private var menuDragOffset: CGFloat = 0
@@ -184,29 +182,17 @@ struct ContentView: View {
                 ManualActionEntrySheet()
             }
             .sheet(isPresented: $isPaywallPresented, onDismiss: {
-                if hasUnlockedPremium == false {
+                if subscriptionService.hasProAccess == false {
                     pendingMapUnlock = false
                 }
             }) {
                 NavigationStack {
-                    PaywallContentView(
-                        selectedPlan: $selectedPaywallPlan,
-                        viewModel: paywallViewModel,
-                        onClose: { isPaywallPresented = false }
-                    ) {
-                        PaywallPurchaseButton(
-                            selectedPlan: $selectedPaywallPlan,
-                            viewModel: paywallViewModel,
-                            analyticsLabel: "contentView_purchase_button_paywall"
-                        )
-                        .padding(.top, 12)
+                    RevenueCatPaywallContainer {
+                        isPaywallPresented = false
                     }
-                    .padding(.horizontal, 24)
                     .padding(.top, 24)
+                    .padding(.horizontal, 24)
                     .background(Color(.systemBackground).ignoresSafeArea())
-                }
-                .task {
-                    await paywallViewModel.loadProductsIfNeeded()
                 }
             }
             .sheet(isPresented: $isAuthSheetPresented) {
@@ -425,7 +411,7 @@ struct ContentView: View {
         .onChange(of: locationManager.authorizationStatus) { _, status in
             synchronizeTrackingPreference(with: status)
         }
-        .onChange(of: hasUnlockedPremium) { _, newValue in
+        .onChange(of: subscriptionService.hasProAccess) { _, newValue in
             if newValue {
                 isPaywallPresented = false
                 if pendingMapUnlock {
@@ -613,10 +599,8 @@ private extension ContentView {
 
     func canActivate(tab: Tab) -> Bool {
         guard tab == .map else { return true }
-        guard hasUnlockedPremium else {
+        guard subscriptionService.hasProAccess else {
             pendingMapUnlock = true
-            selectedPaywallPlan = .trial
-            paywallViewModel.errorMessage = nil
             isPaywallPresented = true
             return false
         }
@@ -636,7 +620,7 @@ private extension ContentView {
     }
 
     func enableActionLocations() {
-        guard hasUnlockedPremium else { return }
+        guard subscriptionService.hasProAccess else { return }
         locationManager.requestPermissionIfNeeded()
         locationManager.ensurePreciseAccuracyIfNeeded()
         withAnimation {
@@ -739,4 +723,5 @@ private extension ContentView {
         .environmentObject(actionStore)
         .environmentObject(ShareDataCoordinator())
         .environmentObject(LocationManager.shared)
+        .environmentObject(RevenueCatSubscriptionService())
 }

@@ -12,6 +12,7 @@ NannyAndMe is a SwiftUI-based iOS application that helps caregivers keep track o
 - **Profile photos** – Choose, crop, and automatically optimize profile pictures for each child.
 - **Profile metadata persistence** – Save profile names and avatars locally with SwiftData so changes stick between launches.
 - **Settings and stats views** – Review caregiver preferences and explore insights like weekly trends and daily patterns.
+- **RevenueCat subscriptions** – Unlock premium functionality through RevenueCat's SDK, hosted paywalls, and Customer Center management tools.
 - **Monthly age reminders** – Receive 10 a.m. notifications on each child's monthly milestones, with combined alerts when multiple profiles share the same celebration.
 - **Action reminders** – Get configurable notifications for sleep, diaper, and feeding actions with per-action intervals that reset whenever you log an entry.
 - **First-launch onboarding** – Celebrate new caregivers, highlight the core benefits, and introduce the Premium free trial with a dedicated welcome flow.
@@ -70,16 +71,22 @@ NannyAndMe/
    - Replace the placeholder URL and anonymous key with the values from your Supabase project.
    - Keep your real credentials out of commits (e.g., by resetting the file before pushing).
    - Add `nannyme://auth/verify` to your Supabase project's list of allowed redirect URLs so email verification links reopen the app.
-5. **Enable push notifications**
+5. **Configure RevenueCat**
+   - Add the app to your RevenueCat project and replace the public API key in `babynannyApp` when you move beyond the provided test key.
+   - Create an entitlement named **Nanny & Me Pro** so it matches `RevenueCatSubscriptionService.entitlementID`.
+   - Add the App Store products `NAMlifetime` (lifetime) and `NAMWeekly` (weekly) to RevenueCat, then include them in your primary offering and attach a hosted paywall design.
+   - Enable RevenueCat's Customer Center so the in-app "Manage subscription" button can present change-plan and cancellation options.
+   - Sync offerings after you update them so the SwiftUI paywall receives the latest configuration.
+6. **Enable push notifications**
    - In the **Signing & Capabilities** tab for the `babynanny` target, confirm that the **Push Notifications** capability is enabled.
    - Upload an APNs key or certificate for your Apple Developer account and ensure the bundle identifier used by the app matches the identifier on that key/certificate.
    - Update the `aps-environment` entitlement (currently set to `development`) if you need to ship a production build.
    - Run the app on a physical device to obtain an APNs token (logged by the application delegate) and register it with your push provider.
-6. **Run the app**
+7. **Run the app**
    - Select the `babynanny` scheme.
    - Choose an iOS Simulator device (e.g., iPhone 15 Pro) or a physical device when testing remote notifications.
    - Press <kbd>Cmd</kbd>+<kbd>R</kbd> to build and run.
-7. **That's it.** The app stores data locally; no additional iCloud setup is required. Supabase authentication is optional but enables future connected features.
+8. **That's it.** The app stores data locally; no additional iCloud setup is required. Supabase authentication is optional but enables future connected features.
 
 ## Testing
 
