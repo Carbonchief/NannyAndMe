@@ -27,27 +27,12 @@ struct ShareDataView: View {
     @State private var reinvitingShareIDs: Set<UUID> = []
     @FocusState private var isSupabaseEmailFocused: Bool
     @State private var isShowingAccountPrompt = false
+    @State private var qrCodePayload: ShareDataQRCodePayload?
+    @State private var isShowingQRScanner = false
 
     var body: some View {
         Form {
-            Section(header: Text(L10n.ShareData.profileSectionTitle)) {
-                let profile = profileStore.activeProfile
-                let historyCount = actionStore.state(for: profile.id).history.count
-
-                HStack(spacing: 16) {
-                    ProfileAvatarView(imageData: profile.imageData,
-                                      size: 44)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(L10n.ShareData.profileName(profile.displayName))
-
-                        Text(L10n.ShareData.logCount(historyCount))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
+            profileOverviewSection
             supabaseShareSection
 
             manualShareSection
@@ -55,6 +40,18 @@ struct ShareDataView: View {
         }
         .shareDataFormStyling()
         .navigationTitle(L10n.ShareData.title)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if authManager.isAuthenticated, let email = authManager.currentUserEmail {
+                    Button {
+                        qrCodePayload = ShareDataQRCodePayload(email: email)
+                    } label: {
+                        Image(systemName: "qrcode")
+                    }
+                    .accessibilityLabel(L10n.ShareData.QRCode.buttonLabel)
+                }
+            }
+        }
         .fileImporter(
             isPresented: $isImporting,
             allowedContentTypes: [.json],
@@ -106,6 +103,14 @@ struct ShareDataView: View {
                 }
             }
         }
+        .sheet(item: $qrCodePayload) { payload in
+            ShareDataQRCodeView(email: payload.email)
+        }
+        .sheet(isPresented: $isShowingQRScanner) {
+            ShareDataQRScannerView { value in
+                Task { await handleScannedQRCodeValue(value) }
+            }
+        }
         .onAppear {
             processPendingExternalImportIfNeeded()
             Task { await refreshShareInvitations(force: true) }
@@ -145,6 +150,26 @@ struct ShareDataView: View {
             return L10n.ShareData.Supabase.ownerOnlyFooter
         }
         return L10n.ShareData.Supabase.footerAuthenticated
+    }
+
+    private var profileOverviewSection: some View {
+        Section(header: Text(L10n.ShareData.profileSectionTitle)) {
+            let profile = profileStore.activeProfile
+            let historyCount = actionStore.state(for: profile.id).history.count
+
+            HStack(spacing: 16) {
+                ProfileAvatarView(imageData: profile.imageData,
+                                  size: 44)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L10n.ShareData.profileName(profile.displayName))
+
+                    Text(L10n.ShareData.logCount(historyCount))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 
     private var isAutomaticShareButtonDisabled: Bool {
@@ -215,20 +240,36 @@ struct ShareDataView: View {
                     .textContentType(.emailAddress)
                     .focused($isSupabaseEmailFocused)
 
-                ShareDataActionButton(
-                    title: L10n.ShareData.Supabase.shareButton,
-                    systemImage: "person.crop.circle.badge.plus",
-                    tint: .purple,
-                    action: {
-                        if authManager.isAuthenticated {
-                            Task { await shareProfileWithSupabase() }
-                        } else {
-                            isShowingAccountPrompt = true
-                        }
-                    },
-                    isLoading: isSharingProfile
-                )
-                .disabled(isAutomaticShareButtonDisabled)
+                HStack(alignment: .top, spacing: 8) {
+                    ShareDataActionButton(
+                        title: L10n.ShareData.Supabase.shareButton,
+                        systemImage: "person.crop.circle.badge.plus",
+                        tint: .purple,
+                        action: {
+                            if authManager.isAuthenticated {
+                                Task { await shareProfileWithSupabase() }
+                            } else {
+                                isShowingAccountPrompt = true
+                            }
+                        },
+                        isLoading: isSharingProfile
+                    )
+                    .disabled(isAutomaticShareButtonDisabled)
+
+                    Button {
+                        isShowingQRScanner = true
+                    } label: {
+                        Label(L10n.ShareData.QRScanner.button, systemImage: "qrcode.viewfinder")
+                            .labelStyle(.iconOnly)
+                            .frame(width: ShareDataActionButton.preferredHeight,
+                                   height: ShareDataActionButton.preferredHeight)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.purple)
+                    .controlSize(.large)
+                    .disabled(isAutomaticShareButtonDisabled)
+                    .accessibilityLabel(L10n.ShareData.QRScanner.button)
+                }
 
                 shareInvitationsList
             }
@@ -707,6 +748,20 @@ struct ShareDataView: View {
         }
     }
 
+    @MainActor
+    private func handleScannedQRCodeValue(_ value: String) async {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.contains("@") else {
+            alert = ShareDataAlert(
+                title: L10n.ShareData.Supabase.failureTitle,
+                message: L10n.ShareData.QRScanner.invalidPayload
+            )
+            return
+        }
+
+        supabaseShareEmail = trimmed
+        await shareProfileWithSupabase()
+    }
 }
 
 private struct AirDropShareItem: Identifiable {
@@ -825,6 +880,8 @@ private struct AirDropShareSheet: UIViewControllerRepresentable {
 }
 
 private struct ShareDataActionButton: View {
+    static let preferredHeight: CGFloat = 52
+
     let title: String
     let systemImage: String
     let tint: Color
@@ -845,6 +902,7 @@ private struct ShareDataActionButton: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: Self.preferredHeight)
         }
         .buttonStyle(.borderedProminent)
         .tint(tint)
@@ -873,6 +931,11 @@ private struct ShareDataAlert: Identifiable {
     let id = UUID()
     let title: String
     let message: String
+}
+
+private struct ShareDataQRCodePayload: Identifiable {
+    let id = UUID()
+    let email: String
 }
 
 struct SharedProfileData: Codable {

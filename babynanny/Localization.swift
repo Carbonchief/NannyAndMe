@@ -1122,6 +1122,64 @@ enum L10n {
                 )
             }
         }
+
+        enum QRCode {
+            static let buttonLabel = String(
+                localized: "shareData.qr.button",
+                defaultValue: "Show QR Code"
+            )
+            static let title = String(
+                localized: "shareData.qr.title",
+                defaultValue: "Share via QR Code"
+            )
+            static let description = String(
+                localized: "shareData.qr.description",
+                defaultValue: "Let another caregiver scan this code to automatically fill your email."
+            )
+            static let emailLabel = String(
+                localized: "shareData.qr.emailLabel",
+                defaultValue: "Account email"
+            )
+        }
+
+        enum QRScanner {
+            static let button = String(
+                localized: "shareData.qrScanner.button",
+                defaultValue: "Scan QR"
+            )
+            static let title = String(
+                localized: "shareData.qrScanner.title",
+                defaultValue: "Scan QR Code"
+            )
+            static let instructions = String(
+                localized: "shareData.qrScanner.instructions",
+                defaultValue: "Align the QR code inside the frame to capture the caregiver's email."
+            )
+            static let unavailable = String(
+                localized: "shareData.qrScanner.unavailable",
+                defaultValue: "Camera isn't available on this device."
+            )
+            static let denied = String(
+                localized: "shareData.qrScanner.denied",
+                defaultValue: "Camera access is required to scan QR codes. Update permissions in Settings."
+            )
+            static let openSettings = String(
+                localized: "shareData.qrScanner.openSettings",
+                defaultValue: "Open Settings"
+            )
+            static let loading = String(
+                localized: "shareData.qrScanner.loading",
+                defaultValue: "Preparing camera..."
+            )
+            static let error = String(
+                localized: "shareData.qrScanner.error",
+                defaultValue: "We couldn't start the camera. Please try again."
+            )
+            static let invalidPayload = String(
+                localized: "shareData.qrScanner.invalidPayload",
+                defaultValue: "That QR code didn't contain a valid email address."
+            )
+        }
     }
 
     enum Logs {
