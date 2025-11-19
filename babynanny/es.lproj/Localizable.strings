@@ -225,6 +225,7 @@
 "shareData.alert.airdropFailure.message" = "AirDrop no pudo compartir la exportación.";
 "shareData.alert.airdropFailure.messageWithReason" = "AirDrop no pudo compartir la exportación. (%@)";
 "shareData.supabase.title" = "Compartir automáticamente";
+"shareData.supabase.premiumDescription" = "El uso compartido automático es una función Premium. Desbloquea Nanny & Me Premium para invitar cuidadores automáticamente.";
 "shareData.supabase.emailPlaceholder" = "Correo electrónico del destinatario";
 "shareData.supabase.shareButton" = "Compartir perfil";
 "shareData.supabase.footer.authenticated" = "Invita a otra persona cuidadora a acceder a este perfil desde su cuenta.";
@@ -415,12 +416,12 @@
 "sync.progressPercentage" = "%.0f%% completado";
 "sync.preparingUpdates" = "Preparando tus últimas actualizaciones…";
 "sync.initialSyncFailed" = "No pudimos terminar de descargar tus datos. Seguiremos intentándolo en segundo plano.";
-"settings.subscription.section" = "Nanny & Me Pro";
+"settings.subscription.section" = "Nanny & Me Premium";
 "settings.subscription.manage" = "Administrar suscripción";
 "settings.subscription.restore" = "Restaurar compras";
 "settings.subscription.restoreInProgress" = "Restaurando…";
-"settings.subscription.activeDescription" = "Tienes acceso a todas las funciones Pro en este dispositivo.";
-"settings.subscription.unlock" = "Desbloquear Nanny & Me Pro";
+"settings.subscription.activeDescription" = "Tienes acceso a todas las funciones Premium en este dispositivo.";
+"settings.subscription.unlock" = "Desbloquear acceso premium";
 "settings.subscription.unlockDescription" = "Planes semanales y de pago único disponibles con prueba gratuita.";
 "settings.subscription.loading" = "Cargando planes…";
 "settings.subscription.error" = "Problema con la suscripción";

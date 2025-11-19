@@ -614,7 +614,7 @@ enum L10n {
         enum Subscription {
             static let sectionTitle = String(
                 localized: "settings.subscription.section",
-                defaultValue: "Nanny & Me Pro"
+                defaultValue: "Nanny & Me Premium"
             )
             static let manageButton = String(
                 localized: "settings.subscription.manage",
@@ -630,11 +630,11 @@ enum L10n {
             )
             static let activeDescription = String(
                 localized: "settings.subscription.activeDescription",
-                defaultValue: "You have access to every Pro feature on this device."
+                defaultValue: "You have access to every Premium feature on this device."
             )
             static let unlockButton = String(
                 localized: "settings.subscription.unlock",
-                defaultValue: "Unlock Nanny & Me Pro"
+                defaultValue: "Unlock Nanny & Me Premium"
             )
             static let unlockDescription = String(
                 localized: "settings.subscription.unlockDescription",
@@ -1015,6 +1015,10 @@ enum L10n {
             static let sectionTitle = String(
                 localized: "shareData.supabase.title",
                 defaultValue: "Automatic Sharing"
+            )
+            static let premiumDescription = String(
+                localized: "shareData.supabase.premiumDescription",
+                defaultValue: "Automatic sharing is a Premium feature. Unlock Nanny & Me Premium to invite caregivers automatically."
             )
             static let emailPlaceholder = String(
                 localized: "shareData.supabase.emailPlaceholder",

@@ -7,6 +7,7 @@ struct ShareDataView: View {
     @EnvironmentObject private var actionStore: ActionLogStore
     @EnvironmentObject private var shareDataCoordinator: ShareDataCoordinator
     @EnvironmentObject private var authManager: SupabaseAuthManager
+    @EnvironmentObject private var subscriptionService: RevenueCatSubscriptionService
 
     @State private var isImporting = false
     @State private var lastImportSummary: ActionLogStore.MergeSummary?
@@ -25,6 +26,7 @@ struct ShareDataView: View {
     @State private var updatingShareIDs: Set<UUID> = []
     @State private var revokingShareIDs: Set<UUID> = []
     @State private var reinvitingShareIDs: Set<UUID> = []
+    @State private var isPaywallPresented = false
     @FocusState private var isSupabaseEmailFocused: Bool
     @State private var isShowingAccountPrompt = false
     @State private var qrCodePayload: ShareDataQRCodePayload?
@@ -59,6 +61,14 @@ struct ShareDataView: View {
         ) { result in
             Task { @MainActor in
                 handleImportResult(result)
+            }
+        }
+        .sheet(isPresented: $isPaywallPresented) {
+            NavigationStack {
+                RevenueCatPaywallContainer()
+                    .padding(.horizontal, 24)
+                    .padding(.top, 24)
+                    .background(Color(.systemBackground).ignoresSafeArea())
             }
         }
         .alert(item: $alert) { alert in
@@ -113,16 +123,28 @@ struct ShareDataView: View {
         }
         .onAppear {
             processPendingExternalImportIfNeeded()
-            Task { await refreshShareInvitations(force: true) }
+            if subscriptionService.hasProAccess {
+                Task { await refreshShareInvitations(force: true) }
+            }
         }
         .onChange(of: shareDataCoordinator.externalImportRequest) { _, _ in
             processPendingExternalImportIfNeeded()
         }
         .onChange(of: profileStore.activeProfileID) { _, _ in
+            guard subscriptionService.hasProAccess else { return }
             Task { await refreshShareInvitations(force: true) }
         }
         .onChange(of: authManager.isAuthenticated) { _, _ in
+            guard subscriptionService.hasProAccess else { return }
             Task { await refreshShareInvitations(force: true) }
+        }
+        .onChange(of: subscriptionService.hasProAccess) { _, newValue in
+            if newValue {
+                Task { await refreshShareInvitations(force: true) }
+                isPaywallPresented = false
+            } else {
+                clearShareInvitationState()
+            }
         }
         .onDisappear {
             shareDataCoordinator.dismissShareData()
@@ -143,7 +165,7 @@ struct ShareDataView: View {
     }
 
     private var canModifyAutomaticShares: Bool {
-        authManager.isAuthenticated && isActiveProfileOwner == true
+        subscriptionService.hasProAccess && authManager.isAuthenticated && isActiveProfileOwner == true
     }
 
     private var automaticShareFooter: String {
@@ -190,7 +212,20 @@ struct ShareDataView: View {
     @ViewBuilder
     private var supabaseShareSection: some View {
         Section {
-            if authManager.isAuthenticated == false {
+            if subscriptionService.hasProAccess == false {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(L10n.ShareData.Supabase.premiumDescription)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                    ShareDataActionButton(
+                        title: L10n.Settings.Subscription.unlockButton,
+                        systemImage: "sparkles",
+                        tint: .purple,
+                        action: { isPaywallPresented = true }
+                    )
+                }
+            } else if authManager.isAuthenticated == false {
                 Text(L10n.ShareData.Supabase.signedOutDescription)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -284,9 +319,11 @@ struct ShareDataView: View {
         } header: {
             Text(L10n.ShareData.Supabase.sectionTitle)
         } footer: {
-            Text(automaticShareFooter)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            if subscriptionService.hasProAccess {
+                Text(automaticShareFooter)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -548,6 +585,10 @@ struct ShareDataView: View {
 
     @MainActor
     private func shareProfileWithSupabase() async {
+        guard subscriptionService.hasProAccess else {
+            isPaywallPresented = true
+            return
+        }
         guard !isSharingProfile else { return }
 
         let email = trimmedSupabaseEmail
@@ -675,11 +716,12 @@ struct ShareDataView: View {
 
     @MainActor
     private func refreshShareInvitations(force: Bool = false) async {
+        guard subscriptionService.hasProAccess else {
+            clearShareInvitationState()
+            return
+        }
         guard authManager.isAuthenticated else {
-            shareInvitations = []
-            shareInvitationsError = nil
-            isActiveProfileOwner = nil
-            isLoadingShareInvitations = false
+            clearShareInvitationState()
             return
         }
 
@@ -708,6 +750,14 @@ struct ShareDataView: View {
             shareInvitationsError = message
             isActiveProfileOwner = nil
         }
+    }
+
+    @MainActor
+    private func clearShareInvitationState() {
+        shareInvitations = []
+        shareInvitationsError = nil
+        isActiveProfileOwner = nil
+        isLoadingShareInvitations = false
     }
 
     @MainActor
@@ -974,5 +1024,6 @@ struct SharedProfileData: Codable {
             .environmentObject(actionStore)
             .environmentObject(ShareDataCoordinator())
             .environmentObject(SupabaseAuthManager())
+            .environmentObject(RevenueCatSubscriptionService())
     }
 }
