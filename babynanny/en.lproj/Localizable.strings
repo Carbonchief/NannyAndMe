@@ -415,3 +415,12 @@
 "profile.new" = "New Profile";
 "formatter.justNow" = "Just now";
 "formatter.ago" = "%@ ago";
+"settings.subscription.section" = "Nanny & Me Pro";
+"settings.subscription.manage" = "Manage subscription";
+"settings.subscription.restore" = "Restore purchases";
+"settings.subscription.restoreInProgress" = "Restoring…";
+"settings.subscription.activeDescription" = "You have access to every Pro feature on this device.";
+"settings.subscription.unlock" = "Unlock Nanny & Me Pro";
+"settings.subscription.unlockDescription" = "Weekly and lifetime plans are available with a free trial.";
+"settings.subscription.loading" = "Loading plans…";
+"settings.subscription.error" = "Subscription issue";

@@ -13,11 +13,10 @@ import UIKit
 struct SettingsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var locationManager: LocationManager
+    @EnvironmentObject private var subscriptionService: RevenueCatSubscriptionService
     @Environment(\.openURL) private var openURL
     @AppStorage("trackActionLocations") private var trackActionLocations = false
     @AppStorage(UserDefaultsKey.actionHapticsEnabled) private var actionHapticsEnabled = true
-    @AppStorage("hasUnlockedPremium") private var hasUnlockedPremium = false
-    @StateObject private var paywallViewModel = OnboardingPaywallViewModel()
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var pendingCrop: PendingCropImage?
     @State private var isProcessingPhoto = false
@@ -32,7 +31,6 @@ struct SettingsView: View {
     @State private var profilePendingDeletion: ChildProfile?
     @State private var isAddProfilePromptPresented = false
     @State private var isPaywallPresented = false
-    @State private var selectedPaywallPlan: PaywallPlan = .trial
     @State private var pendingLocationUnlock = false
     @State private var pendingAddProfileUnlock = false
 
@@ -40,6 +38,7 @@ struct SettingsView: View {
         Form {
             profilesSection
             activeProfileSection
+            subscriptionSection
             homeSection
             privacySection
             notificationsSection
@@ -107,33 +106,36 @@ struct SettingsView: View {
             .preferredColorScheme(.dark)
         }
         .sheet(isPresented: $isPaywallPresented, onDismiss: {
-            if !hasUnlockedPremium {
+            if subscriptionService.hasProAccess == false {
                 pendingLocationUnlock = false
                 pendingAddProfileUnlock = false
             }
         }) {
             NavigationStack {
-                PaywallContentView(
-                    selectedPlan: $selectedPaywallPlan,
-                    viewModel: paywallViewModel,
-                    onClose: { isPaywallPresented = false }
-                ) {
-                    PaywallPurchaseButton(
-                        selectedPlan: $selectedPaywallPlan,
-                        viewModel: paywallViewModel,
-                        analyticsLabel: "settings_purchase_button_paywall"
-                    )
-                    .padding(.top, 12)
+                RevenueCatPaywallContainer {
+                    isPaywallPresented = false
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 24)
                 .background(Color(.systemBackground).ignoresSafeArea())
             }
-            .task {
-                await paywallViewModel.loadProductsIfNeeded()
-            }
         }
-        .onChange(of: hasUnlockedPremium) { _, newValue in
+        .alert(L10n.Settings.Subscription.errorTitle,
+               isPresented: Binding(
+                get: { subscriptionService.lastError != nil && isPaywallPresented == false },
+                set: { presented in
+                    if presented == false {
+                        subscriptionService.clearError()
+                    }
+                }
+               )) {
+            Button(L10n.Common.done, role: .cancel) {
+                subscriptionService.clearError()
+            }
+        } message: {
+            Text(subscriptionService.lastError?.localizedDescription ?? "")
+        }
+        .onChange(of: subscriptionService.hasProAccess) { _, newValue in
             if newValue {
                 if pendingLocationUnlock {
                     if trackActionLocations == false {
@@ -167,25 +169,23 @@ struct SettingsView: View {
             }
             .onChange(of: trackActionLocations) { _, newValue in
                 if newValue {
-                    guard hasUnlockedPremium else {
+                    guard subscriptionService.hasProAccess else {
                         pendingLocationUnlock = true
                         withAnimation {
                             trackActionLocations = false
                         }
-                        selectedPaywallPlan = .trial
-                        paywallViewModel.errorMessage = nil
                         isPaywallPresented = true
                         return
                     }
 
                     locationManager.requestPermissionIfNeeded()
                     locationManager.ensurePreciseAccuracyIfNeeded()
-                } else if hasUnlockedPremium {
+                } else if subscriptionService.hasProAccess {
                     pendingLocationUnlock = false
                 }
             }
 
-            if hasUnlockedPremium {
+            if subscriptionService.hasProAccess {
                 Text(L10n.Settings.Privacy.trackActionLocationsDescription)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -219,16 +219,54 @@ struct SettingsView: View {
             }
 
             Button {
-                if hasUnlockedPremium || profileStore.profiles.isEmpty {
+                if subscriptionService.hasProAccess || profileStore.profiles.isEmpty {
                     isAddProfilePromptPresented = true
                 } else {
                     pendingAddProfileUnlock = true
-                    selectedPaywallPlan = .trial
-                    paywallViewModel.errorMessage = nil
                     isPaywallPresented = true
                 }
             } label: {
                 Label(L10n.Profiles.addProfile, systemImage: "plus")
+            }
+        }
+    }
+
+    private var subscriptionSection: some View {
+        Section(header: Text(L10n.Settings.Subscription.sectionTitle)) {
+            if subscriptionService.hasProAccess {
+                Button {
+                    presentCustomerCenter()
+                } label: {
+                    Label(L10n.Settings.Subscription.manageButton, systemImage: "person.crop.circle.badge.checkmark")
+                }
+
+                Button {
+                    Task { await subscriptionService.restorePurchases() }
+                } label: {
+                    if subscriptionService.isRestoringPurchases {
+                        HStack {
+                            ProgressView()
+                            Text(L10n.Settings.Subscription.restoring)
+                        }
+                    } else {
+                        Label(L10n.Settings.Subscription.restoreButton, systemImage: "arrow.clockwise")
+                    }
+                }
+                .disabled(subscriptionService.isRestoringPurchases)
+
+                Text(L10n.Settings.Subscription.activeDescription)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                Button {
+                    isPaywallPresented = true
+                } label: {
+                    Label(L10n.Settings.Subscription.unlockButton, systemImage: "sparkles")
+                }
+
+                Text(L10n.Settings.Subscription.unlockDescription)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -517,6 +555,16 @@ struct SettingsView: View {
         }
     }
 
+    private func presentCustomerCenter() {
+        guard let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive }) else { return }
+
+        Task {
+            await subscriptionService.presentCustomerCenter(from: scene)
+        }
+    }
+
     @MainActor
     private func refreshActionReminderSummaries() {
         reminderLoadTask?.cancel()
@@ -739,6 +787,7 @@ private enum Layout {
             .environmentObject(ProfileStore.preview)
             .environmentObject(ActionLogStore.previewStore(profiles: [:]))
             .environmentObject(LocationManager.shared)
+            .environmentObject(RevenueCatSubscriptionService())
 
     }
 }

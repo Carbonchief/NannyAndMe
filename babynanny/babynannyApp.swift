@@ -5,6 +5,7 @@
 //  Created by Luan van der Walt on 2025/10/06.
 //
 
+import RevenueCat
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
@@ -21,9 +22,17 @@ struct babynannyApp: App {
     @StateObject private var actionStore: ActionLogStore
     @StateObject private var authManager: SupabaseAuthManager
     @StateObject private var pushNotificationRegistrar: PushNotificationRegistrar
+    @StateObject private var subscriptionService: RevenueCatSubscriptionService
     @State private var isShowingSplashScreen = true
 
     init() {
+        var configuration = Configuration.Builder(withAPIKey: "test_ZOvBHiTttFESXkDpIwmtIaZZQSC")
+            .with(usesStoreKit2IfAvailable: true)
+            .build()
+        configuration.entitlementVerificationMode = .informational
+        Purchases.logLevel = .warn
+        Purchases.configure(with: configuration)
+
         let stack = AppDataStack()
         let scheduler = UserNotificationReminderScheduler()
         let profileStore = ProfileStore(modelContext: stack.mainContext,
@@ -35,8 +44,10 @@ struct babynannyApp: App {
         profileStore.registerActionStore(actionStore)
         actionStore.registerProfileStore(profileStore)
         let authManager = SupabaseAuthManager()
+        let subscriptionService = RevenueCatSubscriptionService()
         profileStore.registerAuthManager(authManager)
         actionStore.registerAuthManager(authManager)
+        authManager.registerSubscriptionService(subscriptionService)
 
         _appDataStack = StateObject(wrappedValue: stack)
         _profileStore = StateObject(wrappedValue: profileStore)
@@ -45,6 +56,7 @@ struct babynannyApp: App {
         _pushNotificationRegistrar = StateObject(
             wrappedValue: PushNotificationRegistrar(reminderScheduler: scheduler)
         )
+        _subscriptionService = StateObject(wrappedValue: subscriptionService)
     }
 
     var body: some Scene {
@@ -57,6 +69,7 @@ struct babynannyApp: App {
                     .environmentObject(shareDataCoordinator)
                     .environmentObject(authManager)
                     .environmentObject(LocationManager.shared)
+                    .environmentObject(subscriptionService)
                     .onOpenURL { url in
                         if handleDurationActivityURL(url) {
                             return

@@ -2,12 +2,10 @@ import SwiftUI
 
 struct ProfileSwitcherView: View {
     @EnvironmentObject private var profileStore: ProfileStore
+    @EnvironmentObject private var subscriptionService: RevenueCatSubscriptionService
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("hasUnlockedPremium") private var hasUnlockedPremium = false
-    @StateObject private var paywallViewModel = OnboardingPaywallViewModel()
     @State private var isAddProfilePromptPresented = false
     @State private var isPaywallPresented = false
-    @State private var selectedPaywallPlan: PaywallPlan = .trial
     @State private var pendingAddProfileUnlock = false
 
     var body: some View {
@@ -55,12 +53,10 @@ struct ProfileSwitcherView: View {
 
                 Section {
                     Button {
-                        if hasUnlockedPremium || profileStore.profiles.isEmpty {
+                        if subscriptionService.hasProAccess || profileStore.profiles.isEmpty {
                             isAddProfilePromptPresented = true
                         } else {
                             pendingAddProfileUnlock = true
-                            selectedPaywallPlan = .trial
-                            paywallViewModel.errorMessage = nil
                             isPaywallPresented = true
                         }
                     } label: {
@@ -84,32 +80,20 @@ struct ProfileSwitcherView: View {
             }
         }
         .sheet(isPresented: $isPaywallPresented, onDismiss: {
-            if !hasUnlockedPremium {
+            if subscriptionService.hasProAccess == false {
                 pendingAddProfileUnlock = false
             }
         }) {
             NavigationStack {
-                PaywallContentView(
-                    selectedPlan: $selectedPaywallPlan,
-                    viewModel: paywallViewModel,
-                    onClose: { isPaywallPresented = false }
-                ) {
-                    PaywallPurchaseButton(
-                        selectedPlan: $selectedPaywallPlan,
-                        viewModel: paywallViewModel,
-                        analyticsLabel: "profileSwitcher_purchase_button_paywall"
-                    )
-                    .padding(.top, 12)
+                RevenueCatPaywallContainer {
+                    isPaywallPresented = false
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 24)
                 .background(Color(.systemBackground).ignoresSafeArea())
             }
-            .task {
-                await paywallViewModel.loadProductsIfNeeded()
-            }
         }
-        .onChange(of: hasUnlockedPremium) { _, newValue in
+        .onChange(of: subscriptionService.hasProAccess) { _, newValue in
             if newValue {
                 if pendingAddProfileUnlock {
                     pendingAddProfileUnlock = false
@@ -156,4 +140,5 @@ struct ProfileAccessBadges: View {
 #Preview {
     ProfileSwitcherView()
         .environmentObject(ProfileStore.preview)
+        .environmentObject(RevenueCatSubscriptionService())
 }

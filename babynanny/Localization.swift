@@ -611,6 +611,45 @@ enum L10n {
             static let openSettings = String(localized: "settings.privacy.openSettings", defaultValue: "Open Settings")
         }
 
+        enum Subscription {
+            static let sectionTitle = String(
+                localized: "settings.subscription.section",
+                defaultValue: "Nanny & Me Pro"
+            )
+            static let manageButton = String(
+                localized: "settings.subscription.manage",
+                defaultValue: "Manage subscription"
+            )
+            static let restoreButton = String(
+                localized: "settings.subscription.restore",
+                defaultValue: "Restore purchases"
+            )
+            static let restoring = String(
+                localized: "settings.subscription.restoreInProgress",
+                defaultValue: "Restoring…"
+            )
+            static let activeDescription = String(
+                localized: "settings.subscription.activeDescription",
+                defaultValue: "You have access to every Pro feature on this device."
+            )
+            static let unlockButton = String(
+                localized: "settings.subscription.unlock",
+                defaultValue: "Unlock Nanny & Me Pro"
+            )
+            static let unlockDescription = String(
+                localized: "settings.subscription.unlockDescription",
+                defaultValue: "Weekly and lifetime plans are available with a free trial."
+            )
+            static let loadingPaywall = String(
+                localized: "settings.subscription.loading",
+                defaultValue: "Loading plans…"
+            )
+            static let errorTitle = String(
+                localized: "settings.subscription.error",
+                defaultValue: "Subscription issue"
+            )
+        }
+
     }
 
     enum Map {
