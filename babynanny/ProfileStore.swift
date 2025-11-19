@@ -538,6 +538,7 @@ final class ProfileStore: ObservableObject {
             for update in updates {
                 let remoteURL = update.avatarURL.flatMap { URL(string: $0) }
                 if let model = profileModel(withID: update.id) {
+                    let previousAvatarURL = model.avatarURL
                     let trimmedName = update.name.trimmingCharacters(in: .whitespacesAndNewlines)
                     if model.name != trimmedName {
                         model.name = trimmedName
@@ -555,7 +556,10 @@ final class ProfileStore: ObservableObject {
                         model.avatarURL = update.avatarURL
                         didChange = true
                     }
-                    if let remoteURL, model.imageData == nil {
+                    let didChangeAvatarURL = previousAvatarURL != update.avatarURL
+                    if let remoteURL,
+                       update.imageData == nil,
+                       (model.imageData == nil || didChangeAvatarURL) {
                         avatarsToDownload[update.id] = remoteURL
                     }
                     if didChange {
