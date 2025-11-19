@@ -421,7 +421,7 @@
 "settings.subscription.restore" = "Restore purchases";
 "settings.subscription.restoreInProgress" = "Restoring…";
 "settings.subscription.activeDescription" = "You have access to every Pro feature on this device.";
-"settings.subscription.unlock" = "Unlock Nanny & Me Pro";
+"settings.subscription.unlock" = "Unlock Premium Access";
 "settings.subscription.unlockDescription" = "Weekly and lifetime plans are available with a free trial.";
 "settings.subscription.loading" = "Loading plans…";
 "settings.subscription.error" = "Subscription issue";

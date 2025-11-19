@@ -218,13 +218,12 @@ struct ShareDataView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
-                    Button {
-                        isPaywallPresented = true
-                    } label: {
-                        Label(L10n.Settings.Subscription.unlockButton, systemImage: "sparkles")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.purple)
+                    ShareDataActionButton(
+                        title: L10n.Settings.Subscription.unlockButton,
+                        systemImage: "sparkles",
+                        tint: .purple,
+                        action: { isPaywallPresented = true }
+                    )
                 }
             } else if authManager.isAuthenticated == false {
                 Text(L10n.ShareData.Supabase.signedOutDescription)

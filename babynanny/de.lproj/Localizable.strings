@@ -421,7 +421,7 @@
 "settings.subscription.restore" = "Käufe wiederherstellen";
 "settings.subscription.restoreInProgress" = "Wiederherstellen …";
 "settings.subscription.activeDescription" = "Du hast Zugriff auf alle Pro-Funktionen auf diesem Gerät.";
-"settings.subscription.unlock" = "Nanny & Me Pro freischalten";
+"settings.subscription.unlock" = "Premiumzugang freischalten";
 "settings.subscription.unlockDescription" = "Wöchentliche und Lifetime-Pläne sind mit kostenloser Testphase verfügbar.";
 "settings.subscription.loading" = "Tarife werden geladen …";
 "settings.subscription.error" = "Abo-Problem";
