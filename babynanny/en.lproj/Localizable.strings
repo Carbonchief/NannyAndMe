@@ -225,7 +225,7 @@
 "shareData.alert.airdropFailure.message" = "AirDrop could not share the export.";
 "shareData.alert.airdropFailure.messageWithReason" = "AirDrop could not share the export. (%@)";
 "shareData.supabase.title" = "Automatic Sharing";
-"shareData.supabase.premiumDescription" = "Automatic sharing is a Pro feature. Unlock Nanny & Me Pro to invite caregivers automatically.";
+"shareData.supabase.premiumDescription" = "Automatic sharing is a Premium feature. Unlock Nanny & Me Premium to invite caregivers automatically.";
 "shareData.supabase.emailPlaceholder" = "Recipient email address";
 "shareData.supabase.shareButton" = "Share Profile";
 "shareData.supabase.footer.authenticated" = "Invite another caregiver to access this profile from their account.";
@@ -416,11 +416,11 @@
 "profile.new" = "New Profile";
 "formatter.justNow" = "Just now";
 "formatter.ago" = "%@ ago";
-"settings.subscription.section" = "Nanny & Me Pro";
+"settings.subscription.section" = "Nanny & Me Premium";
 "settings.subscription.manage" = "Manage subscription";
 "settings.subscription.restore" = "Restore purchases";
 "settings.subscription.restoreInProgress" = "Restoring…";
-"settings.subscription.activeDescription" = "You have access to every Pro feature on this device.";
+"settings.subscription.activeDescription" = "You have access to every Premium feature on this device.";
 "settings.subscription.unlock" = "Unlock Premium Access";
 "settings.subscription.unlockDescription" = "Weekly and lifetime plans are available with a free trial.";
 "settings.subscription.loading" = "Loading plans…";

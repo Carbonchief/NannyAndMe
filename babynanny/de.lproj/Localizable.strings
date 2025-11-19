@@ -225,7 +225,7 @@
 "shareData.alert.airdropFailure.message" = "AirDrop konnte den Export nicht teilen.";
 "shareData.alert.airdropFailure.messageWithReason" = "AirDrop konnte den Export nicht teilen. (%@)";
 "shareData.supabase.title" = "Automatisches Teilen";
-"shareData.supabase.premiumDescription" = "Automatisches Teilen ist eine Pro-Funktion. Schalte Nanny & Me Pro frei, um Betreuer automatisch einzuladen.";
+"shareData.supabase.premiumDescription" = "Automatisches Teilen ist eine Premium-Funktion. Schalte Nanny & Me Premium frei, um Betreuer automatisch einzuladen.";
 "shareData.supabase.emailPlaceholder" = "E-Mail-Adresse des Empfängers";
 "shareData.supabase.shareButton" = "Profil teilen";
 "shareData.supabase.footer.authenticated" = "Lade eine andere Betreuungsperson ein, dieses Profil über ihr Konto zu nutzen.";
@@ -416,11 +416,11 @@
 "sync.progressPercentage" = "%.0f%% abgeschlossen";
 "sync.preparingUpdates" = "Aktualisierungen werden vorbereitet…";
 "sync.initialSyncFailed" = "Deine Daten konnten nicht vollständig geladen werden. Wir versuchen es im Hintergrund weiter.";
-"settings.subscription.section" = "Nanny & Me Pro";
+"settings.subscription.section" = "Nanny & Me Premium";
 "settings.subscription.manage" = "Abonnement verwalten";
 "settings.subscription.restore" = "Käufe wiederherstellen";
 "settings.subscription.restoreInProgress" = "Wiederherstellen …";
-"settings.subscription.activeDescription" = "Du hast Zugriff auf alle Pro-Funktionen auf diesem Gerät.";
+"settings.subscription.activeDescription" = "Du hast Zugriff auf alle Premium-Funktionen auf diesem Gerät.";
 "settings.subscription.unlock" = "Premiumzugang freischalten";
 "settings.subscription.unlockDescription" = "Wöchentliche und Lifetime-Pläne sind mit kostenloser Testphase verfügbar.";
 "settings.subscription.loading" = "Tarife werden geladen …";
