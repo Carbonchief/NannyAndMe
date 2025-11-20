@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		25168EF5DE4749179635741D /* babynanny/PushNotificationRegistrar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2554EF95714D4165B613194A /* babynanny/PushNotificationRegistrar.swift */; };
+		EDB30CD62ECF8FE30012466D /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = EDB30CD52ECF8FE30012466D /* PostHog */; };
 		EDBCCD052E9A324500C65A0E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBCCD042E9A324500C65A0E /* WidgetKit.framework */; };
 		EDBCCD072E9A324500C65A0E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDBCCD062E9A324500C65A0E /* SwiftUI.framework */; };
 		EDBCCD182E9A324800C65A0E /* DurationActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EDBCCD022E9A324500C65A0E /* DurationActivityExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -132,6 +133,7 @@
 				EDFCEBA02F0A5E1C00A9F08A /* Supabase in Frameworks */,
 				F0E1E0030000000100000001 /* RevenueCat in Frameworks */,
 				F0E1E0040000000100000001 /* RevenueCatUI in Frameworks */,
+				EDB30CD62ECF8FE30012466D /* PostHog in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -243,6 +245,7 @@
 				EDFCEBA12F0A5E1C00A9F08A /* Supabase */,
 				F0E1E1010000000100000001 /* RevenueCat */,
 				F0E1E1020000000100000001 /* RevenueCatUI */,
+				EDB30CD52ECF8FE30012466D /* PostHog */,
 			);
 			productName = babynanny;
 			productReference = EDD049912E93FE1A00795772 /* babynanny.app */;
@@ -342,6 +345,7 @@
 			packageReferences = (
 				EDFCEBA22F0A5E1C00A9F08A /* XCRemoteSwiftPackageReference "supabase-swift" */,
 				F0E1E2010000000100000001 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
+				EDB30CD42ECF8FE30012466D /* XCRemoteSwiftPackageReference "posthog-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = EDD049922E93FE1A00795772 /* Products */;
@@ -812,6 +816,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		EDB30CD42ECF8FE30012466D /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PostHog/posthog-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.35.0;
+			};
+		};
 		EDFCEBA22F0A5E1C00A9F08A /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/supabase-community/supabase-swift";
@@ -831,6 +843,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		EDB30CD52ECF8FE30012466D /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EDB30CD42ECF8FE30012466D /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
+		};
 		EDFCEBA12F0A5E1C00A9F08A /* Supabase */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = EDFCEBA22F0A5E1C00A9F08A /* XCRemoteSwiftPackageReference "supabase-swift" */;
