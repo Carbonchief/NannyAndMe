@@ -173,6 +173,10 @@ struct SupabaseAuthView: View {
                         .stroke(Color.primary.opacity(0.06), lineWidth: 1)
                 )
 
+            Text(L10n.Auth.passwordHint)
+                .font(.footnote)
+                .foregroundStyle(.primary.opacity(0.7))
+
             HStack {
                 Spacer()
                 Button(action: performPasswordResetRequest) {
@@ -185,11 +189,8 @@ struct SupabaseAuthView: View {
                     }
                 }
                 .disabled(isForgotPasswordDisabled)
+                Spacer()
             }
-
-            Text(L10n.Auth.passwordHint)
-                .font(.footnote)
-                .foregroundStyle(.primary.opacity(0.7))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(24)
