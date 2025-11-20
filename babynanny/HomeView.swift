@@ -2077,7 +2077,9 @@ private struct ActionDetailSheet: View {
                             onOptionActivated: { option, wasSelected in
                                 feedingSelection = option
 
-                                guard wasSelected else { return }
+                                if option == .bottle {
+                                    guard wasSelected else { return }
+                                }
 
                                 startIfReady()
                             },
