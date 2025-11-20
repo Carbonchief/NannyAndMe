@@ -30,7 +30,7 @@ final class SupabaseAuthManager: ObservableObject {
     private var currentAccessToken: String?
     private weak var subscriptionService: RevenueCatSubscriptionService?
     private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
-    private static let passwordRecoveryRedirectURL = URL(string: "nannyme://auth/recovery")
+    private static let passwordRecoveryRedirectURL = URL(string: "nannyme://auth/reset")
     private static let profilePhotosBucketName = "ProfilePhotos"
 
     enum ProfileShareResult {
@@ -326,20 +326,38 @@ final class SupabaseAuthManager: ObservableObject {
         return data
     }
 
-    func handleAuthenticationURL(_ url: URL) async {
-        guard let client else { return }
+    func canHandleAuthenticationURL(_ url: URL) -> Bool {
+        Self.isCustomAuthDeepLink(url) || Self.isPKCECallbackURL(url, supabaseHost: supabaseBaseURL?.host)
+    }
+
+    func handleAuthenticationURL(_ url: URL) async -> Bool {
         clearMessages()
+
+        if Self.isCustomAuthDeepLink(url) {
+            handleCustomAuthDeepLink(url)
+            return true
+        }
+
+        guard let client, Self.isPKCECallbackURL(url, supabaseHost: supabaseBaseURL?.host) else {
+            return false
+        }
+
         let isRecoveryLink = Self.isPasswordRecoveryURL(url)
+
         do {
             let session = try await client.auth.session(from: url)
             apply(session: session)
+
             if isRecoveryLink {
                 passwordRecoveryEmail = session.user.email
                 isPresentingPasswordResetPrompt = true
                 infoMessage = L10n.Auth.passwordResetSessionReady
             }
+
+            return true
         } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
+            return true
         }
     }
 
@@ -1158,6 +1176,47 @@ final class SupabaseAuthManager: ObservableObject {
         return components.count == 2 && components.allSatisfy { $0.isEmpty == false }
     }
 
+    private static func isCustomAuthDeepLink(_ url: URL) -> Bool {
+        guard url.scheme == "nannyme", url.host == "auth" else { return false }
+        let path = url.path.lowercased()
+        return path == "/reset" || path == "/recovery" || path == "/verify"
+    }
+
+    private static func isPKCECallbackURL(_ url: URL, supabaseHost: String?) -> Bool {
+        guard let scheme = url.scheme?.lowercased() else { return false }
+        let isWebScheme = scheme == "https" || scheme == "http"
+        let hasCode = url.query?.contains("code=") == true || url.query?.contains("access_token=") == true
+        let hostMatchesSupabase = supabaseHost.map { host in
+            url.host?.caseInsensitiveCompare(host) == .orderedSame
+        } ?? false
+
+        if isWebScheme && hasCode {
+            return true
+        }
+
+        if hostMatchesSupabase && hasCode {
+            return true
+        }
+
+        return false
+    }
+
+    private func handleCustomAuthDeepLink(_ url: URL) {
+        guard url.scheme == "nannyme", url.host == "auth" else { return }
+        let path = url.path.lowercased()
+
+        if path == "/reset" || path == "/recovery" {
+            passwordRecoveryEmail = passwordRecoveryEmail ?? currentUserEmail
+            isPresentingPasswordResetPrompt = true
+            infoMessage = L10n.Auth.passwordResetSessionReady
+            return
+        }
+
+        if path == "/verify" {
+            infoMessage = L10n.Auth.emailConfirmationInfo
+        }
+    }
+
     private static func isPasswordRecoveryURL(_ url: URL) -> Bool {
         if let typeQuery = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { item in
             item.name.lowercased() == "type"
@@ -1166,7 +1225,8 @@ final class SupabaseAuthManager: ObservableObject {
         }
 
         return url.pathComponents.contains(where: { component in
-            component.localizedCaseInsensitiveContains("recovery")
+            component.localizedCaseInsensitiveContains("recovery") ||
+                component.localizedCaseInsensitiveContains("reset")
         })
     }
 

@@ -126,10 +126,10 @@ private extension babynannyApp {
     }
 
     func handleSupabaseURL(_ url: URL) -> Bool {
-        guard url.scheme == "nannyme", url.host == "auth" else { return false }
+        guard authManager.canHandleAuthenticationURL(url) else { return false }
 
         Task {
-            await authManager.handleAuthenticationURL(url)
+            _ = await authManager.handleAuthenticationURL(url)
         }
 
         return true
