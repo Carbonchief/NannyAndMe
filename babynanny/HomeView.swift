@@ -1600,7 +1600,7 @@ private protocol ActionTypeOption: Identifiable, Hashable {
 extension BabyActionSnapshot.DiaperType: ActionTypeOption { }
 extension BabyActionSnapshot.FeedingType: ActionTypeOption {
     static var newActionOptions: [BabyActionSnapshot.FeedingType] {
-        [.bottle, .meal, .leftBreast, .rightBreast]
+        [.leftBreast, .rightBreast, .meal, .bottle]
     }
 }
 
@@ -1612,17 +1612,17 @@ private extension BabyActionSnapshot.FeedingType {
 
 private struct ActionTypeSelectionGrid<Option: ActionTypeOption>: View {
     let options: [Option]
-    @Binding var selection: Option
+    @Binding var selection: Option?
     let accentColor: Color
-    var onOptionActivated: ((Option) -> Void)?
+    var onOptionActivated: ((Option, Bool) -> Void)?
     let highlightedOptions: [Option: Alignment]
 
     private let columns: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
 
     init(options: [Option],
-         selection: Binding<Option>,
+         selection: Binding<Option?>,
          accentColor: Color,
-         onOptionActivated: ((Option) -> Void)? = nil,
+         onOptionActivated: ((Option, Bool) -> Void)? = nil,
          highlightedOptions: [Option: Alignment] = [:]) {
         self.options = options
         self._selection = selection
@@ -1635,8 +1635,9 @@ private struct ActionTypeSelectionGrid<Option: ActionTypeOption>: View {
         LazyVGrid(columns: columns, spacing: 16) {
             ForEach(options) { option in
                 Button {
+                    let wasSelected = selection == option
                     selection = option
-                    onOptionActivated?(option)
+                    onOptionActivated?(option, wasSelected)
                 } label: {
                     VStack(spacing: 12) {
                         Image(systemName: option.icon)
@@ -2031,8 +2032,8 @@ private struct ActionDetailSheet: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var actionStore: ActionLogStore
 
-    @State private var diaperSelection: BabyActionSnapshot.DiaperType = .pee
-    @State private var feedingSelection: BabyActionSnapshot.FeedingType = .bottle
+    @State private var diaperSelection: BabyActionSnapshot.DiaperType? = .pee
+    @State private var feedingSelection: BabyActionSnapshot.FeedingType?
     @State private var bottleTypeSelection: BabyActionSnapshot.BottleType = .formula
     @State private var bottleSelection: BottleVolumeOption = .preset(120)
     @State private var customBottleVolume: String = ""
@@ -2059,7 +2060,7 @@ private struct ActionDetailSheet: View {
                             options: BabyActionSnapshot.DiaperType.allCases,
                             selection: $diaperSelection,
                             accentColor: category.accentColor,
-                            onOptionActivated: { _ in
+                            onOptionActivated: { _, _ in
                                 startIfReady()
                             }
                         )
@@ -2073,7 +2074,11 @@ private struct ActionDetailSheet: View {
                             options: BabyActionSnapshot.FeedingType.newActionOptions,
                             selection: $feedingSelection,
                             accentColor: category.accentColor,
-                            onOptionActivated: { _ in
+                            onOptionActivated: { option, wasSelected in
+                                feedingSelection = option
+
+                                guard wasSelected else { return }
+
                                 startIfReady()
                             },
                             highlightedOptions: highlightedFeedingOptions
@@ -2097,7 +2102,7 @@ private struct ActionDetailSheet: View {
                         }
                     }
 
-                    if feedingSelection.requiresVolume {
+                    if feedingSelection?.requiresVolume == true {
                         Section {
                             Picker(selection: $bottleSelection) {
                                 ForEach(BottleVolumeOption.allOptions) { option in
@@ -2144,9 +2149,18 @@ private struct ActionDetailSheet: View {
         case .diaper:
             return ActionConfiguration(diaperType: diaperSelection, feedingType: nil, bottleType: nil, bottleVolume: nil)
         case .feeding:
+            guard let feedingSelection else {
+                return ActionConfiguration(diaperType: nil, feedingType: nil, bottleType: nil, bottleVolume: nil)
+            }
+
             let volume = feedingSelection.requiresVolume ? resolvedBottleVolume : nil
             let bottleType = feedingSelection == .bottle ? bottleTypeSelection : nil
-            return ActionConfiguration(diaperType: nil, feedingType: feedingSelection, bottleType: bottleType, bottleVolume: volume)
+            return ActionConfiguration(
+                diaperType: nil,
+                feedingType: feedingSelection,
+                bottleType: bottleType,
+                bottleVolume: volume
+            )
         }
     }
 
@@ -2189,8 +2203,12 @@ private struct ActionDetailSheet: View {
         if isReadOnly {
             return true
         }
-        if category == .feeding && feedingSelection.requiresVolume {
-            return resolvedBottleVolume == nil
+        if category == .feeding {
+            guard let feedingSelection else { return true }
+
+            if feedingSelection.requiresVolume {
+                return resolvedBottleVolume == nil
+            }
         }
         return false
     }
