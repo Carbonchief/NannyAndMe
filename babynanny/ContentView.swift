@@ -26,6 +26,7 @@ struct ContentView: View {
     @State private var tabResetID = UUID()
     @State private var isMenuVisible = false
     @State private var showSettings = false
+    @State private var showManageAccount = false
     @State private var showAllLogs = false
     @State private var isProfileSwitcherPresented = false
     @State private var isInitialProfilePromptPresented = false
@@ -55,321 +56,11 @@ struct ContentView: View {
         let tabs = visibleTabs
 
         return ZStack(alignment: .leading) {
-            NavigationStack {
-                VStack(spacing: 0) {
-                    AnimatedTabContent(
-                        selectedTab: selectedTab,
-                        previousTab: previousTab,
-                        tabResetID: tabResetID,
-                        onShowAllLogs: { showAllLogs = true }
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .simultaneousGesture(
-                        DragGesture(minimumDistance: 30, coordinateSpace: .local)
-                            .onEnded { value in
-                                let horizontal = value.translation.width
-                                let vertical = value.translation.height
+            navigationStackContent(tabs: tabs)
 
-                                guard abs(horizontal) > abs(vertical), abs(horizontal) > 40 else { return }
+            menuRevealHandle
 
-                                if horizontal < 0, let nextTab = nextTab(after: selectedTab, in: tabs) {
-                                    activate(tab: nextTab)
-                                } else if horizontal > 0, let previous = previousTab(before: selectedTab, in: tabs) {
-                                    activate(tab: previous)
-                                }
-                            }
-                    )
-
-                    VStack(spacing: 16) {
-                        HStack(spacing: 16) {
-                            HStack(spacing: 8) {
-                                ForEach(tabs, id: \.self) { tab in
-                                    Button {
-                                        handleTabTap(tab)
-                                    } label: {
-                                        Image(systemName: tab.icon)
-                                            .font(.system(size: 18, weight: .semibold))
-                                            .frame(maxWidth: .infinity)
-                                            .frame(height: 44)
-                                            .foregroundStyle(selectedTab == tab ? Color.accentColor : Color.secondary)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                                    .fill(selectedTab == tab ? Color.accentColor.opacity(0.12) : Color.clear)
-                                            )
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel(tab.title)
-                                    .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 10)
-                            .background(.ultraThinMaterial, in: Capsule())
-
-                            Button {
-                                AnalyticsTracker.capture("manual_entry_tap")
-                                isManualEntryPresented = true
-                            } label: {
-                                Image(systemName: "plus")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .frame(width: 48, height: 48)
-                                    .foregroundStyle(Color.accentColor)
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(isActiveProfileReadOnly)
-                            .background(.ultraThinMaterial, in: Circle())
-                            .accessibilityLabel(L10n.ManualEntry.title)
-                            .accessibilityHint(L10n.ManualEntry.accessibilityHint)
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
-                    }
-                    .background(Color(.systemBackground).ignoresSafeArea(edges: .bottom))
-                }
-                .disabled(isMenuVisible)
-                .toolbar {
-                    ToolbarItem(placement: .principal) {
-                        Text(profileStore.activeProfile.displayName)
-                            .font(.headline)
-                    }
-
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            withAnimation(.easeInOut) {
-                                isMenuVisible.toggle()
-                                menuDragOffset = 0
-                            }
-                            AnalyticsTracker.capture(
-                                "side_menu_toggle",
-                                properties: ["is_visible": isMenuVisible]
-                            )
-                        } label: {
-                            Image(systemName: "line.3.horizontal")
-                        }
-                    }
-
-                    ToolbarItem(placement: .topBarTrailing) {
-                        let doubleTap = TapGesture(count: 2)
-                            .onEnded {
-                                handleProfileCycle(direction: .next)
-                            }
-
-                        let singleTap = TapGesture()
-                            .onEnded {
-                                isProfileSwitcherPresented = true
-                            }
-
-                        ProfileAvatarView(imageData: profileStore.activeProfile.imageData,
-                                          size: 36)
-                            .contentShape(Rectangle())
-                            .gesture(doubleTap.exclusively(before: singleTap))
-                            .accessibilityLabel(L10n.Profiles.title)
-                            .accessibilityAddTraits(.isButton)
-                    }
-                }
-                .navigationBarTitleDisplayMode(.inline)
-                .navigationDestination(isPresented: $showSettings) {
-                    SettingsView()
-                }
-                .navigationDestination(isPresented: $showAllLogs) {
-                    AllLogsView()
-                }
-                .navigationDestination(
-                    isPresented: Binding(
-                        get: { shareDataCoordinator.isShowingShareData },
-                        set: { shareDataCoordinator.isShowingShareData = $0 }
-                    )
-                ) {
-                    ShareDataView()
-                }
-            }
-            .sheet(isPresented: $isProfileSwitcherPresented) {
-                ProfileSwitcherView()
-                    .environmentObject(profileStore)
-            }
-            .sheet(isPresented: $isManualEntryPresented) {
-                ManualActionEntrySheet()
-            }
-            .sheet(isPresented: $isPaywallPresented, onDismiss: {
-                if subscriptionService.hasProAccess == false {
-                    pendingMapUnlock = false
-                }
-            }) {
-                NavigationStack {
-                    RevenueCatPaywallContainer()
-                    .padding(.top, 24)
-                    .padding(.horizontal, 24)
-                    .background(Color(.systemBackground).ignoresSafeArea())
-                }
-            }
-            .sheet(isPresented: $isAuthSheetPresented) {
-                SupabaseAuthView()
-                    .environmentObject(authManager)
-            }
-            .sheet(
-                isPresented: Binding(
-                    get: { authManager.isPasswordChangeRequired },
-                    set: { isPresented in
-                        if isPresented == false {
-                            authManager.dismissPasswordChangeRequirement()
-                        }
-                    }
-                )
-            ) {
-                PasswordChangeView()
-                    .environmentObject(authManager)
-            }
-            .fullScreenCover(isPresented: $isOnboardingPresented) {
-                OnboardingFlowView(isPresented: $isOnboardingPresented)
-            }
-            .overlay {
-                Color.clear
-                    .allowsHitTesting(false)
-                    .alert(item: $pendingShareAlertProfile) { profile in
-                        Alert(
-                            title: Text(L10n.Profiles.pendingShareTitle),
-                            message: Text(L10n.Profiles.pendingShareMessage(profile.displayName)),
-                            primaryButton: .default(Text(L10n.Profiles.pendingShareAccept)) {
-                                handlePendingShareResponse(for: profile, accept: true)
-                            },
-                            secondaryButton: .destructive(Text(L10n.Profiles.pendingShareDecline)) {
-                                handlePendingShareResponse(for: profile, accept: false)
-                            }
-                        )
-                    }
-            }
-            .overlay {
-                Color.clear
-                    .allowsHitTesting(false)
-                    .alert(
-                        L10n.ShareData.Supabase.failureTitle,
-                        isPresented: Binding(
-                            get: { shareResponseErrorMessage != nil },
-                            set: { isPresented in
-                                if isPresented == false {
-                                    shareResponseErrorMessage = nil
-                                }
-                            }
-                        )
-                    ) {
-                        Button(L10n.Common.done) {
-                            shareResponseErrorMessage = nil
-                        }
-                    } message: {
-                        Text(shareResponseErrorMessage ?? "")
-                    }
-            }
-            .alert(item: $activeLocationPrompt, content: locationTrackingAlert)
-            .onChange(of: authManager.isAuthenticated) { _, isAuthenticated in
-                if isAuthenticated {
-                    isAuthSheetPresented = false
-                    synchronizeSupabaseAccount()
-                }
-            }
-            .onChange(of: shareDataCoordinator.shouldPresentAuthentication) { _, shouldPresent in
-                guard shouldPresent else { return }
-                isAuthSheetPresented = true
-                shareDataCoordinator.clearAuthenticationRequest()
-            }
-
-            .task(id: authManager.isAuthenticated) {
-                guard authManager.isAuthenticated else { return }
-                synchronizeSupabaseAccount()
-            }
-
-            if isMenuVisible == false {
-                Color.clear
-                    .frame(width: 24)
-                    .contentShape(Rectangle())
-                    .ignoresSafeArea(edges: .vertical)
-                    .highPriorityGesture(
-                        DragGesture(minimumDistance: 20, coordinateSpace: .local)
-                            .onEnded { value in
-                                let horizontal = value.translation.width
-                                let vertical = value.translation.height
-
-                                guard horizontal > 40, abs(horizontal) > abs(vertical) else { return }
-
-                                withAnimation(.easeInOut) {
-                                    isMenuVisible = true
-                                }
-                            }
-                    )
-                    .zIndex(3)
-            }
-
-            if isMenuVisible {
-                ZStack(alignment: .leading) {
-                    Color.black.opacity(0.25)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            withAnimation(.easeInOut) {
-                                isMenuVisible = false
-                                menuDragOffset = 0
-                            }
-                        }
-                        .zIndex(1)
-
-                    SideMenu(
-                        onSelectAllLogs: {
-                            withAnimation(.easeInOut) {
-                                isMenuVisible = false
-                                showAllLogs = true
-                                menuDragOffset = 0
-                            }
-                        },
-                        onSelectSettings: {
-                            withAnimation(.easeInOut) {
-                                isMenuVisible = false
-                                showSettings = true
-                                menuDragOffset = 0
-                            }
-                        },
-                        onSelectShareData: {
-                            withAnimation(.easeInOut) {
-                                isMenuVisible = false
-                                shareDataCoordinator.presentShareData()
-                                menuDragOffset = 0
-                            }
-                        },
-                        onSelectAuthentication: {
-                            withAnimation(.easeInOut) {
-                                isMenuVisible = false
-                                menuDragOffset = 0
-                            }
-                            isAuthSheetPresented = true
-                        }
-                    )
-                    .offset(x: menuDragOffset)
-                    .transition(.move(edge: .leading))
-                    .zIndex(2)
-                }
-                .simultaneousGesture(
-                    DragGesture()
-                        .onChanged { value in
-                            guard isMenuVisible else { return }
-                            let horizontal = value.translation.width
-                            menuDragOffset = min(0, horizontal)
-                        }
-                        .onEnded { value in
-                            guard isMenuVisible else { return }
-                            let horizontal = value.translation.width
-                            let dismissThreshold: CGFloat = -80
-
-                            if horizontal <= dismissThreshold {
-                                withAnimation(.easeInOut) {
-                                    isMenuVisible = false
-                                }
-                                menuDragOffset = 0
-                            } else {
-                                withAnimation(.easeInOut) {
-                                    menuDragOffset = 0
-                                }
-                            }
-                        }
-                )
-            }
+            sideMenuOverlay(tabs: tabs)
         }
         .sheet(isPresented: $isInitialProfilePromptPresented) {
             InitialProfileNamePromptView(
@@ -452,6 +143,350 @@ struct ContentView: View {
                         selectedTab = .home
                     }
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func navigationStackContent(tabs: [Tab]) -> some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                AnimatedTabContent(
+                    selectedTab: selectedTab,
+                    previousTab: previousTab,
+                    tabResetID: tabResetID,
+                    onShowAllLogs: { showAllLogs = true }
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 30, coordinateSpace: .local)
+                        .onEnded { value in
+                            handleTabSwipe(value, tabs: tabs)
+                        }
+                )
+
+                VStack(spacing: 16) {
+                    HStack(spacing: 16) {
+                        HStack(spacing: 8) {
+                            ForEach(tabs, id: \.self) { tab in
+                                Button {
+                                    handleTabTap(tab)
+                                } label: {
+                                    Image(systemName: tab.icon)
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 44)
+                                        .foregroundStyle(selectedTab == tab ? Color.accentColor : Color.secondary)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                                .fill(selectedTab == tab ? Color.accentColor.opacity(0.12) : Color.clear)
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(tab.title)
+                                .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(.ultraThinMaterial, in: Capsule())
+
+                        Button {
+                            AnalyticsTracker.capture("manual_entry_tap")
+                            isManualEntryPresented = true
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: 18, weight: .semibold))
+                                .frame(width: 48, height: 48)
+                                .foregroundStyle(Color.accentColor)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isActiveProfileReadOnly)
+                        .background(.ultraThinMaterial, in: Circle())
+                        .accessibilityLabel(L10n.ManualEntry.title)
+                        .accessibilityHint(L10n.ManualEntry.accessibilityHint)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                }
+                .background(Color(.systemBackground).ignoresSafeArea(edges: .bottom))
+            }
+            .disabled(isMenuVisible)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text(profileStore.activeProfile.displayName)
+                        .font(.headline)
+                }
+
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        withAnimation(.easeInOut) {
+                            isMenuVisible.toggle()
+                            menuDragOffset = 0
+                        }
+                        AnalyticsTracker.capture(
+                            "side_menu_toggle",
+                            properties: ["is_visible": isMenuVisible]
+                        )
+                    } label: {
+                        Image(systemName: "line.3.horizontal")
+                    }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    profileAvatarButton
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $showSettings) {
+                SettingsView()
+            }
+            .navigationDestination(isPresented: $showManageAccount) {
+                ManageAccountView()
+            }
+            .navigationDestination(isPresented: $showAllLogs) {
+                AllLogsView()
+            }
+            .navigationDestination(
+                isPresented: Binding(
+                    get: { shareDataCoordinator.isShowingShareData },
+                    set: { shareDataCoordinator.isShowingShareData = $0 }
+                )
+            ) {
+                ShareDataView()
+            }
+        }
+        .sheet(isPresented: $isProfileSwitcherPresented) {
+            ProfileSwitcherView()
+                .environmentObject(profileStore)
+        }
+        .sheet(isPresented: $isManualEntryPresented) {
+            ManualActionEntrySheet()
+        }
+        .sheet(isPresented: $isPaywallPresented, onDismiss: {
+            if subscriptionService.hasProAccess == false {
+                pendingMapUnlock = false
+            }
+        }) {
+            NavigationStack {
+                RevenueCatPaywallContainer()
+                    .padding(.top, 24)
+                    .padding(.horizontal, 24)
+                    .background(Color(.systemBackground).ignoresSafeArea())
+            }
+        }
+        .sheet(isPresented: $isAuthSheetPresented) {
+            SupabaseAuthView()
+                .environmentObject(authManager)
+        }
+        .sheet(
+            isPresented: Binding(
+                get: { authManager.isPasswordChangeRequired },
+                set: { isPresented in
+                    if isPresented == false {
+                        authManager.dismissPasswordChangeRequirement()
+                    }
+                }
+            )
+        ) {
+            PasswordChangeView()
+                .environmentObject(authManager)
+        }
+        .fullScreenCover(isPresented: $isOnboardingPresented) {
+            OnboardingFlowView(isPresented: $isOnboardingPresented)
+        }
+        .overlay { pendingShareAlert }
+        .overlay { shareFailureAlert }
+        .alert(item: $activeLocationPrompt, content: locationTrackingAlert)
+        .onChange(of: authManager.isAuthenticated) { _, isAuthenticated in
+            if isAuthenticated {
+                isAuthSheetPresented = false
+                synchronizeSupabaseAccount()
+            }
+        }
+        .onChange(of: shareDataCoordinator.shouldPresentAuthentication) { _, shouldPresent in
+            guard shouldPresent else { return }
+            isAuthSheetPresented = true
+            shareDataCoordinator.clearAuthenticationRequest()
+        }
+        .task(id: authManager.isAuthenticated) {
+            guard authManager.isAuthenticated else { return }
+            synchronizeSupabaseAccount()
+        }
+    }
+
+    private var profileAvatarButton: some View {
+        let doubleTap = TapGesture(count: 2)
+            .onEnded {
+                handleProfileCycle(direction: .next)
+            }
+
+        let singleTap = TapGesture()
+            .onEnded {
+                isProfileSwitcherPresented = true
+            }
+
+        return ProfileAvatarView(imageData: profileStore.activeProfile.imageData, size: 36)
+            .contentShape(Rectangle())
+            .gesture(doubleTap.exclusively(before: singleTap))
+            .accessibilityLabel(L10n.Profiles.title)
+            .accessibilityAddTraits(.isButton)
+    }
+
+    @ViewBuilder
+    private var pendingShareAlert: some View {
+        Color.clear
+            .allowsHitTesting(false)
+            .alert(item: $pendingShareAlertProfile) { profile in
+                Alert(
+                    title: Text(L10n.Profiles.pendingShareTitle),
+                    message: Text(L10n.Profiles.pendingShareMessage(profile.displayName)),
+                    primaryButton: .default(Text(L10n.Profiles.pendingShareAccept)) {
+                        handlePendingShareResponse(for: profile, accept: true)
+                    },
+                    secondaryButton: .destructive(Text(L10n.Profiles.pendingShareDecline)) {
+                        handlePendingShareResponse(for: profile, accept: false)
+                    }
+                )
+            }
+    }
+
+    @ViewBuilder
+    private var shareFailureAlert: some View {
+        Color.clear
+            .allowsHitTesting(false)
+            .alert(
+                L10n.ShareData.Supabase.failureTitle,
+                isPresented: Binding(
+                    get: { shareResponseErrorMessage != nil },
+                    set: { isPresented in
+                        if isPresented == false {
+                            shareResponseErrorMessage = nil
+                        }
+                    }
+                )
+            ) {
+                Button(L10n.Common.done) {
+                    shareResponseErrorMessage = nil
+                }
+            } message: {
+                Text(shareResponseErrorMessage ?? "")
+            }
+    }
+
+    @ViewBuilder
+    private var menuRevealHandle: some View {
+        if isMenuVisible == false {
+            Color.clear
+                .frame(width: 24)
+                .contentShape(Rectangle())
+                .ignoresSafeArea(edges: .vertical)
+                .highPriorityGesture(
+                    DragGesture(minimumDistance: 20, coordinateSpace: .local)
+                        .onEnded { value in
+                            let horizontal = value.translation.width
+                            let vertical = value.translation.height
+
+                            guard horizontal > 40, abs(horizontal) > abs(vertical) else { return }
+
+                            withAnimation(.easeInOut) {
+                                isMenuVisible = true
+                            }
+                        }
+                )
+                .zIndex(3)
+        }
+    }
+
+    @ViewBuilder
+    private func sideMenuOverlay(tabs: [Tab]) -> some View {
+        if isMenuVisible {
+            ZStack(alignment: .leading) {
+                Color.black.opacity(0.25)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.easeInOut) {
+                            isMenuVisible = false
+                            menuDragOffset = 0
+                        }
+                    }
+                    .zIndex(1)
+
+                SideMenu(
+                    onSelectAllLogs: {
+                        handleMenuSelection { showAllLogs = true }
+                    },
+                    onSelectSettings: {
+                        handleMenuSelection { showSettings = true }
+                    },
+                    onSelectShareData: {
+                        handleMenuSelection {
+                            shareDataCoordinator.presentShareData()
+                        }
+                    },
+                    onSelectManageAccount: {
+                        handleMenuSelection { showManageAccount = true }
+                    },
+                    onSelectAuthentication: {
+                        withAnimation(.easeInOut) {
+                            isMenuVisible = false
+                            menuDragOffset = 0
+                        }
+                        isAuthSheetPresented = true
+                    }
+                )
+                .offset(x: menuDragOffset)
+                .transition(.move(edge: .leading))
+                .zIndex(2)
+            }
+            .simultaneousGesture(
+                DragGesture()
+                    .onChanged { value in
+                        guard isMenuVisible else { return }
+                        let horizontal = value.translation.width
+                        menuDragOffset = min(0, horizontal)
+                    }
+                    .onEnded { value in
+                        guard isMenuVisible else { return }
+                        handleMenuDragEnd(value.translation.width)
+                    }
+            )
+        }
+    }
+
+    private func handleTabSwipe(_ value: DragGesture.Value, tabs: [Tab]) {
+        let horizontal = value.translation.width
+        let vertical = value.translation.height
+
+        guard abs(horizontal) > abs(vertical), abs(horizontal) > 40 else { return }
+
+        if horizontal < 0, let nextTab = nextTab(after: selectedTab, in: tabs) {
+            activate(tab: nextTab)
+        } else if horizontal > 0, let previous = previousTab(before: selectedTab, in: tabs) {
+            activate(tab: previous)
+        }
+    }
+
+    private func handleMenuSelection(_ action: @escaping () -> Void) {
+        withAnimation(.easeInOut) {
+            isMenuVisible = false
+            action()
+            menuDragOffset = 0
+        }
+    }
+
+    private func handleMenuDragEnd(_ horizontalTranslation: CGFloat) {
+        let dismissThreshold: CGFloat = -80
+
+        if horizontalTranslation <= dismissThreshold {
+            withAnimation(.easeInOut) {
+                isMenuVisible = false
+            }
+            menuDragOffset = 0
+        } else {
+            withAnimation(.easeInOut) {
+                menuDragOffset = 0
             }
         }
     }

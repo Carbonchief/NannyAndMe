@@ -493,6 +493,25 @@ final class ProfileStore: ObservableObject {
         }
     }
 
+    func removeAllProfilesAfterAccountDeletion() {
+        actionStore?.removeAllData()
+
+        mutateProfiles(reason: "account-data-clear") {
+            let descriptor = FetchDescriptor<ProfileActionStateModel>()
+            let models = (try? modelContext.fetch(descriptor)) ?? []
+
+            for model in models {
+                modelContext.delete(model)
+            }
+
+            activeProfileID = nil
+            settings.activeProfileID = nil
+            return true
+        }
+
+        persistSettings(reason: "account-data-clear-settings")
+    }
+
     func updateActiveProfile(_ updates: (ProfileActionStateModel) -> Void) {
         guard let activeID = activeProfileID else { return }
         updateProfile(withID: activeID, reason: "profile-update-active", updates: updates)

@@ -27,6 +27,7 @@ final class SupabaseAuthManager: ObservableObject {
     private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
     private static let passwordResetRedirectURL = URL(string: "nannyme://auth/reset")
     private static let profilePhotosBucketName = "ProfilePhotos"
+    private static let accountDeletionEdgeFunctionName = "smart-processor"
 
     private enum AuthURLFlow: String {
         case recovery
@@ -62,6 +63,17 @@ final class SupabaseAuthManager: ObservableObject {
         let message: String
 
         var errorDescription: String? { message }
+    }
+
+    enum UserDeletionError: LocalizedError {
+        case missingConfiguration
+        case missingSessionToken
+        case invalidResponse
+        case httpStatus(Int)
+
+        var errorDescription: String? {
+            L10n.ManageAccount.deleteFailureMessage
+        }
     }
 
     init() {
@@ -1060,6 +1072,226 @@ final class SupabaseAuthManager: ObservableObject {
         }
     }
 
+    private func invokeAccountDeletionEdgeFunction(accessToken: String) async throws {
+        guard let supabaseBaseURL else {
+            throw UserDeletionError.missingConfiguration
+        }
+
+        let functionPath = "functions/v1/\(Self.accountDeletionEdgeFunctionName)"
+        var request = URLRequest(url: supabaseBaseURL.appendingPathComponent(functionPath))
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        if let supabaseAnonKey {
+            request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+        }
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw UserDeletionError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            logger.error("Account deletion edge function failed: status \(httpResponse.statusCode)")
+            if let url = request.url?.absoluteString {
+                logger.error("Failed edge function URL: \(url, privacy: .public)")
+            }
+            throw UserDeletionError.httpStatus(httpResponse.statusCode)
+        }
+    }
+
+    func deleteOwnedAccountData() async -> Bool {
+        guard let client else {
+            lastErrorMessage = configurationError
+            return false
+        }
+
+        clearMessages()
+        isLoading = true
+        defer { isLoading = false }
+
+        if currentUserID == nil {
+            do {
+                let session = try await client.auth.session
+                currentUserID = session.user.id
+                currentUserEmail = session.user.email
+            } catch {
+                lastErrorMessage = Self.userFriendlyMessage(from: error)
+                return false
+            }
+        }
+
+        guard isAuthenticated, let userID = currentUserID else {
+            lastErrorMessage = L10n.ManageAccount.notAuthenticated
+            return false
+        }
+
+        var recordedError: Error?
+
+        func recordError(_ error: Error) {
+            if recordedError == nil {
+                recordedError = error
+            }
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(SupabaseDateDecoder.decode)
+
+        let ownedProfileIDs: [UUID]
+        do {
+            let response: PostgrestResponse<[BabyProfileOwnershipRecord]> = try await client.database
+                .from("baby_profiles")
+                .select("id, caregiver_id")
+                .eq("caregiver_id", value: userID.uuidString)
+                .execute()
+
+            let records: [BabyProfileOwnershipRecord] = try decodeResponse(
+                response.value,
+                decoder: decoder,
+                context: "account-profile-ownership"
+            )
+            ownedProfileIDs = records
+                .filter { $0.caregiverID == userID }
+                .map(\.id)
+        } catch {
+            recordError(error)
+
+            if let recordedError {
+                lastErrorMessage = Self.userFriendlyMessage(from: recordedError)
+            }
+
+            return false
+        }
+
+        let identifiers = ownedProfileIDs.map { $0.uuidString.lowercased() }
+
+        do {
+            let update = BabyActionClearEditorUpdate(lastEditedBy: nil)
+            _ = try await client.database
+                .from("baby_action")
+                .update(update)
+                .eq("last_edited_by", value: userID.uuidString)
+                .execute()
+        } catch {
+            recordError(error)
+        }
+
+        guard recordedError == nil else {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+            return false
+        }
+
+        do {
+            _ = try await client.database
+                .from("baby_action")
+                .delete()
+                .eq("caregiver_id", value: userID.uuidString)
+                .execute(options: .init(count: .exact))
+        } catch {
+            recordError(error)
+        }
+
+        guard recordedError == nil else {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+            return false
+        }
+
+        if identifiers.isEmpty == false {
+            do {
+                _ = try await client.database
+                    .from("baby_profile_shares")
+                    .delete()
+                    .in("baby_profile_id", value: identifiers)
+                    .execute()
+            } catch {
+                recordError(error)
+            }
+
+            guard recordedError == nil else {
+                lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+                return false
+            }
+
+            do {
+                _ = try await client.database
+                    .from("baby_profiles")
+                    .delete()
+                    .eq("caregiver_id", value: userID.uuidString)
+                    .execute()
+            } catch {
+                recordError(error)
+            }
+        }
+
+        guard recordedError == nil else {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+            return false
+        }
+
+        do {
+            _ = try await client.database
+                .from("baby_profile_shares")
+                .delete()
+                .eq("recipient_caregiver_id", value: userID.uuidString)
+                .execute()
+        } catch {
+            recordError(error)
+        }
+
+        guard recordedError == nil else {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+            return false
+        }
+
+        do {
+            _ = try await client.database
+                .from("caregivers")
+                .delete()
+                .eq("id", value: userID.uuidString)
+                .execute()
+        } catch {
+            recordError(error)
+        }
+
+        guard recordedError == nil else {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+            return false
+        }
+
+        do {
+            let accessToken: String
+            if let currentAccessToken {
+                accessToken = currentAccessToken
+            } else {
+                do {
+                    let session = try await client.auth.session
+                    accessToken = session.accessToken
+                    currentAccessToken = session.accessToken
+                } catch {
+                    throw UserDeletionError.missingSessionToken
+                }
+            }
+
+            try await invokeAccountDeletionEdgeFunction(accessToken: accessToken)
+        } catch {
+            recordError(error)
+        }
+
+        if let recordedError {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError)
+            return false
+        }
+
+        isAuthenticated = false
+        currentUserEmail = nil
+        currentUserID = nil
+        currentAccessToken = nil
+        hasSynchronizedCaregiverDataForCurrentSession = false
+        isPasswordChangeRequired = false
+        await subscriptionService?.logOutIfNeeded()
+
+        return true
+    }
+
     func shareBabyProfile(profileID: UUID,
                           recipientEmail: String,
                           permission: ProfileSharePermission) async -> ProfileShareResult {
@@ -1687,6 +1919,14 @@ private struct BabyProfileShareUpdate: Encodable {
     enum CodingKeys: String, CodingKey {
         case permission
         case status
+    }
+}
+
+private struct BabyActionClearEditorUpdate: Encodable {
+    var lastEditedBy: UUID?
+
+    enum CodingKeys: String, CodingKey {
+        case lastEditedBy = "last_edited_by"
     }
 }
 

@@ -13,19 +13,12 @@ struct SideMenu: View {
     let onSelectAllLogs: () -> Void
     let onSelectSettings: () -> Void
     let onSelectShareData: () -> Void
+    let onSelectManageAccount: () -> Void
     let onSelectAuthentication: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 32) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(L10n.Menu.title)
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                Text(L10n.Menu.subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.top, 48)
+        VStack(alignment: .leading, spacing: 24) {
+            header
 
             if let configurationError = authManager.configurationError {
                 VStack(alignment: .leading, spacing: 4) {
@@ -36,23 +29,7 @@ struct SideMenu: View {
                         .font(.footnote)
                         .foregroundStyle(.red)
                 }
-            } else if authManager.isAuthenticated {
-                VStack(alignment: .leading, spacing: 8) {
-                    if let email = authManager.currentUserEmail {
-                        Text(L10n.Menu.loggedInAs(email))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Button {
-                        AnalyticsTracker.capture("logout_tap")
-                        Task { await authManager.signOut() }
-                    } label: {
-                        Label(L10n.Menu.logout, systemImage: "rectangle.portrait.and.arrow.right")
-                            .font(.headline)
-                    }
-                }
-            } else {
+            } else if authManager.isAuthenticated == false {
                 Button(action: {
                     AnalyticsTracker.capture("login_prompt_opened")
                     onSelectAuthentication()
@@ -60,46 +37,86 @@ struct SideMenu: View {
                     Label(L10n.Menu.login, systemImage: "person.crop.circle.badge.plus")
                         .font(.headline)
                 }
+            } else if let email = authManager.currentUserEmail {
+                Text(L10n.Menu.loggedInAs(email))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
 
-            Button(action: {
-                AnalyticsTracker.capture("menu_all_logs_tap")
-                onSelectAllLogs()
-            }) {
-                Label(L10n.Menu.allLogs, systemImage: "list.bullet.rectangle")
-                    .font(.headline)
-            }
+            VStack(alignment: .leading, spacing: 12) {
+                Button(action: {
+                    AnalyticsTracker.capture("menu_all_logs_tap")
+                    onSelectAllLogs()
+                }) {
+                    Label(L10n.Menu.allLogs, systemImage: "list.bullet.rectangle")
+                        .font(.headline)
+                }
 
-            Button(action: {
-                AnalyticsTracker.capture("menu_share_data_tap")
-                onSelectShareData()
-            }) {
-                Label(L10n.Menu.shareData, systemImage: "arrow.up.arrow.down.circle.fill")
-                    .font(.headline)
-            }
+                Button(action: {
+                    AnalyticsTracker.capture("menu_share_data_tap")
+                    onSelectShareData()
+                }) {
+                    Label(L10n.Menu.shareData, systemImage: "arrow.up.arrow.down.circle.fill")
+                        .font(.headline)
+                }
 
-            Button(action: {
-                AnalyticsTracker.capture("menu_settings_tap")
-                onSelectSettings()
-            }) {
-                Label(L10n.Menu.settings, systemImage: "gearshape.fill")
-                    .font(.headline)
+                Button(action: {
+                    AnalyticsTracker.capture("menu_settings_tap")
+                    onSelectSettings()
+                }) {
+                    Label(L10n.Menu.settings, systemImage: "gearshape.fill")
+                        .font(.headline)
+                }
+
+                if authManager.isAuthenticated {
+                    Button(action: {
+                        AnalyticsTracker.capture("menu_manage_account_tap")
+                        onSelectManageAccount()
+                    }) {
+                        Label(L10n.Menu.manageAccount, systemImage: "person.crop.circle.badge.minus")
+                            .font(.headline)
+                    }
+                }
             }
 
             Spacer()
 
-            if let versionText {
-                Text(versionText)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 12) {
+                if authManager.isAuthenticated {
+                    Button(role: .destructive) {
+                        AnalyticsTracker.capture("logout_tap")
+                        Task { await authManager.signOut() }
+                    } label: {
+                        Label(L10n.Menu.logout, systemImage: "rectangle.portrait.and.arrow.right")
+                            .font(.headline)
+                    }
+                }
+
+                if let versionText {
+                    Text(versionText)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .padding(.horizontal, 24)
-        .padding(.bottom, 32)
+        .padding(.vertical, 32)
         .frame(maxWidth: 260, alignment: .leading)
         .frame(maxHeight: .infinity)
         .background(.ultraThinMaterial)
         .ignoresSafeArea()
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.Menu.title)
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            Text(L10n.Menu.subtitle)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.top, 48)
     }
 
     private var versionText: String? {
@@ -124,6 +141,7 @@ struct SideMenu: View {
     SideMenu(onSelectAllLogs: {},
              onSelectSettings: {},
              onSelectShareData: {},
+             onSelectManageAccount: {},
              onSelectAuthentication: {})
         .environmentObject(SupabaseAuthManager())
 }

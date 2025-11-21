@@ -182,11 +182,25 @@
 "menu.allLogs" = "All Logs";
 "menu.shareData" = "Share Data";
 "menu.settings" = "Settings";
+"menu.manageAccount" = "Manage Account";
 "menu.login" = "Sign In";
 "menu.logout" = "Sign Out";
 "menu.loggedInAs" = "Signed in as %1$@";
 "menu.authUnavailable" = "Supabase login unavailable. Check configuration.";
 "menu.version" = "Version %@";
+
+"manageAccount.title" = "Manage Account";
+"manageAccount.accountSectionTitle" = "Account";
+"manageAccount.deleteSectionTitle" = "Delete Account Data";
+"manageAccount.deleteDescription" = "Deletes your Nanny & Me account as well as all data and profiles from the app. This cannot be undone.";
+"manageAccount.deleteAction" = "Delete Account";
+"manageAccount.deleteConfirmationTitle" = "Delete account data?";
+"manageAccount.deleteConfirmationMessage" = "This removes all profiles and baby actions you own. This cannot be undone.";
+"manageAccount.deleteSuccessTitle" = "Account data deleted";
+"manageAccount.deleteSuccessMessage" = "Your account and data has been successfully deleted.";
+"manageAccount.deleteFailureTitle" = "Unable to delete data";
+"manageAccount.deleteFailureMessage" = "We couldn't delete your account data. Please try again.";
+"manageAccount.notAuthenticated" = "You need to be signed in to delete your account data.";
 "auth.title" = "Account";
 "auth.description" = "Enter your email and password. We'll create an account if needed or sign you in.";
 "auth.email" = "Email";

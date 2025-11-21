@@ -182,11 +182,25 @@
 "menu.allLogs" = "Alle Protokolle";
 "menu.shareData" = "Daten teilen";
 "menu.settings" = "Einstellungen";
+"menu.manageAccount" = "Konto verwalten";
 "menu.login" = "Anmelden";
 "menu.logout" = "Abmelden";
 "menu.loggedInAs" = "Angemeldet als %1$@";
 "menu.authUnavailable" = "Supabase-Anmeldung nicht verfügbar. Bitte Konfiguration prüfen.";
 "menu.version" = "Version %@";
+
+"manageAccount.title" = "Konto verwalten";
+"manageAccount.accountSectionTitle" = "Konto";
+"manageAccount.deleteSectionTitle" = "Kontodaten löschen";
+"manageAccount.deleteDescription" = "Löscht dein Nanny & Me-Konto sowie alle Daten und Profile aus der App. Dies kann nicht rückgängig gemacht werden.";
+"manageAccount.deleteAction" = "Konto löschen";
+"manageAccount.deleteConfirmationTitle" = "Kontodaten löschen?";
+"manageAccount.deleteConfirmationMessage" = "Dies entfernt alle Profile und Baby-Aktionen, die dir gehören. Dies kann nicht rückgängig gemacht werden.";
+"manageAccount.deleteSuccessTitle" = "Kontodaten gelöscht";
+"manageAccount.deleteSuccessMessage" = "Dein Konto und deine Daten wurden erfolgreich gelöscht.";
+"manageAccount.deleteFailureTitle" = "Daten konnten nicht gelöscht werden";
+"manageAccount.deleteFailureMessage" = "Wir konnten deine Kontodaten nicht löschen. Bitte versuche es erneut.";
+"manageAccount.notAuthenticated" = "Du musst angemeldet sein, um deine Kontodaten zu löschen.";
 "auth.title" = "Konto";
 "auth.description" = "Gib deine E-Mail und ein Passwort ein. Wir erstellen bei Bedarf ein Konto oder melden dich an.";
 "auth.email" = "E-Mail";
