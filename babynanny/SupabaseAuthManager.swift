@@ -1,7 +1,6 @@
 import AuthenticationServices
 import CryptoKit
 import Foundation
-import os
 import Supabase
 
 @MainActor
@@ -18,11 +17,6 @@ final class SupabaseAuthManager: ObservableObject {
     private let client: SupabaseClient?
     private let supabaseAnonKey: String?
     private let supabaseBaseURL: URL?
-    private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "supabase-actions")
-    fileprivate static let snapshotLogger = Logger(
-        subsystem: "com.prioritybit.babynanny",
-        category: "supabase-snapshot"
-    )
     private var hasSynchronizedCaregiverDataForCurrentSession = false
     private var currentAppleNonce: String?
     private var currentAccessToken: String?
@@ -371,7 +365,6 @@ final class SupabaseAuthManager: ObservableObject {
             currentUserEmail = email
             hasSynchronizedCaregiverDataForCurrentSession = false
         } catch {
-            logger.error("Failed to upsert APNs token for caregiver: \(error.localizedDescription, privacy: .public)")
             lastErrorMessage = Self.userFriendlyMessage(from: error)
         }
     }
@@ -493,19 +486,12 @@ final class SupabaseAuthManager: ObservableObject {
                 let session = try await client.auth.session
                 currentUserID = session.user.id
                 currentUserEmail = session.user.email
-                logger.log("Resolved caregiver ID from Supabase session during snapshot fetch.")
             }
 
             let snapshot = try await fetchCaregiverSnapshotFromSupabase()
             return snapshot
         } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
-            let detail = Self.decodingErrorDetails(from: error)
-            if detail == "n/a" {
-                logger.error("Failed to fetch caregiver snapshot: \(error.localizedDescription, privacy: .public)")
-            } else {
-                logger.error("Failed to fetch caregiver snapshot: \(error.localizedDescription, privacy: .public) detail=\(detail, privacy: .public)")
-            }
             return nil
         }
     }
@@ -546,10 +532,6 @@ final class SupabaseAuthManager: ObservableObject {
 
         guard shouldUpsert || shouldDelete else { return true }
 
-        if records.count < sanitizedActions.count {
-            logger.warning("Skipping \(sanitizedActions.count - records.count, privacy: .public) actions without a Supabase subtype mapping")
-        }
-
         do {
             if shouldUpsert {
                 _ = try await client.database
@@ -567,7 +549,6 @@ final class SupabaseAuthManager: ObservableObject {
                     .execute()
             }
         } catch {
-            logger.error("Failed to synchronize baby actions: \(error.localizedDescription, privacy: .public)")
             return false
         }
 
@@ -595,7 +576,6 @@ final class SupabaseAuthManager: ObservableObject {
                 .upsert([record], onConflict: "id", returning: .minimal)
                 .execute()
         } catch {
-            logger.error("Failed to upsert caregiver record: \(error.localizedDescription, privacy: .public)")
             throw error
         }
     }
@@ -682,7 +662,6 @@ final class SupabaseAuthManager: ObservableObject {
         do {
             _ = try await bucket.upload(path: storagePath, file: imageData, options: options)
         } catch {
-            logger.error("Failed to upload profile avatar: \(error.localizedDescription, privacy: .public)")
             throw error
         }
 
@@ -764,8 +743,6 @@ final class SupabaseAuthManager: ObservableObject {
             throw SnapshotError.clientUnavailable
         }
 
-        Self.snapshotLogger.log("Fetching caregiver snapshot using RLS policies")
-
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom(SupabaseDateDecoder.decode)
 
@@ -783,13 +760,11 @@ final class SupabaseAuthManager: ObservableObject {
             .from("baby_profiles")
             .select()
             .execute()
-        logRawSupabaseResponse(profilesResponse.value, context: "profiles")
 
         let actionsResponse: PostgrestResponse<[BabyActionRecord]> = try await client.database
             .from("baby_action")
             .select()
             .execute()
-        logRawSupabaseResponse(actionsResponse.value, context: "actions")
 
         let profileRecords: [BabyProfileRecord] = try decodeResponse(profilesResponse.value,
                                                                      decoder: decoder,
@@ -799,15 +774,6 @@ final class SupabaseAuthManager: ObservableObject {
                                                                    context: "actions")
 
         let shareSnapshot = try await fetchSharePermissions(for: caregiverID, client: client)
-
-        Self.snapshotLogger.log("Decoded snapshot successfully. profiles=\(profileRecords.count, privacy: .public) actions=\(actionRecords.count, privacy: .public)")
-        for record in profileRecords {
-            if let avatarURL = record.avatarURL, avatarURL.isEmpty == false {
-                Self.snapshotLogger.log("Profile \(record.id.uuidString, privacy: .public) avatar_url=\(avatarURL, privacy: .public)")
-            } else {
-                Self.snapshotLogger.log("Profile \(record.id.uuidString, privacy: .public) missing avatar_url")
-            }
-        }
 
         return CaregiverSnapshot(caregiverID: caregiverID,
                                  profiles: profileRecords,
@@ -864,7 +830,6 @@ final class SupabaseAuthManager: ObservableObject {
             if recordedError == nil {
                 recordedError = error
             }
-            logger.error("Supabase delete failure for profile \(identifier, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
 
         var shareMembership: BabyProfileShareMembershipRecord?
@@ -939,7 +904,6 @@ final class SupabaseAuthManager: ObservableObject {
             return
         }
 
-        logger.log("Deleting baby_action entries by profile_id for profile \(identifier, privacy: .public)")
         do {
             let response: PostgrestResponse<Void> = try await client.database
                 .from("baby_action")
@@ -948,8 +912,6 @@ final class SupabaseAuthManager: ObservableObject {
                 .execute(options: .init(count: .exact))
 
             let deletedCount = response.count ?? 0
-            logger.log("Supabase delete baby_action response for profile \(identifier, privacy: .public): status=\(response.response.statusCode, privacy: .public) deleted_rows=\(deletedCount, privacy: .public)")
-            logger.log("Deleted baby_action entries for profile \(identifier, privacy: .public)")
         } catch {
             recordError(error)
         }
@@ -960,14 +922,12 @@ final class SupabaseAuthManager: ObservableObject {
             return
         }
 
-        logger.log("Deleting baby_profile_shares entries for profile \(identifier, privacy: .public)")
         do {
             _ = try await client.database
                 .from("baby_profile_shares")
                 .delete()
                 .eq("baby_profile_id", value: identifier)
                 .execute()
-            logger.log("Deleted baby_profile_shares entries for profile \(identifier, privacy: .public)")
         } catch {
             recordError(error)
         }
@@ -977,14 +937,12 @@ final class SupabaseAuthManager: ObservableObject {
             return
         }
 
-        logger.log("Deleting baby_profiles entry for profile \(identifier, privacy: .public)")
         do {
             _ = try await client.database
                 .from("baby_profiles")
                 .delete()
                 .eq("id", value: identifier)
                 .execute()
-            logger.log("Deleted baby_profiles entry for profile \(identifier, privacy: .public)")
         } catch {
             recordError(error)
         }
@@ -1626,7 +1584,6 @@ private struct BabyActionRecord: Codable, Identifiable {
     var editedAt: Date?
     var profileReferenceID: UUID?
     var lastEditedBy: UUID?
-    private static let decodingLogger = Logger(subsystem: "com.prioritybit.babynanny", category: "supabase-actions-decoding")
 
     init?(action: BabyActionSnapshot, caregiverID: UUID, profileID: UUID) {
         guard let subtypeID = SupabaseAuthManager.resolveSubtypeID(for: action) else { return nil }
@@ -1693,9 +1650,6 @@ private struct BabyActionRecord: Codable, Identifiable {
                 profileReferenceID = parsedProfileIdentifier
             } else {
                 profileReferenceID = nil
-                let identifier = id.uuidString
-                let rawValue = normalizedProfileIdentifier
-                Self.decodingLogger.warning("Dropping non-UUID profile identifier for baby_action id=\(identifier, privacy: .public). rawValue=\(rawValue, privacy: .public)")
             }
         } else {
             profileReferenceID = nil
@@ -2155,54 +2109,34 @@ extension SupabaseAuthManager {
     private func decodeResponse<T: Decodable>(_ value: Any,
                                               decoder: JSONDecoder,
                                               context: String) throws -> T {
-        Self.snapshotLogger.log("Decoding \(context, privacy: .public) payload. incomingType=\(String(describing: type(of: value)), privacy: .public)")
         if let data = value as? Data {
-            Self.snapshotLogger.log("\(context, privacy: .public) payload is raw Data with length \(data.count, privacy: .public)")
-            logPayloadData(data, context: context)
             return try decodePayload(decoder: decoder, data: data, context: context)
         }
 
         if let typedValue = value as? T {
-            Self.snapshotLogger.log("\(context, privacy: .public) payload already matches \(String(describing: T.self), privacy: .public); returning directly.")
             return typedValue
         }
 
         if value is NSNull {
             let empty = Data("[]".utf8)
-            Self.snapshotLogger.log("\(context, privacy: .public) payload is NSNull; using empty array.")
-            logPayloadData(empty, context: context)
             return try decodePayload(decoder: decoder, data: empty, context: context)
         }
 
         guard JSONSerialization.isValidJSONObject(value) else {
-            Self.snapshotLogger.error("\(context, privacy: .public) payload is not valid JSON. value=\(String(describing: value), privacy: .private)")
             throw SnapshotError.invalidPayload
         }
 
         if let dictionary = value as? [String: Any] {
             if let nested = dictionary["data"] {
                 let data = try JSONSerialization.data(withJSONObject: nested)
-                logPayloadData(data, context: context)
                 return try decodePayload(decoder: decoder, data: data, context: context)
             } else if dictionary["count"] != nil {
                 let empty = Data("[]".utf8)
-                Self.snapshotLogger.log("\(context, privacy: .public) payload contains only count; using empty array.")
-                logPayloadData(empty, context: context)
                 return try decodePayload(decoder: decoder, data: empty, context: context)
             }
         }
 
-        let verboseDescription: String
-        if let value = value as? CustomDebugStringConvertible {
-            verboseDescription = value.debugDescription
-        } else {
-            verboseDescription = String(describing: value)
-        }
-        Self.snapshotLogger.log("\(context, privacy: .public) payload detail: \(verboseDescription, privacy: .public)")
-        logger.log("Snapshot \(context, privacy: .public) payload detail: \(verboseDescription, privacy: .public)")
         let data = try JSONSerialization.data(withJSONObject: value)
-        Self.snapshotLogger.log("\(context, privacy: .public) payload decoded from JSONObject of size \(data.count, privacy: .public)")
-        logPayloadData(data, context: context)
         return try decodePayload(decoder: decoder, data: data, context: context)
     }
 
@@ -2212,32 +2146,8 @@ extension SupabaseAuthManager {
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
-            let preview = payloadPreview(from: data)
-            let detail = Self.decodingErrorDetails(from: error)
-            Self.snapshotLogger.error("Decoding \(context, privacy: .public) failed: \(error.localizedDescription, privacy: .public). detail=\(detail, privacy: .public). payloadPreview=\(preview, privacy: .public)")
-            logger.error("Decoding \(context, privacy: .public) failed: \(error.localizedDescription, privacy: .public). detail=\(detail, privacy: .public). payloadPreview=\(preview, privacy: .public)")
             throw error
         }
-    }
-
-    private func logPayloadData(_ data: Data, context: String) {
-        let preview = payloadPreview(from: data)
-        Self.snapshotLogger.log("\(context, privacy: .public) payload preview: \(preview, privacy: .public)")
-        logger.log("Snapshot \(context, privacy: .public) payload preview: \(preview, privacy: .public)")
-    }
-
-    private func payloadPreview(from data: Data) -> String {
-        if let string = String(data: data, encoding: .utf8) {
-            let singleLine = string.replacingOccurrences(of: "\n", with: " ")
-            if singleLine.count > 2000 {
-                let prefix = singleLine.prefix(2000)
-                return "\(prefix)… (truncated)"
-            }
-            return singleLine
-        }
-
-        let prefix = data.prefix(1024)
-        return prefix.map { String(format: "%02hhx", $0) }.joined()
     }
 
     private static func decodingErrorDetails(from error: Error) -> String {
@@ -2264,26 +2174,6 @@ extension SupabaseAuthManager {
             return "dataCorrupted path=\(pathDescription(context.codingPath)) reason=\(context.debugDescription)"
         @unknown default:
             return "unknown decoding error"
-        }
-    }
-
-    private func logRawSupabaseResponse(_ value: Any?, context: String) {
-        guard let value else {
-            Self.snapshotLogger.log("Raw \(context, privacy: .public) response value is nil.")
-            return
-        }
-
-        if let data = value as? Data {
-            let preview = payloadPreview(from: data)
-            Self.snapshotLogger.log("Raw \(context, privacy: .public) response data preview: \(preview, privacy: .public)")
-            return
-        }
-
-        if JSONSerialization.isValidJSONObject(value),
-           let jsonData = try? JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted]) {
-            let preview = payloadPreview(from: jsonData)
-            Self.snapshotLogger.log("Raw \(context, privacy: .public) response JSON preview: \(preview, privacy: .public)")
-            return
         }
     }
 
