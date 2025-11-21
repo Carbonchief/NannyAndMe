@@ -512,7 +512,30 @@ struct SettingsView: View {
                 Text("1.0")
                     .foregroundStyle(.secondary)
             }
+
+            Button {
+                openAboutLink(.privacyPolicy)
+            } label: {
+                Label(L10n.Settings.privacyPolicy, systemImage: "lock.shield")
+            }
+
+            Button {
+                openAboutLink(.termsOfUse)
+            } label: {
+                Label(L10n.Settings.termsOfUse, systemImage: "doc.text")
+            }
+
+            Button {
+                openAboutLink(.contactSupport)
+            } label: {
+                Label(L10n.Settings.contactSupport, systemImage: "envelope")
+            }
         }
+    }
+
+    private func openAboutLink(_ link: AboutLink) {
+        guard let url = URL(string: link.urlString) else { return }
+        openURL(url)
     }
 
     private func handlePhotoSelectionChange(_ newValue: PhotosPickerItem?) {
@@ -800,6 +823,23 @@ private extension SettingsView {
 private enum Layout {
     static let actionReminderRowMinHeight: CGFloat = 148
     static let actionReminderStatusHeight: CGFloat = 60
+}
+
+private enum AboutLink {
+    case privacyPolicy
+    case termsOfUse
+    case contactSupport
+
+    var urlString: String {
+        switch self {
+        case .privacyPolicy:
+            return "https://nanny-me.com/Privacy.html"
+        case .termsOfUse:
+            return "https://nanny-me.com/Terms.html"
+        case .contactSupport:
+            return "mailto:hello@nanny-me.com"
+        }
+    }
 }
 
 #Preview {

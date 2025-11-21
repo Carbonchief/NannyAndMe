@@ -166,6 +166,9 @@
 "settings.privacy.openSettings" = "Open Settings";
 "settings.about.section" = "About";
 "settings.about.appVersion" = "App Version";
+"settings.about.privacyPolicy" = "Privacy Policy";
+"settings.about.termsOfUse" = "Terms of Use";
+"settings.about.contactSupport" = "Contact Support";
 "settings.title" = "Settings";
 "notifications.ageReminder.title" = "Monthly milestone";
 "notifications.ageReminder.oneMonth" = "%@ is 1 month old today.";
