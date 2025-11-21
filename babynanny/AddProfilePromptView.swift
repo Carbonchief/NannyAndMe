@@ -140,9 +140,8 @@ struct AddProfilePromptView: View {
     }
 
     private func handleCreate() {
-        let value = trimmedName
-        guard value.isEmpty == false else { return }
-        onCreate(value, birthDate, imageData)
+        guard trimmedName.isEmpty == false else { return }
+        onCreate(name, birthDate, imageData)
         dismiss()
     }
 

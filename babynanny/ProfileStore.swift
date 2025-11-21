@@ -442,8 +442,8 @@ final class ProfileStore: ObservableObject {
     }
 
     func addProfile(name: String, birthDate: Date = Date(), imageData: Data? = nil) {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let profile = ProfileActionStateModel(name: trimmedName,
+        let normalizedName = normalizedNamePreservingSpacing(name)
+        let profile = ProfileActionStateModel(name: normalizedName,
                                               birthDate: birthDate,
                                               imageData: imageData)
         profile.normalizeReminderPreferences()
@@ -539,9 +539,9 @@ final class ProfileStore: ObservableObject {
                 let remoteURL = update.avatarURL.flatMap { URL(string: $0) }
                 if let model = profileModel(withID: update.id) {
                     let previousAvatarURL = model.avatarURL
-                    let trimmedName = update.name.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if model.name != trimmedName {
-                        model.name = trimmedName
+                    let normalizedName = normalizedNamePreservingSpacing(update.name)
+                    if model.name != normalizedName {
+                        model.name = normalizedName
                         didChange = true
                     }
                     if let birthDate = update.birthDate, model.birthDate != birthDate.normalizedToUTC() {
@@ -566,10 +566,10 @@ final class ProfileStore: ObservableObject {
                         model.touch()
                     }
                 } else {
-                    let trimmedName = update.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let normalizedName = normalizedNamePreservingSpacing(update.name)
                     let birthDate = update.birthDate?.normalizedToUTC() ?? Date()
                     let model = ProfileActionStateModel(profileID: update.id,
-                                                        name: trimmedName,
+                                                        name: normalizedName,
                                                         birthDate: birthDate,
                                                         imageData: update.imageData,
                                                         avatarURL: update.avatarURL)
@@ -603,9 +603,9 @@ final class ProfileStore: ObservableObject {
             var didInsert = false
 
             mutateProfiles(reason: "profile-import-insert") {
-                let trimmedName = importedProfile.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                let normalizedName = normalizedNamePreservingSpacing(importedProfile.name)
                 let model = ProfileActionStateModel(profileID: importedProfile.id,
-                                                    name: trimmedName,
+                                                    name: normalizedName,
                                                     birthDate: importedProfile.birthDate,
                                                     imageData: importedProfile.imageData,
                                                     remindersEnabled: importedProfile.remindersEnabled)
@@ -644,8 +644,8 @@ final class ProfileStore: ObservableObject {
         guard currentProfile != importedProfile else { return false }
 
         updateProfile(withID: activeID, reason: "profile-import-merge") { model in
-            let trimmedName = importedProfile.name.trimmingCharacters(in: .whitespacesAndNewlines)
-            model.name = trimmedName
+            let normalizedName = normalizedNamePreservingSpacing(importedProfile.name)
+            model.name = normalizedName
             model.setBirthDate(importedProfile.birthDate)
             model.imageData = importedProfile.imageData
             model.remindersEnabled = importedProfile.remindersEnabled
@@ -867,6 +867,11 @@ final class ProfileStore: ObservableObject {
 
     private func synchronizeProfileMetadata() {
         actionStore?.synchronizeProfileMetadata(profiles)
+    }
+
+    private func normalizedNamePreservingSpacing(_ rawName: String) -> String {
+        let trimmed = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "" : rawName
     }
 
     private func scheduleAvatarDownloads(_ entries: [UUID: URL]) {
