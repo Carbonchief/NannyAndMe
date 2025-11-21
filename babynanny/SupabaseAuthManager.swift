@@ -25,6 +25,7 @@ final class SupabaseAuthManager: ObservableObject {
     private var hasSynchronizedCaregiverDataForCurrentSession = false
     private var currentAppleNonce: String?
     private var currentAccessToken: String?
+    private var lastAuthMethod: String?
     private weak var subscriptionService: RevenueCatSubscriptionService?
     private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
     private static let profilePhotosBucketName = "ProfilePhotos"
@@ -90,6 +91,7 @@ final class SupabaseAuthManager: ObservableObject {
         }
 
         clearMessages()
+        lastAuthMethod = "email"
         isLoading = true
         defer { isLoading = false }
 
@@ -162,6 +164,7 @@ final class SupabaseAuthManager: ObservableObject {
         }
 
         clearMessages()
+        lastAuthMethod = "apple"
         isLoading = true
         defer {
             isLoading = false
@@ -214,6 +217,7 @@ final class SupabaseAuthManager: ObservableObject {
             currentAccessToken = nil
             hasSynchronizedCaregiverDataForCurrentSession = false
             await subscriptionService?.logOutIfNeeded()
+            AnalyticsTracker.capture("logout_success")
         } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
         }
@@ -236,6 +240,17 @@ final class SupabaseAuthManager: ObservableObject {
         currentAccessToken = session.accessToken
         infoMessage = nil
         hasSynchronizedCaregiverDataForCurrentSession = false
+        if let email = session.user.email {
+            AnalyticsTracker.identifyUser(email: email)
+            let method = lastAuthMethod ?? "unknown"
+            AnalyticsTracker.capture(
+                "login_success",
+                properties: [
+                    "method": method,
+                    "email": email
+                ]
+            )
+        }
         Task { @MainActor [weak subscriptionService] in
             guard let service = subscriptionService else { return }
             await service.logInIfNeeded(appUserID: session.user.id.uuidString)

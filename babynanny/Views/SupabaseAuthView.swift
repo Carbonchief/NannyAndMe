@@ -47,6 +47,7 @@ struct SupabaseAuthView: View {
                         alternativeSignInDivider
 
                         SignInWithAppleButton(.signIn) { request in
+                            AnalyticsTracker.capture("apple_sign_in_tap")
                             authManager.configureAppleRequest(request)
                         } onCompletion: { result in
                             Task {
@@ -87,6 +88,7 @@ struct SupabaseAuthView: View {
     }
 
     private func performPrimaryAction() {
+        AnalyticsTracker.capture("email_login_tap", properties: ["email": sanitizedEmail])
         authManager.clearMessages()
         let email = sanitizedEmail
         let password = sanitizedPassword
