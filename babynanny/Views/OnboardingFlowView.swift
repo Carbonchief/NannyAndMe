@@ -12,39 +12,42 @@ struct OnboardingFlowView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                TabView(selection: $selection) {
-                    welcomePage
-                        .tag(Page.welcome)
-
-                    benefitsPage
-                        .tag(Page.benefits)
-
-                    if showAccountDecisionPage {
-                        accountDecisionPage
-                            .tag(Page.accountDecision)
-                    }
-
-                    if showAccountDecisionPage == false || selection == .paywall {
-                        paywallPage
-                            .tag(Page.paywall)
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-
-                pageIndicator
-
-                if selection == .accountDecision {
-                    accountDecisionActions
+            Group {
+                if selection == .paywall {
+                    paywallPage
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color(.systemBackground).ignoresSafeArea())
                 } else {
-                    primaryActionButton
+                    VStack(spacing: 24) {
+                        TabView(selection: $selection) {
+                            welcomePage
+                                .tag(Page.welcome)
+
+                            benefitsPage
+                                .tag(Page.benefits)
+
+                            if showAccountDecisionPage {
+                                accountDecisionPage
+                                    .tag(Page.accountDecision)
+                            }
+                        }
+                        .tabViewStyle(.page(indexDisplayMode: .never))
+
+                        pageIndicator
+
+                        if selection == .accountDecision {
+                            accountDecisionActions
+                        } else {
+                            primaryActionButton
+                        }
+                    }
+                    .padding(.horizontal, 24)
                 }
             }
-            .padding(.horizontal, 24)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemBackground).ignoresSafeArea())
         }
-        .interactiveDismissDisabled()
+        .interactiveDismissDisabled(selection != .paywall)
         .onAppear {
             guard hasInitializedSelection == false else { return }
             hasInitializedSelection = true
@@ -76,8 +79,6 @@ private extension OnboardingFlowView {
         var result: [Page] = [.welcome, .benefits]
         if showAccountDecisionPage {
             result.append(.accountDecision)
-        } else {
-            result.append(.paywall)
         }
         return result
     }
@@ -275,7 +276,7 @@ private extension OnboardingFlowView {
         case .welcome, .benefits:
             return L10n.Onboarding.FirstLaunch.next
         case .paywall:
-            return L10n.Onboarding.FirstLaunch.maybeLater
+            return ""
         }
     }
 
