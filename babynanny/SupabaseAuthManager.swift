@@ -1,6 +1,7 @@
 import AuthenticationServices
 import CryptoKit
 import Foundation
+import os
 import Supabase
 
 @MainActor
@@ -15,6 +16,7 @@ final class SupabaseAuthManager: ObservableObject {
     @Published var isPasswordChangeRequired = false
 
     private let client: SupabaseClient?
+    private let logger = Logger(subsystem: "com.prioritybit.babynanny", category: "supabase-auth")
     private let supabaseAnonKey: String?
     private let supabaseBaseURL: URL?
     private var hasSynchronizedCaregiverDataForCurrentSession = false
@@ -497,8 +499,22 @@ final class SupabaseAuthManager: ObservableObject {
     }
 
     func upsertBabyProfiles(_ profiles: [ChildProfile]) async {
-        guard let client, isAuthenticated, let caregiverID = currentUserID else { return }
-        guard profiles.isEmpty == false else { return }
+        guard profiles.isEmpty == false else {
+            logger.debug("Skipping baby profile upsert; no profiles provided")
+            return
+        }
+        guard let client else {
+            logger.error("Skipping baby profile upsert; Supabase client unavailable")
+            return
+        }
+        guard isAuthenticated else {
+            logger.warning("Skipping baby profile upsert; user is not authenticated")
+            return
+        }
+        guard let caregiverID = currentUserID else {
+            logger.error("Skipping baby profile upsert; missing caregiver identifier")
+            return
+        }
 
         do {
             let records = try await makeBabyProfileRecords(from: profiles,
@@ -508,6 +524,7 @@ final class SupabaseAuthManager: ObservableObject {
 
             try await upsertBabyProfileRecords(records, client: client)
         } catch {
+            logger.error("Failed to upsert baby profiles: \(error.localizedDescription, privacy: .public)")
             lastErrorMessage = Self.userFriendlyMessage(from: error)
         }
     }
@@ -516,7 +533,18 @@ final class SupabaseAuthManager: ObservableObject {
     func syncBabyActions(upserting actions: [BabyActionSnapshot],
                          deletingIDs: [UUID],
                          profileID: UUID) async -> Bool {
-        guard let client, isAuthenticated, let caregiverID = currentUserID else { return false }
+        guard let client else {
+            logger.error("syncBabyActions aborted; missing Supabase client")
+            return false
+        }
+        guard isAuthenticated else {
+            logger.warning("syncBabyActions aborted; user not authenticated")
+            return false
+        }
+        guard let caregiverID = currentUserID else {
+            logger.error("syncBabyActions aborted; caregiver identifier unavailable")
+            return false
+        }
 
         let sanitizedActions = actions.map { $0.withValidatedDates() }
         let records = sanitizedActions.compactMap { action in
@@ -548,10 +576,13 @@ final class SupabaseAuthManager: ObservableObject {
                 }
 
                 if updateRecords.isEmpty == false {
-                    _ = try await client.database
-                        .from("baby_action")
-                        .upsert(updateRecords, onConflict: "id", returning: .minimal)
-                        .execute()
+                    for record in updateRecords {
+                        _ = try await client.database
+                            .from("baby_action")
+                            .update(record)
+                            .eq("id", value: record.id.uuidString.lowercased())
+                            .execute()
+                    }
                 }
             }
 
@@ -564,6 +595,8 @@ final class SupabaseAuthManager: ObservableObject {
                     .execute()
             }
         } catch {
+            logger.error("syncBabyActions failed for profile \(profileID.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            lastErrorMessage = Self.userFriendlyMessage(from: error)
             return false
         }
 
@@ -668,10 +701,13 @@ final class SupabaseAuthManager: ObservableObject {
                                           client: SupabaseClient) async throws {
         guard records.isEmpty == false else { return }
 
-        _ = try await client.database
-            .from("baby_profiles")
-            .upsert(records, onConflict: "id", returning: .minimal)
-            .execute()
+        for record in records {
+            _ = try await client.database
+                .from("baby_profiles")
+                .update(record)
+                .eq("id", value: record.id.uuidString.lowercased())
+                .execute()
+        }
     }
 
     private func fetchExistingIdentifiers(_ ids: [UUID],

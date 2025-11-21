@@ -920,7 +920,11 @@ private extension ActionLogStore {
                                                      clearedDeletionIDs: deletions)
                 didMutateAfterSync = didMutateAfterSync || completed
             } else {
-                logger.error("Failed to push pending changes for profile \(profileID, privacy: .public); will retry on next sync.")
+                if let errorMessage = authManager.lastErrorMessage, errorMessage.isEmpty == false {
+                    logger.error("Failed to push pending changes for profile \(profileID, privacy: .public); reason=\(errorMessage, privacy: .public)")
+                } else {
+                    logger.error("Failed to push pending changes for profile \(profileID, privacy: .public); will retry on next sync.")
+                }
             }
 
             if actions.isEmpty {

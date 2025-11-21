@@ -500,7 +500,10 @@ final class ProfileStore: ObservableObject {
 
     func updateProfile(withID id: UUID, reason: String = "profile-update", updates: (ProfileActionStateModel) -> Void) {
         mutateProfiles(reason: reason) {
-            guard let model = profileModel(withID: id) else { return false }
+            guard let model = profileModel(withID: id) else {
+                logger.error("Attempted to update unknown profile \(id.uuidString, privacy: .public)")
+                return false
+            }
             updates(model)
             model.normalizeReminderPreferences()
             model.touch()
@@ -508,9 +511,15 @@ final class ProfileStore: ObservableObject {
         }
 
         Task { @MainActor [weak self] in
-            guard let self = self,
-                  let manager = self.authManager,
-                  let updatedProfile = self.profiles.first(where: { $0.id == id }) else { return }
+            guard let self = self else { return }
+            guard let updatedProfile = self.profiles.first(where: { $0.id == id }) else {
+                self.logger.error("Unable to find updated profile \(id.uuidString, privacy: .public) for remote sync")
+                return
+            }
+            guard let manager = self.authManager else {
+                self.logger.debug("Skipping remote sync for profile \(id.uuidString, privacy: .public); auth manager unavailable")
+                return
+            }
             await manager.upsertBabyProfiles([updatedProfile])
         }
     }
