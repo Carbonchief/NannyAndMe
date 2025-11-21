@@ -166,6 +166,9 @@
 "settings.privacy.openSettings" = "Abrir Ajustes";
 "settings.about.section" = "Acerca de";
 "settings.about.appVersion" = "Versión de la app";
+"settings.about.privacyPolicy" = "Política de privacidad";
+"settings.about.termsOfUse" = "Términos de uso";
+"settings.about.contactSupport" = "Contactar soporte";
 "settings.title" = "Configuración";
 "notifications.ageReminder.title" = "Hito mensual";
 "notifications.ageReminder.oneMonth" = "%@ cumple 1 mes hoy.";

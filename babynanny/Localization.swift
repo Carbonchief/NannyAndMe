@@ -525,6 +525,9 @@ enum L10n {
         )
         static let aboutSection = String(localized: "settings.about.section", defaultValue: "About")
         static let appVersion = String(localized: "settings.about.appVersion", defaultValue: "App Version")
+        static let privacyPolicy = String(localized: "settings.about.privacyPolicy", defaultValue: "Privacy Policy")
+        static let termsOfUse = String(localized: "settings.about.termsOfUse", defaultValue: "Terms of Use")
+        static let contactSupport = String(localized: "settings.about.contactSupport", defaultValue: "Contact Support")
         static let title = String(localized: "settings.title", defaultValue: "Settings")
         static let nextReminderLabel = String(
             localized: "settings.notifications.nextReminder.label",
