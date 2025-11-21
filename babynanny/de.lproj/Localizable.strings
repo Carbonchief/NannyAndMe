@@ -104,6 +104,7 @@
 "home.history.stopped" = "Beendet: %@";
 "home.history.startedLabel" = "Gestartet";
 "home.history.stoppedLabel" = "Beendet";
+"home.history.loggedLabel" = "Erfasst";
 "home.history.duration" = "Für: %@";
 "home.history.durationLabel" = "Dauer";
 "home.interruptionAlert.title" = "Aktuelle Aktion stoppen?";

@@ -14,6 +14,7 @@ struct ActionMapView: View {
     @State private var selectedCategory: BabyActionCategory?
     @State private var dateFilter: ActionMapDateFilter = .sevenDays
     @State private var selectedCluster: ActionCluster?
+    @State private var selectedAction: BabyActionSnapshot?
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var hasInitializedCamera = false
     @State private var activeLocationPrompt: LocationPromptType?
@@ -61,6 +62,9 @@ struct ActionMapView: View {
         .navigationTitle(L10n.Map.title)
         .navigationBarTitleDisplayMode(.inline)
         .alert(item: $activeLocationPrompt, content: locationTrackingAlert)
+        .sheet(item: $selectedAction) { action in
+            ActionMapActionDetailView(action: action)
+        }
         .onAppear {
             if hasInitializedCamera == false {
                 initializeCameraIfNeeded(for: clusters)
@@ -92,6 +96,11 @@ struct ActionMapView: View {
         .onChange(of: selectedCluster) { _, newValue in
             guard let cluster = newValue else { return }
             centerCamera(on: cluster)
+        }
+        .onChange(of: selectedCluster) { _, newValue in
+            if newValue == nil {
+                selectedAction = nil
+            }
         }
         .onChange(of: tabResetID) { _, _ in
             withAnimation(.easeInOut(duration: 0.25)) {
@@ -291,35 +300,40 @@ private extension ActionMapView {
     }
 
     func clusterRow(for location: ActionLocation) -> some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(location.category.accentColor.gradient)
-                    .frame(width: 36, height: 36)
+        Button {
+            selectedAction = location.snapshot
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(location.category.accentColor.gradient)
+                        .frame(width: 36, height: 36)
 
-                Image(systemName: location.symbolName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
+                    Image(systemName: location.symbolName)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(location.title)
+                        .font(.body.weight(.semibold))
+                    Text(location.category.title)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(L10n.Map.annotationLoggedAt(location.loggedAtDescription))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
             }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(location.title)
-                    .font(.body.weight(.semibold))
-                Text(location.category.title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(L10n.Map.annotationLoggedAt(location.loggedAtDescription))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(.secondarySystemBackground))
+            )
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .buttonStyle(.plain)
     }
 
     func presentLocationPromptIfNeeded() {
@@ -591,6 +605,186 @@ private struct ActionMapAnnotationView: View {
                 }
             }
         }
+    }
+}
+
+private struct ActionMapActionDetailView: View {
+    let action: BabyActionSnapshot
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    header
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(detailRows) { row in
+                            ActionDetailRow(label: row.label, value: row.value)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .navigationTitle(action.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.Common.done) {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private var header: some View {
+        VStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(action.category.accentColor.opacity(0.15))
+                    .frame(width: 60, height: 60)
+
+                Image(systemName: action.icon)
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(action.category.accentColor)
+            }
+
+            Text(action.title)
+                .font(.headline)
+
+            if let detailText = detailText {
+                Text(detailText)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var detailText: String? {
+        let description = action.detailDescription
+        return description == action.title ? nil : description
+    }
+
+    private var detailRows: [DetailRowData] {
+        var rows: [DetailRowData] = []
+        if action.category == .diaper {
+            rows.append(
+                DetailRowData(
+                    label: L10n.Home.historyLoggedLabel,
+                    value: formattedDateTime(for: action.startDate)
+                )
+            )
+
+            if let diaperType = action.diaperType {
+                rows.append(
+                    DetailRowData(
+                        label: L10n.Home.diaperTypeSectionTitle,
+                        value: diaperType.title
+                    )
+                )
+            }
+
+            return rows
+        }
+
+        rows.append(
+            DetailRowData(
+                label: L10n.Home.historyStartedLabel,
+                value: formattedDateTime(for: action.startDate)
+            )
+        )
+
+        if let endDate = action.endDate {
+            rows.append(
+                DetailRowData(
+                    label: L10n.Home.historyStoppedLabel,
+                    value: formattedDateTime(for: endDate)
+                )
+            )
+        }
+
+        rows.append(
+            DetailRowData(
+                label: L10n.Home.historyDurationLabel,
+                value: action.durationDescription()
+            )
+        )
+
+        switch action.category {
+        case .sleep:
+            break
+        case .diaper:
+            break
+        case .feeding:
+            if let feedingType = action.feedingType {
+                rows.append(
+                    DetailRowData(
+                        label: L10n.Home.feedingTypeSectionTitle,
+                        value: feedingType.title
+                    )
+                )
+
+                if feedingType == .bottle {
+                    if let bottleType = action.bottleType {
+                        rows.append(
+                            DetailRowData(
+                                label: L10n.Home.bottleTypeSectionTitle,
+                                value: bottleType.title
+                            )
+                        )
+                    }
+
+                    if let bottleVolume = action.bottleVolume {
+                        rows.append(
+                            DetailRowData(
+                                label: L10n.Home.bottleVolumeSectionTitle,
+                                value: L10n.Home.bottlePresetLabel(bottleVolume)
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        return rows
+    }
+
+    private func formattedDateTime(for date: Date) -> String {
+        if Calendar.current.isDateInToday(date) {
+            return BabyActionFormatter.shared.format(time24Hour: date)
+        }
+
+        return BabyActionFormatter.shared.format(dateTime: date)
+    }
+}
+
+private struct DetailRowData: Identifiable {
+    let id = UUID()
+    let label: String
+    let value: String
+}
+
+private struct ActionDetailRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Text(value)
+                .font(.body)
+                .foregroundStyle(.primary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
