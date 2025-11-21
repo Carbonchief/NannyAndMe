@@ -97,9 +97,20 @@ struct HomeView: View {
                 prompt: $reminderPrompt,
                 delayRange: ProfileStore.customReminderDelayRange,
                 onConfirm: { prompt, selectedDelay in
+                    AnalyticsTracker.capture(
+                        "reminder_schedule_confirmed",
+                        properties: [
+                            "category": prompt.category.analyticsIdentifier,
+                            "delay_seconds": selectedDelay
+                        ]
+                    )
                     scheduleReminder(for: prompt, delay: selectedDelay)
                 },
                 onCancel: { prompt in
+                    AnalyticsTracker.capture(
+                        "reminder_schedule_canceled",
+                        properties: ["category": prompt.category.analyticsIdentifier]
+                    )
                 }
             )
         }
@@ -150,6 +161,7 @@ struct HomeView: View {
                                 Spacer()
 
                                 Button(L10n.Home.recentActivityShowAll) {
+                                    AnalyticsTracker.capture("recent_activity_show_all")
                                     onShowAllLogs()
                                 }
                                 .tint(.accentColor)
@@ -395,6 +407,10 @@ struct HomeView: View {
     private func handleStartTap(for category: BabyActionCategory) -> Bool {
         guard registerCardInteraction(for: category) else { return false }
 
+        AnalyticsTracker.capture("action_card_start_tap", properties: [
+            "category": category.analyticsIdentifier
+        ])
+
         switch category {
         case .sleep:
             _ = requestStartAction(for: .sleep,
@@ -494,11 +510,19 @@ struct HomeView: View {
     private func handleStopTap(for category: BabyActionCategory) -> Bool {
         guard registerCardInteraction(for: category) else { return false }
 
+        AnalyticsTracker.capture("action_card_stop_tap", properties: [
+            "category": category.analyticsIdentifier
+        ])
+
         stopAction(for: category)
         return true
     }
 
     private func handleReminderLongPress(for category: BabyActionCategory) {
+
+        AnalyticsTracker.capture("action_card_reminder_long_press", properties: [
+            "category": category.analyticsIdentifier
+        ])
 
         Task { @MainActor in
             let isAuthorized = await profileStore.ensureNotificationAuthorization()

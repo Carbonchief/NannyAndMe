@@ -103,6 +103,7 @@ struct ContentView: View {
                             .background(.ultraThinMaterial, in: Capsule())
 
                             Button {
+                                AnalyticsTracker.capture("manual_entry_tap")
                                 isManualEntryPresented = true
                             } label: {
                                 Image(systemName: "plus")
@@ -134,6 +135,10 @@ struct ContentView: View {
                                 isMenuVisible.toggle()
                                 menuDragOffset = 0
                             }
+                            AnalyticsTracker.capture(
+                                "side_menu_toggle",
+                                properties: ["is_visible": isMenuVisible]
+                            )
                         } label: {
                             Image(systemName: "line.3.horizontal")
                         }
@@ -572,6 +577,14 @@ private enum Tab: Hashable, CaseIterable {
 
 private extension ContentView {
     func handleTabTap(_ tab: Tab) {
+        AnalyticsTracker.capture(
+            "tab_selected",
+            properties: [
+                "tab": tab.analyticsIdentifier,
+                "is_reselect": tab == selectedTab
+            ]
+        )
+
         if tab == selectedTab {
             tabResetID = UUID()
             return

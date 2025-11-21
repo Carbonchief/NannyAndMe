@@ -45,6 +45,7 @@ struct SideMenu: View {
                     }
 
                     Button {
+                        AnalyticsTracker.capture("logout_tap")
                         Task { await authManager.signOut() }
                     } label: {
                         Label(L10n.Menu.logout, systemImage: "rectangle.portrait.and.arrow.right")
@@ -53,6 +54,7 @@ struct SideMenu: View {
                 }
             } else {
                 Button(action: {
+                    AnalyticsTracker.capture("login_prompt_opened")
                     onSelectAuthentication()
                 }) {
                     Label(L10n.Menu.login, systemImage: "person.crop.circle.badge.plus")
@@ -61,6 +63,7 @@ struct SideMenu: View {
             }
 
             Button(action: {
+                AnalyticsTracker.capture("menu_all_logs_tap")
                 onSelectAllLogs()
             }) {
                 Label(L10n.Menu.allLogs, systemImage: "list.bullet.rectangle")
@@ -68,6 +71,7 @@ struct SideMenu: View {
             }
 
             Button(action: {
+                AnalyticsTracker.capture("menu_share_data_tap")
                 onSelectShareData()
             }) {
                 Label(L10n.Menu.shareData, systemImage: "arrow.up.arrow.down.circle.fill")
@@ -75,6 +79,7 @@ struct SideMenu: View {
             }
 
             Button(action: {
+                AnalyticsTracker.capture("menu_settings_tap")
                 onSelectSettings()
             }) {
                 Label(L10n.Menu.settings, systemImage: "gearshape.fill")

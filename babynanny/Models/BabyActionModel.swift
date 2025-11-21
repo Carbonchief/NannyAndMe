@@ -5,6 +5,8 @@ import SwiftUI
 extension BabyActionCategory: Identifiable {
     var id: String { rawValue }
 
+    var analyticsIdentifier: String { rawValue }
+
     var title: String {
         switch self {
         case .sleep:
