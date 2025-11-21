@@ -17,6 +17,7 @@ struct SettingsView: View {
     @EnvironmentObject private var subscriptionService: RevenueCatSubscriptionService
     @Environment(\.openURL) private var openURL
     @AppStorage("trackActionLocations") private var trackActionLocations = false
+    @AppStorage(UserDefaultsKey.hideActionMap) private var hideActionMap = false
     @AppStorage(UserDefaultsKey.actionHapticsEnabled) private var actionHapticsEnabled = true
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var pendingCrop: PendingCropImage?
@@ -218,6 +219,16 @@ struct SettingsView: View {
                         .foregroundStyle(.orange)
                 }
                 .buttonStyle(.borderless)
+            }
+
+            if trackActionLocations == false {
+                Toggle(isOn: $hideActionMap) {
+                    Label(L10n.Settings.Privacy.hideActionMap, systemImage: "map")
+                }
+
+                Text(L10n.Settings.Privacy.hideActionMapDescription)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
         }
     }

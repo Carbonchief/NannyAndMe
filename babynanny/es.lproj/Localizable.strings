@@ -160,6 +160,8 @@
 "settings.privacy.trackLocations.description" = "Cuando está activado, la app guarda tu ubicación precisa (a unos 50 metros) con cada acción registrada. Puedes desactivarlo en cualquier momento.";
 "settings.privacy.trackLocations.premium" = "Desbloquea el acceso premium para el seguimiento de ubicaciones.";
 "settings.privacy.trackLocations.denied" = "Acceso a la ubicación denegado: toca para abrir Configuración.";
+"settings.privacy.hideActionMap" = "Ocultar mapa de acciones";
+"settings.privacy.hideActionMap.description" = "Quita la pestaña del mapa cuando el seguimiento de ubicaciones está desactivado.";
 "settings.privacy.openSettings" = "Abrir Ajustes";
 "settings.about.section" = "Acerca de";
 "settings.about.appVersion" = "Versión de la app";

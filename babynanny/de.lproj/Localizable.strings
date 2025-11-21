@@ -160,6 +160,8 @@
 "settings.privacy.trackLocations.description" = "Wenn aktiviert, speichert die App deinen genauen Standort (innerhalb von etwa 50 Metern) bei jedem Eintrag. Du kannst dies jederzeit deaktivieren.";
 "settings.privacy.trackLocations.premium" = "Schalte den Premiumzugang für die Standortverfolgung frei.";
 "settings.privacy.trackLocations.denied" = "Standortzugriff verweigert – tippe, um Einstellungen zu öffnen.";
+"settings.privacy.hideActionMap" = "Aktionskarte ausblenden";
+"settings.privacy.hideActionMap.description" = "Entfernt den Karten-Tab, wenn die Standortverfolgung deaktiviert ist.";
 "settings.privacy.openSettings" = "Einstellungen öffnen";
 "settings.about.section" = "Info";
 "settings.about.appVersion" = "App-Version";
