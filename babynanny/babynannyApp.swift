@@ -23,6 +23,7 @@ struct babynannyApp: App {
     @StateObject private var authManager: SupabaseAuthManager
     @StateObject private var pushNotificationRegistrar: PushNotificationRegistrar
     @StateObject private var subscriptionService: RevenueCatSubscriptionService
+    @StateObject private var analyticsService: AnalyticsService
     @State private var isShowingSplashScreen = true
 
     init() {
@@ -48,6 +49,8 @@ struct babynannyApp: App {
         actionStore.registerAuthManager(authManager)
         authManager.registerSubscriptionService(subscriptionService)
 
+        let analyticsService = AnalyticsService.makeFromBundle()
+
         _appDataStack = StateObject(wrappedValue: stack)
         _profileStore = StateObject(wrappedValue: profileStore)
         _actionStore = StateObject(wrappedValue: actionStore)
@@ -56,6 +59,7 @@ struct babynannyApp: App {
             wrappedValue: PushNotificationRegistrar(reminderScheduler: scheduler)
         )
         _subscriptionService = StateObject(wrappedValue: subscriptionService)
+        _analyticsService = StateObject(wrappedValue: analyticsService)
 
         appDelegate.authManager = authManager
     }
@@ -71,6 +75,7 @@ struct babynannyApp: App {
                     .environmentObject(authManager)
                     .environmentObject(LocationManager.shared)
                     .environmentObject(subscriptionService)
+                    .environmentObject(analyticsService)
                     .onOpenURL { url in
                         if handleDurationActivityURL(url) {
                             return

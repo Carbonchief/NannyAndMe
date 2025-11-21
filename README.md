@@ -71,18 +71,22 @@ NannyAndMe/
    - Replace the placeholder URL and anonymous key with the values from your Supabase project.
    - Keep your real credentials out of commits (e.g., by resetting the file before pushing).
    - Add `nannyme://auth/verify` to your Supabase project's list of allowed redirect URLs so email verification links reopen the app.
-5. **Configure RevenueCat**
+5. **Configure PostHog analytics**
+   - Open `babynanny/PostHogConfig.plist`.
+   - Provide your PostHog project API key, preferred host (e.g., `https://us.i.posthog.com`), and whether autocapture should be enabled.
+   - Keep production credentials out of source control; prefer per-developer overrides or CI-provided values.
+6. **Configure RevenueCat**
    - Add the app to your RevenueCat project and replace the public API key in `babynannyApp` when you move beyond the provided test key.
    - Create an entitlement named **Nanny & Me Pro** so it matches `RevenueCatSubscriptionService.entitlementID`.
    - Add the App Store products `NAMlifetime` (lifetime) and `NAMWeekly` (weekly) to RevenueCat, then include them in your primary offering and attach a hosted paywall design.
    - Enable RevenueCat's Customer Center so the in-app "Manage subscription" button can present change-plan and cancellation options.
    - Sync offerings after you update them so the SwiftUI paywall receives the latest configuration.
-6. **Enable push notifications**
+7. **Enable push notifications**
    - In the **Signing & Capabilities** tab for the `babynanny` target, confirm that the **Push Notifications** capability is enabled.
    - Upload an APNs key or certificate for your Apple Developer account and ensure the bundle identifier used by the app matches the identifier on that key/certificate.
    - Update the `aps-environment` entitlement (currently set to `development`) if you need to ship a production build.
    - Run the app on a physical device to obtain an APNs token (logged by the application delegate) and register it with your push provider.
-7. **Run the app**
+8. **Run the app**
    - Select the `babynanny` scheme.
    - Choose an iOS Simulator device (e.g., iPhone 15 Pro) or a physical device when testing remote notifications.
    - Press <kbd>Cmd</kbd>+<kbd>R</kbd> to build and run.

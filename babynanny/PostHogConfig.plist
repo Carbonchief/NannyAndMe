@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>apiKey</key>
+    <string>phc_LnHkvLd42Z0HUUa1DWyq7fGkrDXoXzKO2AuORKfqqwP</string>
+    <key>host</key>
+    <string>https://eu.i.posthog.com</string>
+    <key>autocapture</key>
+    <true/>
+</dict>
+</plist>
