@@ -853,11 +853,11 @@ enum L10n {
         )
         static let deleteDescription = String(
             localized: "manageAccount.deleteDescription",
-            defaultValue: "Remove all profiles and baby actions you own. This cannot be undone."
+            defaultValue: "Deletes your Nanny & Me account as well as all data and profiles from the app. This cannot be undone."
         )
         static let deleteAction = String(
             localized: "manageAccount.deleteAction",
-            defaultValue: "Delete Account Data"
+            defaultValue: "Delete Account"
         )
         static let deleteConfirmationTitle = String(
             localized: "manageAccount.deleteConfirmationTitle",
@@ -873,7 +873,7 @@ enum L10n {
         )
         static let deleteSuccessMessage = String(
             localized: "manageAccount.deleteSuccessMessage",
-            defaultValue: "Your profiles and baby actions have been removed."
+            defaultValue: "Your account and data has been successfully deleted."
         )
         static let deleteFailureTitle = String(
             localized: "manageAccount.deleteFailureTitle",

@@ -189,12 +189,12 @@
 "manageAccount.title" = "Konto verwalten";
 "manageAccount.accountSectionTitle" = "Konto";
 "manageAccount.deleteSectionTitle" = "Kontodaten löschen";
-"manageAccount.deleteDescription" = "Entfernt alle Profile und Baby-Aktionen, die dir gehören. Dies kann nicht rückgängig gemacht werden.";
-"manageAccount.deleteAction" = "Kontodaten löschen";
+"manageAccount.deleteDescription" = "Löscht dein Nanny & Me-Konto sowie alle Daten und Profile aus der App. Dies kann nicht rückgängig gemacht werden.";
+"manageAccount.deleteAction" = "Konto löschen";
 "manageAccount.deleteConfirmationTitle" = "Kontodaten löschen?";
 "manageAccount.deleteConfirmationMessage" = "Dies entfernt alle Profile und Baby-Aktionen, die dir gehören. Dies kann nicht rückgängig gemacht werden.";
 "manageAccount.deleteSuccessTitle" = "Kontodaten gelöscht";
-"manageAccount.deleteSuccessMessage" = "Deine Profile und Baby-Aktionen wurden entfernt.";
+"manageAccount.deleteSuccessMessage" = "Dein Konto und deine Daten wurden erfolgreich gelöscht.";
 "manageAccount.deleteFailureTitle" = "Daten konnten nicht gelöscht werden";
 "manageAccount.deleteFailureMessage" = "Wir konnten deine Kontodaten nicht löschen. Bitte versuche es erneut.";
 "manageAccount.notAuthenticated" = "Du musst angemeldet sein, um deine Kontodaten zu löschen.";

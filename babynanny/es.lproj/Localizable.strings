@@ -189,12 +189,12 @@
 "manageAccount.title" = "Administrar cuenta";
 "manageAccount.accountSectionTitle" = "Cuenta";
 "manageAccount.deleteSectionTitle" = "Borrar datos de la cuenta";
-"manageAccount.deleteDescription" = "Elimina todos los perfiles y acciones de bebé que posees. Esta acción no se puede deshacer.";
-"manageAccount.deleteAction" = "Borrar datos de la cuenta";
+"manageAccount.deleteDescription" = "Elimina tu cuenta de Nanny & Me y todos los datos y perfiles de la app. Esta acción no se puede deshacer.";
+"manageAccount.deleteAction" = "Eliminar cuenta";
 "manageAccount.deleteConfirmationTitle" = "¿Borrar datos de la cuenta?";
 "manageAccount.deleteConfirmationMessage" = "Esto elimina todos los perfiles y acciones de bebé que posees. Esta acción no se puede deshacer.";
 "manageAccount.deleteSuccessTitle" = "Datos de la cuenta eliminados";
-"manageAccount.deleteSuccessMessage" = "Tus perfiles y acciones de bebé se han eliminado.";
+"manageAccount.deleteSuccessMessage" = "Tu cuenta y datos se han eliminado correctamente.";
 "manageAccount.deleteFailureTitle" = "No se pudieron borrar los datos";
 "manageAccount.deleteFailureMessage" = "No pudimos borrar tus datos de cuenta. Inténtalo de nuevo.";
 "manageAccount.notAuthenticated" = "Debes iniciar sesión para borrar los datos de tu cuenta.";

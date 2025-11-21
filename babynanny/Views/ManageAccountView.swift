@@ -11,10 +11,13 @@ import SwiftUI
 struct ManageAccountView: View {
     @EnvironmentObject private var authManager: SupabaseAuthManager
     @EnvironmentObject private var profileStore: ProfileStore
+    @Environment(\.dismiss) private var dismiss
     @State private var isProcessingDeletion = false
     @State private var isConfirmingDeletion = false
     @State private var alertTitle: String?
     @State private var alertMessage: String?
+    @State private var shouldDismissAfterAlert = false
+    @State private var shouldResetProfilesAfterAlert = false
 
     var body: some View {
         Form {
@@ -47,10 +50,22 @@ struct ManageAccountView: View {
         .disabled(isProcessingDeletion)
         .toolbar { processingToolbar }
         .alert(isPresented: alertBinding) {
-            Alert(title: Text(alertTitle ?? ""), message: alertMessage.map(Text.init), dismissButton: .default(Text(L10n.Common.done)) {
-                alertTitle = nil
-                alertMessage = nil
-            })
+            Alert(
+                title: Text(alertTitle ?? ""),
+                message: alertMessage.map(Text.init),
+                dismissButton: .default(Text(L10n.Common.done)) {
+                    alertTitle = nil
+                    alertMessage = nil
+                    if shouldDismissAfterAlert {
+                        if shouldResetProfilesAfterAlert {
+                            profileStore.removeAllProfilesAfterAccountDeletion()
+                            shouldResetProfilesAfterAlert = false
+                        }
+                        shouldDismissAfterAlert = false
+                        dismiss()
+                    }
+                }
+            )
         }
         .confirmationDialog(
             L10n.ManageAccount.deleteConfirmationTitle,
@@ -103,12 +118,15 @@ struct ManageAccountView: View {
                 isProcessingDeletion = false
 
                 if success {
-                    profileStore.removeAllProfilesAfterAccountDeletion()
                     alertTitle = L10n.ManageAccount.deleteSuccessTitle
                     alertMessage = L10n.ManageAccount.deleteSuccessMessage
+                    shouldDismissAfterAlert = true
+                    shouldResetProfilesAfterAlert = true
                 } else {
                     alertTitle = L10n.ManageAccount.deleteFailureTitle
                     alertMessage = authManager.lastErrorMessage ?? L10n.ManageAccount.deleteFailureMessage
+                    shouldDismissAfterAlert = false
+                    shouldResetProfilesAfterAlert = false
                 }
             }
         }
