@@ -1158,22 +1158,6 @@ final class SupabaseAuthManager: ObservableObject {
 
         if identifiers.isEmpty == false {
             do {
-                let response: PostgrestResponse<Void> = try await client.database
-                    .from("baby_action")
-                    .delete()
-                    .in("profile_id", value: identifiers)
-                    .execute(options: .init(count: .exact))
-                _ = response.count
-            } catch {
-                recordError(error)
-            }
-
-            guard recordedError == nil else {
-                lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
-                return false
-            }
-
-            do {
                 _ = try await client.database
                     .from("baby_profile_shares")
                     .delete()
