@@ -13,6 +13,7 @@ final class SupabaseAuthManager: ObservableObject {
     @Published var lastErrorMessage: String?
     @Published var infoMessage: String?
     @Published var isLoading = false
+    @Published var isPasswordChangeRequired = false
 
     private let client: SupabaseClient?
     private let supabaseAnonKey: String?
@@ -28,8 +29,15 @@ final class SupabaseAuthManager: ObservableObject {
     private var lastAuthMethod: String?
     private weak var subscriptionService: RevenueCatSubscriptionService?
     private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
-    private static let passwordResetRedirectURL = URL(string: "https://nannyandme.app/auth/reset")
+    private static let passwordResetRedirectURL = URL(string: "nannyme://auth/reset")
     private static let profilePhotosBucketName = "ProfilePhotos"
+
+    private enum AuthURLFlow: String {
+        case recovery
+        case signup
+        case magiclink
+        case unknown
+    }
 
     enum ProfileShareResult {
         case success
@@ -85,6 +93,10 @@ final class SupabaseAuthManager: ObservableObject {
         infoMessage = nil
     }
 
+    func dismissPasswordChangeRequirement() {
+        isPasswordChangeRequired = false
+    }
+
     func sendPasswordReset(email: String) async {
         guard let client else {
             lastErrorMessage = configurationError
@@ -110,6 +122,34 @@ final class SupabaseAuthManager: ObservableObject {
         } catch {
             let message = Self.userFriendlyMessage(from: error)
             lastErrorMessage = message.isEmpty ? L10n.Auth.passwordResetFailure : message
+        }
+    }
+
+    func changePassword(to newPassword: String) async -> Bool {
+        guard let client else {
+            lastErrorMessage = configurationError
+            return false
+        }
+
+        clearMessages()
+        let sanitizedPassword = newPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard sanitizedPassword.count >= 6 else {
+            lastErrorMessage = L10n.Auth.passwordChangeRequirement
+            return false
+        }
+
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            _ = try await client.auth.update(user: UserAttributes(password: sanitizedPassword))
+            infoMessage = L10n.Auth.passwordChangeSuccess
+            isPasswordChangeRequired = false
+            AnalyticsTracker.capture("password_change_success")
+            return true
+        } catch {
+            lastErrorMessage = Self.userFriendlyMessage(from: error)
+            return false
         }
     }
 
@@ -245,6 +285,7 @@ final class SupabaseAuthManager: ObservableObject {
             currentUserID = nil
             currentAccessToken = nil
             hasSynchronizedCaregiverDataForCurrentSession = false
+            isPasswordChangeRequired = false
             await subscriptionService?.logOutIfNeeded()
             AnalyticsTracker.capture("logout_success")
         } catch {
@@ -363,12 +404,43 @@ final class SupabaseAuthManager: ObservableObject {
     func handleAuthenticationURL(_ url: URL) async {
         guard let client else { return }
         clearMessages()
+        let flowType = Self.authFlowType(from: url)
         do {
             let session = try await client.auth.session(from: url)
             apply(session: session)
+            isPasswordChangeRequired = flowType == .recovery
         } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
+            isPasswordChangeRequired = false
         }
+    }
+
+    private static func authFlowType(from url: URL) -> AuthURLFlow? {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
+
+        var parameters: [String: String] = [:]
+
+        if let query = components.query {
+            parameters.merge(parameters(from: query)) { _, new in new }
+        }
+
+        if let fragment = components.fragment {
+            parameters.merge(parameters(from: fragment)) { _, new in new }
+        }
+
+        guard let rawType = parameters["type"] else { return nil }
+        return AuthURLFlow(rawValue: rawType) ?? .unknown
+    }
+
+    private static func parameters(from rawString: String) -> [String: String] {
+        rawString
+            .split(separator: "&")
+            .reduce(into: [String: String]()) { partialResult, pair in
+                let components = pair.split(separator: "=", maxSplits: 1)
+                guard let key = components.first else { return }
+                let value = components.count > 1 ? String(components[1]) : ""
+                partialResult[String(key)] = value.removingPercentEncoding ?? value
+            }
     }
 
     func synchronizeCaregiverAccount(with profiles: [ChildProfile]) async -> CaregiverSnapshot? {

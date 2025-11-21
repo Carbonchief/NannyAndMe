@@ -195,6 +195,14 @@
 "auth.info.emailConfirmation" = "Check your email to confirm your account.";
 "auth.info.accountCreated" = "Account created! You're all set.";
 "auth.password.hint" = "Password must be at least 6 characters.";
+"auth.passwordChange.title" = "Change password";
+"auth.passwordChange.description" = "Choose a new password to secure your account.";
+"auth.passwordChange.newPassword" = "New password";
+"auth.passwordChange.confirmPassword" = "Confirm new password";
+"auth.passwordChange.submit" = "Update password";
+"auth.passwordChange.requirement" = "Password must be at least 6 characters.";
+"auth.passwordChange.mismatch" = "Passwords do not match.";
+"auth.passwordChange.success" = "Password updated successfully.";
 "auth.error.passwordReset.missingEmail" = "Enter your email to reset your password.";
 "auth.error.passwordReset.failure" = "Couldn't send password reset email. Please try again.";
 "auth.apple.failure" = "Unable to sign in with Apple. Please try again.";

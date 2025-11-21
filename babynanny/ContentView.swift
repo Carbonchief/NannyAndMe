@@ -202,6 +202,19 @@ struct ContentView: View {
                 SupabaseAuthView()
                     .environmentObject(authManager)
             }
+            .sheet(
+                isPresented: Binding(
+                    get: { authManager.isPasswordChangeRequired },
+                    set: { isPresented in
+                        if isPresented == false {
+                            authManager.dismissPasswordChangeRequirement()
+                        }
+                    }
+                )
+            ) {
+                PasswordChangeView()
+                    .environmentObject(authManager)
+            }
             .fullScreenCover(isPresented: $isOnboardingPresented) {
                 OnboardingFlowView(isPresented: $isOnboardingPresented)
             }

@@ -195,6 +195,14 @@
 "auth.info.emailConfirmation" = "Revisa tu correo para confirmar la cuenta.";
 "auth.info.accountCreated" = "¡Cuenta creada! Todo listo.";
 "auth.password.hint" = "La contraseña debe tener al menos 6 caracteres.";
+"auth.passwordChange.title" = "Cambiar contraseña";
+"auth.passwordChange.description" = "Elige una nueva contraseña para proteger tu cuenta.";
+"auth.passwordChange.newPassword" = "Nueva contraseña";
+"auth.passwordChange.confirmPassword" = "Confirmar nueva contraseña";
+"auth.passwordChange.submit" = "Actualizar contraseña";
+"auth.passwordChange.requirement" = "La contraseña debe tener al menos 6 caracteres.";
+"auth.passwordChange.mismatch" = "Las contraseñas no coinciden.";
+"auth.passwordChange.success" = "Contraseña actualizada correctamente.";
 "auth.error.passwordReset.missingEmail" = "Ingresa tu correo para restablecer la contraseña.";
 "auth.error.passwordReset.failure" = "No se pudo enviar el correo de restablecimiento. Inténtalo de nuevo.";
 "auth.apple.failure" = "No se pudo iniciar sesión con Apple. Inténtalo de nuevo.";

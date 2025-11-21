@@ -873,6 +873,38 @@ enum L10n {
             localized: "auth.password.hint",
             defaultValue: "Password must be at least 6 characters."
         )
+        static let passwordChangeTitle = String(
+            localized: "auth.passwordChange.title",
+            defaultValue: "Change password"
+        )
+        static let passwordChangeDescription = String(
+            localized: "auth.passwordChange.description",
+            defaultValue: "Choose a new password to secure your account."
+        )
+        static let passwordChangeNewPassword = String(
+            localized: "auth.passwordChange.newPassword",
+            defaultValue: "New password"
+        )
+        static let passwordChangeConfirmPassword = String(
+            localized: "auth.passwordChange.confirmPassword",
+            defaultValue: "Confirm new password"
+        )
+        static let passwordChangeCTA = String(
+            localized: "auth.passwordChange.submit",
+            defaultValue: "Update password"
+        )
+        static let passwordChangeRequirement = String(
+            localized: "auth.passwordChange.requirement",
+            defaultValue: "Password must be at least 6 characters."
+        )
+        static let passwordChangeMismatch = String(
+            localized: "auth.passwordChange.mismatch",
+            defaultValue: "Passwords do not match."
+        )
+        static let passwordChangeSuccess = String(
+            localized: "auth.passwordChange.success",
+            defaultValue: "Password updated successfully."
+        )
         static let passwordResetMissingEmail = String(
             localized: "auth.error.passwordReset.missingEmail",
             defaultValue: "Enter your email to reset your password."
