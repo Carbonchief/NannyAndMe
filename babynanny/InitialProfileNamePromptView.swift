@@ -115,9 +115,8 @@ struct InitialProfileNamePromptView: View {
 
     @MainActor
     private func handleContinue() {
-        let value = trimmedName
-        guard value.isEmpty == false else { return }
-        onContinue(value, imageData)
+        guard trimmedName.isEmpty == false else { return }
+        onContinue(name, imageData)
     }
 
     @MainActor

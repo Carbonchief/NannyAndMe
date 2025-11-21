@@ -35,6 +35,8 @@ struct SettingsView: View {
     @State private var pendingLocationUnlock = false
     @State private var pendingAddProfileUnlock = false
     @State private var isCustomerCenterPresented = false
+    @State private var activeProfileName = ""
+    @FocusState private var isProfileNameFocused: Bool
 
     var body: some View {
         Form {
@@ -65,9 +67,11 @@ struct SettingsView: View {
         }
         .onAppear {
             refreshActionReminderSummaries()
+            activeProfileName = profileStore.activeProfile.name
         }
         .onChange(of: profileStore.activeProfileID) { _, _ in
             refreshActionReminderSummaries()
+            activeProfileName = profileStore.activeProfile.name
         }
         .onChange(of: profileStore.activeProfile.remindersEnabled) { _, _ in
             refreshActionReminderSummaries()
@@ -77,6 +81,9 @@ struct SettingsView: View {
         }
         .onChange(of: profileStore.activeProfile.name) { _, _ in
             refreshActionReminderSummaries()
+            if isProfileNameFocused == false {
+                activeProfileName = profileStore.activeProfile.name
+            }
         }
         .onDisappear {
             reminderLoadTask?.cancel()
@@ -330,14 +337,16 @@ struct SettingsView: View {
             profilePhotoSelector
 
             VStack(alignment: .leading, spacing: 12) {
-                TextField(L10n.Profiles.childName, text: Binding(
-                    get: { profileStore.activeProfile.name },
-                    set: { newValue in
-                        profileStore.updateActiveProfile { $0.name = newValue }
-                    }
-                ))
+                TextField(L10n.Profiles.childName, text: $activeProfileName)
                 .textInputAutocapitalization(.words)
                 .disableAutocorrection(true)
+                .focused($isProfileNameFocused)
+                .onSubmit(commitActiveProfileName)
+                .onChange(of: isProfileNameFocused) { _, focused in
+                    if focused == false {
+                        commitActiveProfileName()
+                    }
+                }
 
                 DatePicker(
                     selection: Binding(
@@ -353,6 +362,14 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private func commitActiveProfileName() {
+        let nameToSave = activeProfileName
+
+        guard nameToSave != profileStore.activeProfile.name else { return }
+
+        profileStore.updateActiveProfile { $0.name = nameToSave }
     }
 
     private var processingPhotoIndicator: some View {

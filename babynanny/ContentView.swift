@@ -375,7 +375,7 @@ struct ContentView: View {
                 let trimmedName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard trimmedName.isEmpty == false else { return }
                 profileStore.updateActiveProfile { profile in
-                    profile.name = trimmedName
+                    profile.name = newName
                     if profile.imageData != imageData {
                         profile.imageData = imageData
                         profile.avatarURL = nil

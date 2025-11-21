@@ -198,8 +198,8 @@ final class ActionLogStore: ObservableObject {
                 guard trimmedName.isEmpty == false else { continue }
 
                 let model = profileModel(for: profile.id)
-                if model.name != trimmedName {
-                    model.name = trimmedName
+                if model.name != profile.name {
+                    model.name = profile.name
                     didMutateCurrent = true
                 }
                 let normalizedBirthDate = profile.birthDate.normalizedToUTC()
