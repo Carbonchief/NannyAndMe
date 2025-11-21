@@ -428,8 +428,15 @@ final class SupabaseAuthManager: ObservableObject {
             queryParameters.merge(parameters(from: fragment)) { _, new in new }
         }
 
-        guard let rawType = queryParameters["type"] else { return nil }
-        return AuthURLFlow(rawValue: rawType) ?? .unknown
+        if let rawType = queryParameters["type"], let flow = AuthURLFlow(rawValue: rawType) {
+            return flow
+        }
+
+        if components.path.lowercased().contains("reset") {
+            return .recovery
+        }
+
+        return nil
     }
 
     private static func parameters(from rawString: String) -> [String: String] {
