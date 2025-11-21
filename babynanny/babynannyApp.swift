@@ -8,6 +8,7 @@
 import RevenueCat
 import SwiftData
 import SwiftUI
+import PostHog
 import UniformTypeIdentifiers
 import UIKit
 import os
@@ -26,6 +27,14 @@ struct babynannyApp: App {
     @State private var isShowingSplashScreen = true
 
     init() {
+        
+        let POSTHOG_API_KEY = "phc_LnHkvLd42Z0HUUa1DWyq7fGkrDXoXzKO2AuORKfqqwP"
+        let POSTHOG_HOST = "https://eu.i.posthog.com"
+                
+                
+        let config = PostHogConfig(apiKey: POSTHOG_API_KEY, host: POSTHOG_HOST)
+                PostHogSDK.shared.setup(config)
+        
         let configuration = Configuration.Builder(withAPIKey: "test_ZOvBHiTttFESXkDpIwmtIaZZQSC")
             .with(storeKitVersion: .storeKit2)
             .build()
