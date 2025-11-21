@@ -27,6 +27,7 @@ final class SupabaseAuthManager: ObservableObject {
     private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
     private static let passwordResetRedirectURL = URL(string: "nannyme://auth/reset")
     private static let profilePhotosBucketName = "ProfilePhotos"
+    private static let accountDeletionEdgeFunctionName = "smart-processor"
 
     private enum AuthURLFlow: String {
         case recovery
@@ -1071,13 +1072,14 @@ final class SupabaseAuthManager: ObservableObject {
         }
     }
 
-    private func deleteSupabaseUserAccount(accessToken: String) async throws {
+    private func invokeAccountDeletionEdgeFunction(accessToken: String) async throws {
         guard let supabaseBaseURL else {
             throw UserDeletionError.missingConfiguration
         }
 
-        var request = URLRequest(url: supabaseBaseURL.appendingPathComponent("auth/v1/user"))
-        request.httpMethod = "DELETE"
+        let functionPath = "functions/v1/\(Self.accountDeletionEdgeFunctionName)"
+        var request = URLRequest(url: supabaseBaseURL.appendingPathComponent(functionPath))
+        request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         if let supabaseAnonKey {
             request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
@@ -1089,7 +1091,10 @@ final class SupabaseAuthManager: ObservableObject {
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
-            logger.error("Unable to delete Supabase user: status \(httpResponse.statusCode)")
+            logger.error("Account deletion edge function failed: status \(httpResponse.statusCode)")
+            if let url = request.url?.absoluteString {
+                logger.error("Failed edge function URL: \(url, privacy: .public)")
+            }
             throw UserDeletionError.httpStatus(httpResponse.statusCode)
         }
     }
@@ -1266,7 +1271,7 @@ final class SupabaseAuthManager: ObservableObject {
                 }
             }
 
-            try await deleteSupabaseUserAccount(accessToken: accessToken)
+            try await invokeAccountDeletionEdgeFunction(accessToken: accessToken)
         } catch {
             recordError(error)
         }
