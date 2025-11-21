@@ -515,18 +515,50 @@ final class SupabaseAuthManager: ObservableObject {
         records.reserveCapacity(profiles.count)
 
         for profile in profiles {
+            let caregiverResolution = try await resolveCaregiverUpdate(for: profile,
+                                                                       currentCaregiverID: caregiverID,
+                                                                       client: client)
             let avatarURL = try await resolveAvatarURL(for: profile,
                                                        caregiverID: caregiverID,
                                                        client: client)
             let shouldClearAvatar = profile.imageData == nil && profile.avatarURL == nil
             let record = BabyProfileRecord(profile: profile,
-                                           caregiverID: caregiverID,
+                                           caregiverID: caregiverResolution.id,
+                                           shouldEncodeCaregiverID: caregiverResolution.shouldEncodeCaregiverID,
                                            avatarURL: avatarURL,
                                            shouldClearAvatar: shouldClearAvatar)
             records.append(record)
         }
 
         return records
+    }
+
+    private func resolveCaregiverUpdate(for profile: ChildProfile,
+                                        currentCaregiverID: UUID,
+                                        client: SupabaseClient) async throws -> (id: UUID, shouldEncodeCaregiverID: Bool) {
+        guard profile.isShared else { return (currentCaregiverID, true) }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(SupabaseDateDecoder.decode)
+
+        let response: PostgrestResponse<[BabyProfileOwnershipRecord]> = try await client.database
+            .from("baby_profiles")
+            .select("id, caregiver_id")
+            .eq("id", value: profile.id.uuidString.lowercased())
+            .limit(1)
+            .execute()
+
+        let records: [BabyProfileOwnershipRecord] = try decodeResponse(response.value,
+                                                                       decoder: decoder,
+                                                                       context: "profile-ownership")
+
+        guard let ownershipRecord = records.first else { return (currentCaregiverID, true) }
+
+        if ownershipRecord.caregiverID != currentCaregiverID {
+            return (ownershipRecord.caregiverID, false)
+        }
+
+        return (currentCaregiverID, true)
     }
 
     private func resolveAvatarURL(for profile: ChildProfile,
@@ -1298,13 +1330,16 @@ private struct BabyProfileRecord: Codable, Identifiable {
     var createdAt: Date?
     var editedAt: Date?
     private var shouldClearAvatarOnUpload = false
+    private var shouldEncodeCaregiverID = true
 
     init(profile: ChildProfile,
          caregiverID: UUID,
+         shouldEncodeCaregiverID: Bool,
          avatarURL: String?,
          shouldClearAvatar: Bool) {
         id = profile.id
         self.caregiverID = caregiverID
+        self.shouldEncodeCaregiverID = shouldEncodeCaregiverID
         name = profile.name
         dateOfBirth = Self.dateFormatter.string(from: profile.birthDate)
         self.avatarURL = avatarURL
@@ -1321,12 +1356,15 @@ private struct BabyProfileRecord: Codable, Identifiable {
         createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
         editedAt = try container.decodeIfPresent(Date.self, forKey: .editedAt)
         shouldClearAvatarOnUpload = false
+        shouldEncodeCaregiverID = true
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
-        try container.encode(caregiverID, forKey: .caregiverID)
+        if shouldEncodeCaregiverID {
+            try container.encode(caregiverID, forKey: .caregiverID)
+        }
         try container.encode(name, forKey: .name)
         try container.encodeIfPresent(dateOfBirth, forKey: .dateOfBirth)
         if let avatarURL {
