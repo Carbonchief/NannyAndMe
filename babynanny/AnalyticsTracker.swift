@@ -1,6 +1,7 @@
 import Foundation
 import PostHog
 
+@MainActor
 enum AnalyticsTracker {
     static func capture(_ event: String, properties: [String: Any]? = nil) {
         guard AnalyticsConsentManager.shared.isAnalyticsEnabled else { return }

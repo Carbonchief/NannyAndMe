@@ -103,7 +103,7 @@ struct babynannyApp: App {
                 await pushNotificationRegistrar.registerForRemoteNotifications()
             }
             .task {
-                await analyticsConsentManager.configureIfAuthorized()
+                analyticsConsentManager.configureIfAuthorized()
                 await analyticsConsentManager.requestTrackingAuthorizationIfNeeded()
             }
             .modelContainer(appDataStack.modelContainer)
