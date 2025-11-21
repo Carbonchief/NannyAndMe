@@ -1437,13 +1437,16 @@ private struct BabyProfileRecord: Codable, Identifiable {
     var createdAt: Date?
     var editedAt: Date?
     private var shouldClearAvatarOnUpload = false
+    private var shouldEncodeCaregiverID = true
 
     init(profile: ChildProfile,
          caregiverID: UUID,
+         shouldEncodeCaregiverID: Bool,
          avatarURL: String?,
          shouldClearAvatar: Bool) {
         id = profile.id
         self.caregiverID = caregiverID
+        self.shouldEncodeCaregiverID = shouldEncodeCaregiverID
         name = profile.name
         dateOfBirth = Self.dateFormatter.string(from: profile.birthDate)
         self.avatarURL = avatarURL
@@ -1460,12 +1463,15 @@ private struct BabyProfileRecord: Codable, Identifiable {
         createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
         editedAt = try container.decodeIfPresent(Date.self, forKey: .editedAt)
         shouldClearAvatarOnUpload = false
+        shouldEncodeCaregiverID = true
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
-        try container.encode(caregiverID, forKey: .caregiverID)
+        if shouldEncodeCaregiverID {
+            try container.encode(caregiverID, forKey: .caregiverID)
+        }
         try container.encode(name, forKey: .name)
         try container.encodeIfPresent(dateOfBirth, forKey: .dateOfBirth)
         if let avatarURL {
