@@ -821,6 +821,7 @@ enum L10n {
         static let subtitle = String(localized: "menu.subtitle", defaultValue: "Quick actions")
         static let allLogs = String(localized: "menu.allLogs", defaultValue: "All Logs")
         static let settings = String(localized: "menu.settings", defaultValue: "Settings")
+        static let manageAccount = String(localized: "menu.manageAccount", defaultValue: "Manage Account")
         static let shareData = String(localized: "menu.shareData", defaultValue: "Share Data")
         static let login = String(localized: "menu.login", defaultValue: "Sign In")
         static let logout = String(localized: "menu.logout", defaultValue: "Sign Out")
@@ -838,6 +839,54 @@ enum L10n {
             let format = String(localized: "menu.loggedInAs", defaultValue: "Signed in as %1$@")
             return String(format: format, locale: Locale.current, value)
         }
+    }
+
+    enum ManageAccount {
+        static let title = String(localized: "manageAccount.title", defaultValue: "Manage Account")
+        static let accountSectionTitle = String(
+            localized: "manageAccount.accountSectionTitle",
+            defaultValue: "Account"
+        )
+        static let deleteSectionTitle = String(
+            localized: "manageAccount.deleteSectionTitle",
+            defaultValue: "Delete Account Data"
+        )
+        static let deleteDescription = String(
+            localized: "manageAccount.deleteDescription",
+            defaultValue: "Remove all profiles and baby actions you own. This cannot be undone."
+        )
+        static let deleteAction = String(
+            localized: "manageAccount.deleteAction",
+            defaultValue: "Delete Account Data"
+        )
+        static let deleteConfirmationTitle = String(
+            localized: "manageAccount.deleteConfirmationTitle",
+            defaultValue: "Delete account data?"
+        )
+        static let deleteConfirmationMessage = String(
+            localized: "manageAccount.deleteConfirmationMessage",
+            defaultValue: "This removes all profiles and baby actions you own. This cannot be undone."
+        )
+        static let deleteSuccessTitle = String(
+            localized: "manageAccount.deleteSuccessTitle",
+            defaultValue: "Account data deleted"
+        )
+        static let deleteSuccessMessage = String(
+            localized: "manageAccount.deleteSuccessMessage",
+            defaultValue: "Your profiles and baby actions have been removed."
+        )
+        static let deleteFailureTitle = String(
+            localized: "manageAccount.deleteFailureTitle",
+            defaultValue: "Unable to delete data"
+        )
+        static let deleteFailureMessage = String(
+            localized: "manageAccount.deleteFailureMessage",
+            defaultValue: "We couldn't delete your account data. Please try again."
+        )
+        static let notAuthenticated = String(
+            localized: "manageAccount.notAuthenticated",
+            defaultValue: "You need to be signed in to delete your account data."
+        )
     }
 
     enum Auth {

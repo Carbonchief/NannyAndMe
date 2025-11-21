@@ -179,11 +179,25 @@
 "menu.allLogs" = "Todos los registros";
 "menu.shareData" = "Compartir datos";
 "menu.settings" = "Configuración";
+"menu.manageAccount" = "Administrar cuenta";
 "menu.login" = "Iniciar sesión";
 "menu.logout" = "Cerrar sesión";
 "menu.loggedInAs" = "Sesión iniciada como %1$@";
 "menu.authUnavailable" = "Inicio de sesión de Supabase no disponible. Revisa la configuración.";
 "menu.version" = "Versión %@";
+
+"manageAccount.title" = "Administrar cuenta";
+"manageAccount.accountSectionTitle" = "Cuenta";
+"manageAccount.deleteSectionTitle" = "Borrar datos de la cuenta";
+"manageAccount.deleteDescription" = "Elimina todos los perfiles y acciones de bebé que posees. Esta acción no se puede deshacer.";
+"manageAccount.deleteAction" = "Borrar datos de la cuenta";
+"manageAccount.deleteConfirmationTitle" = "¿Borrar datos de la cuenta?";
+"manageAccount.deleteConfirmationMessage" = "Esto elimina todos los perfiles y acciones de bebé que posees. Esta acción no se puede deshacer.";
+"manageAccount.deleteSuccessTitle" = "Datos de la cuenta eliminados";
+"manageAccount.deleteSuccessMessage" = "Tus perfiles y acciones de bebé se han eliminado.";
+"manageAccount.deleteFailureTitle" = "No se pudieron borrar los datos";
+"manageAccount.deleteFailureMessage" = "No pudimos borrar tus datos de cuenta. Inténtalo de nuevo.";
+"manageAccount.notAuthenticated" = "Debes iniciar sesión para borrar los datos de tu cuenta.";
 "auth.title" = "Cuenta";
 "auth.description" = "Ingresa tu correo electrónico y una contraseña. Crearemos una cuenta si es necesario o iniciaremos sesión.";
 "auth.email" = "Correo electrónico";

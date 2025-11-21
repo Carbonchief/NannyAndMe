@@ -25,6 +25,7 @@ struct ContentView: View {
     @State private var tabResetID = UUID()
     @State private var isMenuVisible = false
     @State private var showSettings = false
+    @State private var showManageAccount = false
     @State private var showAllLogs = false
     @State private var isProfileSwitcherPresented = false
     @State private var isInitialProfilePromptPresented = false
@@ -166,6 +167,9 @@ struct ContentView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationDestination(isPresented: $showSettings) {
                     SettingsView()
+                }
+                .navigationDestination(isPresented: $showManageAccount) {
+                    ManageAccountView()
                 }
                 .navigationDestination(isPresented: $showAllLogs) {
                     AllLogsView()
@@ -318,6 +322,13 @@ struct ContentView: View {
                             withAnimation(.easeInOut) {
                                 isMenuVisible = false
                                 showSettings = true
+                                menuDragOffset = 0
+                            }
+                        },
+                        onSelectManageAccount: {
+                            withAnimation(.easeInOut) {
+                                isMenuVisible = false
+                                showManageAccount = true
                                 menuDragOffset = 0
                             }
                         },

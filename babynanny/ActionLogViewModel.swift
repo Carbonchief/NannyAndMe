@@ -507,6 +507,35 @@ final class ActionLogStore: ObservableObject {
         scheduleReminders()
     }
 
+    func removeAllData() {
+        notifyChange()
+
+        let didMutate: Bool = performLocalMutation {
+            let descriptor = FetchDescriptor<ProfileActionStateModel>()
+            guard let models = try? modelContext.fetch(descriptor) else { return false }
+
+            guard models.isEmpty == false else {
+                cachedStates.removeAll()
+                pendingRemoteDeletions.removeAll()
+                return true
+            }
+
+            for model in models {
+                modelContext.delete(model)
+            }
+
+            cachedStates.removeAll()
+            pendingRemoteDeletions.removeAll()
+            return true
+        }
+
+        guard didMutate else { return }
+
+        dataStack.saveIfNeeded(on: modelContext, reason: "remove-all-profile-data")
+        refreshDurationActivities()
+        scheduleReminders()
+    }
+
     func mergeProfileState(_ importedState: ProfileActionState, for profileID: UUID) -> MergeSummary {
         guard guardCanMutateActions(for: profileID) else { return .empty }
         notifyChange()

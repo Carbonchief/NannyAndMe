@@ -1060,6 +1060,122 @@ final class SupabaseAuthManager: ObservableObject {
         }
     }
 
+    func deleteOwnedAccountData() async -> Bool {
+        guard let client else {
+            lastErrorMessage = configurationError
+            return false
+        }
+
+        clearMessages()
+        isLoading = true
+        defer { isLoading = false }
+
+        if currentUserID == nil {
+            do {
+                let session = try await client.auth.session
+                currentUserID = session.user.id
+                currentUserEmail = session.user.email
+            } catch {
+                lastErrorMessage = Self.userFriendlyMessage(from: error)
+                return false
+            }
+        }
+
+        guard isAuthenticated, let userID = currentUserID else {
+            lastErrorMessage = L10n.ManageAccount.notAuthenticated
+            return false
+        }
+
+        var recordedError: Error?
+
+        func recordError(_ error: Error) {
+            if recordedError == nil {
+                recordedError = error
+            }
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(SupabaseDateDecoder.decode)
+
+        let ownedProfileIDs: [UUID]
+        do {
+            let response: PostgrestResponse<[BabyProfileOwnershipRecord]> = try await client.database
+                .from("baby_profiles")
+                .select("id, caregiver_id")
+                .eq("caregiver_id", value: userID.uuidString)
+                .execute()
+
+            let records: [BabyProfileOwnershipRecord] = try decodeResponse(
+                response.value,
+                decoder: decoder,
+                context: "account-profile-ownership"
+            )
+            ownedProfileIDs = records
+                .filter { $0.caregiverID == userID }
+                .map(\.id)
+        } catch {
+            recordError(error)
+
+            if let recordedError {
+                lastErrorMessage = Self.userFriendlyMessage(from: recordedError)
+            }
+
+            return false
+        }
+
+        guard ownedProfileIDs.isEmpty == false else { return true }
+
+        let identifiers = ownedProfileIDs.map { $0.uuidString.lowercased() }
+
+        do {
+            let response: PostgrestResponse<Void> = try await client.database
+                .from("baby_action")
+                .delete()
+                .in("profile_id", value: identifiers)
+                .execute(options: .init(count: .exact))
+            _ = response.count
+        } catch {
+            recordError(error)
+        }
+
+        guard recordedError == nil else {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+            return false
+        }
+
+        do {
+            _ = try await client.database
+                .from("baby_profile_shares")
+                .delete()
+                .in("baby_profile_id", value: identifiers)
+                .execute()
+        } catch {
+            recordError(error)
+        }
+
+        guard recordedError == nil else {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+            return false
+        }
+
+        do {
+            _ = try await client.database
+                .from("baby_profiles")
+                .delete()
+                .eq("caregiver_id", value: userID.uuidString)
+                .execute()
+        } catch {
+            recordError(error)
+        }
+
+        if let recordedError {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError)
+            return false
+        }
+
+        return true
+    }
+
     func shareBabyProfile(profileID: UUID,
                           recipientEmail: String,
                           permission: ProfileSharePermission) async -> ProfileShareResult {
