@@ -1125,6 +1125,22 @@ final class SupabaseAuthManager: ObservableObject {
 
         let identifiers = ownedProfileIDs.map { $0.uuidString.lowercased() }
 
+        do {
+            let update = BabyActionClearEditorUpdate(lastEditedBy: nil)
+            _ = try await client.database
+                .from("baby_action")
+                .update(update)
+                .eq("last_edited_by", value: userID.uuidString)
+                .execute()
+        } catch {
+            recordError(error)
+        }
+
+        guard recordedError == nil else {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+            return false
+        }
+
         if identifiers.isEmpty == false {
             do {
                 let response: PostgrestResponse<Void> = try await client.database
@@ -1833,6 +1849,14 @@ private struct BabyProfileShareUpdate: Encodable {
     enum CodingKeys: String, CodingKey {
         case permission
         case status
+    }
+}
+
+private struct BabyActionClearEditorUpdate: Encodable {
+    var lastEditedBy: UUID?
+
+    enum CodingKeys: String, CodingKey {
+        case lastEditedBy = "last_edited_by"
     }
 }
 
