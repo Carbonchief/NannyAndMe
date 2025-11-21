@@ -623,18 +623,49 @@ final class SupabaseAuthManager: ObservableObject {
         records.reserveCapacity(profiles.count)
 
         for profile in profiles {
+            let resolvedCaregiverID = try await resolveCaregiverID(for: profile,
+                                                                   currentCaregiverID: caregiverID,
+                                                                   client: client)
             let avatarURL = try await resolveAvatarURL(for: profile,
                                                        caregiverID: caregiverID,
                                                        client: client)
             let shouldClearAvatar = profile.imageData == nil && profile.avatarURL == nil
             let record = BabyProfileRecord(profile: profile,
-                                           caregiverID: caregiverID,
+                                           caregiverID: resolvedCaregiverID,
                                            avatarURL: avatarURL,
                                            shouldClearAvatar: shouldClearAvatar)
             records.append(record)
         }
 
         return records
+    }
+
+    private func resolveCaregiverID(for profile: ChildProfile,
+                                    currentCaregiverID: UUID,
+                                    client: SupabaseClient) async throws -> UUID {
+        guard profile.isShared else { return currentCaregiverID }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(SupabaseDateDecoder.decode)
+
+        let response: PostgrestResponse<[BabyProfileOwnershipRecord]> = try await client.database
+            .from("baby_profiles")
+            .select("id, caregiver_id")
+            .eq("id", value: profile.id.uuidString.lowercased())
+            .limit(1)
+            .execute()
+
+        let records: [BabyProfileOwnershipRecord] = try decodeResponse(response.value,
+                                                                       decoder: decoder,
+                                                                       context: "profile-ownership")
+
+        guard let ownershipRecord = records.first else { return currentCaregiverID }
+
+        if ownershipRecord.caregiverID != currentCaregiverID {
+            return ownershipRecord.caregiverID
+        }
+
+        return currentCaregiverID
     }
 
     private func resolveAvatarURL(for profile: ChildProfile,
