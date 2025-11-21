@@ -609,9 +609,11 @@ final class SupabaseAuthManager: ObservableObject {
             let avatarURL = try await resolveAvatarURL(for: profile,
                                                        caregiverID: caregiverID,
                                                        client: client)
+            let shouldEncodeCaregiverID = resolvedCaregiverID == caregiverID
             let shouldClearAvatar = profile.imageData == nil && profile.avatarURL == nil
             let record = BabyProfileRecord(profile: profile,
                                            caregiverID: resolvedCaregiverID,
+                                           shouldEncodeCaregiverID: shouldEncodeCaregiverID,
                                            avatarURL: avatarURL,
                                            shouldClearAvatar: shouldClearAvatar)
             records.append(record)
@@ -910,8 +912,7 @@ final class SupabaseAuthManager: ObservableObject {
                 .delete()
                 .eq("profile_id", value: normalizedIdentifier)
                 .execute(options: .init(count: .exact))
-
-            let deletedCount = response.count ?? 0
+            _ = response.count
         } catch {
             recordError(error)
         }
