@@ -33,7 +33,7 @@ struct babynannyApp: App {
                 
                 
         let config = PostHogConfig(apiKey: POSTHOG_API_KEY, host: POSTHOG_HOST)
-                PostHogSDK.shared.setup(config)
+        PostHogSDK.shared.setup(config)
         
         let configuration = Configuration.Builder(withAPIKey: "test_ZOvBHiTttFESXkDpIwmtIaZZQSC")
             .with(storeKitVersion: .storeKit2)
