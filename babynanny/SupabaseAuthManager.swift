@@ -1141,6 +1141,21 @@ final class SupabaseAuthManager: ObservableObject {
             return false
         }
 
+        do {
+            _ = try await client.database
+                .from("baby_action")
+                .delete()
+                .eq("caregiver_id", value: userID.uuidString)
+                .execute(options: .init(count: .exact))
+        } catch {
+            recordError(error)
+        }
+
+        guard recordedError == nil else {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+            return false
+        }
+
         if identifiers.isEmpty == false {
             do {
                 let response: PostgrestResponse<Void> = try await client.database
