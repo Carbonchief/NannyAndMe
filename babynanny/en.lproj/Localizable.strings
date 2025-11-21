@@ -190,9 +190,13 @@
 "auth.password" = "Password";
 "auth.primary" = "Continue";
 "auth.divider.or" = "or";
+"auth.forgotPassword" = "Forgot password?";
+"auth.info.passwordResetSent" = "Password reset email sent. Check your inbox.";
 "auth.info.emailConfirmation" = "Check your email to confirm your account.";
 "auth.info.accountCreated" = "Account created! You're all set.";
 "auth.password.hint" = "Password must be at least 6 characters.";
+"auth.error.passwordReset.missingEmail" = "Enter your email to reset your password.";
+"auth.error.passwordReset.failure" = "Couldn't send password reset email. Please try again.";
 "auth.apple.failure" = "Unable to sign in with Apple. Please try again.";
 "auth.dismiss" = "Close";
 "auth.error.missingFile" = "SupabaseConfig.plist is missing from the app bundle.";

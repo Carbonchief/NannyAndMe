@@ -28,6 +28,7 @@ final class SupabaseAuthManager: ObservableObject {
     private var lastAuthMethod: String?
     private weak var subscriptionService: RevenueCatSubscriptionService?
     private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
+    private static let passwordResetRedirectURL = URL(string: "https://nannyandme.app/auth/reset")
     private static let profilePhotosBucketName = "ProfilePhotos"
 
     enum ProfileShareResult {
@@ -82,6 +83,34 @@ final class SupabaseAuthManager: ObservableObject {
     func clearMessages() {
         lastErrorMessage = nil
         infoMessage = nil
+    }
+
+    func sendPasswordReset(email: String) async {
+        guard let client else {
+            lastErrorMessage = configurationError
+            return
+        }
+
+        let sanitizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard sanitizedEmail.isEmpty == false else {
+            lastErrorMessage = L10n.Auth.passwordResetMissingEmail
+            return
+        }
+
+        clearMessages()
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            try await client.auth.resetPasswordForEmail(
+                sanitizedEmail,
+                redirectTo: Self.passwordResetRedirectURL
+            )
+            infoMessage = L10n.Auth.passwordResetEmailSent
+        } catch {
+            let message = Self.userFriendlyMessage(from: error)
+            lastErrorMessage = message.isEmpty ? L10n.Auth.passwordResetFailure : message
+        }
     }
 
     func authenticate(email: String, password: String) async -> Bool {

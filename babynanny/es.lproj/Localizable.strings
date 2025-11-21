@@ -190,9 +190,13 @@
 "auth.password" = "Contraseña";
 "auth.primary" = "Continuar";
 "auth.divider.or" = "o";
+"auth.forgotPassword" = "¿Olvidaste tu contraseña?";
+"auth.info.passwordResetSent" = "Correo de restablecimiento enviado. Revisa tu bandeja de entrada.";
 "auth.info.emailConfirmation" = "Revisa tu correo para confirmar la cuenta.";
 "auth.info.accountCreated" = "¡Cuenta creada! Todo listo.";
 "auth.password.hint" = "La contraseña debe tener al menos 6 caracteres.";
+"auth.error.passwordReset.missingEmail" = "Ingresa tu correo para restablecer la contraseña.";
+"auth.error.passwordReset.failure" = "No se pudo enviar el correo de restablecimiento. Inténtalo de nuevo.";
 "auth.apple.failure" = "No se pudo iniciar sesión con Apple. Inténtalo de nuevo.";
 "auth.dismiss" = "Cerrar";
 "auth.error.missingFile" = "SupabaseConfig.plist no se encuentra en el paquete de la app.";

@@ -95,12 +95,23 @@ struct SupabaseAuthView: View {
         Task { await authManager.authenticate(email: email, password: password) }
     }
 
+    private func performPasswordReset() {
+        AnalyticsTracker.capture("password_reset_tap", properties: ["email": sanitizedEmail])
+        authManager.clearMessages()
+        let email = sanitizedEmail
+        Task { await authManager.sendPasswordReset(email: email) }
+    }
+
     private var sanitizedEmail: String {
         email.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var sanitizedPassword: String {
         password.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var isPasswordResetDisabled: Bool {
+        sanitizedEmail.isEmpty || authManager.isLoading
     }
 
     private var headerCard: some View {
@@ -162,6 +173,21 @@ struct SupabaseAuthView: View {
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .stroke(Color.primary.opacity(0.06), lineWidth: 1)
                 )
+
+            HStack {
+                Spacer()
+                Button(action: performPasswordReset) {
+                    if authManager.isLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Text(L10n.Auth.forgotPassword)
+                            .font(.footnote.weight(.semibold))
+                    }
+                }
+                .buttonStyle(.borderless)
+                .disabled(isPasswordResetDisabled)
+            }
 
             Text(L10n.Auth.passwordHint)
                 .font(.footnote)

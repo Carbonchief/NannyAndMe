@@ -853,6 +853,14 @@ enum L10n {
             localized: "auth.divider.or",
             defaultValue: "or"
         )
+        static let forgotPassword = String(
+            localized: "auth.forgotPassword",
+            defaultValue: "Forgot password?"
+        )
+        static let passwordResetEmailSent = String(
+            localized: "auth.info.passwordResetSent",
+            defaultValue: "Password reset email sent. Check your inbox."
+        )
         static let emailConfirmationInfo = String(
             localized: "auth.info.emailConfirmation",
             defaultValue: "Check your email to confirm your account."
@@ -864,6 +872,14 @@ enum L10n {
         static let passwordHint = String(
             localized: "auth.password.hint",
             defaultValue: "Password must be at least 6 characters."
+        )
+        static let passwordResetMissingEmail = String(
+            localized: "auth.error.passwordReset.missingEmail",
+            defaultValue: "Enter your email to reset your password."
+        )
+        static let passwordResetFailure = String(
+            localized: "auth.error.passwordReset.failure",
+            defaultValue: "Couldn't send password reset email. Please try again."
         )
         static let appleSignInFailed = String(
             localized: "auth.apple.failure",
