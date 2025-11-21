@@ -235,52 +235,58 @@ private extension ActionMapView {
     }
 
     func clusterDetail(for cluster: ActionCluster) -> some View {
-        VStack(spacing: 0) {
-            Spacer()
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                Spacer()
 
-            VStack(alignment: .leading, spacing: 16) {
-                Capsule()
-                    .fill(Color.secondary.opacity(0.3))
-                    .frame(width: 48, height: 4)
-                    .frame(maxWidth: .infinity)
+                VStack(alignment: .leading, spacing: 16) {
+                    Capsule()
+                        .fill(Color.secondary.opacity(0.3))
+                        .frame(width: 48, height: 4)
+                        .frame(maxWidth: .infinity)
 
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(cluster.headerTitle)
-                            .font(.headline)
-                        Text(clusterSecondaryDescription(for: cluster))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            selectedCluster = nil
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(cluster.headerTitle)
+                                .font(.headline)
+                            Text(clusterSecondaryDescription(for: cluster))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         }
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
 
-                VStack(spacing: 12) {
-                    ForEach(cluster.locations.sorted(by: { $0.timestamp > $1.timestamp })) { location in
-                        clusterRow(for: location)
+                        Spacer()
+
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedCluster = nil
+                            }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title3)
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
                     }
+
+                    ScrollView {
+                        LazyVStack(spacing: 12) {
+                            ForEach(cluster.locations.sorted(by: { $0.timestamp > $1.timestamp })) { location in
+                                clusterRow(for: location)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .frame(maxHeight: geometry.size.height * 0.6)
                 }
+                .padding(20)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color(.systemBackground))
+                        .shadow(color: Color.black.opacity(0.12), radius: 20, x: 0, y: 8)
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 24)
             }
-            .padding(20)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color(.systemBackground))
-                    .shadow(color: Color.black.opacity(0.12), radius: 20, x: 0, y: 8)
-            )
-            .padding(.horizontal, 16)
-            .padding(.bottom, 24)
         }
     }
 
