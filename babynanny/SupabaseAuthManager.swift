@@ -503,14 +503,31 @@ final class SupabaseAuthManager: ObservableObject {
         do {
             let records = try await makeBabyProfileRecords(from: profiles,
                                                             caregiverID: caregiverID,
-                                                            client: client)
+                                                            client: client,
+                                                            shouldEncodeCaregiverID: true)
 
             guard records.isEmpty == false else { return }
 
-            _ = try await client.database
-                .from("baby_profiles")
-                .upsert(records, onConflict: "id", returning: .minimal)
-                .execute()
+            let existingIDs = try await fetchExistingIdentifiers(records.map(\.id),
+                                                                 in: "baby_profiles",
+                                                                 client: client)
+            let insertRecords = records.filter { existingIDs.contains($0.id) == false }
+            let updateRecords = records.filter { existingIDs.contains($0.id) }
+                .map { $0.withoutCaregiverIDUpdates() }
+
+            if insertRecords.isEmpty == false {
+                _ = try await client.database
+                    .from("baby_profiles")
+                    .insert(insertRecords, returning: .minimal)
+                    .execute()
+            }
+
+            if updateRecords.isEmpty == false {
+                _ = try await client.database
+                    .from("baby_profiles")
+                    .upsert(updateRecords, onConflict: "id", returning: .minimal)
+                    .execute()
+            }
         } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
         }
@@ -524,7 +541,10 @@ final class SupabaseAuthManager: ObservableObject {
 
         let sanitizedActions = actions.map { $0.withValidatedDates() }
         let records = sanitizedActions.compactMap { action in
-            BabyActionRecord(action: action, caregiverID: caregiverID, profileID: profileID)
+            BabyActionRecord(action: action,
+                             caregiverID: caregiverID,
+                             profileID: profileID,
+                             shouldEncodeCaregiverID: true)
         }
 
         let shouldUpsert = records.isEmpty == false
@@ -534,10 +554,26 @@ final class SupabaseAuthManager: ObservableObject {
 
         do {
             if shouldUpsert {
-                _ = try await client.database
-                    .from("baby_action")
-                    .upsert(records, onConflict: "id", returning: .minimal)
-                    .execute()
+                let existingIDs = try await fetchExistingIdentifiers(records.map(\.id),
+                                                                     in: "baby_action",
+                                                                     client: client)
+                let insertRecords = records.filter { existingIDs.contains($0.id) == false }
+                let updateRecords = records.filter { existingIDs.contains($0.id) }
+                    .map { $0.withoutCaregiverIDUpdates() }
+
+                if insertRecords.isEmpty == false {
+                    _ = try await client.database
+                        .from("baby_action")
+                        .insert(insertRecords, returning: .minimal)
+                        .execute()
+                }
+
+                if updateRecords.isEmpty == false {
+                    _ = try await client.database
+                        .from("baby_action")
+                        .upsert(updateRecords, onConflict: "id", returning: .minimal)
+                        .execute()
+                }
             }
 
             if shouldDelete {
@@ -585,18 +621,36 @@ final class SupabaseAuthManager: ObservableObject {
 
         let records = try await makeBabyProfileRecords(from: profiles,
                                                        caregiverID: caregiverID,
-                                                       client: client)
+                                                       client: client,
+                                                       shouldEncodeCaregiverID: true)
         guard records.isEmpty == false else { return }
 
-        _ = try await client.database
-            .from("baby_profiles")
-            .upsert(records, onConflict: "id", returning: .minimal)
-            .execute()
+        let existingIDs = try await fetchExistingIdentifiers(records.map(\.id),
+                                                             in: "baby_profiles",
+                                                             client: client)
+        let insertRecords = records.filter { existingIDs.contains($0.id) == false }
+        let updateRecords = records.filter { existingIDs.contains($0.id) }
+            .map { $0.withoutCaregiverIDUpdates() }
+
+        if insertRecords.isEmpty == false {
+            _ = try await client.database
+                .from("baby_profiles")
+                .insert(insertRecords, returning: .minimal)
+                .execute()
+        }
+
+        if updateRecords.isEmpty == false {
+            _ = try await client.database
+                .from("baby_profiles")
+                .upsert(updateRecords, onConflict: "id", returning: .minimal)
+                .execute()
+        }
     }
 
     private func makeBabyProfileRecords(from profiles: [ChildProfile],
                                         caregiverID: UUID,
-                                        client: SupabaseClient) async throws -> [BabyProfileRecord] {
+                                        client: SupabaseClient,
+                                        shouldEncodeCaregiverID: Bool) async throws -> [BabyProfileRecord] {
         guard profiles.isEmpty == false else { return [] }
 
         var records: [BabyProfileRecord] = []
@@ -609,7 +663,6 @@ final class SupabaseAuthManager: ObservableObject {
             let avatarURL = try await resolveAvatarURL(for: profile,
                                                        caregiverID: caregiverID,
                                                        client: client)
-            let shouldEncodeCaregiverID = resolvedCaregiverID == caregiverID
             let shouldClearAvatar = profile.imageData == nil && profile.avatarURL == nil
             let record = BabyProfileRecord(profile: profile,
                                            caregiverID: resolvedCaregiverID,
@@ -620,6 +673,25 @@ final class SupabaseAuthManager: ObservableObject {
         }
 
         return records
+    }
+
+    private func fetchExistingIdentifiers(_ ids: [UUID],
+                                          in table: String,
+                                          client: SupabaseClient) async throws -> Set<UUID> {
+        guard ids.isEmpty == false else { return [] }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(SupabaseDateDecoder.decode)
+        let response: PostgrestResponse<[IdentifierRecord]> = try await client.database
+            .from(table)
+            .select("id")
+            .in("id", value: ids.map { $0.uuidString.lowercased() })
+            .execute()
+
+        let records: [IdentifierRecord] = try decodeResponse(response.value,
+                                                              decoder: decoder,
+                                                              context: "existing-ids-\(table)")
+        return Set(records.map(\.id))
     }
 
     private func resolveCaregiverID(for profile: ChildProfile,
@@ -1442,6 +1514,12 @@ private struct BabyProfileRecord: Codable, Identifiable {
         try container.encodeIfPresent(editedAt, forKey: .editedAt)
     }
 
+    func withoutCaregiverIDUpdates() -> BabyProfileRecord {
+        var record = self
+        record.shouldEncodeCaregiverID = false
+        return record
+    }
+
     func asMetadataUpdate() -> ProfileStore.ProfileMetadataUpdate {
         ProfileStore.ProfileMetadataUpdate(
             id: id,
@@ -1545,6 +1623,10 @@ private struct CaregiverEmailRecord: Decodable {
     var email: String?
 }
 
+private struct IdentifierRecord: Decodable {
+    var id: UUID
+}
+
 private struct BabyProfileOwnershipRecord: Decodable {
     var id: UUID
     var caregiverID: UUID
@@ -1585,8 +1667,9 @@ private struct BabyActionRecord: Codable, Identifiable {
     var editedAt: Date?
     var profileReferenceID: UUID?
     var lastEditedBy: UUID?
+    private var shouldEncodeCaregiverID = true
 
-    init?(action: BabyActionSnapshot, caregiverID: UUID, profileID: UUID) {
+    init?(action: BabyActionSnapshot, caregiverID: UUID, profileID: UUID, shouldEncodeCaregiverID: Bool = true) {
         guard let subtypeID = SupabaseAuthManager.resolveSubtypeID(for: action) else { return nil }
         self.id = action.id
         self.caregiverID = caregiverID
@@ -1599,6 +1682,7 @@ private struct BabyActionRecord: Codable, Identifiable {
         self.editedAt = action.updatedAt
         self.profileReferenceID = profileID
         self.lastEditedBy = caregiverID
+        self.shouldEncodeCaregiverID = shouldEncodeCaregiverID
     }
 
     var profileID: UUID? {
@@ -1666,7 +1750,9 @@ private struct BabyActionRecord: Codable, Identifiable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
-        try container.encode(caregiverID, forKey: .caregiverIDLower)
+        if shouldEncodeCaregiverID {
+            try container.encode(caregiverID, forKey: .caregiverIDLower)
+        }
         try container.encode(subtypeID, forKey: .subtypeIDLower)
         try container.encode(started, forKey: .startedAt)
         if let stopped {
@@ -1704,6 +1790,12 @@ private struct BabyActionRecord: Codable, Identifiable {
         } else {
             try container.encodeNil(forKey: .lastEditedBy)
         }
+    }
+
+    func withoutCaregiverIDUpdates() -> BabyActionRecord {
+        var record = self
+        record.shouldEncodeCaregiverID = false
+        return record
     }
 }
 
