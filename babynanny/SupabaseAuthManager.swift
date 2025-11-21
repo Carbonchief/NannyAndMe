@@ -418,17 +418,17 @@ final class SupabaseAuthManager: ObservableObject {
     private static func authFlowType(from url: URL) -> AuthURLFlow? {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
 
-        var parameters: [String: String] = [:]
+        var queryParameters: [String: String] = [:]
 
         if let query = components.query {
-            parameters.merge(parameters(from: query)) { _, new in new }
+            queryParameters.merge(parameters(from: query)) { _, new in new }
         }
 
         if let fragment = components.fragment {
-            parameters.merge(parameters(from: fragment)) { _, new in new }
+            queryParameters.merge(parameters(from: fragment)) { _, new in new }
         }
 
-        guard let rawType = parameters["type"] else { return nil }
+        guard let rawType = queryParameters["type"] else { return nil }
         return AuthURLFlow(rawValue: rawType) ?? .unknown
     }
 
