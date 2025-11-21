@@ -30,8 +30,19 @@ final class AnalyticsConsentManager: ObservableObject {
     var canTrackIdentifyingData: Bool { consentStatus == .authorized }
 
     func requestTrackingAuthorizationIfNeeded() async {
-        guard consentStatus == .notDetermined else {
+        let systemStatus = ATTrackingManager.trackingAuthorizationStatus
+        syncConsentStatus(with: systemStatus)
+
+        switch systemStatus {
+        case .authorized:
             configureIfAuthorized()
+            return
+        case .denied, .restricted:
+            return
+        case .notDetermined:
+            break
+        @unknown default:
+            updateConsentStatus(.denied)
             return
         }
 
@@ -53,6 +64,19 @@ final class AnalyticsConsentManager: ObservableObject {
     func configureIfAuthorized() {
         guard consentStatus == .authorized else { return }
         setupPostHogIfNeeded()
+    }
+
+    private func syncConsentStatus(with systemStatus: ATTrackingManager.AuthorizationStatus) {
+        switch systemStatus {
+        case .authorized:
+            updateConsentStatus(.authorized)
+        case .denied, .restricted:
+            updateConsentStatus(.denied)
+        case .notDetermined:
+            updateConsentStatus(.notDetermined)
+        @unknown default:
+            updateConsentStatus(.denied)
+        }
     }
 
     private func updateConsentStatus(_ status: ConsentStatus) {

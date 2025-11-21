@@ -35,6 +35,8 @@
         </dict>
         <key>NSLocationWhenInUseUsageDescription</key>
         <string>We use your location to show where your baby's actions were logged on the map.</string>
+        <key>NSUserTrackingUsageDescription</key>
+        <string>Allow tracking to help us understand app usage and improve Nanny &amp; Me.</string>
         <key>NSUserNotificationUsageDescription</key>
         <string>Nanny &amp; Me uses notifications to remind you about your baby's care activities.</string>
         <key>NSCameraUsageDescription</key>
