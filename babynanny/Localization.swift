@@ -609,6 +609,14 @@ enum L10n {
                 localized: "settings.privacy.trackLocations.premium",
                 defaultValue: "Unlock Premium Access for location tracking."
             )
+            static let hideActionMap = String(
+                localized: "settings.privacy.hideActionMap",
+                defaultValue: "Hide Action Map"
+            )
+            static let hideActionMapDescription = String(
+                localized: "settings.privacy.hideActionMap.description",
+                defaultValue: "Remove the map tab when location tracking is off."
+            )
             static let permissionDenied = String(
                 localized: "settings.privacy.trackLocations.denied",
                 defaultValue: "Location access denied. Tap to open Settings."

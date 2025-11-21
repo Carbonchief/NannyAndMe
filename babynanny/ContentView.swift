@@ -20,6 +20,7 @@ struct ContentView: View {
     @AppStorage("trackActionLocations") private var trackActionLocations = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage("actionLocationPermissionNeedsFix") private var actionLocationPermissionNeedsFix = false
+    @AppStorage(UserDefaultsKey.hideActionMap) private var hideActionMap = false
     @State private var selectedTab: Tab = .home
     @State private var previousTab: Tab = .home
     @State private var tabResetID = UUID()
@@ -39,7 +40,11 @@ struct ContentView: View {
     @State private var shareResponseErrorMessage: String?
 
     private var visibleTabs: [Tab] {
-        return [.home, .reports, .map]
+        var tabs: [Tab] = [.home, .reports]
+        if trackActionLocations || hideActionMap == false {
+            tabs.append(.map)
+        }
+        return tabs
     }
 
     private var isActiveProfileReadOnly: Bool {
@@ -418,6 +423,9 @@ struct ContentView: View {
             }
         }
         .onChange(of: trackActionLocations) { _, _ in
+            ensureSelectionIsVisible(in: visibleTabs)
+        }
+        .onChange(of: hideActionMap) { _, _ in
             ensureSelectionIsVisible(in: visibleTabs)
         }
         .onAppear {
