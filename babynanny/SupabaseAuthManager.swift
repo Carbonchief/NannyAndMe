@@ -13,6 +13,7 @@ final class SupabaseAuthManager: ObservableObject {
     @Published var lastErrorMessage: String?
     @Published var infoMessage: String?
     @Published var isLoading = false
+    @Published var isPasswordChangeRequired = false
 
     private let client: SupabaseClient?
     private let supabaseAnonKey: String?
@@ -28,7 +29,15 @@ final class SupabaseAuthManager: ObservableObject {
     private var lastAuthMethod: String?
     private weak var subscriptionService: RevenueCatSubscriptionService?
     private static let emailVerificationRedirectURL = URL(string: "nannyme://auth/verify")
+    private static let passwordResetRedirectURL = URL(string: "nannyme://auth/reset")
     private static let profilePhotosBucketName = "ProfilePhotos"
+
+    private enum AuthURLFlow: String {
+        case recovery
+        case signup
+        case magiclink
+        case unknown
+    }
 
     enum ProfileShareResult {
         case success
@@ -82,6 +91,66 @@ final class SupabaseAuthManager: ObservableObject {
     func clearMessages() {
         lastErrorMessage = nil
         infoMessage = nil
+    }
+
+    func dismissPasswordChangeRequirement() {
+        isPasswordChangeRequired = false
+    }
+
+    func sendPasswordReset(email: String) async {
+        guard let client else {
+            lastErrorMessage = configurationError
+            return
+        }
+
+        let sanitizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard sanitizedEmail.isEmpty == false else {
+            lastErrorMessage = L10n.Auth.passwordResetMissingEmail
+            return
+        }
+
+        clearMessages()
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            try await client.auth.resetPasswordForEmail(
+                sanitizedEmail,
+                redirectTo: Self.passwordResetRedirectURL
+            )
+            infoMessage = L10n.Auth.passwordResetEmailSent
+        } catch {
+            let message = Self.userFriendlyMessage(from: error)
+            lastErrorMessage = message.isEmpty ? L10n.Auth.passwordResetFailure : message
+        }
+    }
+
+    func changePassword(to newPassword: String) async -> Bool {
+        guard let client else {
+            lastErrorMessage = configurationError
+            return false
+        }
+
+        clearMessages()
+        let sanitizedPassword = newPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard sanitizedPassword.count >= 6 else {
+            lastErrorMessage = L10n.Auth.passwordChangeRequirement
+            return false
+        }
+
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            _ = try await client.auth.update(user: UserAttributes(password: sanitizedPassword))
+            infoMessage = L10n.Auth.passwordChangeSuccess
+            isPasswordChangeRequired = false
+            AnalyticsTracker.capture("password_change_success")
+            return true
+        } catch {
+            lastErrorMessage = Self.userFriendlyMessage(from: error)
+            return false
+        }
     }
 
     func authenticate(email: String, password: String) async -> Bool {
@@ -216,6 +285,7 @@ final class SupabaseAuthManager: ObservableObject {
             currentUserID = nil
             currentAccessToken = nil
             hasSynchronizedCaregiverDataForCurrentSession = false
+            isPasswordChangeRequired = false
             await subscriptionService?.logOutIfNeeded()
             AnalyticsTracker.capture("logout_success")
         } catch {
@@ -334,12 +404,50 @@ final class SupabaseAuthManager: ObservableObject {
     func handleAuthenticationURL(_ url: URL) async {
         guard let client else { return }
         clearMessages()
+        let flowType = Self.authFlowType(from: url)
         do {
             let session = try await client.auth.session(from: url)
             apply(session: session)
+            isPasswordChangeRequired = flowType == .recovery
         } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
+            isPasswordChangeRequired = false
         }
+    }
+
+    private static func authFlowType(from url: URL) -> AuthURLFlow? {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
+
+        var queryParameters: [String: String] = [:]
+
+        if let query = components.query {
+            queryParameters.merge(parameters(from: query)) { _, new in new }
+        }
+
+        if let fragment = components.fragment {
+            queryParameters.merge(parameters(from: fragment)) { _, new in new }
+        }
+
+        if let rawType = queryParameters["type"], let flow = AuthURLFlow(rawValue: rawType) {
+            return flow
+        }
+
+        if components.path.lowercased().contains("reset") {
+            return .recovery
+        }
+
+        return nil
+    }
+
+    private static func parameters(from rawString: String) -> [String: String] {
+        rawString
+            .split(separator: "&")
+            .reduce(into: [String: String]()) { partialResult, pair in
+                let components = pair.split(separator: "=", maxSplits: 1)
+                guard let key = components.first else { return }
+                let value = components.count > 1 ? String(components[1]) : ""
+                partialResult[String(key)] = value.removingPercentEncoding ?? value
+            }
     }
 
     func synchronizeCaregiverAccount(with profiles: [ChildProfile]) async -> CaregiverSnapshot? {
@@ -515,16 +623,15 @@ final class SupabaseAuthManager: ObservableObject {
         records.reserveCapacity(profiles.count)
 
         for profile in profiles {
-            let caregiverResolution = try await resolveCaregiverUpdate(for: profile,
-                                                                       currentCaregiverID: caregiverID,
-                                                                       client: client)
+            let resolvedCaregiverID = try await resolveCaregiverID(for: profile,
+                                                                   currentCaregiverID: caregiverID,
+                                                                   client: client)
             let avatarURL = try await resolveAvatarURL(for: profile,
                                                        caregiverID: caregiverID,
                                                        client: client)
             let shouldClearAvatar = profile.imageData == nil && profile.avatarURL == nil
             let record = BabyProfileRecord(profile: profile,
-                                           caregiverID: caregiverResolution.id,
-                                           shouldEncodeCaregiverID: caregiverResolution.shouldEncodeCaregiverID,
+                                           caregiverID: resolvedCaregiverID,
                                            avatarURL: avatarURL,
                                            shouldClearAvatar: shouldClearAvatar)
             records.append(record)
@@ -533,10 +640,10 @@ final class SupabaseAuthManager: ObservableObject {
         return records
     }
 
-    private func resolveCaregiverUpdate(for profile: ChildProfile,
-                                        currentCaregiverID: UUID,
-                                        client: SupabaseClient) async throws -> (id: UUID, shouldEncodeCaregiverID: Bool) {
-        guard profile.isShared else { return (currentCaregiverID, true) }
+    private func resolveCaregiverID(for profile: ChildProfile,
+                                    currentCaregiverID: UUID,
+                                    client: SupabaseClient) async throws -> UUID {
+        guard profile.isShared else { return currentCaregiverID }
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom(SupabaseDateDecoder.decode)
@@ -552,13 +659,13 @@ final class SupabaseAuthManager: ObservableObject {
                                                                        decoder: decoder,
                                                                        context: "profile-ownership")
 
-        guard let ownershipRecord = records.first else { return (currentCaregiverID, true) }
+        guard let ownershipRecord = records.first else { return currentCaregiverID }
 
         if ownershipRecord.caregiverID != currentCaregiverID {
-            return (ownershipRecord.caregiverID, false)
+            return ownershipRecord.caregiverID
         }
 
-        return (currentCaregiverID, true)
+        return currentCaregiverID
     }
 
     private func resolveAvatarURL(for profile: ChildProfile,
