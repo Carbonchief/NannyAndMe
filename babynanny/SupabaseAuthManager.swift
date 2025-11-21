@@ -1123,19 +1123,49 @@ final class SupabaseAuthManager: ObservableObject {
             return false
         }
 
-        guard ownedProfileIDs.isEmpty == false else { return true }
-
         let identifiers = ownedProfileIDs.map { $0.uuidString.lowercased() }
 
-        do {
-            let response: PostgrestResponse<Void> = try await client.database
-                .from("baby_action")
-                .delete()
-                .in("profile_id", value: identifiers)
-                .execute(options: .init(count: .exact))
-            _ = response.count
-        } catch {
-            recordError(error)
+        if identifiers.isEmpty == false {
+            do {
+                let response: PostgrestResponse<Void> = try await client.database
+                    .from("baby_action")
+                    .delete()
+                    .in("profile_id", value: identifiers)
+                    .execute(options: .init(count: .exact))
+                _ = response.count
+            } catch {
+                recordError(error)
+            }
+
+            guard recordedError == nil else {
+                lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+                return false
+            }
+
+            do {
+                _ = try await client.database
+                    .from("baby_profile_shares")
+                    .delete()
+                    .in("baby_profile_id", value: identifiers)
+                    .execute()
+            } catch {
+                recordError(error)
+            }
+
+            guard recordedError == nil else {
+                lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+                return false
+            }
+
+            do {
+                _ = try await client.database
+                    .from("baby_profiles")
+                    .delete()
+                    .eq("caregiver_id", value: userID.uuidString)
+                    .execute()
+            } catch {
+                recordError(error)
+            }
         }
 
         guard recordedError == nil else {
@@ -1147,7 +1177,7 @@ final class SupabaseAuthManager: ObservableObject {
             _ = try await client.database
                 .from("baby_profile_shares")
                 .delete()
-                .in("baby_profile_id", value: identifiers)
+                .eq("recipient_caregiver_id", value: userID.uuidString)
                 .execute()
         } catch {
             recordError(error)
@@ -1160,9 +1190,9 @@ final class SupabaseAuthManager: ObservableObject {
 
         do {
             _ = try await client.database
-                .from("baby_profiles")
+                .from("caregivers")
                 .delete()
-                .eq("caregiver_id", value: userID.uuidString)
+                .eq("id", value: userID.uuidString)
                 .execute()
         } catch {
             recordError(error)
