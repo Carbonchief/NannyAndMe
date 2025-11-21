@@ -97,6 +97,7 @@ struct SupabaseAuthView: View {
 
     private func performPasswordReset() {
         AnalyticsTracker.capture("password_reset_tap", properties: ["email": sanitizedEmail])
+        focusedField = nil
         authManager.clearMessages()
         let email = sanitizedEmail
         Task { await authManager.sendPasswordReset(email: email) }
