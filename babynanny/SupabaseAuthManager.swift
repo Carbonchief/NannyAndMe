@@ -506,28 +506,7 @@ final class SupabaseAuthManager: ObservableObject {
                                                             client: client,
                                                             shouldEncodeCaregiverID: true)
 
-            guard records.isEmpty == false else { return }
-
-            let existingIDs = try await fetchExistingIdentifiers(records.map(\.id),
-                                                                 in: "baby_profiles",
-                                                                 client: client)
-            let insertRecords = records.filter { existingIDs.contains($0.id) == false }
-            let updateRecords = records.filter { existingIDs.contains($0.id) }
-                .map { $0.withoutCaregiverIDUpdates() }
-
-            if insertRecords.isEmpty == false {
-                _ = try await client.database
-                    .from("baby_profiles")
-                    .insert(insertRecords, returning: .minimal)
-                    .execute()
-            }
-
-            if updateRecords.isEmpty == false {
-                _ = try await client.database
-                    .from("baby_profiles")
-                    .upsert(updateRecords, onConflict: "id", returning: .minimal)
-                    .execute()
-            }
+            try await upsertBabyProfileRecords(records, client: client)
         } catch {
             lastErrorMessage = Self.userFriendlyMessage(from: error)
         }
@@ -623,28 +602,7 @@ final class SupabaseAuthManager: ObservableObject {
                                                        caregiverID: caregiverID,
                                                        client: client,
                                                        shouldEncodeCaregiverID: true)
-        guard records.isEmpty == false else { return }
-
-        let existingIDs = try await fetchExistingIdentifiers(records.map(\.id),
-                                                             in: "baby_profiles",
-                                                             client: client)
-        let insertRecords = records.filter { existingIDs.contains($0.id) == false }
-        let updateRecords = records.filter { existingIDs.contains($0.id) }
-            .map { $0.withoutCaregiverIDUpdates() }
-
-        if insertRecords.isEmpty == false {
-            _ = try await client.database
-                .from("baby_profiles")
-                .insert(insertRecords, returning: .minimal)
-                .execute()
-        }
-
-        if updateRecords.isEmpty == false {
-            _ = try await client.database
-                .from("baby_profiles")
-                .upsert(updateRecords, onConflict: "id", returning: .minimal)
-                .execute()
-        }
+        try await upsertBabyProfileRecords(records, client: client)
     }
 
     private func makeBabyProfileRecords(from profiles: [ChildProfile],
@@ -673,6 +631,47 @@ final class SupabaseAuthManager: ObservableObject {
         }
 
         return records
+    }
+
+    private func upsertBabyProfileRecords(_ records: [BabyProfileRecord],
+                                          client: SupabaseClient) async throws {
+        guard records.isEmpty == false else { return }
+
+        let sanitizedRecords = records.map { $0.withoutCaregiverIDUpdates() }
+
+        do {
+            let existingIDs = try await fetchExistingIdentifiers(records.map(\.id),
+                                                                 in: "baby_profiles",
+                                                                 client: client)
+            let insertRecords = records.filter { existingIDs.contains($0.id) == false }
+            let updateRecords = sanitizedRecords.filter { existingIDs.contains($0.id) }
+
+            try await insertBabyProfileRecords(insertRecords, client: client)
+            try await updateBabyProfileRecords(updateRecords, client: client)
+        } catch {
+            let fallbackRecords = sanitizedRecords
+            try await updateBabyProfileRecords(fallbackRecords, client: client)
+        }
+    }
+
+    private func insertBabyProfileRecords(_ records: [BabyProfileRecord],
+                                          client: SupabaseClient) async throws {
+        guard records.isEmpty == false else { return }
+
+        _ = try await client.database
+            .from("baby_profiles")
+            .insert(records, returning: .minimal)
+            .execute()
+    }
+
+    private func updateBabyProfileRecords(_ records: [BabyProfileRecord],
+                                          client: SupabaseClient) async throws {
+        guard records.isEmpty == false else { return }
+
+        _ = try await client.database
+            .from("baby_profiles")
+            .upsert(records, onConflict: "id", returning: .minimal)
+            .execute()
     }
 
     private func fetchExistingIdentifiers(_ ids: [UUID],
