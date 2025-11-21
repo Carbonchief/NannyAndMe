@@ -853,6 +853,14 @@ enum L10n {
             localized: "auth.divider.or",
             defaultValue: "or"
         )
+        static let forgotPassword = String(
+            localized: "auth.forgotPassword",
+            defaultValue: "Forgot password?"
+        )
+        static let passwordResetEmailSent = String(
+            localized: "auth.info.passwordResetSent",
+            defaultValue: "Password reset email sent. Check your inbox."
+        )
         static let emailConfirmationInfo = String(
             localized: "auth.info.emailConfirmation",
             defaultValue: "Check your email to confirm your account."
@@ -864,6 +872,46 @@ enum L10n {
         static let passwordHint = String(
             localized: "auth.password.hint",
             defaultValue: "Password must be at least 6 characters."
+        )
+        static let passwordChangeTitle = String(
+            localized: "auth.passwordChange.title",
+            defaultValue: "Change password"
+        )
+        static let passwordChangeDescription = String(
+            localized: "auth.passwordChange.description",
+            defaultValue: "Choose a new password to secure your account."
+        )
+        static let passwordChangeNewPassword = String(
+            localized: "auth.passwordChange.newPassword",
+            defaultValue: "New password"
+        )
+        static let passwordChangeConfirmPassword = String(
+            localized: "auth.passwordChange.confirmPassword",
+            defaultValue: "Confirm new password"
+        )
+        static let passwordChangeCTA = String(
+            localized: "auth.passwordChange.submit",
+            defaultValue: "Update password"
+        )
+        static let passwordChangeRequirement = String(
+            localized: "auth.passwordChange.requirement",
+            defaultValue: "Password must be at least 6 characters."
+        )
+        static let passwordChangeMismatch = String(
+            localized: "auth.passwordChange.mismatch",
+            defaultValue: "Passwords do not match."
+        )
+        static let passwordChangeSuccess = String(
+            localized: "auth.passwordChange.success",
+            defaultValue: "Password updated successfully."
+        )
+        static let passwordResetMissingEmail = String(
+            localized: "auth.error.passwordReset.missingEmail",
+            defaultValue: "Enter your email to reset your password."
+        )
+        static let passwordResetFailure = String(
+            localized: "auth.error.passwordReset.failure",
+            defaultValue: "Couldn't send password reset email. Please try again."
         )
         static let appleSignInFailed = String(
             localized: "auth.apple.failure",
