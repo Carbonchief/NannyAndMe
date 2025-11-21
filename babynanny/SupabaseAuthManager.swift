@@ -1071,13 +1071,13 @@ final class SupabaseAuthManager: ObservableObject {
         }
     }
 
-    private func deleteSupabaseUserAccount(accessToken: String) async throws {
+    private func invokeDeleteUserEdgeFunction(accessToken: String) async throws {
         guard let supabaseBaseURL else {
             throw UserDeletionError.missingConfiguration
         }
 
-        var request = URLRequest(url: supabaseBaseURL.appendingPathComponent("auth/v1/user"))
-        request.httpMethod = "DELETE"
+        var request = URLRequest(url: supabaseBaseURL.appendingPathComponent("functions/v1/delete-user"))
+        request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         if let supabaseAnonKey {
             request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
@@ -1089,7 +1089,7 @@ final class SupabaseAuthManager: ObservableObject {
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
-            logger.error("Unable to delete Supabase user: status \(httpResponse.statusCode)")
+            logger.error("Unable to invoke delete-user edge function: status \(httpResponse.statusCode)")
             throw UserDeletionError.httpStatus(httpResponse.statusCode)
         }
     }
@@ -1266,7 +1266,18 @@ final class SupabaseAuthManager: ObservableObject {
                 }
             }
 
-            try await deleteSupabaseUserAccount(accessToken: accessToken)
+            try await invokeDeleteUserEdgeFunction(accessToken: accessToken)
+        } catch {
+            recordError(error)
+        }
+
+        guard recordedError == nil else {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+            return false
+        }
+
+        do {
+            try await client.auth.signOut()
         } catch {
             recordError(error)
         }
