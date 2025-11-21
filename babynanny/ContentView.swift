@@ -412,13 +412,13 @@ struct ContentView: View {
                     onSelectSettings: {
                         handleMenuSelection { showSettings = true }
                     },
-                    onSelectManageAccount: {
-                        handleMenuSelection { showManageAccount = true }
-                    },
                     onSelectShareData: {
                         handleMenuSelection {
                             shareDataCoordinator.presentShareData()
                         }
+                    },
+                    onSelectManageAccount: {
+                        handleMenuSelection { showManageAccount = true }
                     },
                     onSelectAuthentication: {
                         withAnimation(.easeInOut) {
