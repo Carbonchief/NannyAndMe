@@ -8,7 +8,6 @@
 import RevenueCat
 import SwiftData
 import SwiftUI
-import PostHog
 import UniformTypeIdentifiers
 import UIKit
 import os
@@ -24,17 +23,11 @@ struct babynannyApp: App {
     @StateObject private var authManager: SupabaseAuthManager
     @StateObject private var pushNotificationRegistrar: PushNotificationRegistrar
     @StateObject private var subscriptionService: RevenueCatSubscriptionService
+    @StateObject private var analyticsConsentManager = AnalyticsConsentManager.shared
     @State private var isShowingSplashScreen = true
 
     init() {
-        
-        let POSTHOG_API_KEY = "phc_LnHkvLd42Z0HUUa1DWyq7fGkrDXoXzKO2AuORKfqqwP"
-        let POSTHOG_HOST = "https://eu.i.posthog.com"
-                
-                
-        let config = PostHogConfig(apiKey: POSTHOG_API_KEY, host: POSTHOG_HOST)
-        PostHogSDK.shared.setup(config)
-        
+
         let configuration = Configuration.Builder(withAPIKey: "test_ZOvBHiTttFESXkDpIwmtIaZZQSC")
             .with(storeKitVersion: .storeKit2)
             .build()
@@ -80,6 +73,7 @@ struct babynannyApp: App {
                     .environmentObject(authManager)
                     .environmentObject(LocationManager.shared)
                     .environmentObject(subscriptionService)
+                    .environmentObject(analyticsConsentManager)
                     .onOpenURL { url in
                         if handleDurationActivityURL(url) {
                             return
@@ -107,6 +101,10 @@ struct babynannyApp: App {
             }
             .task {
                 await pushNotificationRegistrar.registerForRemoteNotifications()
+            }
+            .task {
+                await analyticsConsentManager.configureIfAuthorized()
+                await analyticsConsentManager.requestTrackingAuthorizationIfNeeded()
             }
             .modelContainer(appDataStack.modelContainer)
         }

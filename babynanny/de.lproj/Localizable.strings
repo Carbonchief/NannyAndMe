@@ -164,6 +164,13 @@
 "settings.privacy.hideActionMap" = "Aktionskarte ausblenden";
 "settings.privacy.hideActionMap.description" = "Entfernt den Karten-Tab, wenn die Standortverfolgung deaktiviert ist.";
 "settings.privacy.openSettings" = "Einstellungen öffnen";
+"settings.privacy.analyticsDisclosure.title" = "Analyse & Datenschutz";
+"settings.privacy.analyticsDisclosure.summary" = "Erfahre, wie Nanny & Me Analysen nutzt, nachdem du die Tracking-Erlaubnis gegeben hast.";
+"settings.privacy.analyticsDisclosure.headline" = "So nutzen wir Analysen";
+"settings.privacy.analyticsDisclosure.body" = "Wir fragen zuerst nach deiner Erlaubnis, bevor wir Analysen aktivieren. Mit Zustimmung verwenden wir PostHog, um App-Abstürze und die Nutzung von Funktionen zu verstehen und Nanny & Me zu verbessern. Personenbezogene Daten nutzen wir nur bei Anmeldung und erst nach deiner Tracking-Freigabe.";
+"settings.privacy.analyticsDisclosure.status.allowed" = "Analysen sind entsprechend deiner aktuellen App-Tracking-Entscheidung aktiviert.";
+"settings.privacy.analyticsDisclosure.status.denied" = "Analysen sind deaktiviert, weil die Tracking-Erlaubnis abgelehnt wurde.";
+"settings.privacy.analyticsDisclosure.status.pending" = "Wir fragen nach der Tracking-Erlaubnis, damit du über Analysen entscheiden kannst.";
 "settings.about.section" = "Info";
 "settings.about.appVersion" = "App-Version";
 "settings.title" = "Einstellungen";

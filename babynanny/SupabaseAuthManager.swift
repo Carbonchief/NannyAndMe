@@ -318,7 +318,8 @@ final class SupabaseAuthManager: ObservableObject {
         currentAccessToken = session.accessToken
         infoMessage = nil
         hasSynchronizedCaregiverDataForCurrentSession = false
-        if let email = session.user.email {
+        if AnalyticsConsentManager.shared.canTrackIdentifyingData,
+           let email = session.user.email {
             AnalyticsTracker.identifyUser(email: email)
             let method = lastAuthMethod ?? "unknown"
             AnalyticsTracker.capture(

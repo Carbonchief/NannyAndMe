@@ -622,6 +622,34 @@ enum L10n {
                 defaultValue: "Location access denied. Tap to open Settings."
             )
             static let openSettings = String(localized: "settings.privacy.openSettings", defaultValue: "Open Settings")
+            static let analyticsDisclosureTitle = String(
+                localized: "settings.privacy.analyticsDisclosure.title",
+                defaultValue: "Analytics & Privacy"
+            )
+            static let analyticsDisclosureSummary = String(
+                localized: "settings.privacy.analyticsDisclosure.summary",
+                defaultValue: "Learn how Nanny & Me uses analytics after you grant tracking permission."
+            )
+            static let analyticsDisclosureHeadline = String(
+                localized: "settings.privacy.analyticsDisclosure.headline",
+                defaultValue: "How we use analytics"
+            )
+            static let analyticsDisclosureBody = String(
+                localized: "settings.privacy.analyticsDisclosure.body",
+                defaultValue: "We ask for permission before enabling analytics. With consent, we use PostHog to understand app crashes and feature usage so we can improve Nanny & Me. We avoid identifying data unless you sign in and only after you've granted tracking authorization."
+            )
+            static let analyticsConsentStatusAllowed = String(
+                localized: "settings.privacy.analyticsDisclosure.status.allowed",
+                defaultValue: "Analytics are enabled based on your current App Tracking Transparency choice."
+            )
+            static let analyticsConsentStatusDenied = String(
+                localized: "settings.privacy.analyticsDisclosure.status.denied",
+                defaultValue: "Analytics are turned off because tracking permission was declined."
+            )
+            static let analyticsConsentStatusPending = String(
+                localized: "settings.privacy.analyticsDisclosure.status.pending",
+                defaultValue: "We'll ask for tracking permission so you can decide if analytics should be enabled."
+            )
         }
 
         enum Subscription {

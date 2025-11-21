@@ -15,6 +15,7 @@ struct SettingsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var locationManager: LocationManager
     @EnvironmentObject private var subscriptionService: RevenueCatSubscriptionService
+    @EnvironmentObject private var analyticsConsentManager: AnalyticsConsentManager
     @Environment(\.openURL) private var openURL
     @AppStorage("trackActionLocations") private var trackActionLocations = false
     @AppStorage(UserDefaultsKey.hideActionMap) private var hideActionMap = false
@@ -230,6 +231,16 @@ struct SettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+
+            NavigationLink {
+                AnalyticsPrivacyDisclosureView(consentStatus: analyticsConsentManager.consentStatus)
+            } label: {
+                Label(L10n.Settings.Privacy.analyticsDisclosureTitle, systemImage: "hand.raised.fill")
+            }
+
+            Text(L10n.Settings.Privacy.analyticsDisclosureSummary)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -797,6 +808,40 @@ private extension SettingsView {
 
 }
 
+private struct AnalyticsPrivacyDisclosureView: View {
+    let consentStatus: AnalyticsConsentManager.ConsentStatus
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(L10n.Settings.Privacy.analyticsDisclosureHeadline)
+                    .font(.title2)
+                    .bold()
+
+                Text(L10n.Settings.Privacy.analyticsDisclosureBody)
+
+                Text(consentStatusMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .navigationTitle(L10n.Settings.Privacy.analyticsDisclosureTitle)
+    }
+
+    private var consentStatusMessage: String {
+        switch consentStatus {
+        case .authorized:
+            return L10n.Settings.Privacy.analyticsConsentStatusAllowed
+        case .denied:
+            return L10n.Settings.Privacy.analyticsConsentStatusDenied
+        case .notDetermined:
+            return L10n.Settings.Privacy.analyticsConsentStatusPending
+        }
+    }
+}
+
 private enum Layout {
     static let actionReminderRowMinHeight: CGFloat = 148
     static let actionReminderStatusHeight: CGFloat = 60
@@ -809,6 +854,7 @@ private enum Layout {
             .environmentObject(ActionLogStore.previewStore(profiles: [:]))
             .environmentObject(LocationManager.shared)
             .environmentObject(RevenueCatSubscriptionService())
+            .environmentObject(AnalyticsConsentManager.shared)
 
     }
 }

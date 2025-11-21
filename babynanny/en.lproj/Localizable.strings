@@ -164,6 +164,13 @@
 "settings.privacy.hideActionMap" = "Hide Action Map";
 "settings.privacy.hideActionMap.description" = "Remove the map tab when location tracking is off.";
 "settings.privacy.openSettings" = "Open Settings";
+"settings.privacy.analyticsDisclosure.title" = "Analytics & Privacy";
+"settings.privacy.analyticsDisclosure.summary" = "Learn how Nanny & Me uses analytics after you grant tracking permission.";
+"settings.privacy.analyticsDisclosure.headline" = "How we use analytics";
+"settings.privacy.analyticsDisclosure.body" = "We ask for permission before enabling analytics. With consent, we use PostHog to understand app crashes and feature usage so we can improve Nanny & Me. We avoid identifying data unless you sign in and only after you've granted tracking authorization.";
+"settings.privacy.analyticsDisclosure.status.allowed" = "Analytics are enabled based on your current App Tracking Transparency choice.";
+"settings.privacy.analyticsDisclosure.status.denied" = "Analytics are turned off because tracking permission was declined.";
+"settings.privacy.analyticsDisclosure.status.pending" = "We'll ask for tracking permission so you can decide if analytics should be enabled.";
 "settings.about.section" = "About";
 "settings.about.appVersion" = "App Version";
 "settings.title" = "Settings";

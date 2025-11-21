@@ -164,6 +164,13 @@
 "settings.privacy.hideActionMap" = "Ocultar mapa de acciones";
 "settings.privacy.hideActionMap.description" = "Quita la pestaña del mapa cuando el seguimiento de ubicaciones está desactivado.";
 "settings.privacy.openSettings" = "Abrir Ajustes";
+"settings.privacy.analyticsDisclosure.title" = "Analítica y privacidad";
+"settings.privacy.analyticsDisclosure.summary" = "Conoce cómo Nanny & Me usa la analítica después de que otorgues permiso de seguimiento.";
+"settings.privacy.analyticsDisclosure.headline" = "Cómo usamos la analítica";
+"settings.privacy.analyticsDisclosure.body" = "Pedimos tu permiso antes de activar la analítica. Con tu consentimiento, usamos PostHog para entender los fallos de la app y el uso de funciones para mejorar Nanny & Me. Evitamos datos identificables salvo cuando inicias sesión y solo después de haber autorizado el seguimiento.";
+"settings.privacy.analyticsDisclosure.status.allowed" = "La analítica está activada según tu elección actual de App Tracking Transparency.";
+"settings.privacy.analyticsDisclosure.status.denied" = "La analítica está desactivada porque se rechazó el permiso de seguimiento.";
+"settings.privacy.analyticsDisclosure.status.pending" = "Te pediremos permiso de seguimiento para que puedas decidir si habilitar la analítica.";
 "settings.about.section" = "Acerca de";
 "settings.about.appVersion" = "Versión de la app";
 "settings.title" = "Configuración";
