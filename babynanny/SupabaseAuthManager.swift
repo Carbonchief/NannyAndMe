@@ -64,6 +64,17 @@ final class SupabaseAuthManager: ObservableObject {
         var errorDescription: String? { message }
     }
 
+    enum UserDeletionError: LocalizedError {
+        case missingConfiguration
+        case missingSessionToken
+        case invalidResponse
+        case httpStatus(Int)
+
+        var errorDescription: String? {
+            L10n.ManageAccount.deleteFailureMessage
+        }
+    }
+
     init() {
         do {
             let configuration = try SupabaseConfiguration.loadFromBundle()
@@ -1060,6 +1071,29 @@ final class SupabaseAuthManager: ObservableObject {
         }
     }
 
+    private func deleteSupabaseUserAccount(accessToken: String) async throws {
+        guard let supabaseBaseURL else {
+            throw UserDeletionError.missingConfiguration
+        }
+
+        var request = URLRequest(url: supabaseBaseURL.appendingPathComponent("auth/v1/user"))
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        if let supabaseAnonKey {
+            request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+        }
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw UserDeletionError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            logger.error("Unable to delete Supabase user: status \(httpResponse.statusCode)")
+            throw UserDeletionError.httpStatus(httpResponse.statusCode)
+        }
+    }
+
     func deleteOwnedAccountData() async -> Bool {
         guard let client else {
             lastErrorMessage = configurationError
@@ -1213,10 +1247,42 @@ final class SupabaseAuthManager: ObservableObject {
             recordError(error)
         }
 
+        guard recordedError == nil else {
+            lastErrorMessage = Self.userFriendlyMessage(from: recordedError!)
+            return false
+        }
+
+        do {
+            let accessToken: String
+            if let currentAccessToken {
+                accessToken = currentAccessToken
+            } else {
+                do {
+                    let session = try await client.auth.session
+                    accessToken = session.accessToken
+                    currentAccessToken = session.accessToken
+                } catch {
+                    throw UserDeletionError.missingSessionToken
+                }
+            }
+
+            try await deleteSupabaseUserAccount(accessToken: accessToken)
+        } catch {
+            recordError(error)
+        }
+
         if let recordedError {
             lastErrorMessage = Self.userFriendlyMessage(from: recordedError)
             return false
         }
+
+        isAuthenticated = false
+        currentUserEmail = nil
+        currentUserID = nil
+        currentAccessToken = nil
+        hasSynchronizedCaregiverDataForCurrentSession = false
+        isPasswordChangeRequired = false
+        await subscriptionService?.logOutIfNeeded()
 
         return true
     }
