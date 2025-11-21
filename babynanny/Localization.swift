@@ -378,6 +378,11 @@ enum L10n {
             defaultValue: "Stopped"
         )
 
+        static let historyLoggedLabel = String(
+            localized: "home.history.loggedLabel",
+            defaultValue: "Logged"
+        )
+
         static func historyDuration(_ value: String) -> String {
             let format = String(localized: "home.history.duration", defaultValue: "For: %@")
             return String(format: format, locale: Locale.current, value)

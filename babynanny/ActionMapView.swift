@@ -673,6 +673,26 @@ private struct ActionMapActionDetailView: View {
 
     private var detailRows: [DetailRowData] {
         var rows: [DetailRowData] = []
+        if action.category == .diaper {
+            rows.append(
+                DetailRowData(
+                    label: L10n.Home.historyLoggedLabel,
+                    value: formattedDateTime(for: action.startDate)
+                )
+            )
+
+            if let diaperType = action.diaperType {
+                rows.append(
+                    DetailRowData(
+                        label: L10n.Home.diaperTypeSectionTitle,
+                        value: diaperType.title
+                    )
+                )
+            }
+
+            return rows
+        }
+
         rows.append(
             DetailRowData(
                 label: L10n.Home.historyStartedLabel,
@@ -689,27 +709,18 @@ private struct ActionMapActionDetailView: View {
             )
         }
 
-        if action.category != .diaper {
-            rows.append(
-                DetailRowData(
-                    label: L10n.Home.historyDurationLabel,
-                    value: action.durationDescription()
-                )
+        rows.append(
+            DetailRowData(
+                label: L10n.Home.historyDurationLabel,
+                value: action.durationDescription()
             )
-        }
+        )
 
         switch action.category {
         case .sleep:
             break
         case .diaper:
-            if let diaperType = action.diaperType {
-                rows.append(
-                    DetailRowData(
-                        label: L10n.Home.diaperTypeSectionTitle,
-                        value: diaperType.title
-                    )
-                )
-            }
+            break
         case .feeding:
             if let feedingType = action.feedingType {
                 rows.append(

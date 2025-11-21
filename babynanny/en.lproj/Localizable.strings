@@ -104,6 +104,7 @@
 "home.history.stopped" = "Stopped: %@";
 "home.history.startedLabel" = "Started";
 "home.history.stoppedLabel" = "Stopped";
+"home.history.loggedLabel" = "Logged";
 "home.history.duration" = "For: %@";
 "home.history.durationLabel" = "Duration";
 "home.interruptionAlert.title" = "Stop current action?";
