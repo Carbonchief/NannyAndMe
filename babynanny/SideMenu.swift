@@ -89,9 +89,14 @@ struct SideMenu: View {
 
             VStack(alignment: .leading, spacing: 16) {
                 if authManager.isAuthenticated, let email = authManager.currentUserEmail {
-                    Text(L10n.Menu.loggedInAs(email))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L10n.Menu.signedInAccount)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Text(email)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 if authManager.isAuthenticated {

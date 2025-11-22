@@ -848,14 +848,13 @@ enum L10n {
             localized: "menu.authUnavailable",
             defaultValue: "Supabase login unavailable. Check configuration."
         )
+        static let signedInAccount = String(
+            localized: "menu.signedInAccount",
+            defaultValue: "Signed in account:"
+        )
 
         static func version(_ value: String) -> String {
             let format = String(localized: "menu.version", defaultValue: "Version %@")
-            return String(format: format, locale: Locale.current, value)
-        }
-
-        static func loggedInAs(_ value: String) -> String {
-            let format = String(localized: "menu.loggedInAs", defaultValue: "Signed in as %1$@")
             return String(format: format, locale: Locale.current, value)
         }
     }

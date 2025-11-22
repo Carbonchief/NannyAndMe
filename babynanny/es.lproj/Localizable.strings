@@ -188,7 +188,7 @@
 "menu.manageAccount" = "Administrar cuenta";
 "menu.login" = "Iniciar sesión";
 "menu.logout" = "Cerrar sesión";
-"menu.loggedInAs" = "Sesión iniciada como %1$@";
+"menu.signedInAccount" = "Cuenta iniciada:";
 "menu.authUnavailable" = "Inicio de sesión de Supabase no disponible. Revisa la configuración.";
 "menu.version" = "Versión %@";
 

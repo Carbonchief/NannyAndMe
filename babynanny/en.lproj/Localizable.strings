@@ -188,7 +188,7 @@
 "menu.manageAccount" = "Manage Account";
 "menu.login" = "Sign In";
 "menu.logout" = "Sign Out";
-"menu.loggedInAs" = "Signed in as %1$@";
+"menu.signedInAccount" = "Signed in account:";
 "menu.authUnavailable" = "Supabase login unavailable. Check configuration.";
 "menu.version" = "Version %@";
 
