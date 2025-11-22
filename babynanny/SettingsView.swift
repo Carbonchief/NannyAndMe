@@ -290,6 +290,20 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             } else {
                 Button {
+                    Task { await subscriptionService.restorePurchases() }
+                } label: {
+                    if subscriptionService.isRestoringPurchases {
+                        HStack {
+                            ProgressView()
+                            Text(L10n.Settings.Subscription.restoring)
+                        }
+                    } else {
+                        Label(L10n.Settings.Subscription.restoreButton, systemImage: "arrow.clockwise")
+                    }
+                }
+                .disabled(subscriptionService.isRestoringPurchases)
+
+                Button {
                     isPaywallPresented = true
                 } label: {
                     Label(L10n.Settings.Subscription.unlockButton, systemImage: "sparkles")
