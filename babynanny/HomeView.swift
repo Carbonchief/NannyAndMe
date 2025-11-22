@@ -465,24 +465,24 @@ struct HomeView: View {
     private func startAction(for category: BabyActionCategory, configuration: ActionConfiguration) {
         let shouldCaptureLocation = trackActionLocations && locationManager.isAuthorizedForUse
 
-        let start = {
-            actionStore.startAction(for: activeProfileID,
-                                    category: category,
-                                    diaperType: configuration.diaperType,
-                                    feedingType: configuration.feedingType,
-                                    bottleType: configuration.bottleType,
-                                    bottleVolume: configuration.bottleVolume,
-                                    location: nil)
-            ActionHaptics.playLogSuccess()
-        }
+        actionStore.startAction(for: activeProfileID,
+                                category: category,
+                                diaperType: configuration.diaperType,
+                                feedingType: configuration.feedingType,
+                                bottleType: configuration.bottleType,
+                                bottleVolume: configuration.bottleVolume,
+                                location: nil)
+        ActionHaptics.playLogSuccess()
 
-        guard shouldCaptureLocation else {
-            start()
+        guard shouldCaptureLocation,
+              let startedActionID = startedActionIdentifier(for: category) else {
             return
         }
 
-        Task { @MainActor in
-            let capturedLocation = await locationManager.captureCurrentLocation()
+        let profileID = activeProfileID
+        let manager = locationManager
+        Task(priority: .background) { [startedActionID, profileID, category, manager] in
+            let capturedLocation = await manager.captureCurrentLocation()
             let loggedLocation = capturedLocation.map { capture in
                 ActionLogStore.LoggedLocation(
                     latitude: capture.coordinate.latitude,
@@ -491,15 +491,47 @@ struct HomeView: View {
                 )
             }
 
-            actionStore.startAction(for: activeProfileID,
-                                    category: category,
-                                    diaperType: configuration.diaperType,
-                                    feedingType: configuration.feedingType,
-                                    bottleType: configuration.bottleType,
-                                    bottleVolume: configuration.bottleVolume,
-                                    location: loggedLocation)
-            ActionHaptics.playLogSuccess()
+            guard let loggedLocation else { return }
+
+            await MainActor.run { [self] in
+                guard var action = self.actionSnapshot(for: category, id: startedActionID) else {
+                    return
+                }
+
+                action.latitude = loggedLocation.latitude
+                action.longitude = loggedLocation.longitude
+                action.placename = loggedLocation.placename
+                self.actionStore.updateAction(for: profileID, action: action)
+            }
         }
+    }
+
+    @MainActor
+    private func startedActionIdentifier(for category: BabyActionCategory) -> UUID? {
+        if let active = actionStore.state(for: activeProfileID).activeActions[category] {
+            return active.id
+        }
+
+        return actionStore.state(for: activeProfileID)
+            .history
+            .first(where: { $0.category == category })?
+            .id
+    }
+
+    @MainActor
+    private func actionSnapshot(for category: BabyActionCategory, id: UUID) -> BabyActionSnapshot? {
+        if let active = actionStore.state(for: activeProfileID).activeActions[category],
+           active.id == id,
+           active.endDate == nil {
+            return active
+        }
+
+        guard let historyAction = actionStore.state(for: activeProfileID).history.first(where: { $0.id == id }) else {
+            return nil
+        }
+
+        guard historyAction.endDate == nil || category.isInstant else { return nil }
+        return historyAction
     }
 
     private func stopAction(for category: BabyActionCategory) {
