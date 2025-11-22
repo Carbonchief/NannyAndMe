@@ -481,7 +481,7 @@ struct HomeView: View {
 
         let profileID = activeProfileID
         let manager = locationManager
-        Task(priority: .background) { [weak self, startedActionID, profileID, category, manager] in
+        Task(priority: .background) { [startedActionID, profileID, category, manager] in
             let capturedLocation = await manager.captureCurrentLocation()
             let loggedLocation = capturedLocation.map { capture in
                 ActionLogStore.LoggedLocation(
@@ -493,9 +493,8 @@ struct HomeView: View {
 
             guard let loggedLocation else { return }
 
-            await MainActor.run {
-                guard let self,
-                      var action = self.actionSnapshot(for: category, id: startedActionID) else {
+            await MainActor.run { [self] in
+                guard var action = self.actionSnapshot(for: category, id: startedActionID) else {
                     return
                 }
 
