@@ -562,27 +562,27 @@ enum L10n {
         enum NotificationsOptIn {
             static let title = String(
                 localized: "settings.notifications.optIn.title",
-                defaultValue: "Stay on track with reminders"
+                defaultValue: "Stay on track with notifications"
             )
             static let description = String(
                 localized: "settings.notifications.optIn.description",
-                defaultValue: "Turn on notifications so we can gently nudge you to log feedings, diapers, and sleep on time."
+                defaultValue: "Enable notifications to get alerts when caregivers log activities, timely reminders, and helpful nudges so nothing gets missed."
             )
             static let benefitTimely = String(
                 localized: "settings.notifications.optIn.benefit.timely",
-                defaultValue: "Get timely reminders tailored to your baby's routine."
+                defaultValue: "Get notified when caregivers log feedings, diapers, or sleep."
             )
             static let benefitSharing = String(
                 localized: "settings.notifications.optIn.benefit.sharing",
-                defaultValue: "Keep everyone in sync with shared schedules."
+                defaultValue: "Receive timely reminders tailored to your baby's routine."
             )
             static let benefitHistory = String(
                 localized: "settings.notifications.optIn.benefit.history",
-                defaultValue: "Avoid missed logs and keep your history complete."
+                defaultValue: "Helpful nudges keep your history complete."
             )
             static let action = String(
                 localized: "settings.notifications.optIn.action",
-                defaultValue: "Enable reminders"
+                defaultValue: "Enable notifications"
             )
             static let decline = String(
                 localized: "settings.notifications.optIn.decline",
