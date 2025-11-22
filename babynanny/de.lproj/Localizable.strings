@@ -188,7 +188,7 @@
 "menu.manageAccount" = "Konto verwalten";
 "menu.login" = "Anmelden";
 "menu.logout" = "Abmelden";
-"menu.loggedInAs" = "Angemeldet als %1$@";
+"menu.signedInAccount" = "Angemeldetes Konto:";
 "menu.authUnavailable" = "Supabase-Anmeldung nicht verfügbar. Bitte Konfiguration prüfen.";
 "menu.version" = "Version %@";
 
