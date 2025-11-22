@@ -138,7 +138,7 @@
 "profiles.delete.confirmationMessage" = "Dadurch werden %@ und alle zugehörigen Aktivitätsprotokolle entfernt.";
 "profiles.delete.action" = "Profil löschen";
 "settings.notifications.section" = "Benachrichtigungen";
-"settings.notifications.enable" = "Erinnerungen aktivieren";
+"settings.notifications.enable" = "Benachrichtigungen aktivieren";
 "settings.home.section" = "Startseite";
 "settings.home.showRecentActivity" = "Aktuelle Aktivitäten anzeigen";
 "settings.home.haptics.toggle" = "Haptisches Feedback";

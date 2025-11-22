@@ -509,7 +509,7 @@ enum L10n {
 
     enum Settings {
         static let notificationsSection = String(localized: "settings.notifications.section", defaultValue: "Notifications")
-        static let enableReminders = String(localized: "settings.notifications.enable", defaultValue: "Enable reminders")
+        static let enableReminders = String(localized: "settings.notifications.enable", defaultValue: "Enable notifications")
         static let homeSection = String(localized: "settings.home.section", defaultValue: "Home")
         static let showRecentActivity = String(
             localized: "settings.home.showRecentActivity",

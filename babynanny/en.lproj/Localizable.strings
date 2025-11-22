@@ -138,7 +138,7 @@
 "profiles.delete.confirmationMessage" = "This will remove %@ and all associated activity logs.";
 "profiles.delete.action" = "Delete Profile";
 "settings.notifications.section" = "Notifications";
-"settings.notifications.enable" = "Enable reminders";
+"settings.notifications.enable" = "Enable notifications";
 "settings.home.section" = "Home";
 "settings.home.showRecentActivity" = "Show recent activity";
 "settings.home.haptics.toggle" = "Action haptics";

@@ -138,7 +138,7 @@
 "profiles.delete.confirmationMessage" = "Esto eliminará el perfil de %@ y todos los registros de actividad asociados.";
 "profiles.delete.action" = "Eliminar perfil";
 "settings.notifications.section" = "Notificaciones";
-"settings.notifications.enable" = "Activar recordatorios";
+"settings.notifications.enable" = "Activar notificaciones";
 "settings.home.section" = "Inicio";
 "settings.home.showRecentActivity" = "Mostrar actividad reciente";
 "settings.home.haptics.toggle" = "Retroalimentación háptica";
