@@ -239,7 +239,7 @@ struct SettingsView: View {
 
             if trackActionLocations == false {
                 Toggle(isOn: $hideActionMap) {
-                    Label(L10n.Settings.Privacy.hideActionMap, systemImage: "map")
+                    Label(L10n.Settings.Privacy.hideActionMapTitle, systemImage: "map")
                 }
 
                 Text(L10n.Settings.Privacy.hideActionMapDescription)
@@ -860,18 +860,18 @@ private struct NotificationOptInView: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(L10n.Settings.notificationsOptInTitle)
+                    Text(L10n.Settings.NotificationsOptIn.title)
                         .font(.title2)
                         .fontWeight(.semibold)
 
-                    Text(L10n.Settings.notificationsOptInDescription)
+                    Text(L10n.Settings.NotificationsOptIn.description)
                         .foregroundStyle(.secondary)
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
-                    BenefitRow(symbol: "bell.badge.fill", text: L10n.Settings.notificationsOptInBenefitTimely)
-                    BenefitRow(symbol: "person.2.fill", text: L10n.Settings.notificationsOptInBenefitSharing)
-                    BenefitRow(symbol: "list.clipboard.fill", text: L10n.Settings.notificationsOptInBenefitHistory)
+                    BenefitRow(symbol: "bell.badge.fill", text: L10n.Settings.NotificationsOptIn.benefitTimely)
+                    BenefitRow(symbol: "person.2.fill", text: L10n.Settings.NotificationsOptIn.benefitSharing)
+                    BenefitRow(symbol: "list.clipboard.fill", text: L10n.Settings.NotificationsOptIn.benefitHistory)
                 }
 
                 Spacer()
@@ -883,7 +883,7 @@ private struct NotificationOptInView: View {
                                 ProgressView()
                                     .tint(.white)
                             }
-                            Text(L10n.Settings.notificationsOptInAction)
+                            Text(L10n.Settings.NotificationsOptIn.action)
                                 .frame(maxWidth: .infinity)
                         }
                         .padding()
@@ -895,7 +895,7 @@ private struct NotificationOptInView: View {
                     .disabled(isProcessing)
 
                     Button(action: onCancel) {
-                        Text(L10n.Settings.notificationsOptInDecline)
+                        Text(L10n.Settings.NotificationsOptIn.decline)
                             .frame(maxWidth: .infinity)
                     }
                     .disabled(isProcessing)

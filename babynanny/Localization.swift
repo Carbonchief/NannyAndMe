@@ -558,34 +558,37 @@ enum L10n {
             localized: "settings.notifications.permissionDenied.cancel",
             defaultValue: "Not now"
         )
-        static let notificationsOptInTitle = String(
-            localized: "settings.notifications.optIn.title",
-            defaultValue: "Stay on track with reminders"
-        )
-        static let notificationsOptInDescription = String(
-            localized: "settings.notifications.optIn.description",
-            defaultValue: "Turn on notifications so we can gently nudge you to log feedings, diapers, and sleep on time."
-        )
-        static let notificationsOptInBenefitTimely = String(
-            localized: "settings.notifications.optIn.benefit.timely",
-            defaultValue: "Get timely reminders tailored to your baby's routine."
-        )
-        static let notificationsOptInBenefitSharing = String(
-            localized: "settings.notifications.optIn.benefit.sharing",
-            defaultValue: "Keep everyone in sync with shared schedules."
-        )
-        static let notificationsOptInBenefitHistory = String(
-            localized: "settings.notifications.optIn.benefit.history",
-            defaultValue: "Avoid missed logs and keep your history complete."
-        )
-        static let notificationsOptInAction = String(
-            localized: "settings.notifications.optIn.action",
-            defaultValue: "Enable reminders"
-        )
-        static let notificationsOptInDecline = String(
-            localized: "settings.notifications.optIn.decline",
-            defaultValue: "Not now"
-        )
+
+        enum NotificationsOptIn {
+            static let title = String(
+                localized: "settings.notifications.optIn.title",
+                defaultValue: "Stay on track with reminders"
+            )
+            static let description = String(
+                localized: "settings.notifications.optIn.description",
+                defaultValue: "Turn on notifications so we can gently nudge you to log feedings, diapers, and sleep on time."
+            )
+            static let benefitTimely = String(
+                localized: "settings.notifications.optIn.benefit.timely",
+                defaultValue: "Get timely reminders tailored to your baby's routine."
+            )
+            static let benefitSharing = String(
+                localized: "settings.notifications.optIn.benefit.sharing",
+                defaultValue: "Keep everyone in sync with shared schedules."
+            )
+            static let benefitHistory = String(
+                localized: "settings.notifications.optIn.benefit.history",
+                defaultValue: "Avoid missed logs and keep your history complete."
+            )
+            static let action = String(
+                localized: "settings.notifications.optIn.action",
+                defaultValue: "Enable reminders"
+            )
+            static let decline = String(
+                localized: "settings.notifications.optIn.decline",
+                defaultValue: "Not now"
+            )
+        }
 
         static func nextReminderScheduled(_ date: String, _ detail: String) -> String {
             let format = String(
@@ -638,6 +641,10 @@ enum L10n {
                 defaultValue: "Unlock Premium Access for location tracking."
             )
             static let hideActionMap = String(
+                localized: "settings.privacy.hideActionMap",
+                defaultValue: "Hide Action Map"
+            )
+            static let hideActionMapTitle = String(
                 localized: "settings.privacy.hideActionMap",
                 defaultValue: "Hide Action Map"
             )
