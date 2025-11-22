@@ -80,6 +80,7 @@ struct babynannyApp: App {
                     .environmentObject(authManager)
                     .environmentObject(LocationManager.shared)
                     .environmentObject(subscriptionService)
+                    .environmentObject(pushNotificationRegistrar)
                     .onOpenURL { url in
                         if handleDurationActivityURL(url) {
                             return
@@ -104,9 +105,6 @@ struct babynannyApp: App {
                         isShowingSplashScreen = false
                     }
                 }
-            }
-            .task {
-                await pushNotificationRegistrar.registerForRemoteNotifications()
             }
             .modelContainer(appDataStack.modelContainer)
         }

@@ -152,6 +152,13 @@
 "settings.notifications.permissionDenied.message" = "Las notificaciones están desactivadas para Nanny & Me. Actívalas en Configuración para recibir recordatorios.";
 "settings.notifications.permissionDenied.action" = "Abrir Configuración";
 "settings.notifications.permissionDenied.cancel" = "Ahora no";
+"settings.notifications.optIn.title" = "Mantente al día con los recordatorios";
+"settings.notifications.optIn.description" = "Activa las notificaciones para que podamos recordarte amablemente registrar tomas, pañales y sueño a tiempo.";
+"settings.notifications.optIn.benefit.timely" = "Recibe recordatorios puntuales adaptados a la rutina de tu bebé.";
+"settings.notifications.optIn.benefit.sharing" = "Mantén a todos sincronizados con horarios compartidos.";
+"settings.notifications.optIn.benefit.history" = "Evita registros perdidos y mantén tu historial completo.";
+"settings.notifications.optIn.action" = "Activar recordatorios";
+"settings.notifications.optIn.decline" = "Ahora no";
 "settings.notifications.actionReminder.title" = "Recordatorios de %@";
 "settings.notifications.actionReminder.frequency.one" = "Cada hora";
 "settings.notifications.actionReminder.frequency.other" = "Cada %lld horas";

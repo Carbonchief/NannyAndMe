@@ -15,6 +15,7 @@ struct SettingsView: View {
     @EnvironmentObject private var profileStore: ProfileStore
     @EnvironmentObject private var locationManager: LocationManager
     @EnvironmentObject private var subscriptionService: RevenueCatSubscriptionService
+    @EnvironmentObject private var pushNotificationRegistrar: PushNotificationRegistrar
     @Environment(\.openURL) private var openURL
     @AppStorage("trackActionLocations") private var trackActionLocations = false
     @AppStorage(UserDefaultsKey.hideActionMap) private var hideActionMap = false
@@ -36,6 +37,8 @@ struct SettingsView: View {
     @State private var pendingLocationUnlock = false
     @State private var pendingAddProfileUnlock = false
     @State private var isCustomerCenterPresented = false
+    @State private var isPresentingNotificationOptIn = false
+    @State private var isProcessingNotificationOptIn = false
     @State private var activeProfileName = ""
     @FocusState private var isProfileNameFocused: Bool
 
@@ -103,6 +106,14 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $isCustomerCenterPresented) {
             CustomerCenterView()
+        }
+        .sheet(isPresented: $isPresentingNotificationOptIn) {
+            NotificationOptInView(
+                isProcessing: isProcessingNotificationOptIn,
+                onEnable: enableRemindersAfterOptIn,
+                onCancel: { isPresentingNotificationOptIn = false }
+            )
+            .presentationDetents([.medium, .large])
         }
         .fullScreenCover(item: $pendingCrop) { crop in
             ImageCropperView(image: crop.image) {
@@ -553,11 +564,40 @@ struct SettingsView: View {
     }
 
     private func handleReminderToggleChange(_ newValue: Bool) {
+        guard newValue == false else {
+            presentNotificationOptInIfNeeded()
+            return
+        }
+
         isUpdatingReminders = true
         Task { @MainActor in
-            let result = await profileStore.setRemindersEnabled(newValue)
+            let result = await profileStore.setRemindersEnabled(false)
             isUpdatingReminders = false
             refreshActionReminderSummaries()
+            if result == .authorizationDenied {
+                activeAlert = .notificationsSettings
+            }
+        }
+    }
+
+    private func presentNotificationOptInIfNeeded() {
+        guard profileStore.activeProfile.remindersEnabled == false else { return }
+        isPresentingNotificationOptIn = true
+    }
+
+    private func enableRemindersAfterOptIn() {
+        isProcessingNotificationOptIn = true
+        isUpdatingReminders = true
+
+        Task { @MainActor in
+            await pushNotificationRegistrar.registerForRemoteNotifications()
+            let result = await profileStore.setRemindersEnabled(true)
+
+            isProcessingNotificationOptIn = false
+            isUpdatingReminders = false
+            refreshActionReminderSummaries()
+            isPresentingNotificationOptIn = false
+
             if result == .authorizationDenied {
                 activeAlert = .notificationsSettings
             }
@@ -797,6 +837,80 @@ private extension SettingsView {
 
 }
 
+private struct NotificationOptInView: View {
+    let isProcessing: Bool
+    let onEnable: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(L10n.Settings.notificationsOptInTitle)
+                        .font(.title2)
+                        .fontWeight(.semibold)
+
+                    Text(L10n.Settings.notificationsOptInDescription)
+                        .foregroundStyle(.secondary)
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    BenefitRow(symbol: "bell.badge.fill", text: L10n.Settings.notificationsOptInBenefitTimely)
+                    BenefitRow(symbol: "person.2.fill", text: L10n.Settings.notificationsOptInBenefitSharing)
+                    BenefitRow(symbol: "list.clipboard.fill", text: L10n.Settings.notificationsOptInBenefitHistory)
+                }
+
+                Spacer()
+
+                VStack(spacing: 12) {
+                    Button(action: onEnable) {
+                        HStack {
+                            if isProcessing {
+                                ProgressView()
+                                    .tint(.white)
+                            }
+                            Text(L10n.Settings.notificationsOptInAction)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.accentColor)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                    .disabled(isProcessing)
+
+                    Button(action: onCancel) {
+                        Text(L10n.Settings.notificationsOptInDecline)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .disabled(isProcessing)
+                }
+            }
+            .padding()
+        }
+    }
+
+    private struct BenefitRow: View {
+        let symbol: String
+        let text: String
+
+        var body: some View {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: symbol)
+                    .foregroundStyle(.accentColor)
+                    .font(.system(size: 16, weight: .semibold))
+
+                Text(text)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
 private enum Layout {
     static let actionReminderRowMinHeight: CGFloat = 148
     static let actionReminderStatusHeight: CGFloat = 60
@@ -809,6 +923,7 @@ private enum Layout {
             .environmentObject(ActionLogStore.previewStore(profiles: [:]))
             .environmentObject(LocationManager.shared)
             .environmentObject(RevenueCatSubscriptionService())
+            .environmentObject(PushNotificationRegistrar(reminderScheduler: UserNotificationReminderScheduler()))
 
     }
 }

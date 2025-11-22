@@ -152,6 +152,13 @@
 "settings.notifications.permissionDenied.message" = "Notifications are currently turned off for Nanny & Me. Enable notifications in Settings to receive reminders.";
 "settings.notifications.permissionDenied.action" = "Open Settings";
 "settings.notifications.permissionDenied.cancel" = "Not now";
+"settings.notifications.optIn.title" = "Stay on track with reminders";
+"settings.notifications.optIn.description" = "Turn on notifications so we can gently nudge you to log feedings, diapers, and sleep on time.";
+"settings.notifications.optIn.benefit.timely" = "Get timely reminders tailored to your baby's routine.";
+"settings.notifications.optIn.benefit.sharing" = "Keep everyone in sync with shared schedules.";
+"settings.notifications.optIn.benefit.history" = "Avoid missed logs and keep your history complete.";
+"settings.notifications.optIn.action" = "Enable reminders";
+"settings.notifications.optIn.decline" = "Not now";
 "settings.notifications.actionReminder.title" = "%@ reminders";
 "settings.notifications.actionReminder.frequency.one" = "Every hour";
 "settings.notifications.actionReminder.frequency.other" = "Every %lld hours";
