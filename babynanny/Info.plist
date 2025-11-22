@@ -39,6 +39,8 @@
         <string>Nanny &amp; Me uses notifications to remind you about your baby's care activities.</string>
         <key>NSCameraUsageDescription</key>
         <string>The camera lets you scan QR codes to share caregiver profiles.</string>
+        <key>NSPhotoLibraryUsageDescription</key>
+        <string>Photo access lets you pick a picture for your baby profiles.</string>
         <key>ITSAppUsesNonExemptEncryption</key>
         <false/>
 </dict>
