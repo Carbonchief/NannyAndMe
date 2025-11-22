@@ -36,20 +36,20 @@ struct SideMenu: View {
                 }) {
                     Label(L10n.Menu.login, systemImage: "person.crop.circle.badge.plus")
                         .font(.headline)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 10)
                 }
-            } else if let email = authManager.currentUserEmail {
-                Text(L10n.Menu.loggedInAs(email))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
             }
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 16) {
                 Button(action: {
                     AnalyticsTracker.capture("menu_all_logs_tap")
                     onSelectAllLogs()
                 }) {
                     Label(L10n.Menu.allLogs, systemImage: "list.bullet.rectangle")
                         .font(.headline)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 10)
                 }
 
                 Button(action: {
@@ -58,6 +58,8 @@ struct SideMenu: View {
                 }) {
                     Label(L10n.Menu.shareData, systemImage: "arrow.up.arrow.down.circle.fill")
                         .font(.headline)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 10)
                 }
 
                 Button(action: {
@@ -66,6 +68,8 @@ struct SideMenu: View {
                 }) {
                     Label(L10n.Menu.settings, systemImage: "gearshape.fill")
                         .font(.headline)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 10)
                 }
 
                 if authManager.isAuthenticated {
@@ -75,13 +79,21 @@ struct SideMenu: View {
                     }) {
                         Label(L10n.Menu.manageAccount, systemImage: "person.crop.circle.badge.minus")
                             .font(.headline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 10)
                     }
                 }
             }
 
             Spacer()
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 16) {
+                if authManager.isAuthenticated, let email = authManager.currentUserEmail {
+                    Text(L10n.Menu.loggedInAs(email))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
                 if authManager.isAuthenticated {
                     Button(role: .destructive) {
                         AnalyticsTracker.capture("logout_tap")
@@ -89,6 +101,8 @@ struct SideMenu: View {
                     } label: {
                         Label(L10n.Menu.logout, systemImage: "rectangle.portrait.and.arrow.right")
                             .font(.headline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 10)
                     }
                 }
 
