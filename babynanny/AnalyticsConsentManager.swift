@@ -1,5 +1,6 @@
 import AppTrackingTransparency
 import Foundation
+import UIKit
 import PostHog
 
 /// Manages App Tracking Transparency consent and defers PostHog setup until permission is granted.
@@ -16,12 +17,28 @@ final class AnalyticsConsentManager: ObservableObject {
     @Published private(set) var consentStatus: ConsentStatus
     private var hasConfiguredPostHog = false
     private let storage = UserDefaults.standard
+    private var appDidBecomeActiveObserver: NSObjectProtocol?
 
     private init() {
         let storedStatus = storage.string(forKey: UserDefaultsKey.analyticsConsentStatus)
         consentStatus = ConsentStatus(rawValue: storedStatus ?? ConsentStatus.notDetermined.rawValue) ?? .notDetermined
 
         setupPostHogIfNeeded()
+
+        appDidBecomeActiveObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { await self.requestTrackingAuthorizationIfNeeded() }
+        }
+    }
+
+    deinit {
+        if let appDidBecomeActiveObserver {
+            NotificationCenter.default.removeObserver(appDidBecomeActiveObserver)
+        }
     }
 
     var isAnalyticsEnabled: Bool { hasConfiguredPostHog }
