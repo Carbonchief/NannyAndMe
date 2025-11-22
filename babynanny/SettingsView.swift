@@ -599,22 +599,22 @@ struct SettingsView: View {
         isPresentingNotificationOptIn = true
     }
 
-    private func enableRemindersAfterOptIn() {
+    private func enableRemindersAfterOptIn() async {
+        guard isProcessingNotificationOptIn == false else { return }
+
         isProcessingNotificationOptIn = true
         isUpdatingReminders = true
 
-        Task { @MainActor in
-            await pushNotificationRegistrar.registerForRemoteNotifications()
-            let result = await profileStore.setRemindersEnabled(true)
+        await pushNotificationRegistrar.registerForRemoteNotifications()
+        let result = await profileStore.setRemindersEnabled(true)
 
-            isProcessingNotificationOptIn = false
-            isUpdatingReminders = false
-            refreshActionReminderSummaries()
-            isPresentingNotificationOptIn = false
+        isProcessingNotificationOptIn = false
+        isUpdatingReminders = false
+        refreshActionReminderSummaries()
+        isPresentingNotificationOptIn = false
 
-            if result == .authorizationDenied {
-                activeAlert = .notificationsSettings
-            }
+        if result == .authorizationDenied {
+            activeAlert = .notificationsSettings
         }
     }
 
@@ -853,7 +853,7 @@ private extension SettingsView {
 
 private struct NotificationOptInView: View {
     let isProcessing: Bool
-    let onEnable: () -> Void
+    let onEnable: () async -> Void
     let onCancel: () -> Void
 
     var body: some View {
@@ -877,7 +877,9 @@ private struct NotificationOptInView: View {
                 Spacer()
 
                 VStack(spacing: 12) {
-                    Button(action: onEnable) {
+                    Button {
+                        Task { await onEnable() }
+                    } label: {
                         HStack {
                             if isProcessing {
                                 ProgressView()
