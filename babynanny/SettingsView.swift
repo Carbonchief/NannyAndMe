@@ -16,6 +16,7 @@ struct SettingsView: View {
     @EnvironmentObject private var locationManager: LocationManager
     @EnvironmentObject private var subscriptionService: RevenueCatSubscriptionService
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("trackActionLocations") private var trackActionLocations = false
     @AppStorage(UserDefaultsKey.hideActionMap) private var hideActionMap = false
     @AppStorage(UserDefaultsKey.actionHapticsEnabled) private var actionHapticsEnabled = true
@@ -70,6 +71,9 @@ struct SettingsView: View {
             refreshActionReminderSummaries()
             activeProfileName = profileStore.activeProfile.name
         }
+        .task {
+            await synchronizeNotificationAuthorizationState()
+        }
         .onChange(of: profileStore.activeProfileID) { _, _ in
             refreshActionReminderSummaries()
             activeProfileName = profileStore.activeProfile.name
@@ -95,6 +99,12 @@ struct SettingsView: View {
             activePhotoRequestID = nil
             selectedPhoto = nil
             isProcessingPhoto = false
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            Task {
+                await synchronizeNotificationAuthorizationState()
+            }
         }
         .sheet(isPresented: $isAddProfilePromptPresented) {
             AddProfilePromptView { name, birthDate, imageData in
@@ -585,6 +595,10 @@ struct SettingsView: View {
                 activeAlert = .notificationsSettings
             }
         }
+    }
+
+    private func synchronizeNotificationAuthorizationState() async {
+        await profileStore.synchronizeReminderAuthorizationState()
     }
 
     private func deleteProfile(_ profile: ChildProfile) {

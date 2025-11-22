@@ -2,6 +2,7 @@ import Foundation
 import os
 import SwiftData
 import SwiftUI
+import UserNotifications
 
 enum ProfileNavigationDirection: Sendable {
     case next
@@ -714,6 +715,32 @@ final class ProfileStore: ObservableObject {
         return result
     }
 
+    func synchronizeReminderAuthorizationState() async {
+        let status = await reminderScheduler.authorizationStatus()
+        guard Self.isNotificationAuthorizationGranted(status) == false else { return }
+        disableRemindersForAllProfiles()
+    }
+
+    private static func isNotificationAuthorizationGranted(_ status: UNAuthorizationStatus) -> Bool {
+        switch status {
+        case .authorized, .provisional, .ephemeral:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func disableRemindersForAllProfiles() {
+        let profileIDs = profiles.filter { $0.remindersEnabled }.map(\.id)
+        guard profileIDs.isEmpty == false else { return }
+
+        for id in profileIDs {
+            updateProfile(withID: id, reason: "profile-reminders-authorization-revoked") { model in
+                model.remindersEnabled = false
+            }
+        }
+    }
+
     func ensureNotificationAuthorization() async -> Bool {
         await reminderScheduler.ensureAuthorization()
     }
@@ -1182,6 +1209,7 @@ private extension ProfileStore {
     @MainActor
     final class PreviewReminderScheduler: ReminderScheduling {
         func ensureAuthorization() async -> Bool { true }
+        func authorizationStatus() async -> UNAuthorizationStatus { .authorized }
         func refreshReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState]) async {}
         func upcomingReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState], reference: Date) async -> [ReminderOverview] {
             let enabledProfiles = profiles.filter { $0.remindersEnabled }

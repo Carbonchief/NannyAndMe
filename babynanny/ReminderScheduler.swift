@@ -45,6 +45,7 @@ private func resumeOnMain<T: Sendable, E: Error & Sendable>(
 @MainActor
 protocol ReminderScheduling: AnyObject {
     func ensureAuthorization() async -> Bool
+    func authorizationStatus() async -> UNAuthorizationStatus
     func refreshReminders(for profiles: [ChildProfile],
                           actionStates: [UUID: ProfileActionState]) async
     func upcomingReminders(for profiles: [ChildProfile],
@@ -225,6 +226,10 @@ final class UserNotificationReminderScheduler: ReminderScheduling {
          calendar: Calendar = .current) {
         self.center = center
         self.calendar = calendar
+    }
+
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await center.authorizationStatus()
     }
 
     func ensureAuthorization() async -> Bool {

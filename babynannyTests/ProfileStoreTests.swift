@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import Testing
+import UserNotifications
 @testable import babynanny
 
 @Suite("Profile Store")
@@ -83,6 +84,21 @@ struct ProfileStoreTests {
         let activeProfile = await store.activeProfile
         #expect(activeProfile.remindersEnabled == false)
         #expect(await scheduler.ensureAuthorizationInvocations == 0)
+    }
+
+    @Test
+    func synchronizeAuthorizationDisablesRemindersWhenSystemSettingIsOff() async throws {
+        let scheduler = MockReminderScheduler(authorizationResult: true, authorizationStatus: .denied)
+        let profileModel = await makeProfile(name: "Khai", remindersEnabled: true)
+        let profileID = profileModel.resolvedProfileID
+        let (store, _) = await makeStore(initialProfiles: [profileModel],
+                                         activeProfileID: profileID,
+                                         reminderScheduler: scheduler)
+
+        await store.synchronizeReminderAuthorizationState()
+
+        let activeProfile = await store.activeProfile
+        #expect(activeProfile.remindersEnabled == false)
     }
 
     @Test
@@ -185,15 +201,21 @@ struct ProfileStoreTests {
     @MainActor
     private final class MockReminderScheduler: ReminderScheduling {
         private var authorizationResult: Bool
+        private let status: UNAuthorizationStatus
         private(set) var ensureAuthorizationInvocations: Int = 0
 
-        init(authorizationResult: Bool) {
+        init(authorizationResult: Bool, authorizationStatus: UNAuthorizationStatus? = nil) {
             self.authorizationResult = authorizationResult
+            self.status = authorizationStatus ?? (authorizationResult ? .authorized : .denied)
         }
 
         func ensureAuthorization() async -> Bool {
             ensureAuthorizationInvocations += 1
             return authorizationResult
+        }
+
+        func authorizationStatus() async -> UNAuthorizationStatus {
+            status
         }
 
         func refreshReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState]) async {}
@@ -208,4 +230,3 @@ struct ProfileStoreTests {
             false
         }
     }
-

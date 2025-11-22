@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import Testing
+import UserNotifications
 @testable import babynanny
 
 @Suite("Action Log Store")
@@ -294,13 +295,19 @@ struct ActionLogStoreTests {
 @MainActor
 private final class MockReminderScheduler: ReminderScheduling {
     private var authorizationResult: Bool
+    private let status: UNAuthorizationStatus
 
-    init(authorizationResult: Bool) {
+    init(authorizationResult: Bool, status: UNAuthorizationStatus? = nil) {
         self.authorizationResult = authorizationResult
+        self.status = status ?? (authorizationResult ? .authorized : .denied)
     }
 
     func ensureAuthorization() async -> Bool {
         authorizationResult
+    }
+
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        status
     }
 
     func refreshReminders(for profiles: [ChildProfile], actionStates: [UUID: ProfileActionState]) async {}
