@@ -912,7 +912,7 @@ private struct NotificationOptInView: View {
         var body: some View {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: symbol)
-                    .foregroundStyle(.accentColor)
+                    .foregroundStyle(Color.accentColor)
                     .font(.system(size: 16, weight: .semibold))
 
                 Text(text)
