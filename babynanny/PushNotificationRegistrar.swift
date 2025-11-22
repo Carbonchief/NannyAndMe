@@ -20,6 +20,10 @@ final class PushNotificationRegistrar: NSObject, ObservableObject {
         center.delegate = self
     }
 
+    var isRegisteredForRemoteNotifications: Bool {
+        application.isRegisteredForRemoteNotifications
+    }
+
     func registerForRemoteNotifications() async {
         let isAuthorized = await reminderScheduler.ensureAuthorization()
         guard isAuthorized else {

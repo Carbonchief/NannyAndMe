@@ -72,13 +72,18 @@ struct SettingsView: View {
         .onAppear {
             refreshActionReminderSummaries()
             activeProfileName = profileStore.activeProfile.name
+            ensureNotificationRegistrationForEnabledReminders()
         }
         .onChange(of: profileStore.activeProfileID) { _, _ in
             refreshActionReminderSummaries()
             activeProfileName = profileStore.activeProfile.name
+            ensureNotificationRegistrationForEnabledReminders()
         }
-        .onChange(of: profileStore.activeProfile.remindersEnabled) { _, _ in
+        .onChange(of: profileStore.activeProfile.remindersEnabled) { _, newValue in
             refreshActionReminderSummaries()
+            if newValue {
+                ensureNotificationRegistrationForEnabledReminders()
+            }
         }
         .onChange(of: profileStore.activeProfile.birthDate) { _, _ in
             refreshActionReminderSummaries()
@@ -560,6 +565,15 @@ struct SettingsView: View {
                 activePhotoRequestID = nil
                 photoLoadingTask = nil
             }
+        }
+    }
+
+    private func ensureNotificationRegistrationForEnabledReminders() {
+        guard profileStore.activeProfile.remindersEnabled else { return }
+        guard pushNotificationRegistrar.isRegisteredForRemoteNotifications == false else { return }
+
+        Task { @MainActor in
+            await pushNotificationRegistrar.registerForRemoteNotifications()
         }
     }
 
